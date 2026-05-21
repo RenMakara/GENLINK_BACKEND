@@ -5,29 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="Refactor package structure for AccountEntityRepository and update related configurations">
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/infrastructure/persistence/auditing/AuditorAwareImpl.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/entity/Role.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/entity/User.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/config/OpenApiConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/entity/BaseEntity.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/exception/ApiException.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/exception/GlobalExceptionHandler.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/exception/NotFoundException.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/exception/UnauthorizedException.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/response/ApiResponse.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/security/CustomUserDetailsService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/security/JwtAuthenticationFilter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/security/JwtProperties.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/security/JwtTokenProvider.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/security/SecurityConfig.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/resources/application-test.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application-dev.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application-dev.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application-prod.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application-prod.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/CampuslinkKhApplicationTests.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/CampuslinkKhApplicationTests.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -50,10 +28,6 @@
       <entry key="edit-panel" value="GPT-5 mini" />
       <entry key="chat-panel" value="GPT-5.2-Codex" />
     </selectedModels>
-  </component>
-  <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="42" />
-    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
@@ -125,7 +99,6 @@
         <option value="Record" />
         <option value="Interface" />
         <option value="com.intellij.jpb.JpaLiquibaseChangeLog" />
-        <option value="Liquibase Changelog" />
       </list>
     </option>
   </component>
@@ -159,65 +132,6 @@
     <commands />
     <urls />
   </component>
-  <component name="NextEditCompletionFeaturesState">
-    <decayedCancelled>
-      <entry key="MS100" value="1.0007001734609453" />
-      <entry key="MS500" value="1.2339058744578502" />
-      <entry key="S2" value="1.6956343452741511" />
-      <entry key="S5" value="1.9320735557087154" />
-      <entry key="S10" value="2.475685415782986" />
-      <entry key="S30" value="4.3344967570654065" />
-      <entry key="S60" value="5.513956394363905" />
-      <entry key="M2" value="6.582562128731726" />
-      <entry key="M5" value="7.846345288159699" />
-      <entry key="M10" value="9.659999164116655" />
-      <entry key="M15" value="12.441940183363066" />
-      <entry key="M30" value="21.65426032625525" />
-      <entry key="H1" value="33.242684297315904" />
-      <entry key="H2" value="42.70041279322606" />
-      <entry key="H4" value="48.78226995557758" />
-      <entry key="D1" value="54.70938175954898" />
-      <entry key="W1" value="55.813354241666715" />
-    </decayedCancelled>
-    <decayedSelected>
-      <entry key="MS100" value="2.123634098199142E-76" />
-      <entry key="MS500" value="7.335267193082345E-16" />
-      <entry key="S2" value="1.645712563155585E-4" />
-      <entry key="S5" value="0.030657842855314556" />
-      <entry key="S10" value="0.17509383958093658" />
-      <entry key="S30" value="0.5624808489452292" />
-      <entry key="S60" value="0.8030641290023179" />
-      <entry key="M2" value="1.099624539973175" />
-      <entry key="M5" value="1.52082476292023" />
-      <entry key="M10" value="1.8916086303883564" />
-      <entry key="M15" value="2.237289072326451" />
-      <entry key="M30" value="3.132006022602626" />
-      <entry key="H1" value="4.137062952483025" />
-      <entry key="H2" value="4.922651303872083" />
-      <entry key="H4" value="5.418441606623766" />
-      <entry key="D1" value="5.896477616030762" />
-      <entry key="W1" value="5.985040474757681" />
-    </decayedSelected>
-    <decayedShown>
-      <entry key="MS100" value="0.9732992383843426" />
-      <entry key="MS500" value="1.2245170813294335" />
-      <entry key="S2" value="1.6914418099478121" />
-      <entry key="S5" value="1.9496240184470106" />
-      <entry key="S10" value="2.5943531770552366" />
-      <entry key="S30" value="4.788691477394618" />
-      <entry key="S60" value="6.226845665228567" />
-      <entry key="M2" value="7.618611467502666" />
-      <entry key="M5" value="9.33312486951841" />
-      <entry key="M10" value="11.532007517707386" />
-      <entry key="M15" value="14.665080992559655" />
-      <entry key="M30" value="24.77804250148124" />
-      <entry key="H1" value="37.37503628340369" />
-      <entry key="H2" value="47.620479205211524" />
-      <entry key="H4" value="54.199347216173415" />
-      <entry key="D1" value="60.60562046776893" />
-      <entry key="W1" value="61.79836028237577" />
-    </decayedShown>
-  </component>
   <component name="ProjectColorInfo">{
   &quot;customColor&quot;: &quot;0800ffff&quot;,
   &quot;associatedIndex&quot;: 4
@@ -229,11 +143,8 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
-    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
-    "Docker.docker.redis: Compose Deployment.executor": "Run",
     "Docker.docker: Compose Deployment.executor": "Run",
     "Gradle.Build Itp-eBanking.executor": "Run",
-    "Gradle.Build campuslink_kh.executor": "Run",
     "Gradle.Build event-driven-for-ebanking.executor": "Run",
     "Gradle.Download Sources.executor": "Run",
     "Gradle.Itp-eBanking:microservices [build].executor": "Run",
@@ -260,7 +171,6 @@
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "Spring Boot.AccountQueryServiceApplication.executor": "Run",
     "Spring Boot.AccountServiceApplication.executor": "Run",
-    "Spring Boot.CampuslinkKhApplication.executor": "Run",
     "Spring Boot.CustomerServiceApplication.executor": "Run",
     "Spring Boot.EurekaserverApplication.executor": "Run",
     "Spring Boot.IamServiceApplication.executor": "Run",
@@ -268,11 +178,11 @@
     "codeWithMe.voiceChat.enabledByDefault": "false",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
     "full.screen.before.presentation.mode": "false",
-    "git-widget-placeholder": "makara",
+    "git-widget-placeholder": "main",
     "ignore.virus.scanning.warn.message": "true",
     "junie.onboarding.icon.badge.shown": "true",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/home/renmakara/Documents/aub/campuslink_kh/campuslink_kh/src/main/java/kh/edu/acleda/campuslink",
+    "last_opened_file_path": "/home/renmakara/Documents/aub/campuslink_kh/campuslink_kh",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -297,14 +207,13 @@
       <recent name="co.istad.makara.account.rest" />
     </key>
     <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink" />
       <recent name="D:\event-driven-for-ebanking\microservices\account-query-service\src\main\resources\db\changelog\data" />
       <recent name="D:\event-driven-for-ebanking\microservices" />
       <recent name="D:\event-driven-for-ebanking\spring-cloud" />
       <recent name="D:\ITP-CSTAD\Itp-eBanking\microservices\account-query-service\src\main\resources\db\changelog\ddl" />
+      <recent name="D:\ITP-CSTAD\Itp-eBanking\microservices\account-query-service\src\main\resources\db\changelog\data" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$" />
       <recent name="D:\event-driven-for-ebanking" />
       <recent name="D:\event-driven-for-ebanking\microservices" />
     </key>
@@ -321,23 +230,37 @@
         <option value="SpringBootApplicationConfigurationType" />
       </set>
     </option>
-    <option name="configurationStatuses">
-      <map>
-        <entry key="SpringBootApplicationConfigurationType">
-          <value>
-            <map>
-              <entry key="CampuslinkKhApplication" value="STOPPED" />
-            </map>
-          </value>
-        </entry>
-      </map>
-    </option>
   </component>
-  <component name="RunManager" selected="Spring Boot.CampuslinkKhApplication">
+  <component name="RunManager" selected="Docker.docker: Compose Deployment">
     <configuration name="Itp-eBanking:spring-cloud:admin-bff [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
         <option name="externalProjectPath" value="$PROJECT_DIR$/spring-cloud/admin-bff" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="build" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+      <method v="2" />
+    </configuration>
+    <configuration name="Itp-eBanking:spring-cloud:front-bff [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/spring-cloud/front-bff" />
         <option name="externalSystemIdString" value="GRADLE" />
         <option name="scriptParameters" />
         <option name="taskDescriptions">
@@ -384,10 +307,74 @@
       <GradleCoverageDisabled>false</GradleCoverageDisabled>
       <method v="2" />
     </configuration>
-    <configuration name="CampuslinkKhApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
-      <module name="campuslink_kh.main" />
+    <configuration name="AccountCommandServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="event-driven-for-ebanking.account-command-service.main" />
       <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
-      <option name="SPRING_BOOT_MAIN_CLASS" value="kh.edu.acleda.campuslink.CampuslinkKhApplication" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.account.command.AccountCommandServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="AccountQueryServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.microservices.account-query-service.main" />
+      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.makara.istad.account.query.AccountQueryServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="AccountServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" temporary="true" nameIsGenerated="true">
+      <module name="campuslink_kh.microservices.account-service.main" />
+      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.account.AccountServiceApplication" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="co.istad.makara.account.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="AdminBffApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.admin-bff.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.ebanking.AdminBffApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="CustomerServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.microservices.customer-service.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.customer.CustomerServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="EurekaserverApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.eurekaserver.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.eurekaserver.EurekaserverApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="FrontBffApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.front-bff.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.ebanking.FrontBffApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="GatewayServerApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.gateway-server.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.gateway_server.GatewayServerApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="IamServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.iam-service.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="istad.makara.identity.IamServiceApplication" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -396,6 +383,20 @@
       <module name="event-driven-for-ebanking.spring-cloud.iam-service.main" />
       <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="istad.makara.identity.IamServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ItpConfigserverApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.itp-configserver.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.itp_configserver.ItpConfigserverApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="PipelineServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.microservices.pipeline-service.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.pipeline.PipelineServiceApplication" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -420,32 +421,30 @@
       </deployment>
       <method v="2" />
     </configuration>
-    <configuration name="docker.redis: Compose Deployment" type="docker-deploy" factoryName="docker-compose.yml" temporary="true" server-name="Docker">
-      <deployment type="docker-compose.yml">
-        <settings>
-          <option name="services">
-            <list>
-              <option value="redis" />
-            </list>
-          </option>
-          <option name="sourceFilePath" value="docker/docker-compose.yml" />
-        </settings>
-      </deployment>
-      <method v="2" />
-    </configuration>
     <list>
-      <item itemvalue="Docker.docker.redis: Compose Deployment" />
       <item itemvalue="Docker.docker: Compose Deployment" />
       <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
       <item itemvalue="Gradle.Itp-eBanking:spring-cloud:admin-bff [build]" />
-      <item itemvalue="Spring Boot.CampuslinkKhApplication" />
+      <item itemvalue="Gradle.Itp-eBanking:spring-cloud:front-bff [build]" />
+      <item itemvalue="Spring Boot.AccountCommandServiceApplication" />
+      <item itemvalue="Spring Boot.ItpConfigserverApplication" />
+      <item itemvalue="Spring Boot.IamServiceApplication" />
+      <item itemvalue="Spring Boot.EurekaserverApplication" />
+      <item itemvalue="Spring Boot.AccountQueryServiceApplication" />
+      <item itemvalue="Spring Boot.AdminBffApplication" />
+      <item itemvalue="Spring Boot.CustomerServiceApplication" />
+      <item itemvalue="Spring Boot.FrontBffApplication" />
+      <item itemvalue="Spring Boot.GatewayServerApplication" />
+      <item itemvalue="Spring Boot.PipelineServiceApplication" />
+      <item itemvalue="Spring Boot.AccountServiceApplication" />
     </list>
     <recent_temporary>
       <list>
         <item itemvalue="Docker.docker: Compose Deployment" />
-        <item itemvalue="Docker.docker.redis: Compose Deployment" />
+        <item itemvalue="Spring Boot.AccountServiceApplication" />
         <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
         <item itemvalue="Gradle.Itp-eBanking:spring-cloud:admin-bff [build]" />
+        <item itemvalue="Gradle.Itp-eBanking:spring-cloud:front-bff [build]" />
       </list>
     </recent_temporary>
   </component>
@@ -503,7 +502,6 @@
       <workItem from="1773502878380" duration="14803000" />
       <workItem from="1779362131220" duration="5585000" />
       <workItem from="1779380463526" duration="5500000" />
-      <workItem from="1779392386910" duration="8282000" />
     </task>
     <task id="LOCAL-00001" summary=".">
       <option name="closed" value="true" />
@@ -708,7 +706,8 @@
     <MESSAGE value="Apply structure Hexagonal architecture to AccountCommandService." />
     <MESSAGE value="Add JPA" />
     <MESSAGE value="Refactor package structure for AccountEntityRepository and update related configurations" />
-    <option name="LAST_COMMIT_MESSAGE" value="Refactor package structure for AccountEntityRepository and update related configurations" />
+    <MESSAGE value="feature(auth): implement user authentication and registration with JWT support" />
+    <option name="LAST_COMMIT_MESSAGE" value="feature(auth): implement user authentication and registration with JWT support" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

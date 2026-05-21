@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - '**'
+
 jobs:
   notify:
     runs-on: ubuntu-latest
@@ -11,30 +12,29 @@ jobs:
     steps:
       - name: Send Telegram Notification
         run: |
-          set -euo pipefail
-          COMMIT_MSG="${{ github.event.head_commit.message }}"
-          REPO="${{ github.repository }}"
-          BRANCH="${{ github.ref_name }}"
-          ACTOR="${{ github.actor }}"
-          URL="${{ github.event.head_commit.url }}"
+          commits=$(jq -r '
+            .commits
+            | .[:20]
+            | to_entries[]
+            | "\(.key + 1). \(.value.url) \(.value.id[0:7]) " +
+              (.value.message | split("\n")[0])
+          ' "$GITHUB_EVENT_PATH")
 
-          MESSAGE=$(cat <<EOF
-          🚀 CampusLink KH Notification! 🚀
-
-          📁 Repo: ${REPO}
-          🌿 Branch: ${BRANCH}
-          👤 Pushed by: ${ACTOR}
-          📝 Commit: ${COMMIT_MSG}
-          🔗 URL: ${URL}
-          EOF
-          )
-
-          THREAD_ARG=()
-          if [ -n "${{ secrets.TELEGRAM_THREAD_ID }}" ]; then
-            THREAD_ARG=( -d message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" )
+          if [ -z "$commits" ]; then
+            echo "No commits found. Skipping."
+            exit 0
           fi
 
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-          -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-          "${THREAD_ARG[@]}" \
-          --data-urlencode text="${MESSAGE}"
+          MESSAGE="🚀 New Push to Repository!
+
+📁 Repo: ${{ github.repository }}
+🌿 Branch: ${{ github.ref_name }}
+👤 Pushed by: ${{ github.actor }}
+  
+  📝 Commits
+  ${commits}"
+  
+  curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+  -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+  -d message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" \
+  --data-urlencode text="${MESSAGE}"
