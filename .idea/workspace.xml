@@ -17,6 +17,9 @@
       <entry key="_D:/event-driven-for-ebanking" value="3AvtgdaEoIT30XJsB3FbCH1N7Rr" />
     </persistenceIdMap>
   </component>
+  <component name="CopilotUserSelectedChatMode">
+    <option name="chatModeId" value="Agent" />
+  </component>
   <component name="CopilotUserSelectedModel">
     <selectedModels>
       <entry key="agent-panel" value="GPT-5.2-Codex" />
