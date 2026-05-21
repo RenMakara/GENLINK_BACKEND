@@ -17,13 +17,13 @@ jobs:
           ACTOR="${{ github.actor }}"
           URL="${{ github.event.head_commit.url }}"
 
-          MESSAGE="[CampusLink KH] Repository Update Notification
+          MESSAGE="🚀 CampusLink KH Notification!
 
-          Repository: ${REPO}
-          Branch: ${BRANCH}
-          Commit Author: ${ACTOR}
-          Commit Message: ${COMMIT_MSG}
-          Commit URL: ${URL}" 
+          📁 Repo: ${REPO}
+          🌿 Branch: ${BRANCH}
+          👤 Pushed by: ${ACTOR}
+          📝 Commit: ${COMMIT_MSG}
+          🔗 ${URL}" :
           
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
           -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
