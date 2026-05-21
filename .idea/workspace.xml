@@ -1,0 +1,760 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="Refactor package structure for AccountEntityRepository and update related configurations" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CopilotPersistence">
+    <persistenceIdMap>
+      <entry key="_/home/renmakara/Documents/aub/campuslink_kh/campuslink_kh" value="3E221yc7sYpMXgWETyzKBGUdI4l" />
+      <entry key="_D:/ITP-CSTAD/Itp-eBanking" value="39rGPXpsOhI2tLGtHgCYQIbkt7h" />
+      <entry key="_D:/event-driven-for-ebanking" value="3AvtgdaEoIT30XJsB3FbCH1N7Rr" />
+    </persistenceIdMap>
+  </component>
+  <component name="CopilotUserSelectedModel">
+    <selectedModels>
+      <entry key="agent-panel" value="GPT-5.2-Codex" />
+      <entry key="edit-panel" value="GPT-5 mini" />
+      <entry key="chat-panel" value="GPT-5.2-Codex" />
+    </selectedModels>
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+    <projectState path="$PROJECT_DIR$/microservices/account-service">
+      <ProjectState />
+    </projectState>
+    <projectState path="$PROJECT_DIR$/microservices/customer-service">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="GRADLE">
+      <state>
+        <task path="$PROJECT_DIR$">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$/microservices">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$/spring-cloud">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$/microservices/customer-service">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$/common">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$/microservices/account-service">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$/microservices/pipeline-service">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$/spring-cloud/gateway-server">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$/spring-cloud/front-bff">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$/spring-cloud/admin-bff">
+          <activation />
+        </task>
+        <task path="$PROJECT_DIR$/account-command-service">
+          <activation />
+        </task>
+        <projects_view>
+          <tree_state>
+            <expand>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="event-driven-for-ebanking" type="f1a62948:ProjectNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="event-driven-for-ebanking" type="f1a62948:ProjectNode" />
+                <item name="account-command-service" type="2d1252cf:ModuleNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="event-driven-for-ebanking" type="f1a62948:ProjectNode" />
+                <item name="account-command-service" type="2d1252cf:ModuleNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+              </path>
+            </expand>
+            <select />
+          </tree_state>
+        </projects_view>
+      </state>
+    </system>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Enum" />
+        <option value="Exception" />
+        <option value="Class" />
+        <option value="Record" />
+        <option value="Interface" />
+        <option value="com.intellij.jpb.JpaLiquibaseChangeLog" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;history&quot;: [
+    {
+      &quot;assignee&quot;: &quot;RenMakara&quot;
+    }
+  ],
+  &quot;lastFilter&quot;: {
+    &quot;assignee&quot;: &quot;RenMakara&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://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@github.com/RenMakara/campuslink_kh.git",
+    "accountId": "07fb8ddc-4af6-4d44-b071-37f1ebf9dc11"
+  }
+}]]></component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="jar://C:/Program Files/Java/jdk-21/lib/src.zip!/java.base/java/net/ConnectException.java" root0="FORCE_HIGHLIGHTING" />
+  </component>
+  <component name="KubernetesApiPersistence">{}</component>
+  <component name="KubernetesApiProvider">{
+  &quot;isMigrated&quot;: true
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;0800ffff&quot;,
+  &quot;associatedIndex&quot;: 4
+}</component>
+  <component name="ProjectId" id="39rGPXpsOhI2tLGtHgCYQIbkt7h" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Gradle.Build Itp-eBanking.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build event-driven-for-ebanking.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Download Sources.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:account-service [buildDependents].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:account-service [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:account-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:pipeline-service [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud:admin-bff [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud:front-bff [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud:gateway-server [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.event-driven-for-ebanking:account-command-service [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.itp-ebanking [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.itp-ebanking [clean].executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
+    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
+    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
+    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;Spring Boot.AccountQueryServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.AccountServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.CustomerServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.EurekaserverApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.IamServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.ItpConfigserverApplication.executor&quot;: &quot;Run&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;full.screen.before.presentation.mode&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/renmakara/Documents/aub/campuslink_kh/campuslink_kh&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;configurable.group.appearance&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;postgresql&quot;
+    ]
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="CreateClassDialog.RecentsKey">
+      <recent name="co.istad.makara.account.rest" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="D:\event-driven-for-ebanking\microservices\account-query-service\src\main\resources\db\changelog\data" />
+      <recent name="D:\event-driven-for-ebanking\microservices" />
+      <recent name="D:\event-driven-for-ebanking\spring-cloud" />
+      <recent name="D:\ITP-CSTAD\Itp-eBanking\microservices\account-query-service\src\main\resources\db\changelog\ddl" />
+      <recent name="D:\ITP-CSTAD\Itp-eBanking\microservices\account-query-service\src\main\resources\db\changelog\data" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\event-driven-for-ebanking" />
+      <recent name="D:\event-driven-for-ebanking\microservices" />
+    </key>
+    <key name="MoveClassesOrPackagesDialog.RECENTS_KEY">
+      <recent name="co.istad.makara.customer.application" />
+    </key>
+  </component>
+  <component name="RunDashboard">
+    <option name="configurationTypes">
+      <set>
+        <option value="KtorApplicationConfigurationType" />
+        <option value="MicronautRunConfigurationType" />
+        <option value="QuarkusRunConfigurationType" />
+        <option value="SpringBootApplicationConfigurationType" />
+      </set>
+    </option>
+    <option name="configurationStatuses">
+      <map>
+        <entry key="SpringBootApplicationConfigurationType">
+          <value>
+            <map>
+              <entry key="AccountQueryServiceApplication" value="FAILED" />
+              <entry key="AccountServiceApplication" value="STOPPED" />
+              <entry key="CustomerServiceApplication" value="STOPPED" />
+              <entry key="EurekaserverApplication" value="STOPPED" />
+              <entry key="IamServiceApplication" value="STOPPED" />
+              <entry key="ItpConfigserverApplication" value="STOPPED" />
+            </map>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="RunManager" selected="Gradle.event-driven-for-ebanking:account-command-service [build]">
+    <configuration name="Itp-eBanking:spring-cloud:admin-bff [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/spring-cloud/admin-bff" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="build" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+      <method v="2" />
+    </configuration>
+    <configuration name="Itp-eBanking:spring-cloud:front-bff [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/spring-cloud/front-bff" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="build" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+      <method v="2" />
+    </configuration>
+    <configuration name="Itp-eBanking:spring-cloud:gateway-server [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/spring-cloud/gateway-server" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="build" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+      <method v="2" />
+    </configuration>
+    <configuration name="event-driven-for-ebanking:account-command-service [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$/account-command-service" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="build" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+      <method v="2" />
+    </configuration>
+    <configuration name="AccountCommandServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="event-driven-for-ebanking.account-command-service.main" />
+      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.account.command.AccountCommandServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="AccountQueryServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.microservices.account-query-service.main" />
+      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.makara.istad.account.query.AccountQueryServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="AccountServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" temporary="true" nameIsGenerated="true">
+      <module name="campuslink_kh.microservices.account-service.main" />
+      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.account.AccountServiceApplication" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="co.istad.makara.account.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="AdminBffApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.admin-bff.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.ebanking.AdminBffApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="CustomerServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.microservices.customer-service.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.customer.CustomerServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="EurekaserverApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.eurekaserver.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.eurekaserver.EurekaserverApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="FrontBffApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.front-bff.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.ebanking.FrontBffApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="GatewayServerApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.gateway-server.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.gateway_server.GatewayServerApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="IamServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.iam-service.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="istad.makara.identity.IamServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="IamServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="event-driven-for-ebanking.spring-cloud.iam-service.main" />
+      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="istad.makara.identity.IamServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ItpConfigserverApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.spring-cloud.itp-configserver.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.itp_configserver.ItpConfigserverApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="PipelineServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.microservices.pipeline-service.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.pipeline.PipelineServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
+      <item itemvalue="Gradle.Itp-eBanking:spring-cloud:admin-bff [build]" />
+      <item itemvalue="Gradle.Itp-eBanking:spring-cloud:front-bff [build]" />
+      <item itemvalue="Gradle.Itp-eBanking:spring-cloud:gateway-server [build]" />
+      <item itemvalue="Spring Boot.AccountCommandServiceApplication" />
+      <item itemvalue="Spring Boot.ItpConfigserverApplication" />
+      <item itemvalue="Spring Boot.IamServiceApplication" />
+      <item itemvalue="Spring Boot.EurekaserverApplication" />
+      <item itemvalue="Spring Boot.AccountQueryServiceApplication" />
+      <item itemvalue="Spring Boot.AdminBffApplication" />
+      <item itemvalue="Spring Boot.CustomerServiceApplication" />
+      <item itemvalue="Spring Boot.FrontBffApplication" />
+      <item itemvalue="Spring Boot.GatewayServerApplication" />
+      <item itemvalue="Spring Boot.PipelineServiceApplication" />
+      <item itemvalue="Spring Boot.AccountServiceApplication" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Spring Boot.AccountServiceApplication" />
+        <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
+        <item itemvalue="Gradle.Itp-eBanking:spring-cloud:admin-bff [build]" />
+        <item itemvalue="Gradle.Itp-eBanking:spring-cloud:front-bff [build]" />
+        <item itemvalue="Gradle.Itp-eBanking:spring-cloud:gateway-server [build]" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-37e91769500f-intellij.indexing.shared.core-IU-261.24374.151" />
+        <option value="bundled-js-predefined-d6986cc7102b-31caf2ab9e3c-JavaScript-IU-261.24374.151" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="" />
+      <created>1771446752438</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1771446752438</updated>
+      <workItem from="1771446753894" duration="378000" />
+      <workItem from="1771447148663" duration="4974000" />
+      <workItem from="1771811320241" duration="2253000" />
+      <workItem from="1771813617038" duration="327000" />
+      <workItem from="1771813957140" duration="5869000" />
+      <workItem from="1771881122471" duration="3769000" />
+      <workItem from="1771922058763" duration="5462000" />
+      <workItem from="1771949170930" duration="16007000" />
+      <workItem from="1771981774730" duration="11715000" />
+      <workItem from="1772033902152" duration="12962000" />
+      <workItem from="1772068546850" duration="13020000" />
+      <workItem from="1772121131210" duration="2635000" />
+      <workItem from="1772130865223" duration="1311000" />
+      <workItem from="1772158743754" duration="1040000" />
+      <workItem from="1772413856786" duration="8050000" />
+      <workItem from="1772501820910" duration="7545000" />
+      <workItem from="1772534469101" duration="10044000" />
+      <workItem from="1772560304718" duration="3487000" />
+      <workItem from="1772587801892" duration="12644000" />
+      <workItem from="1772649952214" duration="120000" />
+      <workItem from="1772674700925" duration="7230000" />
+      <workItem from="1772692758146" duration="6584000" />
+      <workItem from="1772710129332" duration="588000" />
+      <workItem from="1772710762770" duration="2861000" />
+      <workItem from="1772726587550" duration="10694000" />
+      <workItem from="1772759649396" duration="7802000" />
+      <workItem from="1772769462799" duration="1465000" />
+      <workItem from="1772948502723" duration="3685000" />
+      <workItem from="1772952251271" duration="10493000" />
+      <workItem from="1772982601860" duration="10179000" />
+      <workItem from="1773026083296" duration="5492000" />
+      <workItem from="1773032516454" duration="2555000" />
+      <workItem from="1773106360824" duration="3790000" />
+      <workItem from="1773160847474" duration="6072000" />
+      <workItem from="1773484986491" duration="867000" />
+      <workItem from="1773498544478" duration="1443000" />
+      <workItem from="1773502878380" duration="14803000" />
+      <workItem from="1779362131220" duration="5585000" />
+      <workItem from="1779380463526" duration="5031000" />
+    </task>
+    <task id="LOCAL-00001" summary=".">
+      <option name="closed" value="true" />
+      <created>1771815556469</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1771815556469</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Implement CQRS and EventSourcing in CustomerService">
+      <option name="closed" value="true" />
+      <created>1771955200876</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1771955200876</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Implement read database">
+      <option name="closed" value="true" />
+      <created>1771964645166</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1771964645166</updated>
+    </task>
+    <task id="LOCAL-00004" summary="integrate phone number update logic in `CustomerListener`">
+      <option name="closed" value="true" />
+      <created>1772034067431</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1772034067431</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Implement CQRS read-side for CustomerService with pagination">
+      <option name="closed" value="true" />
+      <created>1772047140971</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1772047140971</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Implement snapshot mechanism for CustomerAggregate and add AxonConfig">
+      <option name="closed" value="true" />
+      <created>1772131762572</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1772131762572</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Enhance CustomerService with customer history retrieval, pagination attributes, and initialize customer segments during startup.">
+      <option name="closed" value="true" />
+      <created>1772131811064</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1772131811064</updated>
+    </task>
+    <task id="LOCAL-00008" summary=".">
+      <option name="closed" value="true" />
+      <created>1772131827929</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1772131827929</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Add dead letter queue processing and configuration for customer events">
+      <option name="closed" value="true" />
+      <created>1772542192939</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1772542192939</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Add dead letter queue processing and configuration for customer events">
+      <option name="closed" value="true" />
+      <created>1772542634323</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1772542634323</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Expose endpoint to account service for validate customer">
+      <option name="closed" value="true" />
+      <created>1772590828301</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1772590828301</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Implement account service">
+      <option name="closed" value="true" />
+      <created>1772948777251</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1772948777251</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Deposit amount Implemented">
+      <option name="closed" value="true" />
+      <created>1772956657124</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1772956657124</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Deposit, Withdrawal, and FreezeAccount implement">
+      <option name="closed" value="true" />
+      <created>1772982695715</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1772982695715</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Add db_account_query database creation to initialization script">
+      <option name="closed" value="true" />
+      <created>1773027899080</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1773027899080</updated>
+    </task>
+    <task id="LOCAL-00016" summary="Initialize Account Query Service with essential configurations and database setup using Liquibase">
+      <option name="closed" value="true" />
+      <created>1773034629211</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1773034629211</updated>
+    </task>
+    <task id="LOCAL-00017" summary="IamService added">
+      <option name="closed" value="true" />
+      <created>1773485371834</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1773485371834</updated>
+    </task>
+    <task id="LOCAL-00018" summary="change log for BranchEntity and CustomerEntity in AccountQuerySide">
+      <option name="closed" value="true" />
+      <created>1773524863196</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1773524863197</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Apply structure Hexagonal architecture to AccountCommandService.">
+      <option name="closed" value="true" />
+      <created>1773525186378</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1773525186378</updated>
+    </task>
+    <task id="LOCAL-00020" summary="Add JPA">
+      <option name="closed" value="true" />
+      <created>1773525690823</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1773525690823</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Add JPA">
+      <option name="closed" value="true" />
+      <created>1773525702257</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1773525702257</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Refactor package structure for AccountEntityRepository and update related configurations">
+      <option name="closed" value="true" />
+      <created>1773525823014</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1773525823014</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Implement CQRS and EventSourcing in CustomerService" />
+    <MESSAGE value="Implement read database" />
+    <MESSAGE value="integrate phone number update logic in `CustomerListener`" />
+    <MESSAGE value="Implement CQRS read-side for CustomerService with pagination" />
+    <MESSAGE value="Implement snapshot mechanism for CustomerAggregate and add AxonConfig" />
+    <MESSAGE value="Enhance CustomerService with customer history retrieval, pagination attributes, and initialize customer segments during startup." />
+    <MESSAGE value="." />
+    <MESSAGE value="Add dead letter queue processing and configuration for customer events" />
+    <MESSAGE value="Expose endpoint to account service for validate customer" />
+    <MESSAGE value="Implement account service" />
+    <MESSAGE value="Deposit amount Implemented" />
+    <MESSAGE value="Deposit, Withdrawal, and FreezeAccount implement" />
+    <MESSAGE value="Add db_account_query database creation to initialization script" />
+    <MESSAGE value="Add account query service with database schema and initialization scripts" />
+    <MESSAGE value="Initialize Account Query Service with essential configurations and database setup using Liquibase" />
+    <MESSAGE value="IamService added" />
+    <MESSAGE value="change log for BranchEntity and CustomerEntity in AccountQuerySide" />
+    <MESSAGE value="Apply structure Hexagonal architecture to AccountCommandService." />
+    <MESSAGE value="Add JPA" />
+    <MESSAGE value="Refactor package structure for AccountEntityRepository and update related configurations" />
+    <option name="LAST_COMMIT_MESSAGE" value="Refactor package structure for AccountEntityRepository and update related configurations" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <breakpoint enabled="true" type="java-exception">
+          <properties class="co.istad.makara.common.application.exception.ApplicationException" package="co.istad.makara.common.application.exception" />
+          <option name="timeStamp" value="1" />
+        </breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+  <component name="github-copilot-workspace">
+    <instructionFileLocations>
+      <option value=".github/instructions" />
+    </instructionFileLocations>
+    <promptFileLocations>
+      <option value=".github/prompts" />
+    </promptFileLocations>
+  </component>
+</project>
