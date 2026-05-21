@@ -344,6 +344,14 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="CampuslinkKhApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <module name="campuslink_kh.main" />
+      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="kh.edu.acleda.campuslink.CampuslinkKhApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <configuration name="CustomerServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <module name="campuslink_kh.microservices.customer-service.main" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="co.istad.makara.customer.CustomerServiceApplication" />
@@ -426,6 +434,7 @@
       <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
       <item itemvalue="Gradle.Itp-eBanking:spring-cloud:admin-bff [build]" />
       <item itemvalue="Gradle.Itp-eBanking:spring-cloud:front-bff [build]" />
+      <item itemvalue="Spring Boot.CampuslinkKhApplication" />
       <item itemvalue="Spring Boot.AccountCommandServiceApplication" />
       <item itemvalue="Spring Boot.ItpConfigserverApplication" />
       <item itemvalue="Spring Boot.IamServiceApplication" />

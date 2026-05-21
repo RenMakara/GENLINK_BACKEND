@@ -1,23 +1,42 @@
-name: Telegram Push Notification
-
+name: GitHub Alert
 on:
   push:
     branches:
-      - '**'
+      - "**"
 
 jobs:
-  notify:
+  github-notify:
     runs-on: ubuntu-latest
-
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
     steps:
-      - name: Send Telegram Notification
+      - name: Send Telegram Alert
+        env:
+          GH_ACTOR: ${{ github.actor }}
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_REF_NAME: ${{ github.ref_name }}
         run: |
+          send_telegram() {
+            curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_CHAT_ID}" \
+              -d message_thread_id="${TELEGRAM_THREAD_ID}" \
+              -d parse_mode="HTML" \
+              --data-urlencode text="$1"
+          }
+
           commits=$(jq -r '
             .commits
             | .[:20]
             | to_entries[]
-            | "\(.key + 1). \(.value.url) \(.value.id[0:7]) " +
-              (.value.message | split("\n")[0])
+            | "\(.key + 1). <a href=\"\(.value.url)\">\(.value.id[0:7])</a> " +
+              (.value.message
+                | split("\n")[0]
+                | gsub("&"; "&amp;")
+                | gsub("<"; "&lt;")
+                | gsub(">"; "&gt;")
+              )
           ' "$GITHUB_EVENT_PATH")
 
           if [ -z "$commits" ]; then
@@ -25,16 +44,10 @@ jobs:
             exit 0
           fi
 
-          MESSAGE="🚀 New Push to Repository!
+          msg=$(printf '🚀 <b>New Push!</b>\n\n📁 <b>Repo:</b> %s\n🌿 <b>Branch:</b> %s\n👤 <b>Pushed by:</b> %s\n\n📝 <b>Commits</b>\n%s' \
+            "$GH_REPOSITORY" \
+            "$GH_REF_NAME" \
+            "$GH_ACTOR" \
+            "$commits")
 
-📁 Repo: ${{ github.repository }}
-🌿 Branch: ${{ github.ref_name }}
-👤 Pushed by: ${{ github.actor }}
-  
-  📝 Commits
-  ${commits}"
-  
-  curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-  -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-  -d message_thread_id="${{ secrets.TELEGRAM_THREAD_ID }}" \
-  --data-urlencode text="${MESSAGE}"
+          send_telegram "$msg"
