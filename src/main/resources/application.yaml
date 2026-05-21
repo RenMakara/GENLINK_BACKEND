@@ -1,3 +1,38 @@
 spring:
   application:
     name: campuslink-kh
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:16801/campuslink_db}
+    username: ${DB_USERNAME:campuslink_usr}
+    password: ${DB_PASSWORD:campuslink@168}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        format_sql: true
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  port: 8888
+
+app:
+  security:
+    jwt:
+      issuer: ${JWT_ISSUER:campuslink-kh}
+      secret: ${JWT_SECRET:change-me-change-me-change-me-change-me}
+      access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:60}
+      refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:7}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    org.liquibase: debug

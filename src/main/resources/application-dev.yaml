@@ -1,0 +1,14 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        show_sql: true
+  liquibase:
+    enabled: true
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+
