@@ -1,0 +1,112 @@
+server:
+  port: 20262
+spring:
+  application:
+    name: pipeline
+  profiles:
+    active: dev
+  config:
+    import: optional:configserver:http://localhost:8888
+
+  cloud:
+    function:
+      definition: processProduct;processMessage;processProductDetail;processMessageFromOracle;consumeDbzEvent;captureEnvelope
+    stream:
+      bindings:
+        captureEnvelope-in-0:
+          destination: ITP.CORE_BANKING.RECORD_XML
+          group: envelope-group
+        consumeDbzEvent-in-0:
+          destination: ITP.CORE_BANKING.RECORD_XML
+          group: record-xml-consumer-group
+        consumeDbzEvent-out-0:
+          destination: cleaned-record-xml
+          content-type: application/json
+        processProductDetail-in-0:
+          destination: product-detail
+          group: monitor-group2
+          content-type: application/json
+        processProduct-in-0:
+          destination: test-product # topic_name
+          group: monitor-group # consumer_group_id
+          content-type: application/json
+        processMessage-in-0:
+          destination: test-topic
+        processProductDetail-out-0:
+          destination: processed-product-detail
+          content-type: application/json
+#        processMessageFromOracle-in-0:
+#          destination: topic.DEBEZIUMMKR.RECORD_XML
+#          group: oracle-monitor-group
+#          content-type: application/*+avro
+      kafka:
+        binder:
+          brokers: localhost:29092,localhost:29094,localhost:29096
+          configuration:
+            auto.offset.reset: earliest
+        bindings:
+#          processMessageFromOracle-in-0:
+#            consumer:
+#              configuration:
+#                schema.registry.url: http://localhost:8081
+#                key.deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+#                value.deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+#                specific.avro.reader: false
+          captureEnvelope-in-0:
+            consumer:
+              configuration:
+                schema.registry.url: http://localhost:8081
+                key.deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+                value.deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+                specific.avro.reader: true
+          consumeDbzEvent-in-0:
+            consumer:
+              configuration:
+                schema.registry.url: http://localhost:8081
+                key.deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+                value.deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+                specific.avro.reader: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9090
+      client:
+        provider:
+          itp-standard:
+            issuer-uri: http://localhost:9090 #iam
+        registration:
+          itp-standard:
+            provider: itp-standard
+            client-id: itp-standard
+            client-secret: qwerqwer
+            redirect-uri: http://localhost:9999/login/oauth2/code/itp-standard
+            authorization-grant-type: client_credentials
+
+            scope:
+              - openid # Auto-issue access token
+              - profile # Get profile
+              - email # Get email
+
+# Resilience4j settings
+resilience4j:
+  circuitbreaker:
+    instances:
+      account:
+        sliding-window-size: 10 # Number of requests in a sliding window type
+        failure-rate-threshold: 50 #Percentage,  # If 50% of requests fail, circuit breaker opens
+        permitted-number-of-calls-in-half-open-state: 2 # Request number(២ដង) before switching to the open state
+        wait-duration-in-open-state: 10000 # milliseconds, # Duration for waiting in open state
+
+# Actuator settings
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+
+logging:
+  level:
+    co.istad.makara.pipeline: DEBUG
+

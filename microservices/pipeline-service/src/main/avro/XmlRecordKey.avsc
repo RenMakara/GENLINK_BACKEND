@@ -1,0 +1,12 @@
+{
+  "type": "record",
+  "name": "Key",
+  "namespace": "ITP.CORE_BANKING.RECORD_XML",
+  "fields": [
+    {
+      "name": "RECID",
+      "type": "string"
+    }
+  ],
+  "connect.name": "ITP.CORE_BANKING.RECORD_XML.Key"
+}

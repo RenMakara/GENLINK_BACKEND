@@ -1,0 +1,53 @@
+server:
+  port: 9990
+spring:
+  application:
+    name: front-bff
+  profiles:
+    active: dev
+  config:
+    import: optional:configserver:http://localhost:8888
+  cloud:
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin Access-Control-Request-Headers
+            - SaveSession
+            - TokenRelay=
+          routes:
+            - id: front-bff
+              uri: http://localhost:3001
+              predicates:
+                - Path=/**
+
+
+  #-----------------------------------------------
+  # Why do we need this?
+  # To get the access token from the oauth2 server
+  # ----------------------------------------------
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9090
+      client:
+        provider:
+          itp-front-bff:
+            issuer-uri: http://localhost:9090 #iam
+        registration:
+          itp-front-bff:
+            provider: itp-front-bff
+            client-id: itp-front-bff
+            client-secret: qwerqwer
+            redirect-uri: http://localhost:9990/login/oauth2/code/itp-front-bff
+            authorization-grant-type:
+              - authorization_code
+            scope:
+              - openid # Auto issue access token
+              - profile # Get profile
+              - email # Get email

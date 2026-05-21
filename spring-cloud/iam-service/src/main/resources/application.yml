@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: iamserver
+  datasource:
+    url: jdbc:postgresql://localhost:16850/db_iam
+    username: itpusr
+    password: itp@168
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  security:
+    oauth2:
+      authorizationserver:
+        issuer: http://localhost:9090
+  config:
+    import: optional:configserver:http://localhost:8888
+server:
+  port: 9090
+
+# Logging
+logging.level.org.springframework.security: DEBUG
+logging.level.org.springframework.security.oauth2.server.authorization: TRACE
+logging.level.org.springframework.security.oauth2.server.authorization.oidc.authentication: TRACE

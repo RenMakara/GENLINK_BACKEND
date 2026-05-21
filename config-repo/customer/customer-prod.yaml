@@ -1,0 +1,3 @@
+service:
+  name: Customer Service (Production)
+  version: 1.0-release

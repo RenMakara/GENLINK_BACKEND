@@ -1,0 +1,7 @@
+service:
+  name: Account Service (Production)
+  version: 1.0-release
+
+  secret:
+    weak-password: ${WEAK_PASSWORD}
+    strong-password: ${STRONG_PASSWORD}

@@ -1,0 +1,53 @@
+server:
+  port: 9991
+spring:
+  application:
+    name: admin-bff
+  profiles:
+    active: dev
+  config:
+    import: optional:configserver:http://localhost:8888
+  cloud:
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin Access-Control-Request-Headers
+            - SaveSession
+            - TokenRelay=
+
+          routes:
+            - id: admin-bff
+              uri: http://localhost:3002
+              predicates:
+                - Path=/**
+
+  #-----------------------------------------------
+  # Why do we need this?
+  # To get the access token from the oauth2 server
+  # ----------------------------------------------
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9090
+      client:
+        provider:
+          itp-admin-bff:
+            issuer-uri: http://localhost:9090 #iam
+        registration:
+          itp-admin-bff:
+            provider: itp-admin-bff
+            client-id: itp-admin-bff
+            client-secret: qwerqwer
+            redirect-uri: http://localhost:9991/login/oauth2/code/itp-admin-bff
+            authorization-grant-type:
+              - authorization_code
+            scope:
+              - openid # Auto issue access token
+              - profile # Get profile
+              - email # Get email

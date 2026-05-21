@@ -1,0 +1,125 @@
+server:
+  port: 9999
+spring:
+  application:
+    name: gateway-server
+  profiles:
+    active: dev
+  config:
+    import: optional:configserver:http://localhost:8888
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: qwer
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: false
+              lower-case-service-id: true
+          # Global timeout settings
+          httpclient:
+            connect-timeout: 1000
+            response-timeout: 5s
+
+          routes:
+            - id: pipeline
+              uri: lb://pipeline
+              predicates:
+                - Path=/pipeline-service/**
+              filters:
+                - RewritePath=/pipeline-service/(?<segment>.*), /$\{segment}
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 10
+                    redis-rate-limiter.burstCapacity: 20
+                    redis-rate-limiter.requestedTokens: 1
+#                - name: Retry
+#                  args:
+#                    retries: 3
+#                    statuses: GATEWAY_TIMEOUT
+#                    methods: GET
+#                    backoff:
+#                      firstBackoff: 10ms
+#                      maxBackoff: 50ms
+#                      factor: 2
+#                      basedOnPreviousValue: true
+#                    timeout: 5s
+#                - name: CircuitBreaker
+#                  args:
+#                    name: pipelineCircuitBreaker
+#                    fallbackUri: forward:/fallback/pipeline-service/client/account/secured
+#                    statusCodes:
+#                      - 500
+#                      - 404
+
+            - id: account
+              uri: lb://account
+              predicates:
+                - Path=/account/**
+              filters:
+                - RewritePath=/account/(?<segment>.*),/$\{segment}
+                - name: CircuitBreaker
+                  args:
+                    name: accountCircuitBreaker
+                    fallbackUri: forward:/fallback/account
+            - id: customer
+              uri: lb://customer
+              predicates:
+                - Path=/customer/**
+              filters:
+                - RewritePath=/customer/(?<segment>.*),/$\{segment}
+                - name: CircuitBreaker
+                  args:
+                    name: customerCircuitBreaker
+                    fallbackUri: forward:/fallback/customer
+
+
+  #-----------------------------------------------
+  # Why do we need this?
+  # To get the access token from the oauth2 server
+  # ----------------------------------------------
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9090
+      client:
+        provider:
+          itp-standard:
+            issuer-uri: http://localhost:9090 #iam
+        registration:
+          itp-standard:
+            provider: itp-standard
+            client-id: itp-standard
+            client-secret: qwerqwer
+            redirect-uri: http://localhost:9999/login/oauth2/code/itp-standard
+            authorization-grant-type:
+              - authorization_code
+              - client_credentials
+              - refresh_token
+            scope:
+              - openid # Auto-issue access token
+              - profile # Get profile
+              - email # Get email
+# Resilience4j settings
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10 # Number of requests in a sliding window type
+        failure-rate-threshold: 50 #Percentage,  # If 50% of requests fail, circuit breaker opens
+        permitted-number-of-calls-in-half-open-state: 2 # Request number(២ដង) before switching to the open state
+        wait-duration-in-open-state: 10000 # milliseconds, # Duration for waiting in open state
+
+# Actuator settings
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"

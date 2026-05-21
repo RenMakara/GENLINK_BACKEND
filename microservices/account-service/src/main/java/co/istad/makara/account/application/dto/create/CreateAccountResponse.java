@@ -1,0 +1,1 @@
+package co.istad.makara.account.application.dto.create;import lombok.Builder;import java.util.UUID;@Builderpublic record CreateAccountResponse(        String accountId,        String accountNumber,        String accountHolder,        String message) {}
