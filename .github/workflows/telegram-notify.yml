@@ -17,7 +17,7 @@ jobs:
           ACTOR="${{ github.actor }}"
           URL="${{ github.event.head_commit.url }}"
 
-          MESSAGE="🚀 CampusLink KH Notification!
+          MESSAGE="🚀 CampusLink KH Notification! 🚀
 
           📁 Repo: ${REPO}
           🌿 Branch: ${BRANCH}
