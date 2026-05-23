@@ -23,9 +23,11 @@ app:
   security:
     jwt:
       issuer: ${JWT_ISSUER:campuslink-kh}
-      secret: ${JWT_SECRET:change-me-change-me-change-me-change-me}
+      secret: ${JWT_SECRET}
       access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:60}
       refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:7}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:918777530143-dfh4rasbvj82d3ibe5l6gkoc3s1q9p01.apps.googleusercontent.com}
 
 springdoc:
   swagger-ui:

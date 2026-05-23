@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/changes/001-create-users-table.sql
   - include:
       file: db/changelog/changes/002-create-refresh-tokens-table.sql
+  - include:
+      file: db/changelog/changes/003-update-users-google-auth.sql

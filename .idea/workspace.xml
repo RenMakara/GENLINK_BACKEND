@@ -4,9 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feature(auth): implement user authentication and registration with JWT support">
+    <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feat(auth): add CORS configuration and enhance security filter chain">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/security/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/security/SecurityConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/UserServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/UserServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/dto/UserResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/dto/UserResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/entity/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/entity/User.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -31,7 +39,7 @@
     </selectedModels>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="112" />
+    <option name="cachedIndexableFilesCount" value="122" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExternalProjectsData">
@@ -139,23 +147,23 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0" />
-      <entry key="MS500" value="1.0000000000324722" />
-      <entry key="S2" value="1.0037470003517412" />
-      <entry key="S5" value="1.1851175685235884" />
-      <entry key="S10" value="1.8430274681428258" />
-      <entry key="S30" value="4.079693567014774" />
-      <entry key="S60" value="5.562157754344852" />
-      <entry key="M2" value="6.625535962910754" />
-      <entry key="M5" value="7.406877530717478" />
-      <entry key="M10" value="7.695642782902271" />
-      <entry key="M15" value="7.795317379149092" />
-      <entry key="M30" value="7.896758145524424" />
-      <entry key="H1" value="7.948151725858534" />
-      <entry key="H2" value="7.974018747316924" />
-      <entry key="H4" value="7.986995059735478" />
-      <entry key="D1" value="7.997830518931259" />
-      <entry key="W1" value="7.999690025334344" />
+      <entry key="MS100" value="1.9887030092867883" />
+      <entry key="MS500" value="3.380447401837904" />
+      <entry key="S2" value="4.751495030715311" />
+      <entry key="S5" value="7.821066585641385" />
+      <entry key="S10" value="11.449601984998546" />
+      <entry key="S30" value="18.269524738628608" />
+      <entry key="S60" value="22.210893056389352" />
+      <entry key="M2" value="25.100259475316907" />
+      <entry key="M5" value="27.291133973507765" />
+      <entry key="M10" value="28.117924653771617" />
+      <entry key="M15" value="28.40557721828288" />
+      <entry key="M30" value="28.699542635970623" />
+      <entry key="H1" value="28.848948413272105" />
+      <entry key="H2" value="28.924267034602742" />
+      <entry key="H4" value="28.962081542332047" />
+      <entry key="D1" value="28.9936730228079" />
+      <entry key="W1" value="28.99909596874765" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -177,23 +185,23 @@
       <entry key="W1" value="0.0" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9526379980439373" />
-      <entry key="MS500" value="0.9903428719651727" />
-      <entry key="S2" value="1.0013138384751639" />
-      <entry key="S5" value="1.1839307864712927" />
-      <entry key="S10" value="1.841949360765037" />
-      <entry key="S30" value="4.078572284781761" />
-      <entry key="S60" value="5.561304814058735" />
-      <entry key="M2" value="6.624999909796079" />
-      <entry key="M5" value="7.406630196600514" />
-      <entry key="M10" value="7.695512971907664" />
-      <entry key="M15" value="7.795229419973599" />
-      <entry key="M30" value="7.896713442925308" />
-      <entry key="H1" value="7.948129191182963" />
-      <entry key="H2" value="7.974007433803323" />
-      <entry key="H4" value="7.986989391393003" />
-      <entry key="D1" value="7.9978295725948385" />
-      <entry key="W1" value="7.999689890103885" />
+      <entry key="MS100" value="1.8907781815074742" />
+      <entry key="MS500" value="3.347589503538785" />
+      <entry key="S2" value="4.739858829859582" />
+      <entry key="S5" value="7.81270346721179" />
+      <entry key="S10" value="11.441384818574548" />
+      <entry key="S30" value="18.262490978017954" />
+      <entry key="S60" value="22.205992690874645" />
+      <entry key="M2" value="25.097308872997925" />
+      <entry key="M5" value="27.289804599600142" />
+      <entry key="M10" value="28.117232135222483" />
+      <entry key="M15" value="28.405109109948544" />
+      <entry key="M30" value="28.699305303474013" />
+      <entry key="H1" value="28.84882891525266" />
+      <entry key="H2" value="28.924207076104405" />
+      <entry key="H4" value="28.9620515105161" />
+      <entry key="D1" value="28.99366801018771" />
+      <entry key="W1" value="28.999095252479627" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -385,17 +393,12 @@
       <method v="2" />
     </configuration>
     <configuration name="CampuslinkKhApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <envs>
+        <env name="JWT_SECRET" value="7c8e9b2a1f4d6c5b8a9f0e1d2c3b4a5f6e7d8c9b0a1b2c3d4e5f6a7b8c9d0e1f" />
+      </envs>
       <module name="campuslink_kh.main" />
       <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="kh.edu.acleda.campuslink.CampuslinkKhApplication" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="IamServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
-      <module name="event-driven-for-ebanking.spring-cloud.iam-service.main" />
-      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
-      <option name="SPRING_BOOT_MAIN_CLASS" value="istad.makara.identity.IamServiceApplication" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -491,7 +494,11 @@
       <workItem from="1779362131220" duration="5585000" />
       <workItem from="1779380463526" duration="5500000" />
       <workItem from="1779413706292" duration="25000" />
-      <workItem from="1779430292030" duration="344000" />
+      <workItem from="1779430292030" duration="3969000" />
+      <workItem from="1779438823205" duration="5535000" />
+      <workItem from="1779464535237" duration="2402000" />
+      <workItem from="1779526506903" duration="69000" />
+      <workItem from="1779563836613" duration="2102000" />
     </task>
     <task id="LOCAL-00001" summary=".">
       <option name="closed" value="true" />
@@ -669,7 +676,15 @@
       <option name="project" value="LOCAL" />
       <updated>1773525823014</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL-00023" summary="feat(auth): add CORS configuration and enhance security filter chain">
+      <option name="closed" value="true" />
+      <created>1779430653985</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1779430653985</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -697,7 +712,8 @@
     <MESSAGE value="Add JPA" />
     <MESSAGE value="Refactor package structure for AccountEntityRepository and update related configurations" />
     <MESSAGE value="feature(auth): implement user authentication and registration with JWT support" />
-    <option name="LAST_COMMIT_MESSAGE" value="feature(auth): implement user authentication and registration with JWT support" />
+    <MESSAGE value="feat(auth): add CORS configuration and enhance security filter chain" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(auth): add CORS configuration and enhance security filter chain" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
