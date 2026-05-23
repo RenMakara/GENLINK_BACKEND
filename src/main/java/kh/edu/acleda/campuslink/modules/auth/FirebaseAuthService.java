@@ -1,5 +1,6 @@
 package kh.edu.acleda.campuslink.modules.auth;
 
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -11,6 +12,11 @@ import org.springframework.stereotype.Service;
 public class FirebaseAuthService {
 
     public FirebaseToken verifyToken(String idTokenString) {
+        if (FirebaseApp.getApps().isEmpty()) {
+            log.error("Firebase has not been initialized. Check server logs for credential errors.");
+            throw new ApiException("Authentication server is not properly configured (Missing Firebase Credentials).");
+        }
+        
         try {
             return FirebaseAuth.getInstance().verifyIdToken(idTokenString);
         } catch (Exception e) {
