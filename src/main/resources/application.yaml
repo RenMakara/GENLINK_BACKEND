@@ -2,9 +2,9 @@ spring:
   application:
     name: campuslink-kh
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:16801/campuslink_db}
-    username: ${DB_USERNAME:campuslink_usr}
-    password: ${DB_PASSWORD:campuslink@168}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   jpa:
     open-in-view: false
     hibernate:
@@ -23,9 +23,11 @@ app:
   security:
     jwt:
       issuer: ${JWT_ISSUER:campuslink-kh}
-      secret: ${JWT_SECRET:change-me-change-me-change-me-change-me}
+      secret: ${JWT_SECRET}
       access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:60}
       refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:7}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
 
 springdoc:
   swagger-ui:

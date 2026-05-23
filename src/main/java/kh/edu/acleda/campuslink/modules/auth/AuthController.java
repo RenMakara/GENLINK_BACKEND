@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.modules.auth;
 
 import jakarta.validation.Valid;
 import kh.edu.acleda.campuslink.modules.auth.dto.AuthResponse;
+import kh.edu.acleda.campuslink.modules.auth.dto.GoogleLoginRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.LoginRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RegisterRequest;
@@ -29,6 +30,13 @@ public class AuthController {
         log.info("REST request to login user: {}", request.email());
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<ApiResponse<AuthResponse>> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        log.info("REST request to Google login");
+        AuthResponse response = authService.googleLogin(request);
+        return ResponseEntity.ok(ApiResponse.success("Google login successful", response));
     }
 
     @PostMapping("/register")
