@@ -37,6 +37,15 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean active = true;
 
+    @Column
+    private String otpCode;
+
+    @Column
+    private java.time.Instant otpExpiry;
+
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+
     public String getEmail() {
         return email;
     }
@@ -99,5 +108,29 @@ public class User extends BaseEntity {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public String getOtpCode() {
+        return otpCode;
+    }
+
+    public void setOtpCode(String otpCode) {
+        this.otpCode = otpCode;
+    }
+
+    public java.time.Instant getOtpExpiry() {
+        return otpExpiry;
+    }
+
+    public void setOtpExpiry(java.time.Instant otpExpiry) {
+        this.otpExpiry = otpExpiry;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
     }
 }

@@ -5,3 +5,5 @@ databaseChangeLog:
       file: db/changelog/changes/002-create-refresh-tokens-table.sql
   - include:
       file: db/changelog/changes/003-update-users-google-auth.sql
+  - include:
+      file: db/changelog/changes/004-add-user-otp-fields.sql

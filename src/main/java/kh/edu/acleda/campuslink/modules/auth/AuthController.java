@@ -1,18 +1,13 @@
 package kh.edu.acleda.campuslink.modules.auth;
 
 import jakarta.validation.Valid;
-import kh.edu.acleda.campuslink.modules.auth.dto.AuthResponse;
-import kh.edu.acleda.campuslink.modules.auth.dto.GoogleLoginRequest;
-import kh.edu.acleda.campuslink.modules.auth.dto.LoginRequest;
-import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRequest;
-import kh.edu.acleda.campuslink.modules.auth.dto.RegisterRequest;
+import kh.edu.acleda.campuslink.modules.auth.dto.*;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -40,10 +35,25 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<String>> register(@Valid @RequestBody RegisterRequest request) {
         log.info("REST request to register user: {}", request.email());
-        AuthResponse response = authService.register(request);
-        return ResponseEntity.ok(ApiResponse.success("Registration successful", response));
+        authService.register(request);
+        return ResponseEntity.ok(ApiResponse.success("Registration successful. Please check your email for the verification code.", null));
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        log.info("REST request to verify email: {}", request.email());
+        AuthResponse response = authService.verifyEmail(request);
+        return ResponseEntity.ok(ApiResponse.success("Email verified successfully", response));
+    }
+
+    @PostMapping("/resend-otp")
+    public ResponseEntity<ApiResponse<String>> resendOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        log.info("REST request to resend OTP to: {}", email);
+        authService.resendOtp(email);
+        return ResponseEntity.ok(ApiResponse.success("New verification code has been sent to your email.", null));
     }
 
     @PostMapping("/refresh")
@@ -51,5 +61,12 @@ public class AuthController {
         log.info("REST request to refresh token");
         AuthResponse response = authService.refreshToken(request);
         return ResponseEntity.ok(ApiResponse.success("Token refreshed", response));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout() {
+        log.info("REST request to logout");
+        authService.logout();
+        return ResponseEntity.ok(ApiResponse.success("Logout successful", null));
     }
 }

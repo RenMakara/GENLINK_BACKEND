@@ -1,14 +1,13 @@
 package kh.edu.acleda.campuslink.modules.auth;
 
-import kh.edu.acleda.campuslink.modules.auth.dto.AuthResponse;
-import kh.edu.acleda.campuslink.modules.auth.dto.GoogleLoginRequest;
-import kh.edu.acleda.campuslink.modules.auth.dto.LoginRequest;
-import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRequest;
-import kh.edu.acleda.campuslink.modules.auth.dto.RegisterRequest;
+import kh.edu.acleda.campuslink.modules.auth.dto.*;
 
 public interface AuthService {
     AuthResponse login(LoginRequest request);
     AuthResponse googleLogin(GoogleLoginRequest request);
-    AuthResponse register(RegisterRequest request);
+    void register(RegisterRequest request);
+    AuthResponse verifyEmail(VerifyEmailRequest request);
+    void resendOtp(String email);
     AuthResponse refreshToken(RefreshTokenRequest request);
+    void logout();
 }
