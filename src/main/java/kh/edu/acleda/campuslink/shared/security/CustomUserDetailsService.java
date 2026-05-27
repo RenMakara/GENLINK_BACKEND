@@ -23,7 +23,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(username)
             .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
         return new org.springframework.security.core.userdetails.User(
-            user.getEmail(), user.getPasswordHash(), Collections.singleton(user.getRole().asAuthority()));
+            user.getEmail(),
+            user.getPasswordHash() == null ? "" : user.getPasswordHash(),
+            user.isActive(),
+            true,
+            true,
+            true,
+            Collections.singleton(user.getRole().asAuthority()));
     }
 }
-

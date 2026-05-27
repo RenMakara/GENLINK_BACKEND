@@ -7,13 +7,19 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+  liquibase:
+    enabled: false
   flyway:
     enabled: false
+  mail:
+    username: test@campuslink.local
+    password: test-password
 
 app:
-  security:
-    jwt:
-      issuer: campuslink-kh-test
-      secret: test-secret-test-secret-test-secret-test
-      access-token-ttl-minutes: 15
-
+  jwt:
+    issuer: campuslink-kh-test
+    secret: test-secret-test-secret-test-secret-test
+    access-token-expiration-ms: 900000
+    refresh-token-expiration-ms: 604800000
+  google:
+    client-id: test-google-client-id

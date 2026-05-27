@@ -1,6 +1,5 @@
 package kh.edu.acleda.campuslink.shared.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
@@ -9,13 +8,16 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
+    private final String fromEmail;
 
-    @Value("${spring.mail.username:no-reply@campuslinkkh.edu.kh}")
-    private String fromEmail;
+    public EmailServiceImpl(JavaMailSender mailSender,
+                            @Value("${spring.mail.username:no-reply@campuslinkkh.edu.kh}") String fromEmail) {
+        this.mailSender = mailSender;
+        this.fromEmail = fromEmail;
+    }
 
     @Override
     public void sendOtpEmail(String to, String otp) {

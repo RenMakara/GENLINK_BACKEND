@@ -1,7 +1,7 @@
 spring:
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         show_sql: true
@@ -11,4 +11,3 @@ spring:
 logging:
   level:
     org.hibernate.SQL: debug
-

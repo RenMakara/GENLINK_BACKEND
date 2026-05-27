@@ -22,7 +22,7 @@ public class RefreshToken extends BaseEntity {
     private String token;
 
     @Column(nullable = false)
-    private Instant expiryDate;
+    private Instant expiresAt;
 
     @Column(nullable = false)
     private boolean revoked = false;

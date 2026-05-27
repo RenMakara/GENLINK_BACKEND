@@ -1,8 +1,8 @@
--- liquibase formatted sql
+--liquibase formatted sql
 
--- changeset campuslink-dev:1
--- comment: Initial creation of users table
-CREATE TABLE users (
+--changeset campuslink-dev:1
+--comment: Initial creation of users table
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -15,4 +15,4 @@ CREATE TABLE users (
     updated_by VARCHAR(255) NOT NULL
 );
 
--- rollback DROP TABLE users;
+--rollback DROP TABLE IF EXISTS users;

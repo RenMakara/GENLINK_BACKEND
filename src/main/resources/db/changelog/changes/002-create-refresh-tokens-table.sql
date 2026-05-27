@@ -1,8 +1,8 @@
--- liquibase formatted sql
+--liquibase formatted sql
 
--- changeset campuslink-dev:2
--- comment: Create refresh_tokens table for token management
-CREATE TABLE refresh_tokens (
+--changeset campuslink-dev:2
+--comment: Create refresh_tokens table for token management
+CREATE TABLE IF NOT EXISTS refresh_tokens (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL,
     token VARCHAR(500) NOT NULL UNIQUE,
@@ -15,7 +15,7 @@ CREATE TABLE refresh_tokens (
     CONSTRAINT fk_refresh_token_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_refresh_token_user ON refresh_tokens(user_id);
-CREATE INDEX idx_refresh_token_value ON refresh_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_refresh_token_user ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_token_value ON refresh_tokens(token);
 
--- rollback DROP TABLE refresh_tokens;
+--rollback DROP TABLE IF EXISTS refresh_tokens;

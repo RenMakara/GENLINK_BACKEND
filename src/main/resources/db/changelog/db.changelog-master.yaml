@@ -7,3 +7,9 @@ databaseChangeLog:
       file: db/changelog/changes/003-update-users-google-auth.sql
   - include:
       file: db/changelog/changes/004-add-user-otp-fields.sql
+  - include:
+      file: db/changelog/changes/005-v2-schema-updates.sql
+  - include:
+      file: db/changelog/changes/006-align-auth-schema.sql
+  - include:
+      file: db/changelog/changes/007-make-otp-email-legacy-nullable.sql

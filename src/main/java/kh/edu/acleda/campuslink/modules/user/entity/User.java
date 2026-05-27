@@ -20,6 +20,15 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private String fullName;
 
+    @Column(unique = true)
+    private String phone;
+
+    @Column
+    private String university;
+
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+
     @Column
     private String googleId;
 
@@ -34,14 +43,9 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private Role role = Role.USER;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private boolean active = true;
-
-    @Column
-    private String otpCode;
-
-    @Column
-    private java.time.Instant otpExpiry;
+    private UserStatus status = UserStatus.PENDING;
 
     @Column(nullable = false)
     private boolean emailVerified = false;
@@ -68,6 +72,30 @@ public class User extends BaseEntity {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getUniversity() {
+        return university;
+    }
+
+    public void setUniversity(String university) {
+        this.university = university;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
     }
 
     public String getGoogleId() {
@@ -103,27 +131,19 @@ public class User extends BaseEntity {
     }
 
     public boolean isActive() {
-        return active;
+        return status == UserStatus.ACTIVE;
     }
 
     public void setActive(boolean active) {
-        this.active = active;
+        this.status = active ? UserStatus.ACTIVE : UserStatus.PENDING;
     }
 
-    public String getOtpCode() {
-        return otpCode;
+    public UserStatus getStatus() {
+        return status;
     }
 
-    public void setOtpCode(String otpCode) {
-        this.otpCode = otpCode;
-    }
-
-    public java.time.Instant getOtpExpiry() {
-        return otpExpiry;
-    }
-
-    public void setOtpExpiry(java.time.Instant otpExpiry) {
-        this.otpExpiry = otpExpiry;
+    public void setStatus(UserStatus status) {
+        this.status = status;
     }
 
     public boolean isEmailVerified() {

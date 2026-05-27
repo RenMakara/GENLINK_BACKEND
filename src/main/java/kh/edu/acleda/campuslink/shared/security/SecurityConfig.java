@@ -40,8 +40,22 @@ public class SecurityConfig {
             .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/api/v1/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/**")
+                .requestMatchers(
+                    "/api/v1/auth/register",
+                    "/api/v1/auth/login",
+                    "/api/v1/auth/google",
+                    "/api/v1/auth/verify-email",
+                    "/api/v1/auth/verify-otp",
+                    "/api/v1/auth/resend-otp",
+                    "/api/v1/auth/refresh",
+                    "/api/v1/auth/refresh-token",
+                    "/api/v1/auth/forgot-password",
+                    "/api/v1/auth/reset-password",
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**",
+                    "/actuator/health")
                 .permitAll()
+                .requestMatchers("/api/v1/**").authenticated()
                 .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -69,4 +83,3 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
-

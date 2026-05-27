@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.auth;
 
 import kh.edu.acleda.campuslink.modules.auth.dto.*;
+import kh.edu.acleda.campuslink.modules.user.dto.UserResponse;
 
 public interface AuthService {
     AuthResponse login(LoginRequest request);
@@ -8,6 +9,9 @@ public interface AuthService {
     void register(RegisterRequest request);
     AuthResponse verifyEmail(VerifyEmailRequest request);
     void resendOtp(String email);
+    void forgotPassword(ForgotPasswordRequest request);
+    void resetPassword(ResetPasswordRequest request);
     AuthResponse refreshToken(RefreshTokenRequest request);
+    UserResponse getCurrentUser(String email);
     void logout();
 }
