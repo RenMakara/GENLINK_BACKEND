@@ -14,8 +14,11 @@ import java.io.IOException;
 @Configuration
 public class FirebaseConfig {
 
-    @Value("${app.google.project-id:campuslinkkh}")
-    private String projectId;
+    private final String projectId;
+
+    public FirebaseConfig(@Value("${app.google.project-id:campuslinkkh}") String projectId) {
+        this.projectId = projectId;
+    }
 
     @PostConstruct
     public void initialize() {

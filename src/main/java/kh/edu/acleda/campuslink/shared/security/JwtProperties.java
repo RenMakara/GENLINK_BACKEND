@@ -2,13 +2,13 @@ package kh.edu.acleda.campuslink.shared.security;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "app.security.jwt")
+@ConfigurationProperties(prefix = "app.jwt")
 public class JwtProperties {
 
     private String issuer;
     private String secret;
-    private long accessTokenTtlMinutes;
-    private long refreshTokenTtlDays;
+    private long accessTokenExpirationMs;
+    private long refreshTokenExpirationMs;
 
     public String getIssuer() {
         return issuer;
@@ -26,20 +26,19 @@ public class JwtProperties {
         this.secret = secret;
     }
 
-    public long getAccessTokenTtlMinutes() {
-        return accessTokenTtlMinutes;
+    public long getAccessTokenExpirationMs() {
+        return accessTokenExpirationMs;
     }
 
-    public void setAccessTokenTtlMinutes(long accessTokenTtlMinutes) {
-        this.accessTokenTtlMinutes = accessTokenTtlMinutes;
+    public void setAccessTokenExpirationMs(long accessTokenExpirationMs) {
+        this.accessTokenExpirationMs = accessTokenExpirationMs;
     }
 
-    public long getRefreshTokenTtlDays() {
-        return refreshTokenTtlDays;
+    public long getRefreshTokenExpirationMs() {
+        return refreshTokenExpirationMs;
     }
 
-    public void setRefreshTokenTtlDays(long refreshTokenTtlDays) {
-        this.refreshTokenTtlDays = refreshTokenTtlDays;
+    public void setRefreshTokenExpirationMs(long refreshTokenExpirationMs) {
+        this.refreshTokenExpirationMs = refreshTokenExpirationMs;
     }
 }
-

@@ -1,9 +1,11 @@
 databaseChangeLog:
   - include:
-      file: db/changelog/changes/001-create-users-table.sql
+      file: db/changelog/ddl/0001-create-users-table.sql
   - include:
-      file: db/changelog/changes/002-create-refresh-tokens-table.sql
+      file: db/changelog/ddl/0002-create-refresh-tokens-table.sql
   - include:
-      file: db/changelog/changes/003-update-users-google-auth.sql
+      file: db/changelog/ddl/0003-create-social-accounts-table.sql
   - include:
-      file: db/changelog/changes/004-add-user-otp-fields.sql
+      file: db/changelog/ddl/0004-create-otp-verifications-table.sql
+  - include:
+      file: db/changelog/ddl/0005-create-security-audit-logs-table.sql

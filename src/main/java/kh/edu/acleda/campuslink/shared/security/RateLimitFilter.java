@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.shared.security;
 
 import io.github.bucket4j.Bucket;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,9 +16,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimitService rateLimitService;
+    private final ObjectMapper objectMapper;
 
-    public RateLimitFilter(RateLimitService rateLimitService) {
+    public RateLimitFilter(RateLimitService rateLimitService, ObjectMapper objectMapper) {
         this.rateLimitService = rateLimitService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -34,7 +37,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
             if (!bucket.tryConsume(1)) {
                 response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                response.getWriter().write("{ \"status\": \"failure\", \"message\": \"Too many requests. Please try again later.\" }");
+                response.getWriter().write(objectMapper.writeValueAsString(
+                    kh.edu.acleda.campuslink.shared.response.ApiResponse.failure(
+                        "Too many requests. Please try again later.", "RATE_LIMITED")));
                 return;
             }
         }

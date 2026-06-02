@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.shared.security;
 
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
+import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.shared.exception.UnauthorizedException;
 import java.util.Collections;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -23,7 +24,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(username)
             .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
         return new org.springframework.security.core.userdetails.User(
-            user.getEmail(), user.getPasswordHash(), Collections.singleton(user.getRole().asAuthority()));
+            user.getEmail(),
+            user.getPasswordHash() == null ? "" : user.getPasswordHash(),
+            user.getAccountStatus() == AccountStatus.ACTIVE && user.getDeletedAt() == null,
+            true,
+            true,
+            true,
+            Collections.singleton(user.getRole().asAuthority()));
     }
 }
-
