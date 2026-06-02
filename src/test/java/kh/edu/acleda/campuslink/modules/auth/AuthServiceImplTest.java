@@ -2,6 +2,8 @@ package kh.edu.acleda.campuslink.modules.auth;
 
 import kh.edu.acleda.campuslink.modules.auth.dto.LoginRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RegisterRequest;
+import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRequest;
+import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRotation;
 import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
 import kh.edu.acleda.campuslink.modules.auth.repository.SocialAccountRepository;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
@@ -20,6 +22,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
@@ -157,5 +161,44 @@ class AuthServiceImplTest {
             .hasMessageContaining("deleted");
 
         verify(authenticationManager, never()).authenticate(any());
+    }
+
+    @Test
+    void loginDoesNotOverwritePreferredLanguage() {
+        User user = activeUser("active@example.com");
+        user.setPasswordHash("hash");
+        user.setPreferredLanguage(Language.KHMER);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getEmail(), "password123");
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(authenticationManager.authenticate(any())).thenReturn(authentication);
+        when(jwtService.generateAccessToken(authentication)).thenReturn("access-token");
+        when(refreshTokenService.create(user)).thenReturn("refresh-token");
+
+        authService.login(new LoginRequest(user.getEmail(), "password123"));
+
+        assertThat(user.getPreferredLanguage()).isEqualTo(Language.KHMER);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void refreshTokenDoesNotOverwritePreferredLanguage() {
+        User user = activeUser("active@example.com");
+        user.setPreferredLanguage(Language.KHMER);
+        when(refreshTokenService.rotate("old-refresh-token"))
+            .thenReturn(new RefreshTokenRotation(user, "new-refresh-token"));
+        when(jwtService.generateAccessToken(user.getEmail())).thenReturn("new-access-token");
+
+        authService.refreshToken(new RefreshTokenRequest("old-refresh-token"));
+
+        assertThat(user.getPreferredLanguage()).isEqualTo(Language.KHMER);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    private User activeUser(String email) {
+        User user = new User();
+        user.setEmail(email);
+        user.setAccountStatus(AccountStatus.ACTIVE);
+        user.setEmailVerified(true);
+        return user;
     }
 }

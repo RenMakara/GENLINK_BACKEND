@@ -5,26 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feature(auth): implement user authentication and registration with JWT support">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/EmailOtpDeliveryService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/EmailOtpDeliveryService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/dto/RegisterRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/dto/RegisterRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/bff/dto/MobileProfileSummaryResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/bff/dto/MobileProfileSummaryResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/bff/service/MobileProfileBffServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/bff/service/MobileProfileBffServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/profile/ProfileServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/profile/ProfileServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/profile/dto/ProfileResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/profile/dto/ProfileResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/profile/dto/ProfileUpdateRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/profile/dto/ProfileUpdateRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/UserServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/UserServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/dto/UserResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/dto/UserResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/entity/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/user/entity/User.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/security/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/security/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/service/EmailService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/service/EmailService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/service/EmailServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/service/EmailServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/modules/auth/AuthServiceImplTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/modules/auth/AuthServiceImplTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/modules/bff/service/MobileProfileBffServiceImplTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/modules/bff/service/MobileProfileBffServiceImplTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/modules/profile/ProfileServiceImplTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/modules/profile/ProfileServiceImplTest.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -594,7 +575,7 @@
       <workItem from="1780374582251" duration="9000" />
       <workItem from="1780387409281" duration="5525000" />
       <workItem from="1780433891651" duration="447000" />
-      <workItem from="1780434344204" duration="4798000" />
+      <workItem from="1780434344204" duration="5419000" />
     </task>
     <task id="LOCAL-00001" summary=".">
       <option name="closed" value="true" />
