@@ -2,12 +2,14 @@ package kh.edu.acleda.campuslink.modules.auth;
 
 import kh.edu.acleda.campuslink.modules.auth.dto.LoginRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RegisterRequest;
-import kh.edu.acleda.campuslink.modules.auth.entity.OtpType;
+import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
+import kh.edu.acleda.campuslink.modules.auth.repository.SocialAccountRepository;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.UserService;
+import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.AuthProvider;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
-import kh.edu.acleda.campuslink.modules.user.entity.UserStatus;
+import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.security.JwtService;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,8 @@ class AuthServiceImplTest {
     private RefreshTokenService refreshTokenService;
     @Mock
     private OtpService otpService;
+    @Mock
+    private SocialAccountRepository socialAccountRepository;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -55,10 +59,12 @@ class AuthServiceImplTest {
     void registerCreatesPendingUnverifiedLocalUserAndIssuesRegisterOtp() {
         RegisterRequest request = new RegisterRequest(
             "Sophea Chan",
+            "sophea_chan",
             "sophea@example.com",
             "012345678",
             "password123",
-            "ACLEDA University"
+            "ACLEDA University",
+            null
         );
         when(passwordEncoder.encode(request.password())).thenReturn("hashed-password");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -69,13 +75,15 @@ class AuthServiceImplTest {
         verify(userRepository).save(userCaptor.capture());
         User user = userCaptor.getValue();
         assertThat(user.getEmail()).isEqualTo(request.email());
-        assertThat(user.getPhone()).isEqualTo(request.phone());
-        assertThat(user.getUniversity()).isEqualTo(request.university());
+        assertThat(user.getUsername()).isEqualTo(request.username());
+        assertThat(user.getPhoneNumber()).isEqualTo(request.phoneNumber());
+        assertThat(user.getUniversityName()).isEqualTo(request.universityName());
         assertThat(user.getPasswordHash()).isEqualTo("hashed-password");
         assertThat(user.getAuthProvider()).isEqualTo(AuthProvider.LOCAL);
-        assertThat(user.getStatus()).isEqualTo(UserStatus.PENDING);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING);
+        assertThat(user.getWorkStatus()).isEqualTo(WorkStatus.STUDENT);
         assertThat(user.isEmailVerified()).isFalse();
-        verify(otpService).issue(user, OtpType.REGISTER);
+        verify(otpService).issue(user, OtpPurpose.REGISTER);
     }
 
     @Test
@@ -83,7 +91,7 @@ class AuthServiceImplTest {
         User user = new User();
         user.setEmail("pending@example.com");
         user.setPasswordHash("hash");
-        user.setStatus(UserStatus.PENDING);
+        user.setAccountStatus(AccountStatus.PENDING);
         user.setEmailVerified(false);
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
 
@@ -99,13 +107,29 @@ class AuthServiceImplTest {
         User user = new User();
         user.setEmail("banned@example.com");
         user.setPasswordHash("hash");
-        user.setStatus(UserStatus.BANNED);
+        user.setAccountStatus(AccountStatus.BANNED);
         user.setEmailVerified(true);
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> authService.login(new LoginRequest(user.getEmail(), "password123")))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("banned");
+
+        verify(authenticationManager, never()).authenticate(any());
+    }
+
+    @Test
+    void loginRejectsDeletedUserBeforePasswordAuthentication() {
+        User user = new User();
+        user.setEmail("deleted@example.com");
+        user.setPasswordHash("hash");
+        user.setAccountStatus(AccountStatus.DELETED);
+        user.setEmailVerified(true);
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> authService.login(new LoginRequest(user.getEmail(), "password123")))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("deleted");
 
         verify(authenticationManager, never()).authenticate(any());
     }

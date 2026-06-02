@@ -1,0 +1,96 @@
+package kh.edu.acleda.campuslink.modules.profile;
+
+import kh.edu.acleda.campuslink.modules.profile.dto.ProfileUpdateRequest;
+import kh.edu.acleda.campuslink.modules.user.UserRepository;
+import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
+import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
+import kh.edu.acleda.campuslink.shared.exception.ApiException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class ProfileServiceImplTest {
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Test
+    void updateCurrentProfileAllowsEditableFieldsOnly() {
+        ProfileServiceImpl profileService = new ProfileServiceImpl(userRepository);
+        User user = activeUser("student@example.com");
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
+            "Updated Name",
+            "updated_user",
+            "+85512345678",
+            "https://cdn.example.com/avatar.png",
+            "Flutter learner",
+            null,
+            null,
+            "ACLEDA University",
+            WorkStatus.STUDENT,
+            "Phnom Penh"
+        ));
+
+        assertThat(user.getFullName()).isEqualTo("Updated Name");
+        assertThat(user.getUsername()).isEqualTo("updated_user");
+        assertThat(user.getPhoneNumber()).isEqualTo("+85512345678");
+        assertThat(user.getLocation()).isEqualTo("Phnom Penh");
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
+        assertThat(user.getTotalXp()).isZero();
+        assertThat(user.getLevel()).isEqualTo(1);
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void updateCurrentProfileRejectsDuplicateUsername() {
+        ProfileServiceImpl profileService = new ProfileServiceImpl(userRepository);
+        User user = activeUser("student@example.com");
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.existsByUsername("taken")).thenReturn(true);
+
+        assertThatThrownBy(() -> profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
+            null, "taken", null, null, null, null, null, null, null, null
+        )))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("Username");
+    }
+
+    @Test
+    void updateCurrentProfileRejectsBannedUser() {
+        ProfileServiceImpl profileService = new ProfileServiceImpl(userRepository);
+        User user = activeUser("student@example.com");
+        user.setAccountStatus(AccountStatus.BANNED);
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
+            "Updated", null, null, null, null, null, null, null, null, null
+        )))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("banned");
+    }
+
+    private User activeUser(String email) {
+        User user = new User();
+        user.setEmail(email);
+        user.setFullName("Student");
+        user.setUsername("student");
+        user.setAccountStatus(AccountStatus.ACTIVE);
+        user.setEmailVerified(true);
+        user.setWorkStatus(WorkStatus.STUDENT);
+        user.setLevel(1);
+        return user;
+    }
+}

@@ -1,6 +1,6 @@
 package kh.edu.acleda.campuslink.modules.auth;
 
-import kh.edu.acleda.campuslink.modules.auth.entity.OtpType;
+import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.service.EmailService;
 import org.springframework.stereotype.Service;
@@ -15,7 +15,7 @@ public class EmailOtpDeliveryService implements OtpDeliveryService {
     }
 
     @Override
-    public void deliver(User user, String code, OtpType type) {
+    public void deliver(User user, String code, OtpPurpose purpose) {
         emailService.sendOtpEmail(user.getEmail(), code);
     }
 }

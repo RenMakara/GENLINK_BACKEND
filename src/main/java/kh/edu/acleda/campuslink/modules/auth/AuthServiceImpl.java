@@ -2,14 +2,17 @@ package kh.edu.acleda.campuslink.modules.auth;
 
 import com.google.firebase.auth.FirebaseToken;
 import kh.edu.acleda.campuslink.modules.auth.dto.*;
-import kh.edu.acleda.campuslink.modules.auth.entity.OtpType;
-import kh.edu.acleda.campuslink.modules.auth.entity.RefreshToken;
+import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
+import kh.edu.acleda.campuslink.modules.auth.entity.Provider;
+import kh.edu.acleda.campuslink.modules.auth.entity.SocialAccount;
+import kh.edu.acleda.campuslink.modules.auth.repository.SocialAccountRepository;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.UserService;
 import kh.edu.acleda.campuslink.modules.user.dto.UserResponse;
+import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.AuthProvider;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
-import kh.edu.acleda.campuslink.modules.user.entity.UserStatus;
+import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.security.JwtService;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +35,7 @@ public class AuthServiceImpl implements AuthService {
     private final FirebaseAuthService firebaseAuthService;
     private final RefreshTokenService refreshTokenService;
     private final OtpService otpService;
+    private final SocialAccountRepository socialAccountRepository;
 
     public AuthServiceImpl(AuthenticationManager authenticationManager,
                            JwtService jwtService,
@@ -40,7 +44,8 @@ public class AuthServiceImpl implements AuthService {
                            UserService userService,
                            FirebaseAuthService firebaseAuthService,
                            RefreshTokenService refreshTokenService,
-                           OtpService otpService) {
+                           OtpService otpService,
+                           SocialAccountRepository socialAccountRepository) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.userRepository = userRepository;
@@ -49,6 +54,7 @@ public class AuthServiceImpl implements AuthService {
         this.firebaseAuthService = firebaseAuthService;
         this.refreshTokenService = refreshTokenService;
         this.otpService = otpService;
+        this.socialAccountRepository = socialAccountRepository;
     }
 
     @Override
@@ -88,28 +94,37 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(email)
             .map(existingUser -> {
                 log.info("Updating existing user: {}", email);
-                if (existingUser.getStatus() == UserStatus.BANNED) {
+                if (existingUser.getAccountStatus() == AccountStatus.BANNED) {
                     throw new ApiException("Your account has been banned");
+                }
+                if (existingUser.getAccountStatus() == AccountStatus.DELETED || existingUser.getDeletedAt() != null) {
+                    throw new ApiException("Your account has been deleted");
                 }
                 existingUser.setGoogleId(uid);
                 existingUser.setFullName(name != null ? name : existingUser.getFullName());
                 existingUser.setAvatarUrl(pictureUrl != null ? pictureUrl : existingUser.getAvatarUrl());
                 existingUser.setAuthProvider(AuthProvider.GOOGLE);
                 existingUser.setEmailVerified(true); // Social login verifies email
-                existingUser.setStatus(UserStatus.ACTIVE);
-                return userRepository.save(existingUser);
+                existingUser.setAccountStatus(AccountStatus.ACTIVE);
+                User savedUser = userRepository.save(existingUser);
+                upsertSocialAccount(savedUser, Provider.GOOGLE, uid, email);
+                return savedUser;
             })
             .orElseGet(() -> {
                 log.info("Creating new user from Social: {}", email);
                 User newUser = new User();
                 newUser.setEmail(email);
                 newUser.setFullName(name != null ? name : email);
+                newUser.setUsername(generateUniqueUsername(email));
                 newUser.setGoogleId(uid);
                 newUser.setAvatarUrl(pictureUrl);
                 newUser.setAuthProvider(AuthProvider.GOOGLE);
                 newUser.setEmailVerified(true);
-                newUser.setStatus(UserStatus.ACTIVE);
-                return userRepository.save(newUser);
+                newUser.setAccountStatus(AccountStatus.ACTIVE);
+                newUser.setWorkStatus(WorkStatus.STUDENT);
+                User savedUser = userRepository.save(newUser);
+                upsertSocialAccount(savedUser, Provider.GOOGLE, uid, email);
+                return savedUser;
             });
 
         String token = jwtService.generateAccessToken(user.getEmail());
@@ -127,23 +142,32 @@ public class AuthServiceImpl implements AuthService {
             log.warn("Registration failed: Email {} already exists", request.email());
             throw new ApiException("Email already registered");
         }
-        if (userRepository.existsByPhone(request.phone())) {
-            log.warn("Registration failed: Phone {} already exists", request.phone());
+        if (userRepository.existsByUsername(request.username())) {
+            log.warn("Registration failed: Username {} already exists", request.username());
+            throw new ApiException("Username already registered");
+        }
+        if (request.phoneNumber() != null && !request.phoneNumber().isBlank()
+            && userRepository.existsByPhoneNumber(request.phoneNumber())) {
+            log.warn("Registration failed: Phone {} already exists", request.phoneNumber());
             throw new ApiException("Phone already registered");
         }
 
         User user = new User();
         user.setEmail(request.email());
-        user.setPhone(request.phone());
+        user.setUsername(request.username());
+        user.setPhoneNumber(request.phoneNumber());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setFullName(request.fullName());
-        user.setUniversity(request.university());
+        user.setUniversityName(request.universityName());
+        user.setWorkStatus(request.workStatus() == null ? WorkStatus.STUDENT : request.workStatus());
         user.setAuthProvider(AuthProvider.LOCAL);
-        user.setStatus(UserStatus.PENDING);
+        user.setAccountStatus(AccountStatus.PENDING);
         user.setEmailVerified(false);
+        user.setTotalXp(0);
+        user.setLevel(1);
         
         userRepository.save(user);
-        otpService.issue(user, OtpType.REGISTER);
+        otpService.issue(user, OtpPurpose.REGISTER);
         log.info("User registered and OTP sent to {}", request.email());
     }
 
@@ -158,13 +182,13 @@ public class AuthServiceImpl implements AuthService {
             throw new ApiException("Email is already verified");
         }
 
-        if (user.getStatus() == UserStatus.BANNED) {
+        if (user.getAccountStatus() == AccountStatus.BANNED) {
             throw new ApiException("Your account has been banned");
         }
 
-        otpService.verify(user, request.otp(), OtpType.REGISTER);
+        otpService.verify(user, request.otp(), OtpPurpose.REGISTER, OtpPurpose.RESEND_VERIFICATION);
         user.setEmailVerified(true);
-        user.setStatus(UserStatus.ACTIVE);
+        user.setAccountStatus(AccountStatus.ACTIVE);
         userRepository.save(user);
 
         String token = jwtService.generateAccessToken(user.getEmail());
@@ -185,10 +209,10 @@ public class AuthServiceImpl implements AuthService {
             throw new ApiException("Email is already verified");
         }
 
-        if (user.getStatus() == UserStatus.BANNED) {
+        if (user.getAccountStatus() == AccountStatus.BANNED) {
             throw new ApiException("Your account has been banned");
         }
-        otpService.issue(user, OtpType.REGISTER);
+        otpService.issue(user, OtpPurpose.RESEND_VERIFICATION);
         log.info("New OTP sent to {}", email);
     }
 
@@ -203,7 +227,7 @@ public class AuthServiceImpl implements AuthService {
             throw new ApiException("This account does not have a local password");
         }
 
-        otpService.issue(user, OtpType.RESET_PASSWORD);
+        otpService.issue(user, OtpPurpose.FORGOT_PASSWORD);
         log.info("Password reset OTP sent to {}", request.email());
     }
 
@@ -214,7 +238,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(request.email())
             .orElseThrow(() -> new ApiException("User not found"));
 
-        otpService.verify(user, request.otp(), OtpType.RESET_PASSWORD);
+        otpService.verify(user, request.otp(), OtpPurpose.FORGOT_PASSWORD);
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
@@ -227,10 +251,10 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse refreshToken(RefreshTokenRequest request) {
         log.info("Processing token refresh request");
         
-        RefreshToken storedToken = refreshTokenService.rotate(request.refreshToken());
-        User user = storedToken.getUser();
+        RefreshTokenRotation rotation = refreshTokenService.rotate(request.refreshToken());
+        User user = rotation.user();
         String accessToken = jwtService.generateAccessToken(user.getEmail());
-        String newRefreshToken = storedToken.getToken();
+        String newRefreshToken = rotation.refreshToken();
 
         log.info("Successfully refreshed tokens for user: {}", user.getEmail());
         return new AuthResponse(accessToken, newRefreshToken, "Bearer", userService.toResponse(user));
@@ -257,14 +281,46 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void ensureCanAuthenticate(User user) {
-        if (user.getStatus() == UserStatus.BANNED) {
+        if (user.getAccountStatus() == AccountStatus.BANNED) {
             throw new ApiException("Your account has been banned");
         }
-        if (user.getStatus() == UserStatus.PENDING || !user.isEmailVerified()) {
+        if (user.getAccountStatus() == AccountStatus.DELETED || user.getDeletedAt() != null) {
+            throw new ApiException("Your account has been deleted");
+        }
+        if (user.getAccountStatus() == AccountStatus.PENDING || !user.isEmailVerified()) {
             throw new ApiException("Please verify your email address before logging in");
         }
-        if (user.getStatus() != UserStatus.ACTIVE) {
+        if (user.getAccountStatus() != AccountStatus.ACTIVE) {
             throw new ApiException("Your account is not active");
         }
+    }
+
+    private void upsertSocialAccount(User user, Provider provider, String providerUserId, String providerEmail) {
+        socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
+            .orElseGet(() -> {
+                SocialAccount socialAccount = new SocialAccount();
+                socialAccount.setUser(user);
+                socialAccount.setProvider(provider);
+                socialAccount.setProviderUserId(providerUserId);
+                socialAccount.setProviderEmail(providerEmail);
+                return socialAccountRepository.save(socialAccount);
+            });
+    }
+
+    private String generateUniqueUsername(String email) {
+        String base = email.substring(0, email.indexOf('@'))
+            .toLowerCase()
+            .replaceAll("[^a-z0-9_]", "_");
+        if (base.isBlank()) {
+            base = "user";
+        }
+        String candidate = base.length() > 60 ? base.substring(0, 60) : base;
+        int suffix = 1;
+        while (userRepository.existsByUsername(candidate)) {
+            String suffixText = "_" + suffix++;
+            int maxBaseLength = 60 - suffixText.length();
+            candidate = base.substring(0, Math.min(base.length(), maxBaseLength)) + suffixText;
+        }
+        return candidate;
     }
 }

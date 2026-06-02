@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.user;
 
 import kh.edu.acleda.campuslink.modules.user.dto.UserResponse;
+import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -26,30 +27,43 @@ public class UserServiceImpl implements UserService {
                 log.warn("User not found with ID: {}", id);
                 return new NotFoundException("User not found with id: " + id);
             });
+        if (user.getAccountStatus() == AccountStatus.DELETED || user.getDeletedAt() != null) {
+            throw new NotFoundException("User not found with id: " + id);
+        }
         return toResponse(user);
     }
 
     @Override
     public User getUserByEmail(String email) {
         log.debug("Finding user by email: {}", email);
-        return userRepository.findByEmail(email)
+        User user = userRepository.findByEmail(email)
             .orElseThrow(() -> {
                 log.warn("User not found with email: {}", email);
                 return new NotFoundException("User not found with email: " + email);
             });
+        if (user.getAccountStatus() == AccountStatus.DELETED || user.getDeletedAt() != null) {
+            throw new NotFoundException("User not found with email: " + email);
+        }
+        return user;
     }
 
     @Override
     public UserResponse toResponse(User user) {
         return new UserResponse(
             user.getId(),
-            user.getEmail(),
             user.getFullName(),
-            user.getPhone(),
-            user.getUniversity(),
-            user.getBio(),
+            user.getUsername(),
+            user.getEmail(),
+            user.getPhoneNumber(),
             user.getAvatarUrl(),
-            user.getAuthProvider(),
+            user.getBio(),
+            user.getUniversityName(),
+            user.getWorkStatus(),
+            user.getLocation(),
+            user.isEmailVerified(),
+            user.getAccountStatus(),
+            user.getTotalXp(),
+            user.getLevel(),
             user.getRole(),
             user.isActive()
         );

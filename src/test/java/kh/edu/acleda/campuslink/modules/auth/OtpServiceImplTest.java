@@ -1,7 +1,7 @@
 package kh.edu.acleda.campuslink.modules.auth;
 
 import kh.edu.acleda.campuslink.modules.auth.entity.OtpCode;
-import kh.edu.acleda.campuslink.modules.auth.entity.OtpType;
+import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
 import kh.edu.acleda.campuslink.modules.auth.repository.OtpCodeRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -12,6 +12,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,18 +37,26 @@ class OtpServiceImplTest {
         OtpServiceImpl otpService = new OtpServiceImpl(otpCodeRepository, List.of(otpDeliveryService));
         User user = user("student@example.com");
 
-        otpService.issue(user, OtpType.REGISTER);
+        otpService.issue(user, OtpPurpose.REGISTER);
 
-        verify(otpCodeRepository).deleteByUserAndType(user, OtpType.REGISTER);
+        verify(otpCodeRepository).deleteByUserAndPurposeAndVerifiedAtIsNull(user, OtpPurpose.REGISTER);
         ArgumentCaptor<OtpCode> otpCaptor = ArgumentCaptor.forClass(OtpCode.class);
         verify(otpCodeRepository).save(otpCaptor.capture());
         OtpCode otpCode = otpCaptor.getValue();
         assertThat(otpCode.getUser()).isEqualTo(user);
-        assertThat(otpCode.getCode()).matches("\\d{6}");
-        assertThat(otpCode.getType()).isEqualTo(OtpType.REGISTER);
-        assertThat(otpCode.isUsed()).isFalse();
+        assertThat(otpCode.getEmail()).isEqualTo(user.getEmail());
+        assertThat(otpCode.getOtpHash()).matches("[a-f0-9]{64}");
+        assertThat(otpCode.getPurpose()).isEqualTo(OtpPurpose.REGISTER);
+        assertThat(otpCode.getVerifiedAt()).isNull();
+        assertThat(otpCode.getAttemptCount()).isZero();
         assertThat(otpCode.getExpiresAt()).isAfter(Instant.now());
-        verify(otpDeliveryService).deliver(user, otpCode.getCode(), OtpType.REGISTER);
+        ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
+        verify(otpDeliveryService).deliver(
+            org.mockito.ArgumentMatchers.eq(user),
+            codeCaptor.capture(),
+            org.mockito.ArgumentMatchers.eq(OtpPurpose.REGISTER));
+        assertThat(codeCaptor.getValue()).matches("\\d{6}");
+        assertThat(otpCode.getOtpHash()).isEqualTo(hash(codeCaptor.getValue()));
     }
 
     @Test
@@ -53,15 +65,15 @@ class OtpServiceImplTest {
         User user = user("student@example.com");
         OtpCode otpCode = new OtpCode();
         otpCode.setUser(user);
-        otpCode.setCode("123456");
-        otpCode.setType(OtpType.REGISTER);
+        otpCode.setOtpHash(hash("123456"));
+        otpCode.setPurpose(OtpPurpose.REGISTER);
         otpCode.setExpiresAt(Instant.now().plusSeconds(60));
-        when(otpCodeRepository.findTopByUserAndCodeAndTypeAndUsedFalseOrderByCreatedAtDesc(
-            user, "123456", OtpType.REGISTER)).thenReturn(Optional.of(otpCode));
+        when(otpCodeRepository.findTopByUserAndPurposeAndVerifiedAtIsNullOrderByCreatedAtDesc(
+            user, OtpPurpose.REGISTER)).thenReturn(Optional.of(otpCode));
 
-        otpService.verify(user, "123456", OtpType.REGISTER);
+        otpService.verify(user, "123456", OtpPurpose.REGISTER);
 
-        assertThat(otpCode.isUsed()).isTrue();
+        assertThat(otpCode.getVerifiedAt()).isNotNull();
         verify(otpCodeRepository).save(otpCode);
     }
 
@@ -71,13 +83,13 @@ class OtpServiceImplTest {
         User user = user("student@example.com");
         OtpCode otpCode = new OtpCode();
         otpCode.setUser(user);
-        otpCode.setCode("123456");
-        otpCode.setType(OtpType.REGISTER);
+        otpCode.setOtpHash(hash("123456"));
+        otpCode.setPurpose(OtpPurpose.REGISTER);
         otpCode.setExpiresAt(Instant.now().minusSeconds(60));
-        when(otpCodeRepository.findTopByUserAndCodeAndTypeAndUsedFalseOrderByCreatedAtDesc(
-            user, "123456", OtpType.REGISTER)).thenReturn(Optional.of(otpCode));
+        when(otpCodeRepository.findTopByUserAndPurposeAndVerifiedAtIsNullOrderByCreatedAtDesc(
+            user, OtpPurpose.REGISTER)).thenReturn(Optional.of(otpCode));
 
-        assertThatThrownBy(() -> otpService.verify(user, "123456", OtpType.REGISTER))
+        assertThatThrownBy(() -> otpService.verify(user, "123456", OtpPurpose.REGISTER))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("expired");
     }
@@ -87,5 +99,14 @@ class OtpServiceImplTest {
         user.setEmail(email);
         user.setFullName("Student");
         return user;
+    }
+
+    private String hash(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 }

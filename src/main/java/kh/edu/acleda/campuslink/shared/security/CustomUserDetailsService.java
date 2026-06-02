@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.shared.security;
 
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
+import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.shared.exception.UnauthorizedException;
 import java.util.Collections;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -25,7 +26,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         return new org.springframework.security.core.userdetails.User(
             user.getEmail(),
             user.getPasswordHash() == null ? "" : user.getPasswordHash(),
-            user.isActive(),
+            user.getAccountStatus() == AccountStatus.ACTIVE && user.getDeletedAt() == null,
             true,
             true,
             true,
