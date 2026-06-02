@@ -19,6 +19,7 @@ public class UserServiceImpl implements UserService {
         this.userRepository = userRepository;
     }
 
+
     @Override
     public UserResponse getUserProfile(UUID id) {
         log.debug("Fetching user profile for ID: {}", id);
@@ -64,6 +65,7 @@ public class UserServiceImpl implements UserService {
             user.getAccountStatus(),
             user.getTotalXp(),
             user.getLevel(),
+            user.getPreferredLanguage(),
             user.getRole(),
             user.isActive()
         );

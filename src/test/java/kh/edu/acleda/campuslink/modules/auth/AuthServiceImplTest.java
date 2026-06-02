@@ -10,6 +10,7 @@ import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.AuthProvider;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
+import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.security.JwtService;
 import org.junit.jupiter.api.Test;
@@ -64,6 +65,7 @@ class AuthServiceImplTest {
             "012345678",
             "password123",
             "ACLEDA University",
+            null,
             null
         );
         when(passwordEncoder.encode(request.password())).thenReturn("hashed-password");
@@ -82,8 +84,31 @@ class AuthServiceImplTest {
         assertThat(user.getAuthProvider()).isEqualTo(AuthProvider.LOCAL);
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING);
         assertThat(user.getWorkStatus()).isEqualTo(WorkStatus.STUDENT);
+        assertThat(user.getPreferredLanguage()).isEqualTo(Language.ENGLISH);
         assertThat(user.isEmailVerified()).isFalse();
         verify(otpService).issue(user, OtpPurpose.REGISTER);
+    }
+
+    @Test
+    void registerSavesRequestedPreferredLanguageWhenProvided() {
+        RegisterRequest request = new RegisterRequest(
+            "Sophea Chan",
+            "sophea_kh",
+            "sopheakh@example.com",
+            "012345679",
+            "password123",
+            "ACLEDA University",
+            null,
+            Language.KHMER
+        );
+        when(passwordEncoder.encode(request.password())).thenReturn("hashed-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        authService.register(request);
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getPreferredLanguage()).isEqualTo(Language.KHMER);
     }
 
     @Test

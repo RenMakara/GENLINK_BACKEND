@@ -16,6 +16,6 @@ public class EmailOtpDeliveryService implements OtpDeliveryService {
 
     @Override
     public void deliver(User user, String code, OtpPurpose purpose) {
-        emailService.sendOtpEmail(user.getEmail(), code);
+        emailService.sendOtpEmail(user.getEmail(), code, user.getPreferredLanguage(), purpose);
     }
 }

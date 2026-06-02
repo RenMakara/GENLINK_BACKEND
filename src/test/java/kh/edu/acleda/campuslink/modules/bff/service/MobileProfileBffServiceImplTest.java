@@ -5,6 +5,7 @@ import kh.edu.acleda.campuslink.modules.profile.ProfileService;
 import kh.edu.acleda.campuslink.modules.profile.dto.ProfileResponse;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
+import kh.edu.acleda.campuslink.shared.enums.Language;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
@@ -36,7 +37,8 @@ class MobileProfileBffServiceImplTest {
             true,
             AccountStatus.ACTIVE,
             1240,
-            4
+            4,
+            Language.KHMER
         ));
 
         MobileProfileSummaryResponse response = bffService.getProfileSummary("student@example.com");
@@ -46,5 +48,6 @@ class MobileProfileBffServiceImplTest {
         assertThat(response.emailVerified()).isTrue();
         assertThat(response.totalXp()).isEqualTo(1240);
         assertThat(response.level()).isEqualTo(4);
+        assertThat(response.preferredLanguage()).isEqualTo(Language.KHMER);
     }
 }

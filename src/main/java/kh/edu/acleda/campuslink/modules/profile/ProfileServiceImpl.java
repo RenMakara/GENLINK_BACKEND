@@ -69,6 +69,9 @@ public class ProfileServiceImpl implements ProfileService {
         if (request.location() != null) {
             user.setLocation(request.location());
         }
+        if (request.preferredLanguage() != null) {
+            user.setPreferredLanguage(request.preferredLanguage());
+        }
 
         return toResponse(userRepository.save(user));
     }
@@ -115,7 +118,8 @@ public class ProfileServiceImpl implements ProfileService {
             user.isEmailVerified(),
             user.getAccountStatus(),
             user.getTotalXp(),
-            user.getLevel()
+            user.getLevel(),
+            user.getPreferredLanguage()
         );
     }
 }

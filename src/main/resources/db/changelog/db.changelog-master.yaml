@@ -9,3 +9,5 @@ databaseChangeLog:
       file: db/changelog/ddl/0004-create-otp-verifications-table.sql
   - include:
       file: db/changelog/ddl/0005-create-security-audit-logs-table.sql
+  - include:
+      file: db/changelog/ddl/0006-add-language-support.sql

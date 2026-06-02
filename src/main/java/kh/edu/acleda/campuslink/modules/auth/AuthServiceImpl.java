@@ -14,7 +14,9 @@ import kh.edu.acleda.campuslink.modules.user.entity.AuthProvider;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
+import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.security.JwtService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -25,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private final AuthenticationManager authenticationManager;
@@ -36,26 +39,6 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenService refreshTokenService;
     private final OtpService otpService;
     private final SocialAccountRepository socialAccountRepository;
-
-    public AuthServiceImpl(AuthenticationManager authenticationManager,
-                           JwtService jwtService,
-                           UserRepository userRepository,
-                           PasswordEncoder passwordEncoder,
-                           UserService userService,
-                           FirebaseAuthService firebaseAuthService,
-                           RefreshTokenService refreshTokenService,
-                           OtpService otpService,
-                           SocialAccountRepository socialAccountRepository) {
-        this.authenticationManager = authenticationManager;
-        this.jwtService = jwtService;
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.userService = userService;
-        this.firebaseAuthService = firebaseAuthService;
-        this.refreshTokenService = refreshTokenService;
-        this.otpService = otpService;
-        this.socialAccountRepository = socialAccountRepository;
-    }
 
     @Override
     @Transactional
@@ -122,6 +105,7 @@ public class AuthServiceImpl implements AuthService {
                 newUser.setEmailVerified(true);
                 newUser.setAccountStatus(AccountStatus.ACTIVE);
                 newUser.setWorkStatus(WorkStatus.STUDENT);
+                newUser.setPreferredLanguage(Language.ENGLISH);
                 User savedUser = userRepository.save(newUser);
                 upsertSocialAccount(savedUser, Provider.GOOGLE, uid, email);
                 return savedUser;
@@ -160,6 +144,7 @@ public class AuthServiceImpl implements AuthService {
         user.setFullName(request.fullName());
         user.setUniversityName(request.universityName());
         user.setWorkStatus(request.workStatus() == null ? WorkStatus.STUDENT : request.workStatus());
+        user.setPreferredLanguage(request.preferredLanguage() == null ? Language.ENGLISH : request.preferredLanguage());
         user.setAuthProvider(AuthProvider.LOCAL);
         user.setAccountStatus(AccountStatus.PENDING);
         user.setEmailVerified(false);

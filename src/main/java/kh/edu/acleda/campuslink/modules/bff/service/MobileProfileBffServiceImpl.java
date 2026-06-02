@@ -31,7 +31,8 @@ public class MobileProfileBffServiceImpl implements MobileProfileBffService {
             profile.emailVerified(),
             profile.accountStatus(),
             profile.totalXp(),
-            profile.level()
+            profile.level(),
+            profile.preferredLanguage()
         );
     }
 }

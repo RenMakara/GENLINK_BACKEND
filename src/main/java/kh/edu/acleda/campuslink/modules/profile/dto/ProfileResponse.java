@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.profile.dto;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.Gender;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
+import kh.edu.acleda.campuslink.shared.enums.Language;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -23,6 +24,7 @@ public record ProfileResponse(
     boolean emailVerified,
     AccountStatus accountStatus,
     int totalXp,
-    int level
+    int level,
+    Language preferredLanguage
 ) {
 }

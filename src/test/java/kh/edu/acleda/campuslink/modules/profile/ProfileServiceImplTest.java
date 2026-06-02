@@ -1,10 +1,12 @@
 package kh.edu.acleda.campuslink.modules.profile;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import kh.edu.acleda.campuslink.modules.profile.dto.ProfileUpdateRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
+import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +43,8 @@ class ProfileServiceImplTest {
             null,
             "ACLEDA University",
             WorkStatus.STUDENT,
-            "Phnom Penh"
+            "Phnom Penh",
+            Language.KHMER
         ));
 
         assertThat(user.getFullName()).isEqualTo("Updated Name");
@@ -51,7 +54,34 @@ class ProfileServiceImplTest {
         assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(user.getTotalXp()).isZero();
         assertThat(user.getLevel()).isEqualTo(1);
+        assertThat(user.getPreferredLanguage()).isEqualTo(Language.KHMER);
         verify(userRepository).save(user);
+    }
+
+    @Test
+    void updateCurrentProfileCanChangePreferredLanguageBackToEnglish() {
+        ProfileServiceImpl profileService = new ProfileServiceImpl(userRepository);
+        User user = activeUser("student@example.com");
+        user.setPreferredLanguage(Language.KHMER);
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
+            null, null, null, null, null, null, null, null, null, null, Language.ENGLISH
+        ));
+
+        assertThat(user.getPreferredLanguage()).isEqualTo(Language.ENGLISH);
+    }
+
+    @Test
+    void profileUpdateRequestRejectsUnsupportedLanguageValue() {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        assertThatThrownBy(() -> objectMapper.readValue(
+            "{\"preferredLanguage\":\"SPANISH\"}",
+            ProfileUpdateRequest.class
+        ))
+            .isInstanceOf(Exception.class);
     }
 
     @Test
@@ -62,7 +92,7 @@ class ProfileServiceImplTest {
         when(userRepository.existsByUsername("taken")).thenReturn(true);
 
         assertThatThrownBy(() -> profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
-            null, "taken", null, null, null, null, null, null, null, null
+            null, "taken", null, null, null, null, null, null, null, null, null
         )))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("Username");
@@ -76,7 +106,7 @@ class ProfileServiceImplTest {
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
-            "Updated", null, null, null, null, null, null, null, null, null
+            "Updated", null, null, null, null, null, null, null, null, null, null
         )))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("banned");
