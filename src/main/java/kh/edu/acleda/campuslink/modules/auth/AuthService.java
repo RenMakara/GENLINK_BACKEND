@@ -9,6 +9,7 @@ public interface AuthService {
     void register(RegisterRequest request);
     AuthResponse verifyEmail(VerifyEmailRequest request);
     void resendOtp(String email);
+    void resendVerificationOtp(ResendVerificationOtpRequest request);
     void forgotPassword(ForgotPasswordRequest request);
     void resetPassword(ResetPasswordRequest request);
     AuthResponse refreshToken(RefreshTokenRequest request);

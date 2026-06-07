@@ -11,7 +11,7 @@ public record RegisterRequest(
     @NotBlank @Size(max = 60) String username,
     @NotBlank @Email String email,
     String phoneNumber,
-    @NotBlank @Size(min = 8) String password,
+    @NotBlank @Size(min = 8, max = 72) String password,
     String universityName,
     WorkStatus workStatus,
     Language preferredLanguage

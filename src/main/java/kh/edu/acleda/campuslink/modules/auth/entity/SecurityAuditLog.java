@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.auth.entity;
 
 import jakarta.persistence.*;
+import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,6 +12,10 @@ import lombok.Setter;
 @Setter
 public class SecurityAuditLog extends BaseEntity {
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     @Column(nullable = false)
     private String eventType;
 
@@ -20,6 +25,9 @@ public class SecurityAuditLog extends BaseEntity {
     @Column
     private String ipAddress;
 
+    @Column(columnDefinition = "TEXT")
+    private String userAgent;
+
     @Column
     private String deviceId;
 
@@ -28,4 +36,10 @@ public class SecurityAuditLog extends BaseEntity {
 
     @Column
     private String status;
+
+    @Column
+    private Boolean success;
+
+    @Column
+    private String failureReason;
 }

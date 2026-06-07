@@ -63,11 +63,18 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("New verification code has been sent to your email.", null));
     }
 
+    @PostMapping("/resend-verification-otp")
+    public ResponseEntity<ApiResponse<String>> resendVerificationOtp(@Valid @RequestBody ResendVerificationOtpRequest request) {
+        log.info("REST request to resend verification OTP to: {}", request.email());
+        authService.resendVerificationOtp(request);
+        return ResponseEntity.ok(ApiResponse.success("If the account is eligible, a verification OTP has been sent.", null));
+    }
+
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         log.info("REST request to start password reset for: {}", request.email());
         authService.forgotPassword(request);
-        return ResponseEntity.ok(ApiResponse.success("Password reset code has been sent to your email.", null));
+        return ResponseEntity.ok(ApiResponse.success("If this email exists, a password reset OTP has been sent.", null));
     }
 
     @PostMapping("/reset-password")

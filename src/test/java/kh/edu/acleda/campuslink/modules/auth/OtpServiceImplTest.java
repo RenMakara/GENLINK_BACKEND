@@ -36,10 +36,15 @@ class OtpServiceImplTest {
     void issueReplacesExistingOtpAndDeliversNewSixDigitCode() {
         OtpServiceImpl otpService = new OtpServiceImpl(otpCodeRepository, List.of(otpDeliveryService));
         User user = user("student@example.com");
+        when(otpCodeRepository.findTopByEmailIgnoreCaseAndPurposeOrderByCreatedAtDesc(user.getEmail(), OtpPurpose.REGISTER))
+            .thenReturn(Optional.empty());
 
         otpService.issue(user, OtpPurpose.REGISTER);
 
-        verify(otpCodeRepository).deleteByUserAndPurposeAndVerifiedAtIsNull(user, OtpPurpose.REGISTER);
+        verify(otpCodeRepository).markActiveOtpsVerified(
+            org.mockito.ArgumentMatchers.eq(user.getEmail()),
+            org.mockito.ArgumentMatchers.eq(OtpPurpose.REGISTER),
+            org.mockito.ArgumentMatchers.any(Instant.class));
         ArgumentCaptor<OtpCode> otpCaptor = ArgumentCaptor.forClass(OtpCode.class);
         verify(otpCodeRepository).save(otpCaptor.capture());
         OtpCode otpCode = otpCaptor.getValue();
@@ -68,7 +73,7 @@ class OtpServiceImplTest {
         otpCode.setOtpHash(hash("123456"));
         otpCode.setPurpose(OtpPurpose.REGISTER);
         otpCode.setExpiresAt(Instant.now().plusSeconds(60));
-        when(otpCodeRepository.findTopByUserAndPurposeAndVerifiedAtIsNullOrderByCreatedAtDesc(
+        when(otpCodeRepository.findTopByUserAndPurposeOrderByCreatedAtDesc(
             user, OtpPurpose.REGISTER)).thenReturn(Optional.of(otpCode));
 
         otpService.verify(user, "123456", OtpPurpose.REGISTER);
@@ -86,12 +91,31 @@ class OtpServiceImplTest {
         otpCode.setOtpHash(hash("123456"));
         otpCode.setPurpose(OtpPurpose.REGISTER);
         otpCode.setExpiresAt(Instant.now().minusSeconds(60));
-        when(otpCodeRepository.findTopByUserAndPurposeAndVerifiedAtIsNullOrderByCreatedAtDesc(
+        when(otpCodeRepository.findTopByUserAndPurposeOrderByCreatedAtDesc(
             user, OtpPurpose.REGISTER)).thenReturn(Optional.of(otpCode));
 
         assertThatThrownBy(() -> otpService.verify(user, "123456", OtpPurpose.REGISTER))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("expired");
+    }
+
+    @Test
+    void verifyRejectsAfterTooManyAttempts() {
+        OtpServiceImpl otpService = new OtpServiceImpl(otpCodeRepository, List.of(otpDeliveryService));
+        User user = user("student@example.com");
+        OtpCode otpCode = new OtpCode();
+        otpCode.setUser(user);
+        otpCode.setOtpHash(hash("123456"));
+        otpCode.setPurpose(OtpPurpose.REGISTER);
+        otpCode.setExpiresAt(Instant.now().plusSeconds(60));
+        otpCode.setAttemptCount(5);
+        when(otpCodeRepository.findTopByUserAndPurposeOrderByCreatedAtDesc(
+            user, OtpPurpose.REGISTER)).thenReturn(Optional.of(otpCode));
+
+        assertThatThrownBy(() -> otpService.verify(user, "123456", OtpPurpose.REGISTER))
+            .isInstanceOf(ApiException.class)
+            .extracting(ex -> ((ApiException) ex).getErrorCode())
+            .isEqualTo(AuthErrorCode.OTP_TOO_MANY_ATTEMPTS);
     }
 
     private User user(String email) {

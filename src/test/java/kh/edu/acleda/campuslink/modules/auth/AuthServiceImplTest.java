@@ -6,6 +6,7 @@ import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRotation;
 import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
 import kh.edu.acleda.campuslink.modules.auth.repository.SocialAccountRepository;
+import kh.edu.acleda.campuslink.modules.auth.security.AuthRateLimitService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.UserService;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
@@ -56,6 +57,12 @@ class AuthServiceImplTest {
     private OtpService otpService;
     @Mock
     private SocialAccountRepository socialAccountRepository;
+    @Mock
+    private PasswordPolicyValidator passwordPolicyValidator;
+    @Mock
+    private AuthRateLimitService authRateLimitService;
+    @Mock
+    private SecurityAuditService securityAuditService;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -116,6 +123,27 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void registerRejectsWeakPassword() {
+        RegisterRequest request = new RegisterRequest(
+            "Sophea Chan",
+            "sophea_weak",
+            "weak@example.com",
+            "012345680",
+            "password",
+            "ACLEDA University",
+            null,
+            null
+        );
+        org.mockito.Mockito.doThrow(new ApiException("Weak password", AuthErrorCode.AUTH_WEAK_PASSWORD))
+            .when(passwordPolicyValidator).validate(request.password());
+
+        assertThatThrownBy(() -> authService.register(request))
+            .isInstanceOf(ApiException.class)
+            .extracting(ex -> ((ApiException) ex).getErrorCode())
+            .isEqualTo(AuthErrorCode.AUTH_WEAK_PASSWORD);
+    }
+
+    @Test
     void loginRejectsPendingUserBeforePasswordAuthentication() {
         User user = new User();
         user.setEmail("pending@example.com");
@@ -172,7 +200,7 @@ class AuthServiceImplTest {
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(authenticationManager.authenticate(any())).thenReturn(authentication);
         when(jwtService.generateAccessToken(authentication)).thenReturn("access-token");
-        when(refreshTokenService.create(user)).thenReturn("refresh-token");
+        when(refreshTokenService.create(any(User.class), any(), any(), any())).thenReturn("refresh-token");
 
         authService.login(new LoginRequest(user.getEmail(), "password123"));
 
@@ -184,7 +212,7 @@ class AuthServiceImplTest {
     void refreshTokenDoesNotOverwritePreferredLanguage() {
         User user = activeUser("active@example.com");
         user.setPreferredLanguage(Language.KHMER);
-        when(refreshTokenService.rotate("old-refresh-token"))
+        when(refreshTokenService.rotate(any(), any(), any(), any()))
             .thenReturn(new RefreshTokenRotation(user, "new-refresh-token"));
         when(jwtService.generateAccessToken(user.getEmail())).thenReturn("new-access-token");
 
