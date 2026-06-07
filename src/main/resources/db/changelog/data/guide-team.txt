@@ -1,2 +1,0 @@
-In this package we will create a file for initial data.
-But now don't touch it.
