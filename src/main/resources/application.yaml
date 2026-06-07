@@ -44,6 +44,8 @@ app:
     refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
   google:
     client-id: ${GOOGLE_CLIENT_ID}
+  localization:
+    default-language: ${APP_DEFAULT_LANGUAGE:ENGLISH}
 
 springdoc:
   swagger-ui:

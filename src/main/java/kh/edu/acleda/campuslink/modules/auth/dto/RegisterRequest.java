@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
+import kh.edu.acleda.campuslink.shared.enums.Language;
 
 public record RegisterRequest(
     @NotBlank String fullName,
@@ -12,5 +13,6 @@ public record RegisterRequest(
     String phoneNumber,
     @NotBlank @Size(min = 8) String password,
     String universityName,
-    WorkStatus workStatus
+    WorkStatus workStatus,
+    Language preferredLanguage
 ) {}

@@ -8,6 +8,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
+import kh.edu.acleda.campuslink.shared.enums.Language;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -85,6 +86,10 @@ public class User extends BaseEntity {
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "preferred_language", nullable = false, length = 20)
+    private Language preferredLanguage = Language.ENGLISH;
 
     public String getEmail() {
         return email;
@@ -276,5 +281,13 @@ public class User extends BaseEntity {
 
     public void setDeletedAt(Instant deletedAt) {
         this.deletedAt = deletedAt;
+    }
+
+    public Language getPreferredLanguage() {
+        return preferredLanguage;
+    }
+
+    public void setPreferredLanguage(Language preferredLanguage) {
+        this.preferredLanguage = preferredLanguage == null ? Language.ENGLISH : preferredLanguage;
     }
 }

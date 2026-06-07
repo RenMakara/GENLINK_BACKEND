@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.modules.bff.dto;
 
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
+import kh.edu.acleda.campuslink.shared.enums.Language;
 
 import java.util.UUID;
 
@@ -19,6 +20,7 @@ public record MobileProfileSummaryResponse(
     boolean emailVerified,
     AccountStatus accountStatus,
     int totalXp,
-    int level
+    int level,
+    Language preferredLanguage
 ) {
 }

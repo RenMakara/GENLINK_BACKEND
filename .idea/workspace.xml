@@ -6,6 +6,17 @@
   <component name="ChangeListManager">
     <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feature(auth): implement user authentication and registration with JWT support">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/infrastructure/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/infrastructure/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/bff/controller/MobileProfileBffController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/data/guide-team.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0001-create-users-table.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0002-create-refresh-tokens-table.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0003-create-social-accounts-table.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0004-create-otp-verifications-table.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0005-create-security-audit-logs-table.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0006-add-language-support.sql" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -77,7 +88,7 @@
   <component name="CopilotUserSelectedModel">
     <selectedModels>
       <entry key="agent-panel" value="GPT-5.2-Codex" />
-      <entry key="edit-panel" value="GPT-5 mini" />
+      <entry key="inline" value="Auto" />
       <entry key="chat-panel" value="GPT-5.2-Codex" />
     </selectedModels>
   </component>
@@ -253,6 +264,20 @@
   &quot;fromUser&quot;: true
 }</component>
   <component name="ProjectId" id="39rGPXpsOhI2tLGtHgCYQIbkt7h" />
+  <component name="ProjectSessionTemplates">
+    <option name="inlineTemplate">
+      <template>
+        <option name="modeId" value="InlineAgent" />
+        <option name="model">
+          <model>
+            <option name="modelType" value="builtin_family" />
+            <option name="modelValue" value="auto" />
+          </model>
+        </option>
+        <option name="targetType" value="LOCAL" />
+      </template>
+    </option>
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -297,7 +322,7 @@
     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
     &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
     &quot;full.screen.before.presentation.mode&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;dev&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
@@ -311,7 +336,7 @@
     &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
     &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
     &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;project.propCompiler&quot;,
     &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
@@ -348,6 +373,17 @@
         <option value="QuarkusRunConfigurationType" />
         <option value="SpringBootApplicationConfigurationType" />
       </set>
+    </option>
+    <option name="configurationStatuses">
+      <map>
+        <entry key="SpringBootApplicationConfigurationType">
+          <value>
+            <map>
+              <entry key="CampuslinkKhApplication" value="STOPPED" />
+            </map>
+          </value>
+        </entry>
+      </map>
     </option>
   </component>
   <component name="RunManager" selected="Spring Boot.CampuslinkKhApplication">
@@ -456,16 +492,16 @@
       </deployment>
       <method v="2" />
     </configuration>
-    <configuration name="docker: Compose Deployment" type="docker-deploy" factoryName="docker-compose.yml" temporary="true" server-name="Docker">
+    <configuration name="infrastructure: Compose Deployment" type="docker-deploy" factoryName="docker-compose.yml" temporary="true" server-name="Docker">
       <deployment type="docker-compose.yml">
         <settings>
-          <option name="sourceFilePath" value="docker/docker-compose.yml" />
+          <option name="sourceFilePath" value="infrastructure/docker-compose.yml" />
         </settings>
       </deployment>
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Docker.docker: Compose Deployment" />
+      <item itemvalue="Docker.infrastructure: Compose Deployment" />
       <item itemvalue="Gradle.Itp-eBanking:spring-cloud:admin-bff [build]" />
       <item itemvalue="Gradle.Itp-eBanking:spring-cloud:front-bff [build]" />
       <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
@@ -473,7 +509,7 @@
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Docker.docker: Compose Deployment" />
+        <item itemvalue="Docker.infrastructure: Compose Deployment" />
         <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
         <item itemvalue="Gradle.Itp-eBanking:spring-cloud:admin-bff [build]" />
         <item itemvalue="Gradle.Itp-eBanking:spring-cloud:front-bff [build]" />
@@ -483,8 +519,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-30f59d01ecdd-37e91769500f-intellij.indexing.shared.core-IU-261.24374.151" />
-        <option value="bundled-js-predefined-d6986cc7102b-31caf2ab9e3c-JavaScript-IU-261.24374.151" />
+        <option value="bundled-jdk-30f59d01ecdd-37e91769500f-intellij.indexing.shared.core-IU-261.25134.95" />
+        <option value="bundled-js-predefined-d6986cc7102b-31caf2ab9e3c-JavaScript-IU-261.25134.95" />
       </set>
     </attachedChunks>
   </component>
@@ -549,6 +585,12 @@
       <workItem from="1780134374112" duration="693000" />
       <workItem from="1780374582251" duration="9000" />
       <workItem from="1780387409281" duration="5525000" />
+      <workItem from="1780433891651" duration="447000" />
+      <workItem from="1780434344204" duration="7134000" />
+      <workItem from="1780481845370" duration="14000" />
+      <workItem from="1780547499196" duration="649000" />
+      <workItem from="1780731185718" duration="12000" />
+      <workItem from="1780867622500" duration="3708000" />
     </task>
     <task id="LOCAL-00001" summary=".">
       <option name="closed" value="true" />
@@ -750,7 +792,15 @@
       <option name="project" value="LOCAL" />
       <updated>1779944106314</updated>
     </task>
-    <option name="localTasksCounter" value="26" />
+    <task id="LOCAL-00026" summary="feature(auth): implement user authentication and registration with JWT support">
+      <option name="closed" value="true" />
+      <created>1780394387300</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1780394387300</updated>
+    </task>
+    <option name="localTasksCounter" value="27" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
