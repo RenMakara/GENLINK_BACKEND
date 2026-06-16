@@ -6,17 +6,11 @@
   <component name="ChangeListManager">
     <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feature(auth): implement user authentication and registration with JWT support">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/infrastructure/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/infrastructure/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/bff/controller/MobileProfileBffController.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/data/guide-team.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0001-create-users-table.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0002-create-refresh-tokens-table.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0003-create-social-accounts-table.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0004-create-otp-verifications-table.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0005-create-security-audit-logs-table.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0006-add-language-support.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/settings.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/settings.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/infrastructure/persistence/auditing/AuditorAwareImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/infrastructure/persistence/auditing/AuditorAwareImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/config/FirebaseConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/config/FirebaseConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/config/OpenApiConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/config/OpenApiConfig.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -78,6 +72,7 @@
     <persistenceIdMap>
       <entry key="_/home/renmakara/Documents/aub/campuslink_kh/campuslink_kh" value="3E221yc7sYpMXgWETyzKBGUdI4l" />
       <entry key="_/home/renmakara/Documents/campuslink_application_full-stack/campuslink_kh" value="3EGbTSMAi9MYh9TX6fcAJL4a87r" />
+      <entry key="_C:/Users/RenMakara/Documents/genlink_kh_fullstack/campuslink_kh" value="3F1HecsXDOuPTedC8VstoH5VaZO" />
       <entry key="_D:/ITP-CSTAD/Itp-eBanking" value="39rGPXpsOhI2tLGtHgCYQIbkt7h" />
       <entry key="_D:/event-driven-for-ebanking" value="3AvtgdaEoIT30XJsB3FbCH1N7Rr" />
     </persistenceIdMap>
@@ -93,7 +88,7 @@
     </selectedModels>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="122" />
+    <option name="cachedIndexableFilesCount" value="332" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExternalProjectsData">
@@ -145,12 +140,7 @@
         </task>
         <projects_view>
           <tree_state>
-            <expand>
-              <path>
-                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
-                <item name="campuslink_kh" type="f1a62948:ProjectNode" />
-              </path>
-            </expand>
+            <expand />
             <select />
           </tree_state>
         </projects_view>
@@ -201,61 +191,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0" />
-      <entry key="MS500" value="1.0" />
-      <entry key="S2" value="1.0" />
-      <entry key="S5" value="1.0000000000000588" />
-      <entry key="S10" value="1.0000009435136508" />
-      <entry key="S30" value="1.0836493638692681" />
-      <entry key="S60" value="2.5765423693871545" />
-      <entry key="M2" value="8.021980087900477" />
-      <entry key="M5" value="18.391664513102754" />
-      <entry key="M10" value="24.57822626678678" />
-      <entry key="M15" value="27.101835903041152" />
-      <entry key="M30" value="29.899063591775906" />
-      <entry key="H1" value="31.40956054588462" />
-      <entry key="H2" value="32.19452472237866" />
-      <entry key="H4" value="32.594664865001214" />
-      <entry key="D1" value="32.932080491858194" />
-      <entry key="W1" value="32.990288269432696" />
+      <entry key="MS100" value="1.3378776045343423" />
+      <entry key="MS500" value="2.3461657422875817" />
+      <entry key="S2" value="5.787048567217889" />
+      <entry key="S5" value="11.152045492620994" />
+      <entry key="S10" value="18.151153356382892" />
+      <entry key="S30" value="32.01243158687393" />
+      <entry key="S60" value="38.75999014939063" />
+      <entry key="M2" value="43.59298101502614" />
+      <entry key="M5" value="52.44512553953091" />
+      <entry key="M10" value="61.79358307960269" />
+      <entry key="M15" value="66.85140656239385" />
+      <entry key="M30" value="73.42368539386749" />
+      <entry key="H1" value="77.42504112365566" />
+      <entry key="H2" value="79.63570283963158" />
+      <entry key="H4" value="80.79796709138438" />
+      <entry key="D1" value="81.7968397866274" />
+      <entry key="W1" value="81.97090722505487" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
-      <entry key="MS500" value="0.0" />
-      <entry key="S2" value="0.0" />
-      <entry key="S5" value="0.0" />
-      <entry key="S10" value="0.0" />
-      <entry key="S30" value="0.0" />
-      <entry key="S60" value="0.0" />
-      <entry key="M2" value="0.0" />
-      <entry key="M5" value="0.0" />
-      <entry key="M10" value="0.0" />
-      <entry key="M15" value="0.0" />
-      <entry key="M30" value="0.0" />
-      <entry key="H1" value="0.0" />
-      <entry key="H2" value="0.0" />
-      <entry key="H4" value="0.0" />
-      <entry key="D1" value="0.0" />
-      <entry key="W1" value="0.0" />
+      <entry key="MS500" value="4.753632564480772E-236" />
+      <entry key="S2" value="1.476578030429783E-59" />
+      <entry key="S5" value="2.9356384070816413E-24" />
+      <entry key="S10" value="1.7133704815601445E-12" />
+      <entry key="S30" value="1.1966039354192438E-4" />
+      <entry key="S60" value="0.010938939324355187" />
+      <entry key="M2" value="0.10458938437697761" />
+      <entry key="M5" value="0.4053172082808411" />
+      <entry key="M10" value="0.6366452766500685" />
+      <entry key="M15" value="0.7400567330991407" />
+      <entry key="M30" value="0.8602655015163287" />
+      <entry key="H1" value="0.9275049873269299" />
+      <entry key="H2" value="0.9630706035005585" />
+      <entry key="H4" value="0.9813616069016337" />
+      <entry key="D1" value="0.9968691984067124" />
+      <entry key="W1" value="0.9995521413463614" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.8705505632961241" />
-      <entry key="MS500" value="0.9726549474122855" />
-      <entry key="S2" value="0.9930924954370359" />
-      <entry key="S5" value="0.9972312513521253" />
-      <entry key="S10" value="0.9986155949661152" />
-      <entry key="S30" value="1.0829382043521514" />
-      <entry key="S60" value="2.574355651947838" />
-      <entry key="M2" value="8.017939439466398" />
-      <entry key="M5" value="18.387983328265538" />
-      <entry key="M10" value="24.575796162068414" />
-      <entry key="M15" value="27.100058077123393" />
-      <entry key="M30" value="29.89808798066271" />
-      <entry key="H1" value="31.40904947867624" />
-      <entry key="H2" value="32.19426316367855" />
-      <entry key="H4" value="32.59453255242852" />
-      <entry key="D1" value="32.932058224492714" />
-      <entry key="W1" value="32.99028508307804" />
+      <entry key="MS100" value="1.2679326914931148" />
+      <entry key="MS500" value="2.32214491324306" />
+      <entry key="S2" value="5.77287499635459" />
+      <entry key="S5" value="11.14142960808397" />
+      <entry key="S10" value="18.142676091256863" />
+      <entry key="S30" value="32.0076137125828" />
+      <entry key="S60" value="38.766292865213074" />
+      <entry key="M2" value="43.687345650810585" />
+      <entry key="M5" value="52.83527780050432" />
+      <entry key="M10" value="62.41798610667539" />
+      <entry key="M15" value="67.58184641865172" />
+      <entry key="M30" value="74.27827202913427" />
+      <entry key="H1" value="78.34945763981911" />
+      <entry key="H2" value="80.59716254743104" />
+      <entry key="H4" value="81.77850600277237" />
+      <entry key="D1" value="82.79356942255961" />
+      <entry key="W1" value="82.97043936831261" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -322,11 +312,11 @@
     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
     &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
     &quot;full.screen.before.presentation.mode&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;dev&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/renmakara/Documents/campuslink_application_full-stack/campuslink_kh&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/RenMakara/Documents/genlink_kh_fullstack/campuslink_kh&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -336,7 +326,7 @@
     &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
     &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
     &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;project.propCompiler&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
     &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
@@ -473,7 +463,7 @@
         <env name="MAIL_PASSWORD" value="rtkr kkrv igiy kjka" />
         <env name="MAIL_USERNAME" value="makara00814@gmail.com" />
       </envs>
-      <module name="campuslink_kh.main" />
+      <module name="genlink_kh.main" />
       <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="kh.edu.acleda.campuslink.CampuslinkKhApplication" />
       <method v="2">
@@ -591,6 +581,9 @@
       <workItem from="1780547499196" duration="649000" />
       <workItem from="1780731185718" duration="12000" />
       <workItem from="1780867622500" duration="3708000" />
+      <workItem from="1781042976894" duration="1368000" />
+      <workItem from="1780992633801" duration="14000" />
+      <workItem from="1781235753299" duration="2639000" />
     </task>
     <task id="LOCAL-00001" summary=".">
       <option name="closed" value="true" />

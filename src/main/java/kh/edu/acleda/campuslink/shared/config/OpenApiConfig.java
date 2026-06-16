@@ -12,9 +12,9 @@ public class OpenApiConfig {
     public OpenAPI campuslinkOpenApi() {
         return new OpenAPI()
             .info(new Info()
-                .title("CampusLink KH API")
+                .title("GenLink KH API")
                 .version("v1")
-                .description("CampusLink KH modular monolith API"));
+                .description("GenLink KH modular monolith API"));
     }
 }
 

@@ -16,7 +16,7 @@ public class FirebaseConfig {
 
     private final String projectId;
 
-    public FirebaseConfig(@Value("${app.google.project-id:campuslinkkh}") String projectId) {
+    public FirebaseConfig(@Value("${app.google.project-id:genlikkh}") String projectId) {
         this.projectId = projectId;
     }
 
