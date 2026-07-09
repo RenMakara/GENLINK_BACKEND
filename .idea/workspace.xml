@@ -4,25 +4,19 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feat: add backend foundation for domain modules&#10;&#10;- Add entities and enums for community, productivity, finance, entertainment, profile, and notification modules&#10;- Add repositories, DTO skeletons, service interfaces, and service implementation placeholders&#10;- Add controller skeletons with REST endpoint structure and Swagger tags&#10;- Add mobile BFF-lite endpoints for home, profile summary, finance dashboard, productivity dashboard, event detail, and notifications&#10;- Add Liquibase SQL migrations for new domain tables and constraints&#10;- Reuse existing auth, security, User, BaseEntity, ApiResponse, and Language foundations">
+    <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feature(auth): implement user authentication and registration with JWT support">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/AuthServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/OtpServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/OtpServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/RefreshTokenService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/RefreshTokenService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/RefreshTokenServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/RefreshTokenServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/SecurityAuditService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/SecurityAuditService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/dto/RegisterRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/dto/RegisterRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/dto/ResetPasswordRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/dto/ResetPasswordRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/entity/RefreshToken.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/entity/RefreshToken.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/entity/SecurityAuditLog.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/entity/SecurityAuditLog.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/repository/OtpCodeRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/auth/repository/OtpCodeRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/exception/ApiException.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/exception/ApiException.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/exception/GlobalExceptionHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/exception/GlobalExceptionHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/infrastructure/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/infrastructure/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/bff/controller/MobileProfileBffController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/data/guide-team.txt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/modules/auth/AuthServiceImplTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/modules/auth/AuthServiceImplTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/modules/auth/OtpServiceImplTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/java/kh/edu/acleda/campuslink/modules/auth/OtpServiceImplTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0001-create-users-table.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0002-create-refresh-tokens-table.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0003-create-social-accounts-table.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0004-create-otp-verifications-table.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0005-create-security-audit-logs-table.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0006-add-language-support.sql" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -288,70 +282,70 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Docker.docker: Compose Deployment.executor": "Run",
-    "Gradle.Build Itp-eBanking.executor": "Run",
-    "Gradle.Build campuslink_kh.executor": "Run",
-    "Gradle.Build event-driven-for-ebanking.executor": "Run",
-    "Gradle.Download Sources.executor": "Run",
-    "Gradle.Itp-eBanking:microservices [build].executor": "Run",
-    "Gradle.Itp-eBanking:microservices:account-service [buildDependents].executor": "Run",
-    "Gradle.Itp-eBanking:microservices:account-service [build].executor": "Run",
-    "Gradle.Itp-eBanking:microservices:account-service [clean].executor": "Run",
-    "Gradle.Itp-eBanking:microservices:pipeline-service [build].executor": "Run",
-    "Gradle.Itp-eBanking:spring-cloud [build].executor": "Run",
-    "Gradle.Itp-eBanking:spring-cloud:admin-bff [build].executor": "Run",
-    "Gradle.Itp-eBanking:spring-cloud:front-bff [build].executor": "Run",
-    "Gradle.Itp-eBanking:spring-cloud:gateway-server [build].executor": "Run",
-    "Gradle.event-driven-for-ebanking:account-command-service [build].executor": "Run",
-    "Gradle.itp-ebanking [build].executor": "Run",
-    "Gradle.itp-ebanking [clean].executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RequestMappingsPanelOrder0": "0",
-    "RequestMappingsPanelOrder1": "1",
-    "RequestMappingsPanelWidth0": "1509",
-    "RequestMappingsPanelWidth1": "1508",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "Spring Boot.AccountQueryServiceApplication.executor": "Run",
-    "Spring Boot.AccountServiceApplication.executor": "Run",
-    "Spring Boot.CampuslinkKhApplication.executor": "Run",
-    "Spring Boot.CustomerServiceApplication.executor": "Run",
-    "Spring Boot.EurekaserverApplication.executor": "Run",
-    "Spring Boot.IamServiceApplication.executor": "Run",
-    "Spring Boot.ItpConfigserverApplication.executor": "Run",
-    "codeWithMe.voiceChat.enabledByDefault": "false",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "dart.analysis.tool.window.visible": "false",
-    "full.screen.before.presentation.mode": "false",
-    "git-widget-placeholder": "dev",
-    "ignore.virus.scanning.warn.message": "true",
-    "junie.onboarding.icon.badge.shown": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/home/renmakara/Documents/campuslink_application_full-stack/campuslink_kh",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.2",
-    "run.configurations.included.in.services": "true",
-    "settings.editor.selected.configurable": "project.propCompiler",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Docker.docker: Compose Deployment.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build Itp-eBanking.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build campuslink_kh.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build event-driven-for-ebanking.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Download Sources.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:account-service [buildDependents].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:account-service [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:account-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:pipeline-service [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud:admin-bff [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud:front-bff [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud:gateway-server [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.event-driven-for-ebanking:account-command-service [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.itp-ebanking [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.itp-ebanking [clean].executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
+    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
+    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
+    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;Spring Boot.AccountQueryServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.AccountServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.CampuslinkKhApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.CustomerServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.EurekaserverApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.IamServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.ItpConfigserverApplication.executor&quot;: &quot;Run&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
+    &quot;full.screen.before.presentation.mode&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;dev&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/renmakara/Documents/campuslink_application_full-stack/campuslink_kh&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;project.propCompiler&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
-  "keyToStringList": {
-    "DatabaseDriversLRU": [
-      "postgresql"
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;postgresql&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CreateClassDialog.RecentsKey">
       <recent name="co.istad.makara.account.rest" />
@@ -596,7 +590,7 @@
       <workItem from="1780481845370" duration="14000" />
       <workItem from="1780547499196" duration="649000" />
       <workItem from="1780731185718" duration="12000" />
-      <workItem from="1780867622500" duration="7805000" />
+      <workItem from="1780867622500" duration="3708000" />
     </task>
     <task id="LOCAL-00001" summary=".">
       <option name="closed" value="true" />
@@ -806,15 +800,7 @@
       <option name="project" value="LOCAL" />
       <updated>1780394387300</updated>
     </task>
-    <task id="LOCAL-00027" summary="feat: add backend foundation for domain modules&#10;&#10;- Add entities and enums for community, productivity, finance, entertainment, profile, and notification modules&#10;- Add repositories, DTO skeletons, service interfaces, and service implementation placeholders&#10;- Add controller skeletons with REST endpoint structure and Swagger tags&#10;- Add mobile BFF-lite endpoints for home, profile summary, finance dashboard, productivity dashboard, event detail, and notifications&#10;- Add Liquibase SQL migrations for new domain tables and constraints&#10;- Reuse existing auth, security, User, BaseEntity, ApiResponse, and Language foundations">
-      <option name="closed" value="true" />
-      <created>1780871670438</created>
-      <option name="number" value="00027" />
-      <option name="presentableId" value="LOCAL-00027" />
-      <option name="project" value="LOCAL" />
-      <updated>1780871670438</updated>
-    </task>
-    <option name="localTasksCounter" value="28" />
+    <option name="localTasksCounter" value="27" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -856,8 +842,7 @@
     <MESSAGE value="feat(auth): add CORS configuration and enhance security filter chain" />
     <MESSAGE value="feat(auth): implement Google login functionality and update user model" />
     <MESSAGE value="enter space" />
-    <MESSAGE value="feat: add backend foundation for domain modules&#10;&#10;- Add entities and enums for community, productivity, finance, entertainment, profile, and notification modules&#10;- Add repositories, DTO skeletons, service interfaces, and service implementation placeholders&#10;- Add controller skeletons with REST endpoint structure and Swagger tags&#10;- Add mobile BFF-lite endpoints for home, profile summary, finance dashboard, productivity dashboard, event detail, and notifications&#10;- Add Liquibase SQL migrations for new domain tables and constraints&#10;- Reuse existing auth, security, User, BaseEntity, ApiResponse, and Language foundations" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add backend foundation for domain modules&#10;&#10;- Add entities and enums for community, productivity, finance, entertainment, profile, and notification modules&#10;- Add repositories, DTO skeletons, service interfaces, and service implementation placeholders&#10;- Add controller skeletons with REST endpoint structure and Swagger tags&#10;- Add mobile BFF-lite endpoints for home, profile summary, finance dashboard, productivity dashboard, event detail, and notifications&#10;- Add Liquibase SQL migrations for new domain tables and constraints&#10;- Reuse existing auth, security, User, BaseEntity, ApiResponse, and Language foundations" />
+    <option name="LAST_COMMIT_MESSAGE" value="enter space" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
