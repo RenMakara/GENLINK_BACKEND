@@ -5,18 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feature(auth): implement user authentication and registration with JWT support">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/infrastructure/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/infrastructure/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/bff/controller/MobileProfileBffController.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/data/guide-team.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/db/changelog/db.changelog-master.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0001-create-users-table.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0002-create-refresh-tokens-table.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0003-create-social-accounts-table.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0004-create-otp-verifications-table.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0005-create-security-audit-logs-table.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/db/changelog/ddl/0006-add-language-support.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/GenlinkKhApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/GenlinkKhApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/entertainment/entity/Badge.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/entertainment/entity/Badge.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -201,61 +191,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0" />
-      <entry key="MS500" value="1.0" />
-      <entry key="S2" value="1.0" />
-      <entry key="S5" value="1.0000000000000588" />
-      <entry key="S10" value="1.0000009435136508" />
-      <entry key="S30" value="1.0836493638692681" />
-      <entry key="S60" value="2.5765423693871545" />
-      <entry key="M2" value="8.021980087900477" />
-      <entry key="M5" value="18.391664513102754" />
-      <entry key="M10" value="24.57822626678678" />
-      <entry key="M15" value="27.101835903041152" />
-      <entry key="M30" value="29.899063591775906" />
-      <entry key="H1" value="31.40956054588462" />
-      <entry key="H2" value="32.19452472237866" />
-      <entry key="H4" value="32.594664865001214" />
-      <entry key="D1" value="32.932080491858194" />
-      <entry key="W1" value="32.990288269432696" />
+      <entry key="MS100" value="1.0112031117700868" />
+      <entry key="MS500" value="1.5701243958244704" />
+      <entry key="S2" value="4.422415201862789" />
+      <entry key="S5" value="8.022654645461497" />
+      <entry key="S10" value="14.079163535395706" />
+      <entry key="S30" value="27.47932933588622" />
+      <entry key="S60" value="34.74258660206663" />
+      <entry key="M2" value="42.93994999601697" />
+      <entry key="M5" value="55.89968841078788" />
+      <entry key="M10" value="63.816796777949484" />
+      <entry key="M15" value="67.11811666993104" />
+      <entry key="M30" value="70.82727778787755" />
+      <entry key="H1" value="72.85192065588093" />
+      <entry key="H2" value="73.91003182137959" />
+      <entry key="H4" value="74.45096962347701" />
+      <entry key="D1" value="74.90792742171858" />
+      <entry key="W1" value="74.98683280348291" />
     </decayedCancelled>
     <decayedSelected>
-      <entry key="MS100" value="0.0" />
-      <entry key="MS500" value="0.0" />
-      <entry key="S2" value="0.0" />
-      <entry key="S5" value="0.0" />
-      <entry key="S10" value="0.0" />
-      <entry key="S30" value="0.0" />
-      <entry key="S60" value="0.0" />
-      <entry key="M2" value="0.0" />
-      <entry key="M5" value="0.0" />
-      <entry key="M10" value="0.0" />
-      <entry key="M15" value="0.0" />
-      <entry key="M30" value="0.0" />
-      <entry key="H1" value="0.0" />
-      <entry key="H2" value="0.0" />
-      <entry key="H4" value="0.0" />
-      <entry key="D1" value="0.0" />
-      <entry key="W1" value="0.0" />
+      <entry key="MS100" value="5.358016546172085E-32" />
+      <entry key="MS500" value="5.569302533212266E-7" />
+      <entry key="S2" value="0.027318278519624945" />
+      <entry key="S5" value="0.23898531303769907" />
+      <entry key="S10" value="0.5323075853349404" />
+      <entry key="S30" value="1.1438160474189385" />
+      <entry key="S60" value="1.4845756194279316" />
+      <entry key="M2" value="1.7148468551599783" />
+      <entry key="M5" value="1.8784598578716443" />
+      <entry key="M10" value="1.937900223763663" />
+      <entry key="M15" value="1.958298149555515" />
+      <entry key="M30" value="1.9789964128097814" />
+      <entry key="H1" value="1.9894597259376334" />
+      <entry key="H2" value="1.994720203186792" />
+      <entry key="H4" value="1.9973576816712892" />
+      <entry key="D1" value="1.999559277088331" />
+      <entry key="W1" value="1.9999370313371307" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.8705505632961241" />
-      <entry key="MS500" value="0.9726549474122855" />
-      <entry key="S2" value="0.9930924954370359" />
-      <entry key="S5" value="0.9972312513521253" />
-      <entry key="S10" value="0.9986155949661152" />
-      <entry key="S30" value="1.0829382043521514" />
-      <entry key="S60" value="2.574355651947838" />
-      <entry key="M2" value="8.017939439466398" />
-      <entry key="M5" value="18.387983328265538" />
-      <entry key="M10" value="24.575796162068414" />
-      <entry key="M15" value="27.100058077123393" />
-      <entry key="M30" value="29.89808798066271" />
-      <entry key="H1" value="31.40904947867624" />
-      <entry key="H2" value="32.19426316367855" />
-      <entry key="H4" value="32.59453255242852" />
-      <entry key="D1" value="32.932058224492714" />
-      <entry key="W1" value="32.99028508307804" />
+      <entry key="MS100" value="0.08190341792194578" />
+      <entry key="MS500" value="0.8473508279328031" />
+      <entry key="S2" value="4.037115461337811" />
+      <entry key="S5" value="7.978580145442267" />
+      <entry key="S10" value="14.39608844405243" />
+      <entry key="S30" value="28.510209181446516" />
+      <entry key="S60" value="36.16029335295608" />
+      <entry key="M2" value="44.616121355300386" />
+      <entry key="M5" value="57.759801026183844" />
+      <entry key="M10" value="65.74470582524096" />
+      <entry key="M15" value="69.06953228143185" />
+      <entry key="M30" value="72.80270989935073" />
+      <entry key="H1" value="74.83956495829227" />
+      <entry key="H2" value="75.90383565785136" />
+      <entry key="H4" value="76.44786691448037" />
+      <entry key="D1" value="76.90740965668896" />
+      <entry key="W1" value="76.98675882115343" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -374,19 +364,8 @@
         <option value="SpringBootApplicationConfigurationType" />
       </set>
     </option>
-    <option name="configurationStatuses">
-      <map>
-        <entry key="SpringBootApplicationConfigurationType">
-          <value>
-            <map>
-              <entry key="CampuslinkKhApplication" value="STOPPED" />
-            </map>
-          </value>
-        </entry>
-      </map>
-    </option>
   </component>
-  <component name="RunManager" selected="Spring Boot.CampuslinkKhApplication">
+  <component name="RunManager" selected="Spring Boot.GenlinkKhApplication">
     <configuration name="Itp-eBanking:spring-cloud:admin-bff [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
@@ -462,6 +441,17 @@
       <GradleCoverageDisabled>false</GradleCoverageDisabled>
       <method v="2" />
     </configuration>
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="campuslink_kh" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="campuslink_kh" />
+      <option name="filePath" />
+      <method v="2" />
+    </configuration>
     <configuration name="CampuslinkKhApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <envs>
         <env name="DB_PASSWORD" value="campuslink@168" />
@@ -476,6 +466,20 @@
       <module name="campuslink_kh.main" />
       <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="kh.edu.acleda.campuslink.CampuslinkKhApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="GenlinkKhApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" temporary="true" nameIsGenerated="true">
+      <module name="campuslink_kh.main" />
+      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="kh.edu.acleda.campuslink.GenlinkKhApplication" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="kh.edu.acleda.campuslink.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -506,9 +510,11 @@
       <item itemvalue="Gradle.Itp-eBanking:spring-cloud:front-bff [build]" />
       <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
       <item itemvalue="Spring Boot.CampuslinkKhApplication" />
+      <item itemvalue="Spring Boot.GenlinkKhApplication" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Spring Boot.GenlinkKhApplication" />
         <item itemvalue="Docker.infrastructure: Compose Deployment" />
         <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
         <item itemvalue="Gradle.Itp-eBanking:spring-cloud:admin-bff [build]" />
