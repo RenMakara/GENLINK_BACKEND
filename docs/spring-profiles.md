@@ -72,8 +72,6 @@ GOOGLE_PROJECT_ID=genlinkkh-dev
 
 Use real mail, Google, or JWT values by setting environment variables before running the app.
 
-For local setup, copy `.env.example` and replace any placeholder values that your feature needs.
-
 ## Docker Stack: `stack`
 
 Use `stack` when the backend runs inside the same Docker Compose network as PostgreSQL.
@@ -157,6 +155,7 @@ This keeps automated tests independent from local PostgreSQL.
 ## Recommended Improvements
 
 - Add the backend service to `infrastructure/docker-compose.yml` if the team wants a full `stack` runtime. Right now Compose starts PostgreSQL only.
+- Add a `.env.example` file with non-secret placeholder values so teammates know what to copy.
 - Keep `prod` free of default passwords, tokens, and local database values.
 - Keep Swagger enabled only in `dev` and `stack`, disabled in `prod`.
 - Use a different database name or schema for each teammate if multiple developers share one PostgreSQL instance.
