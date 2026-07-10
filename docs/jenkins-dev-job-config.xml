@@ -1,3 +1,0 @@
-> NOTICE: This job template was moved to `docs/removed/jenkins-dev-job-config.xml`.
-
-If you need to recreate a `dev` pipeline job later, use the template in `docs/removed/`.

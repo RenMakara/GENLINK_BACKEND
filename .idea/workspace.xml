@@ -6,6 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feature(auth): implement user authentication and registration with JWT support">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/jenkins-ci.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/jenkins-ci.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -580,7 +581,7 @@
       <workItem from="1780547499196" duration="649000" />
       <workItem from="1780731185718" duration="12000" />
       <workItem from="1780867622500" duration="3708000" />
-      <workItem from="1783664248300" duration="7690000" />
+      <workItem from="1783664248300" duration="8269000" />
     </task>
     <task id="LOCAL-00001" summary=".">
       <option name="closed" value="true" />
