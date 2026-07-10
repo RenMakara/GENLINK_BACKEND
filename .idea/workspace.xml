@@ -458,24 +458,6 @@
       <GradleCoverageDisabled>false</GradleCoverageDisabled>
       <method v="2" />
     </configuration>
-    <configuration name="CampuslinkKhApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
-      <envs>
-        <env name="DB_PASSWORD" value="campuslink@168" />
-        <env name="DB_URL" value="jdbc:postgresql://localhost:16801/campuslink_db" />
-        <env name="DB_USERNAME" value="campuslink_usr" />
-        <env name="GOOGLE_APPLICATION_CREDENTIALS" value="$USER_HOME$/firebase/service-account.json" />
-        <env name="GOOGLE_CLIENT_ID" value="918777530143-dfh4rasbvj82d3ibe5l6gkoc3s1q9p01.apps.googleusercontent.com" />
-        <env name="JWT_SECRET" value="7c8e9b2a1f4d6c5b8a9f0e1d2c3b4a5f6e7d8c9b0a1b2c3d4e5f6a7b8c9d0e1f" />
-        <env name="MAIL_PASSWORD" value="rtkr kkrv igiy kjka" />
-        <env name="MAIL_USERNAME" value="makara00814@gmail.com" />
-      </envs>
-      <module name="campuslink_kh.main" />
-      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
-      <option name="SPRING_BOOT_MAIN_CLASS" value="kh.edu.acleda.campuslink.CampuslinkKhApplication" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
     <configuration name="GenlinkKhApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" temporary="true" nameIsGenerated="true">
       <option name="ACTIVE_PROFILES" value="dev" />
       <envs>
@@ -526,7 +508,6 @@
       <item itemvalue="Gradle.Itp-eBanking:spring-cloud:admin-bff [build]" />
       <item itemvalue="Gradle.Itp-eBanking:spring-cloud:front-bff [build]" />
       <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
-      <item itemvalue="Spring Boot.CampuslinkKhApplication" />
       <item itemvalue="Spring Boot.GenlinkKhApplication" />
     </list>
     <recent_temporary>

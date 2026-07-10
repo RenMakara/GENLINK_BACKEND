@@ -676,7 +676,7 @@ Add admin account lock/unlock management
 
 ## 22. Local Runtime Notes
 
-For the full explanation of `dev`, `stack`, `prod`, and `test`, see [Spring Profiles and Runtime Stack](docs/spring-profiles.md).
+For the full explanation of `dev`, `stack`, `prod`, and `test`, see [Spring Profiles and Runtime Stack](spring-profiles.md).
 
 If `bootRun` fails because of datasource configuration, make sure the database URL starts with:
 
