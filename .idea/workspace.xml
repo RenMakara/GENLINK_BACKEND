@@ -5,8 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feature(auth): implement user authentication and registration with JWT support">
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/GenlinkKhApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/GenlinkKhApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/entertainment/entity/Badge.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/modules/entertainment/entity/Badge.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/Security_document.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application-prod.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application-prod.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application-stack.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application-stack.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -68,6 +71,7 @@
     <persistenceIdMap>
       <entry key="_/home/renmakara/Documents/aub/campuslink_kh/campuslink_kh" value="3E221yc7sYpMXgWETyzKBGUdI4l" />
       <entry key="_/home/renmakara/Documents/campuslink_application_full-stack/campuslink_kh" value="3EGbTSMAi9MYh9TX6fcAJL4a87r" />
+      <entry key="_C:/Users/RenMakara/Documents/genlink_kh_fullstack/genlink_kh" value="3GIfwqtAa9tTwuVvw5LCeq7Zbd0" />
       <entry key="_D:/ITP-CSTAD/Itp-eBanking" value="39rGPXpsOhI2tLGtHgCYQIbkt7h" />
       <entry key="_D:/event-driven-for-ebanking" value="3AvtgdaEoIT30XJsB3FbCH1N7Rr" />
     </persistenceIdMap>
@@ -83,7 +87,6 @@
     </selectedModels>
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="122" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExternalProjectsData">
@@ -191,61 +194,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0112031117700868" />
-      <entry key="MS500" value="1.5701243958244704" />
-      <entry key="S2" value="4.422415201862789" />
-      <entry key="S5" value="8.022654645461497" />
-      <entry key="S10" value="14.079163535395706" />
-      <entry key="S30" value="27.47932933588622" />
-      <entry key="S60" value="34.74258660206663" />
-      <entry key="M2" value="42.93994999601697" />
-      <entry key="M5" value="55.89968841078788" />
-      <entry key="M10" value="63.816796777949484" />
-      <entry key="M15" value="67.11811666993104" />
-      <entry key="M30" value="70.82727778787755" />
-      <entry key="H1" value="72.85192065588093" />
-      <entry key="H2" value="73.91003182137959" />
-      <entry key="H4" value="74.45096962347701" />
-      <entry key="D1" value="74.90792742171858" />
-      <entry key="W1" value="74.98683280348291" />
+      <entry key="MS100" value="1.0" />
+      <entry key="MS500" value="1.0" />
+      <entry key="S2" value="1.0" />
+      <entry key="S5" value="1.0000000004657277" />
+      <entry key="S10" value="1.000037355149988" />
+      <entry key="S30" value="1.0775442831494073" />
+      <entry key="S60" value="1.793636441280815" />
+      <entry key="M2" value="5.0847097510614025" />
+      <entry key="M5" value="20.994062885185524" />
+      <entry key="M10" value="41.69878626218082" />
+      <entry key="M15" value="53.68868712927209" />
+      <entry key="M30" value="69.90739770719394" />
+      <entry key="H1" value="80.0929923195312" />
+      <entry key="H2" value="85.81301008231753" />
+      <entry key="H4" value="88.8456667926947" />
+      <entry key="D1" value="91.46560980490277" />
+      <entry key="W1" value="91.92344335856025" />
     </decayedCancelled>
     <decayedSelected>
-      <entry key="MS100" value="5.358016546172085E-32" />
-      <entry key="MS500" value="5.569302533212266E-7" />
-      <entry key="S2" value="0.027318278519624945" />
-      <entry key="S5" value="0.23898531303769907" />
-      <entry key="S10" value="0.5323075853349404" />
-      <entry key="S30" value="1.1438160474189385" />
-      <entry key="S60" value="1.4845756194279316" />
-      <entry key="M2" value="1.7148468551599783" />
-      <entry key="M5" value="1.8784598578716443" />
-      <entry key="M10" value="1.937900223763663" />
-      <entry key="M15" value="1.958298149555515" />
-      <entry key="M30" value="1.9789964128097814" />
-      <entry key="H1" value="1.9894597259376334" />
-      <entry key="H2" value="1.994720203186792" />
-      <entry key="H4" value="1.9973576816712892" />
-      <entry key="D1" value="1.999559277088331" />
-      <entry key="W1" value="1.9999370313371307" />
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="4.578063848104901E-101" />
+      <entry key="S2" value="8.225654449258456E-26" />
+      <entry key="S5" value="9.248433635757605E-11" />
+      <entry key="S10" value="9.616877682365319E-6" />
+      <entry key="S30" value="0.021265808009498177" />
+      <entry key="S60" value="0.14643068320689506" />
+      <entry key="M2" value="0.4164434556217723" />
+      <entry key="M5" value="1.0744918127117902" />
+      <entry key="M10" value="1.712485027281463" />
+      <entry key="M15" value="2.0431538663060955" />
+      <entry key="M30" value="2.4633302404749986" />
+      <entry key="H1" value="2.7151176496189584" />
+      <entry key="H2" value="2.8531434672107574" />
+      <entry key="H4" value="2.9254309936956564" />
+      <entry key="D1" value="2.9874101618485107" />
+      <entry key="W1" value="2.9981974495341808" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.08190341792194578" />
-      <entry key="MS500" value="0.8473508279328031" />
-      <entry key="S2" value="4.037115461337811" />
-      <entry key="S5" value="7.978580145442267" />
-      <entry key="S10" value="14.39608844405243" />
-      <entry key="S30" value="28.510209181446516" />
-      <entry key="S60" value="36.16029335295608" />
-      <entry key="M2" value="44.616121355300386" />
-      <entry key="M5" value="57.759801026183844" />
-      <entry key="M10" value="65.74470582524096" />
-      <entry key="M15" value="69.06953228143185" />
-      <entry key="M30" value="72.80270989935073" />
-      <entry key="H1" value="74.83956495829227" />
-      <entry key="H2" value="75.90383565785136" />
-      <entry key="H4" value="76.44786691448037" />
-      <entry key="D1" value="76.90740965668896" />
-      <entry key="W1" value="76.98675882115343" />
+      <entry key="MS100" value="0.8235910172675731" />
+      <entry key="MS500" value="0.9619274546647747" />
+      <entry key="S2" value="0.9903428719330246" />
+      <entry key="S5" value="0.996125900001333" />
+      <entry key="S10" value="0.998101966380883" />
+      <entry key="S30" value="1.0934220575472577" />
+      <entry key="S60" value="1.9230730132616416" />
+      <entry key="M2" value="5.477975597599554" />
+      <entry key="M5" value="22.048494044275824" />
+      <entry key="M10" value="43.39679676568218" />
+      <entry key="M15" value="55.720696255805144" />
+      <entry key="M30" value="72.36420836724228" />
+      <entry key="H1" value="82.80456566257459" />
+      <entry key="H2" value="88.664303188684" />
+      <entry key="H4" value="91.77015208857422" />
+      <entry key="D1" value="94.45285941480569" />
+      <entry key="W1" value="94.92161779905902" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -278,6 +281,7 @@
     &quot;Gradle.Build Itp-eBanking.executor&quot;: &quot;Run&quot;,
     &quot;Gradle.Build campuslink_kh.executor&quot;: &quot;Run&quot;,
     &quot;Gradle.Build event-driven-for-ebanking.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build genlink_kh.executor&quot;: &quot;Run&quot;,
     &quot;Gradle.Download Sources.executor&quot;: &quot;Run&quot;,
     &quot;Gradle.Itp-eBanking:microservices [build].executor&quot;: &quot;Run&quot;,
     &quot;Gradle.Itp-eBanking:microservices:account-service [buildDependents].executor&quot;: &quot;Run&quot;,
@@ -303,9 +307,10 @@
     &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
     &quot;Spring Boot.AccountQueryServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Spring Boot.AccountServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.CampuslinkKhApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.CampuslinkKhApplication.executor&quot;: &quot;Debug&quot;,
     &quot;Spring Boot.CustomerServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Spring Boot.EurekaserverApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.GenlinkKhApplication.executor&quot;: &quot;Run&quot;,
     &quot;Spring Boot.IamServiceApplication.executor&quot;: &quot;Run&quot;,
     &quot;Spring Boot.ItpConfigserverApplication.executor&quot;: &quot;Run&quot;,
     &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
@@ -363,6 +368,18 @@
         <option value="QuarkusRunConfigurationType" />
         <option value="SpringBootApplicationConfigurationType" />
       </set>
+    </option>
+    <option name="configurationStatuses">
+      <map>
+        <entry key="SpringBootApplicationConfigurationType">
+          <value>
+            <map>
+              <entry key="CampuslinkKhApplication" value="FAILED" />
+              <entry key="GenlinkKhApplication" value="STOPPED" />
+            </map>
+          </value>
+        </entry>
+      </map>
     </option>
   </component>
   <component name="RunManager" selected="Spring Boot.GenlinkKhApplication">
@@ -441,17 +458,6 @@
       <GradleCoverageDisabled>false</GradleCoverageDisabled>
       <method v="2" />
     </configuration>
-    <configuration default="true" type="JetRunConfigurationType">
-      <module name="campuslink_kh" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
-    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
-      <module name="campuslink_kh" />
-      <option name="filePath" />
-      <method v="2" />
-    </configuration>
     <configuration name="CampuslinkKhApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
       <envs>
         <env name="DB_PASSWORD" value="campuslink@168" />
@@ -471,6 +477,17 @@
       </method>
     </configuration>
     <configuration name="GenlinkKhApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" temporary="true" nameIsGenerated="true">
+      <option name="ACTIVE_PROFILES" value="dev" />
+      <envs>
+        <env name="DB_PASSWORD" value="campuslink@168" />
+        <env name="DB_URL" value="jdbc:postgresql://localhost:16801/campuslink_db" />
+        <env name="DB_USERNAME" value="campuslink_usr" />
+        <env name="GOOGLE_APPLICATION_CREDENTIALS" value="$USER_HOME$/firebase/service-account.json" />
+        <env name="GOOGLE_CLIENT_ID" value="918777530143-dfh4rasbvj82d3ibe5l6gkoc3s1q9p01.apps.googleusercontent.com" />
+        <env name="JWT_SECRET" value="7c8e9b2a1f4d6c5b8a9f0e1d2c3b4a5f6e7d8c9b0a1b2c3d4e5f6a7b8c9d0e1f" />
+        <env name="MAIL_PASSWORD" value="rtkr kkrv igiy kjka" />
+        <env name="MAIL_USERNAME" value="makara00814@gmail.com" />
+      </envs>
       <module name="campuslink_kh.main" />
       <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
       <option name="SPRING_BOOT_MAIN_CLASS" value="kh.edu.acleda.campuslink.GenlinkKhApplication" />
@@ -597,6 +614,7 @@
       <workItem from="1780547499196" duration="649000" />
       <workItem from="1780731185718" duration="12000" />
       <workItem from="1780867622500" duration="3708000" />
+      <workItem from="1783664248300" duration="1131000" />
     </task>
     <task id="LOCAL-00001" summary=".">
       <option name="closed" value="true" />

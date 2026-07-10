@@ -1,13 +1,32 @@
 spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/campuslink_db}
+    username: ${DB_USERNAME:campuslink_usr}
+    password: ${DB_PASSWORD:campuslink@168}
   jpa:
     hibernate:
       ddl-auto: validate
     properties:
       hibernate:
+        format_sql: true
         show_sql: true
   liquibase:
     enabled: true
+  mail:
+    username: ${MAIL_USERNAME:stack@campuslink.local}
+    password: ${MAIL_PASSWORD:stack-mail-password}
+
+app:
+  jwt:
+    issuer: ${JWT_ISSUER:campuslink-kh-stack}
+    secret: ${JWT_SECRET:campuslink-kh-stack-secret-key-32-chars-min}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:stack-google-client-id}
+    project-id: ${GOOGLE_PROJECT_ID:genlinkkh-stack}
 
 logging:
   level:
+    root: info
+    kh.edu.acleda.campuslink: debug
     org.hibernate.SQL: debug
+    org.liquibase: info
