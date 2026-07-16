@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.profile.dto.ProfileUpdateRequest;
 import kh.edu.acleda.campuslink.modules.profile.repository.UserSettingRepository;
+import kh.edu.acleda.campuslink.modules.profile.service.InterestService;
 import kh.edu.acleda.campuslink.modules.profile.service.PortfolioService;
+import kh.edu.acleda.campuslink.modules.profile.service.SocialLinkService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
@@ -36,12 +38,17 @@ class ProfileServiceImplTest {
     @Mock
     private PortfolioService portfolioService;
     @Mock
+    private InterestService interestService;
+    @Mock
+    private SocialLinkService socialLinkService;
+    @Mock
     private CurrentUserProvider currentUserProvider;
 
     /** Only userRepository is exercised here; the rest back getPublicProfile. */
     private ProfileServiceImpl newProfileService() {
         return new ProfileServiceImpl(
-            userRepository, userSettingRepository, followRepository, portfolioService, currentUserProvider);
+            userRepository, userSettingRepository, followRepository, portfolioService,
+            interestService, socialLinkService, currentUserProvider);
     }
 
     @Test

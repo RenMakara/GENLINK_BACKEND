@@ -8,10 +8,13 @@ import kh.edu.acleda.campuslink.modules.profile.dto.ProfileUpdateRequest;
 import kh.edu.acleda.campuslink.modules.profile.dto.PublicProfileResponse;
 import kh.edu.acleda.campuslink.modules.profile.entity.UserSetting;
 import kh.edu.acleda.campuslink.modules.profile.repository.UserSettingRepository;
+import kh.edu.acleda.campuslink.modules.profile.service.InterestService;
 import kh.edu.acleda.campuslink.modules.profile.service.PortfolioService;
+import kh.edu.acleda.campuslink.modules.profile.service.SocialLinkService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
@@ -25,23 +28,29 @@ public class ProfileServiceImpl implements ProfileService {
     private final UserSettingRepository userSettingRepository;
     private final FollowRepository followRepository;
     private final PortfolioService portfolioService;
+    private final InterestService interestService;
+    private final SocialLinkService socialLinkService;
     private final CurrentUserProvider currentUserProvider;
 
     public ProfileServiceImpl(UserRepository userRepository,
                               UserSettingRepository userSettingRepository,
                               FollowRepository followRepository,
                               PortfolioService portfolioService,
+                              InterestService interestService,
+                              SocialLinkService socialLinkService,
                               CurrentUserProvider currentUserProvider) {
         this.userRepository = userRepository;
         this.userSettingRepository = userSettingRepository;
         this.followRepository = followRepository;
         this.portfolioService = portfolioService;
+        this.interestService = interestService;
+        this.socialLinkService = socialLinkService;
         this.currentUserProvider = currentUserProvider;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PublicProfileResponse getPublicProfile(String username) {
+    public PublicProfileResponse getPublicProfile(String username, Language language) {
         User target = userRepository.findByUsername(username)
             .orElseThrow(() -> new NotFoundException("User not found: " + username));
         if (target.getAccountStatus() == AccountStatus.DELETED
@@ -67,7 +76,9 @@ public class ProfileServiceImpl implements ProfileService {
             target.getTotalXp(),
             target.getLevel(),
             target.getCreatedAt(),
-            portfolioService.getByUserId(target.getId())
+            portfolioService.getByUserId(target.getId()),
+            interestService.getByUserId(target.getId(), language),
+            socialLinkService.getByUserId(target.getId())
         );
     }
 

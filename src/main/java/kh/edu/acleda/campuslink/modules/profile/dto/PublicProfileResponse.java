@@ -3,7 +3,9 @@ package kh.edu.acleda.campuslink.modules.profile.dto;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.profile.dto.response.InterestResponse;
 import kh.edu.acleda.campuslink.modules.profile.dto.response.PortfolioItemResponse;
+import kh.edu.acleda.campuslink.modules.profile.dto.response.SocialLinkResponse;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 
 /**
@@ -22,6 +24,8 @@ public record PublicProfileResponse(
     int totalXp,
     int level,
     Instant joinedAt,
-    List<PortfolioItemResponse> portfolio
+    List<PortfolioItemResponse> portfolio,
+    List<InterestResponse> interests,
+    List<SocialLinkResponse> socialLinks
 ) {
 }
