@@ -8,4 +8,8 @@ import java.util.UUID;
 
 public interface TaskRepository extends JpaRepository<Task, UUID> {
     List<Task> findByUserIdAndCompletedFalseAndDeletedAtIsNull(UUID userId);
+
+    long countByUserIdAndDeletedAtIsNull(UUID userId);
+
+    long countByUserIdAndDeletedAtIsNullAndCompletedTrue(UUID userId);
 }

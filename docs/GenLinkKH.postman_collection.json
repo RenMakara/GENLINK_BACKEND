@@ -1914,7 +1914,8 @@
                 "mobile",
                 "home"
               ]
-            }
+            },
+            "description": "Home Super Dashboard - every card in one call.\n\nReturns: user, todayProgress (habits + tasks), dailyChallenge, financeSnapshot (budget + savings), upcomingEvent, recommendedCommunities, dailyMotivation, feedPreview.\n\nCards are NULLABLE by design: a new user has no budget, no RSVP and maybe no challenge. null means 'render this card's empty state', not an error. Lists are empty, never null.\n\nTitles of system content (challenge, motivation) follow Accept-Language.\n\nDaily motivation rotates by day-of-year, so it is stable across refreshes."
           }
         },
         {
