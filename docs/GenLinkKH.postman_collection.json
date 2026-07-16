@@ -6,21 +6,75 @@
   },
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8888", "type": "string" },
-    { "key": "accessToken", "value": "", "type": "string" },
-    { "key": "refreshToken", "value": "", "type": "string" },
-    { "key": "email", "value": "demo@genlink.kh", "type": "string" },
-    { "key": "password", "value": "Password123", "type": "string" },
-    { "key": "username", "value": "demo_user", "type": "string" },
-    { "key": "otp", "value": "000000", "type": "string" },
-    { "key": "acceptLanguage", "value": "en", "type": "string" },
-    { "key": "interestId", "value": "", "type": "string" },
-    { "key": "portfolioId", "value": "", "type": "string" },
-    { "key": "sessionId", "value": "", "type": "string" },
-    { "key": "resourceId", "value": "", "type": "string" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8888",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "demo@genlink.kh",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "Password123",
+      "type": "string"
+    },
+    {
+      "key": "username",
+      "value": "demo_user",
+      "type": "string"
+    },
+    {
+      "key": "otp",
+      "value": "000000",
+      "type": "string"
+    },
+    {
+      "key": "acceptLanguage",
+      "value": "en",
+      "type": "string"
+    },
+    {
+      "key": "interestId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "portfolioId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resourceId",
+      "value": "",
+      "type": "string"
+    }
   ],
   "event": [
     {
@@ -54,10 +108,28 @@
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "register"] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"fullName\": \"Demo User\",\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"phoneNumber\": \"+85512345678\",\n  \"password\": \"{{password}}\",\n  \"universityName\": \"ACLEDA University\",\n  \"workStatus\": \"STUDENT\",\n  \"preferredLanguage\": \"KHMER\"\n}"
@@ -85,11 +157,32 @@
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/verify-email", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "verify-email"] },
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-email"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\"\n}"
+            },
             "description": "Set {{otp}} to the 6 digits from the backend console first. Activates the account and returns tokens."
           }
         },
@@ -113,11 +206,32 @@
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
             "description": "Rate limited: 5 failures per 15 min, then a 15 min block (AUTH_TOO_MANY_ATTEMPTS)."
           }
         },
@@ -139,33 +253,96 @@
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/google", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "google"] },
-            "body": { "mode": "raw", "raw": "{\n  \"idToken\": \"<google-id-token>\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/google",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "google"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"<google-id-token>\"\n}"
+            },
             "description": "Send a GOOGLE ID token from google_sign_in — not a Firebase ID token.\nVerified against Google's public keys using app.google.client-id, so GOOGLE_CLIENT_ID must be set on the server.\nHard to exercise from Postman; easiest from the Flutter client."
           }
         },
         {
           "name": "Resend OTP",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/resend-otp", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "resend-otp"] },
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/resend-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "resend-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
             "description": "Deliberately does not reveal whether the account exists — an unknown email returns the same message."
           }
         },
         {
           "name": "Resend Verification OTP",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/resend-verification-otp", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "resend-verification-otp"] },
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/resend-verification-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "resend-verification-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
             "description": "Same behaviour as Resend OTP; this is the hardened implementation the other one delegates to."
           }
         },
@@ -187,31 +364,94 @@
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "verify-otp"] },
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\"\n}"
+            }
           }
         },
         {
           "name": "Forgot Password",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "forgot-password"] },
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            }
           }
         },
         {
           "name": "Reset Password",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "reset-password"] },
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\",\n  \"newPassword\": \"NewPassword123\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\",\n  \"newPassword\": \"NewPassword123\"\n}"
+            }
           }
         },
         {
@@ -233,11 +473,32 @@
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "refresh"] },
-            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
             "description": "Rotates the refresh token. Reusing an old one is detected (TOKEN_REUSE_DETECTED). /auth/refresh-token is an alias."
           }
         },
@@ -246,7 +507,18 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "me"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            }
           }
         },
         {
@@ -254,7 +526,18 @@
           "request": {
             "method": "POST",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "logout"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
             "description": "Revokes refresh tokens AND bumps token_version, so the current access token stops working immediately. Expect 401 on the next authenticated request until you log in again."
           }
         }
@@ -268,15 +551,42 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "me"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "me"
+              ]
+            }
           }
         },
         {
           "name": "Update My Profile",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "me"] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "me"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"fullName\": \"Demo User Updated\",\n  \"bio\": \"Flutter learner from Phnom Penh\",\n  \"universityName\": \"ACLEDA University\",\n  \"workStatus\": \"STUDENT\",\n  \"location\": \"Phnom Penh\",\n  \"preferredLanguage\": \"KHMER\"\n}"
@@ -288,17 +598,53 @@
           "name": "Update Avatar",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/avatar", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "avatar"] },
-            "body": { "mode": "raw", "raw": "{\n  \"avatarUrl\": \"https://cdn.example.com/avatar.png\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "avatar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"avatarUrl\": \"https://cdn.example.com/avatar.png\"\n}"
+            }
           }
         },
         {
           "name": "Get Public Profile",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept-Language", "value": "{{acceptLanguage}}" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/public/{{username}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "public", "{{username}}"] },
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "{{acceptLanguage}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/public/{{username}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "public",
+                "{{username}}"
+              ]
+            },
             "description": "Public-safe view plus portfolio, interests and social links.\nPRIVATE profiles are owner-only (PROFILE_PRIVATE).\nFRIENDS requires a mutual accepted follow (PROFILE_FRIENDS_ONLY)."
           }
         }
@@ -312,7 +658,18 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/settings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "settings"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "settings"
+              ]
+            },
             "description": "Creates defaults on first read rather than 404ing."
           }
         },
@@ -320,8 +677,24 @@
           "name": "Update Settings",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/settings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "settings"] },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "settings"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"language\": \"KHMER\",\n  \"theme\": \"SYSTEM_DEFAULT\",\n  \"notificationEnabled\": true,\n  \"privacyProfile\": \"PUBLIC\",\n  \"allowMessages\": true,\n  \"allowFollowRequest\": true,\n  \"biometricEnabled\": false\n}"
@@ -353,8 +726,23 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept-Language", "value": "{{acceptLanguage}}" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/interests", "host": ["{{baseUrl}}"], "path": ["api", "v1", "interests"] },
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "{{acceptLanguage}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/interests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "interests"
+              ]
+            },
             "description": "Options for the onboarding chooser. `name` is already localised — send Accept-Language: km for Khmer.\nCaptures the first interestId into a variable for the PUT below."
           }
         },
@@ -362,8 +750,24 @@
           "name": "Get My Interests",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept-Language", "value": "{{acceptLanguage}}" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/interests", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "interests"] }
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "{{acceptLanguage}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/interests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "interests"
+              ]
+            }
           }
         },
         {
@@ -371,11 +775,31 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept-Language", "value": "{{acceptLanguage}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{acceptLanguage}}"
+              }
             ],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/interests", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "interests"] },
-            "body": { "mode": "raw", "raw": "{\n  \"interestIds\": [\"{{interestId}}\"]\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/interests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "interests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"interestIds\": [\"{{interestId}}\"]\n}"
+            },
             "description": "Replaces the whole selection (max 20). Run 'Get Interest Catalog' first to populate {{interestId}}.\nUnknown or inactive ids are rejected rather than silently dropped."
           }
         }
@@ -389,7 +813,18 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/portfolio", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "portfolio"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/portfolio",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "portfolio"
+              ]
+            }
           }
         },
         {
@@ -410,18 +845,57 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/portfolio", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "portfolio"] },
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"My first Flutter app\",\n  \"description\": \"A habit tracker built during the competition\",\n  \"link\": \"https://github.com/example/app\",\n  \"imageUrl\": \"https://cdn.example.com/cover.png\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/portfolio",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "portfolio"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"My first Flutter app\",\n  \"description\": \"A habit tracker built during the competition\",\n  \"link\": \"https://github.com/example/app\",\n  \"imageUrl\": \"https://cdn.example.com/cover.png\"\n}"
+            }
           }
         },
         {
           "name": "Update Portfolio Item",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/portfolio/{{portfolioId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "portfolio", "{{portfolioId}}"] },
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"My first Flutter app (v2)\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/portfolio/{{portfolioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "portfolio",
+                "{{portfolioId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"My first Flutter app (v2)\"\n}"
+            }
           }
         },
         {
@@ -429,7 +903,19 @@
           "request": {
             "method": "DELETE",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/portfolio/{{portfolioId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "portfolio", "{{portfolioId}}"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/portfolio/{{portfolioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "portfolio",
+                "{{portfolioId}}"
+              ]
+            },
             "description": "Soft delete. Another user's id returns 'not found' rather than revealing the row exists."
           }
         }
@@ -443,16 +929,46 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/social-links", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "social-links"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/social-links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "social-links"
+              ]
+            }
           }
         },
         {
           "name": "Upsert Social Link",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/social-links", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "social-links"] },
-            "body": { "mode": "raw", "raw": "{\n  \"platform\": \"GITHUB\",\n  \"url\": \"https://github.com/RenMakara\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/social-links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "social-links"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"platform\": \"GITHUB\",\n  \"url\": \"https://github.com/RenMakara\"\n}"
+            },
             "description": "platform: FACEBOOK | INSTAGRAM | TELEGRAM | TIKTOK | YOUTUBE | LINKEDIN | GITHUB | X | WEBSITE | OTHER\nOne link per platform — this creates or replaces.\nURL must start with http:// or https://."
           }
         },
@@ -461,7 +977,164 @@
           "request": {
             "method": "DELETE",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/profile/social-links/GITHUB", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "social-links", "GITHUB"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/social-links/GITHUB",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "social-links",
+                "GITHUB"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile > Saved Items",
+      "description": "One saved list across every domain, backed by saved_items. Chosen over the per-domain saved_posts / user_saved_motivations tables, which are now superseded.",
+      "item": [
+        {
+          "name": "List Saved (all)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/saved",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "saved"
+              ]
+            },
+            "description": "Newest first. Add ?type=POST to filter."
+          }
+        },
+        {
+          "name": "List Saved (filtered by type)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/saved?type=POST",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "saved"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "POST",
+                  "description": "POST | DISCUSSION | EVENT | OPPORTUNITY | MOTIVATION | LESSON | SHORT_CONTENT"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Save Item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.itemId) { pm.collectionVariables.set('resourceId', json.data.itemId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/saved",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "saved"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemType\": \"POST\",\n  \"itemId\": \"{{resourceId}}\"\n}"
+            },
+            "description": "itemType: POST | DISCUSSION | EVENT | OPPORTUNITY | MOTIVATION | LESSON | SHORT_CONTENT\n\nIdempotent: saving twice returns the existing row instead of failing on the unique constraint.\n\nitemId is not a foreign key (the table is polymorphic), so no check is made that the target exists."
+          }
+        },
+        {
+          "name": "Is Saved?",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/saved/check?itemType=POST&itemId={{resourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "saved",
+                "check"
+              ],
+              "query": [
+                {
+                  "key": "itemType",
+                  "value": "POST"
+                },
+                {
+                  "key": "itemId",
+                  "value": "{{resourceId}}"
+                }
+              ]
+            },
+            "description": "For rendering the save toggle without fetching the whole list. Returns { saved: true|false }."
+          }
+        },
+        {
+          "name": "Unsave Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/saved/POST/{{resourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "saved",
+                "POST",
+                "{{resourceId}}"
+              ]
+            }
           }
         }
       ]
@@ -473,9 +1146,28 @@
           "name": "Change Password",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/security/password", "host": ["{{baseUrl}}"], "path": ["api", "v1", "security", "password"] },
-            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"NewPassword123\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/security/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "security",
+                "password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"NewPassword123\"\n}"
+            },
             "description": "Revokes every session and bumps token_version, so your current token dies immediately — log in again afterwards.\nRate limited: 5 failures per 15 min, then a 15 min block.\nGoogle-only accounts get AUTH_PASSWORD_NOT_SET."
           }
         },
@@ -498,7 +1190,18 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/security/sessions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "security", "sessions"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/security/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "security",
+                "sessions"
+              ]
+            },
             "description": "Live sign-ins with device, IP and last-used. Token hashes are never exposed."
           }
         },
@@ -507,7 +1210,19 @@
           "request": {
             "method": "DELETE",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/security/sessions/{{sessionId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "security", "sessions", "{{sessionId}}"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/security/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "security",
+                "sessions",
+                "{{sessionId}}"
+              ]
+            },
             "description": "Known limitation: revokes that device's refresh token, but its existing access token still works until it expires (max 15 min). Token versioning is per-user, so bumping it would sign out every device."
           }
         },
@@ -516,7 +1231,18 @@
           "request": {
             "method": "DELETE",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/security/sessions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "security", "sessions"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/security/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "security",
+                "sessions"
+              ]
+            },
             "description": "Immediate: bumps token_version, so all access tokens die at once — including this one."
           }
         },
@@ -525,7 +1251,18 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/security/activity", "host": ["{{baseUrl}}"], "path": ["api", "v1", "security", "activity"] },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/security/activity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "security",
+                "activity"
+              ]
+            },
             "description": "Last 50 security events: logins, failures, password changes, session revokes."
           }
         }
@@ -539,7 +1276,18 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/users/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "users", "me"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ]
+            }
           }
         }
       ]
@@ -563,9 +1311,28 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/community/posts", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "posts"] },
-            "body": { "mode": "raw", "raw": "{\n  \"contentText\": \"Hello GenLink KH!\",\n  \"imageUrl\": null,\n  \"postType\": \"TEXT\",\n  \"visibility\": \"PUBLIC\",\n  \"language\": \"ENGLISH\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentText\": \"Hello GenLink KH!\",\n  \"imageUrl\": null,\n  \"postType\": \"TEXT\",\n  \"visibility\": \"PUBLIC\",\n  \"language\": \"ENGLISH\"\n}"
+            },
             "description": "postType: TEXT | IMAGE | POLL | ANNOUNCEMENT\nvisibility: PUBLIC | FRIENDS | COMMUNITY"
           }
         },
@@ -574,16 +1341,47 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/community/posts", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "posts"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts"
+              ]
+            }
           }
         },
         {
           "name": "Update Post",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "posts", "{{resourceId}}"] },
-            "body": { "mode": "raw", "raw": "{\n  \"contentText\": \"Edited post\",\n  \"postType\": \"TEXT\",\n  \"visibility\": \"PUBLIC\",\n  \"language\": \"ENGLISH\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "{{resourceId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentText\": \"Edited post\",\n  \"postType\": \"TEXT\",\n  \"visibility\": \"PUBLIC\",\n  \"language\": \"ENGLISH\"\n}"
+            }
           }
         },
         {
@@ -591,16 +1389,47 @@
           "request": {
             "method": "DELETE",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "posts", "{{resourceId}}"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "{{resourceId}}"
+              ]
+            }
           }
         },
         {
           "name": "Create Discussion",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/community/discussions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "discussions"] },
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"How do you stay focused while studying?\",\n  \"content\": \"Share your tips.\",\n  \"category\": \"EDUCATION\",\n  \"anonymous\": false,\n  \"language\": \"ENGLISH\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/discussions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "discussions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"How do you stay focused while studying?\",\n  \"content\": \"Share your tips.\",\n  \"category\": \"EDUCATION\",\n  \"anonymous\": false,\n  \"language\": \"ENGLISH\"\n}"
+            }
           }
         },
         {
@@ -608,16 +1437,46 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/community/discussions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "discussions"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/discussions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "discussions"
+              ]
+            }
           }
         },
         {
           "name": "Create Event",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/community/events", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "events"] },
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Flutter Workshop\",\n  \"description\": \"Intro to Flutter for beginners\",\n  \"category\": \"WORKSHOP\",\n  \"coverImageUrl\": null,\n  \"dateTime\": \"2026-08-01T14:00:00\",\n  \"locationName\": \"ACLEDA University\",\n  \"attendeeLimit\": 50,\n  \"status\": \"PUBLISHED\",\n  \"language\": \"ENGLISH\"\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "events"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Flutter Workshop\",\n  \"description\": \"Intro to Flutter for beginners\",\n  \"category\": \"WORKSHOP\",\n  \"coverImageUrl\": null,\n  \"dateTime\": \"2026-08-01T14:00:00\",\n  \"locationName\": \"ACLEDA University\",\n  \"attendeeLimit\": 50,\n  \"status\": \"PUBLISHED\",\n  \"language\": \"ENGLISH\"\n}"
+            },
             "description": "status: DRAFT | PUBLISHED | CANCELLED | COMPLETED\ndateTime is a local date-time (no timezone offset)."
           }
         },
@@ -626,7 +1485,18 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{baseUrl}}/api/v1/community/events", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "events"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "events"
+              ]
+            }
           }
         }
       ]
@@ -638,40 +1508,142 @@
           "name": "Create Habit",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/productivity/habits", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "habits"] },
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Read 20 minutes\",\n  \"category\": \"LEARNING\",\n  \"frequency\": \"DAILY\",\n  \"reminderTime\": \"07:30:00\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/habits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "habits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Read 20 minutes\",\n  \"category\": \"LEARNING\",\n  \"frequency\": \"DAILY\",\n  \"reminderTime\": \"07:30:00\"\n}"
+            }
           }
         },
         {
           "name": "List My Habits",
-          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/productivity/habits", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "habits"] } }
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/habits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "habits"
+              ]
+            }
+          }
         },
         {
           "name": "Create Task",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/productivity/tasks", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "tasks"] },
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Finish backend API\",\n  \"description\": \"Wire the profile endpoints\",\n  \"priority\": \"HIGH\",\n  \"category\": \"WORK\",\n  \"dueDate\": \"2026-07-20T17:00:00\",\n  \"reminderTime\": \"2026-07-20T09:00:00\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Finish backend API\",\n  \"description\": \"Wire the profile endpoints\",\n  \"priority\": \"HIGH\",\n  \"category\": \"WORK\",\n  \"dueDate\": \"2026-07-20T17:00:00\",\n  \"reminderTime\": \"2026-07-20T09:00:00\"\n}"
+            }
           }
         },
         {
           "name": "List My Tasks",
-          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/productivity/tasks", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "tasks"] } }
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks"
+              ]
+            }
+          }
         },
         {
           "name": "Create Goal",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/productivity/goals", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "goals"] },
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Become a Flutter Developer\",\n  \"description\": \"Ship one app\",\n  \"goalType\": \"CAREER\",\n  \"deadline\": \"2026-12-31\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/goals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "goals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Become a Flutter Developer\",\n  \"description\": \"Ship one app\",\n  \"goalType\": \"CAREER\",\n  \"deadline\": \"2026-12-31\"\n}"
+            }
           }
         },
         {
           "name": "List My Goals",
-          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/productivity/goals", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "goals"] } }
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/goals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "goals"
+              ]
+            }
+          }
         }
       ]
     },
@@ -682,70 +1654,401 @@
           "name": "Create Expense",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/finance/expenses", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "expenses"] },
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Coffee\",\n  \"amount\": 2.50,\n  \"category\": \"FOOD\",\n  \"description\": \"Morning coffee\",\n  \"expenseDate\": \"2026-07-17\",\n  \"paymentMethod\": \"CASH\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "expenses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Coffee\",\n  \"amount\": 2.50,\n  \"category\": \"FOOD\",\n  \"description\": \"Morning coffee\",\n  \"expenseDate\": \"2026-07-17\",\n  \"paymentMethod\": \"CASH\"\n}"
+            }
           }
         },
         {
           "name": "List My Expenses",
-          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/finance/expenses", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "expenses"] } }
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "expenses"
+              ]
+            }
+          }
         },
         {
           "name": "Create Budget",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/finance/budgets", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "budgets"] },
-            "body": { "mode": "raw", "raw": "{\n  \"month\": 7,\n  \"year\": 2026,\n  \"totalBudget\": 300.00\n}" },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/budgets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "budgets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": 7,\n  \"year\": 2026,\n  \"totalBudget\": 300.00\n}"
+            },
             "description": "One budget per user per month/year."
           }
         },
         {
           "name": "List My Budgets",
-          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/finance/budgets", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "budgets"] } }
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/budgets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "budgets"
+              ]
+            }
+          }
         },
         {
           "name": "Create Saving Goal",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": { "raw": "{{baseUrl}}/api/v1/finance/savings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "savings"] },
-            "body": { "mode": "raw", "raw": "{\n  \"title\": \"New laptop\",\n  \"targetAmount\": 800.00,\n  \"targetDate\": \"2026-12-01\"\n}" }
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/savings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "savings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"New laptop\",\n  \"targetAmount\": 800.00,\n  \"targetDate\": \"2026-12-01\"\n}"
+            }
           }
         },
         {
           "name": "List My Saving Goals",
-          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/finance/savings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "savings"] } }
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/savings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "savings"
+              ]
+            }
+          }
         }
       ]
     },
     {
       "name": "Entertainment",
       "item": [
-        { "name": "List Quizzes", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/entertainment/quizzes", "host": ["{{baseUrl}}"], "path": ["api", "v1", "entertainment", "quizzes"] } } },
-        { "name": "List Challenges", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/entertainment/challenges", "host": ["{{baseUrl}}"], "path": ["api", "v1", "entertainment", "challenges"] } } },
-        { "name": "List Badges", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/entertainment/badges", "host": ["{{baseUrl}}"], "path": ["api", "v1", "entertainment", "badges"] } } },
-        { "name": "List Leaderboards", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/entertainment/leaderboards", "host": ["{{baseUrl}}"], "path": ["api", "v1", "entertainment", "leaderboards"] } } }
+        {
+          "name": "List Quizzes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/quizzes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "quizzes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Challenges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/challenges",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "challenges"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Badges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/badges",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "badges"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Leaderboards",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/leaderboards",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "leaderboards"
+              ]
+            }
+          }
+        }
       ]
     },
     {
       "name": "Mobile (BFF-lite)",
       "description": "Aggregation endpoints for dashboard-heavy screens. Capped at 5-6 by design.",
       "item": [
-        { "name": "Home Dashboard", "request": { "method": "GET", "header": [{ "key": "Accept-Language", "value": "{{acceptLanguage}}" }], "url": { "raw": "{{baseUrl}}/api/v1/mobile/home", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "home"] } } },
-        { "name": "Profile Summary", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/mobile/profile-summary", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "profile-summary"] } } },
-        { "name": "Finance Dashboard", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/mobile/finance-dashboard", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "finance-dashboard"] } } },
-        { "name": "Productivity Dashboard", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/mobile/productivity-dashboard", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "productivity-dashboard"] } } },
-        { "name": "Event Detail", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/mobile/events/{{resourceId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "events", "{{resourceId}}"] } } },
-        { "name": "Notifications", "request": { "method": "GET", "header": [{ "key": "Accept-Language", "value": "{{acceptLanguage}}" }], "url": { "raw": "{{baseUrl}}/api/v1/mobile/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "notifications"] } } }
+        {
+          "name": "Home Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "{{acceptLanguage}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/home",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "home"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Profile Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/profile-summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "profile-summary"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Finance Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/finance-dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "finance-dashboard"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Productivity Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/productivity-dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "productivity-dashboard"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Event Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/events/{{resourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "events",
+                "{{resourceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "{{acceptLanguage}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "notifications"
+              ]
+            }
+          }
+        }
       ]
     },
     {
       "name": "Health & Docs",
       "item": [
-        { "name": "Health", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] } } },
-        { "name": "OpenAPI JSON", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/v3/api-docs", "host": ["{{baseUrl}}"], "path": ["v3", "api-docs"] } } }
+        {
+          "name": "Health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "OpenAPI JSON",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            }
+          }
+        }
       ]
     }
   ]
