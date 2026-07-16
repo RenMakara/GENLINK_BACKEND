@@ -54,9 +54,22 @@ public class EmailServiceImpl implements EmailService {
             mailSender.send(message);
             log.info("Successfully sent OTP email to {}", to);
         } catch (Exception e) {
-            log.error("Failed to send email to {}: {}", to, e.getMessage());
+            log.error("Failed to send email to {}: {}", to, rootCauseMessage(e), e);
             // We don't throw exception here to allow user to see OTP in console during dev
         }
+    }
+
+    /**
+     * Spring wraps the SMTP failure, so getMessage() on the top-level exception is
+     * often just "Authentication failed". The provider's actual reply (for example
+     * Gmail's "535-5.7.8 Username and Password not accepted") is only on the cause.
+     */
+    private String rootCauseMessage(Throwable throwable) {
+        Throwable root = throwable;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        return root.getMessage() != null ? root.getMessage() : root.toString();
     }
 
     private String buildOtpHtml(String otp, Language language, OtpPurpose purpose) {
