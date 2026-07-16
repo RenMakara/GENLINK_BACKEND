@@ -89,7 +89,10 @@ public class UserSettingServiceImpl implements UserSettingService {
             .orElseThrow(() -> new NotFoundException("User not found"));
         return UserSetting.builder()
             .user(user)
-            .language(user.getPreferredLanguage() != null ? user.getPreferredLanguage() : Language.KHMER)
+            // Never null: the field initialises to ENGLISH, the setter coerces null to
+            // ENGLISH, and the column is NOT NULL DEFAULT 'ENGLISH'. Settings inherit
+            // the user's language rather than re-deciding a default here.
+            .language(user.getPreferredLanguage())
             .theme(Theme.SYSTEM_DEFAULT)
             .notificationEnabled(true)
             .privacyProfile("PUBLIC")
