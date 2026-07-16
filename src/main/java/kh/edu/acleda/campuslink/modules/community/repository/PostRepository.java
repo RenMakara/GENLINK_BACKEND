@@ -2,11 +2,15 @@ package kh.edu.acleda.campuslink.modules.community.repository;
 
 import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PostRepository extends JpaRepository<Post, UUID> {
@@ -17,4 +21,34 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
      */
     @Query("SELECT p FROM Post p JOIN FETCH p.user WHERE p.deletedAt IS NULL AND p.visibility = :visibility ORDER BY p.createdAt DESC")
     List<Post> findFeedPreview(Visibility visibility, Pageable pageable);
+
+    /**
+     * The feed. countQuery is given explicitly because JOIN FETCH cannot appear in a
+     * count query, and Spring would otherwise fail to derive one.
+     */
+    @Query(value = "SELECT p FROM Post p JOIN FETCH p.user "
+        + "WHERE p.deletedAt IS NULL AND p.visibility = :visibility",
+        countQuery = "SELECT COUNT(p) FROM Post p WHERE p.deletedAt IS NULL AND p.visibility = :visibility")
+    Page<Post> findFeed(@Param("visibility") Visibility visibility, Pageable pageable);
+
+    @Query(value = "SELECT p FROM Post p JOIN FETCH p.user WHERE p.deletedAt IS NULL AND p.user.id = :userId",
+        countQuery = "SELECT COUNT(p) FROM Post p WHERE p.deletedAt IS NULL AND p.user.id = :userId")
+    Page<Post> findByAuthor(@Param("userId") UUID userId, Pageable pageable);
+
+    /** Scoped by owner so another user's id reads as not found rather than forbidden. */
+    Optional<Post> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
+
+    Optional<Post> findByIdAndDeletedAtIsNull(UUID id);
+
+    /**
+     * Counter updates go straight to the database rather than read-modify-write, so two
+     * concurrent likes cannot both read 4 and both write 5.
+     */
+    @Modifying
+    @Query("UPDATE Post p SET p.likeCount = p.likeCount + :delta WHERE p.id = :postId")
+    void adjustLikeCount(@Param("postId") UUID postId, @Param("delta") int delta);
+
+    @Modifying
+    @Query("UPDATE Post p SET p.commentCount = p.commentCount + :delta WHERE p.id = :postId")
+    void adjustCommentCount(@Param("postId") UUID postId, @Param("delta") int delta);
 }

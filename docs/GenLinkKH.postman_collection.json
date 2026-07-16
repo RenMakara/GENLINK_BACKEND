@@ -74,6 +74,11 @@
       "key": "resourceId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "commentId",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -1356,7 +1361,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/community/posts",
+              "raw": "{{baseUrl}}/api/v1/community/posts?page=0&size=20",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1365,8 +1370,19 @@
                 "v1",
                 "community",
                 "posts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
-            }
+            },
+            "description": "Paginated. data is a PageResponse: {content, page, size, totalElements, totalPages, hasNext}."
           }
         },
         {
@@ -1416,6 +1432,254 @@
                 "{{resourceId}}"
               ]
             }
+          }
+        },
+        {
+          "name": "Feed (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/feed?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "feed"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "The public feed, newest first.\n\ndata is a PageResponse: {content, page, size, totalElements, totalPages, hasNext}.\n\nEach row already carries author, likedByMe, savedByMe, hashtags and createdAt — the screen renders from this one call, no per-post follow-ups."
+          }
+        },
+        {
+          "name": "Get Post By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "{{resourceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Like Post",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "{{resourceId}}",
+                "like"
+              ]
+            },
+            "description": "Idempotent — backs the like toggle. Liking twice returns the same count rather than 500ing on UNIQUE(post_id, user_id). Returns {likeCount}."
+          }
+        },
+        {
+          "name": "Unlike Post",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "{{resourceId}}",
+                "like"
+              ]
+            },
+            "description": "Unliking something never liked is a no-op. Returns {likeCount}."
+          }
+        },
+        {
+          "name": "Add Comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.commentId) { pm.collectionVariables.set('commentId', json.data.commentId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "{{resourceId}}",
+                "comments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Nice post!\",\n  \"parentCommentId\": null,\n  \"language\": \"ENGLISH\"\n}"
+            },
+            "description": "Set parentCommentId to reply. Threading is one level deep: replying to a reply attaches to the same top-level parent."
+          }
+        },
+        {
+          "name": "List Comments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}/comments?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "{{resourceId}}",
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Top-level comments only, paginated. Replies come from the /replies route."
+          }
+        },
+        {
+          "name": "List Replies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/comments/{{commentId}}/replies?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "comments",
+                "{{commentId}}",
+                "replies"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "comments",
+                "{{commentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Trending Hashtags",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/hashtags/trending?limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "hashtags",
+                "trending"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Ranked by usage_count. Tags are parsed from post content on create, lower-cased, and Khmer tags work (#បច្ចេកវិទ្យា)."
           }
         },
         {

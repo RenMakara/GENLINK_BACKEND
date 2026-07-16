@@ -1,6 +1,6 @@
 # Community Domain — Implementation Plan
 
-Status: not started
+Status: **Phase 0 and Phase 1 done** (2026-07-17). Phases 2-5 not started.
 Created: 2026-07-17
 Owner: Enat (Community domain, per Team Assignment v5)
 Scope: backend only
@@ -13,9 +13,12 @@ Community is the largest domain in GenLink KH: 22 tables, more than everything
 else combined. It cannot be built in one pass, and the order matters because the
 early phases establish patterns the later ones copy.
 
-## 2. Where Community actually stands
+## 2. Where Community stood before Phase 1
 
-Measured 2026-07-17, not estimated.
+Measured 2026-07-17, not estimated. Kept as the record of what was found, and of
+what "the endpoint exists" was worth. Posts, comments, likes and hashtags are now
+real — see "Delivered" at the end. Events and Forum are still exactly as described
+below.
 
 | Thing | Count |
 |---|---|
@@ -74,14 +77,14 @@ posted.** Fix the DTO before building the feed on top of it.
 
 Do once. Everything after this depends on it.
 
-- [ ] **0.1** `PageResponse<T>` DTO: `content, page, size, totalElements, totalPages, hasNext`.
+- [x] **0.1** `PageResponse<T>` DTO: `content, page, size, totalElements, totalPages, hasNext`.
       Returned inside the existing `ApiResponse<T>`, so the envelope does not change.
       Adopt `Pageable` on every list endpoint from here on.
-- [ ] **0.2** Extend `PostResponse`: `author` (userId, fullName, avatarUrl),
+- [x] **0.2** Extend `PostResponse`: `author` (userId, fullName, avatarUrl),
       `createdAt`, `likedByMe`, `savedByMe`.
       `likedByMe` matters: without it the client fires one request per post to
       colour the like button.
-- [ ] **0.3** Confirm the counts rule. `Developer Notes v5` already says cached
+- [x] **0.3** Confirm the counts rule. `Developer Notes v5` already says cached
       counts must be maintained transactionally: `likeCount`, `commentCount`,
       `shareCount`, `saveCount` on posts, `attendeeCount` on events,
       `memberCount`/`postCount` on communities. Update them in the same
@@ -94,23 +97,23 @@ Do once. Everything after this depends on it.
 The single most visible surface in the app. Also unblocks `/mobile/home`, whose
 `feedPreview` currently queries posts that can never exist.
 
-- [ ] **1.1** `PostServiceImpl` for real: create, update, delete.
+- [x] **1.1** `PostServiceImpl` for real: create, update, delete.
       Ownership-scoped lookups (another user's id reads as not found, not
       forbidden). Soft delete via `deletedAt`.
-- [ ] **1.2** `GET /api/v1/community/posts/feed` — paginated, `deletedAt IS NULL`,
+- [x] **1.2** `GET /api/v1/community/posts/feed` — paginated, `deletedAt IS NULL`,
       visibility-filtered, author `JOIN FETCH`ed (never lazy-load per row).
-- [ ] **1.3** Likes: `POST/DELETE /api/v1/community/posts/{id}/like`.
+- [x] **1.3** Likes: `POST/DELETE /api/v1/community/posts/{id}/like`.
       Idempotent — it backs a UI toggle, and `post_reactions` has
       `UNIQUE(post_id, user_id)`, so a double tap must not 500.
       Maintain `likeCount` in the same transaction.
-- [ ] **1.4** Comments: `POST/GET/DELETE /api/v1/community/posts/{id}/comments`.
+- [x] **1.4** Comments: `POST/GET/DELETE /api/v1/community/posts/{id}/comments`.
       Paginated. Maintain `commentCount`. `post_comments.parent_comment_id`
       already exists, so replies are possible — keep threading one level deep.
-- [ ] **1.5** Hashtags: extract `#tags` from `contentText` on create, upsert
+- [x] **1.5** Hashtags: extract `#tags` from `contentText` on create, upsert
       `hashtags`, link `post_hashtags`, bump `usage_count`.
       `GET /api/v1/community/hashtags/trending`. Powers "Trending" and "Hashtags"
       in the Social Feed flow.
-- [ ] **1.6** Tests: ownership, soft delete, like idempotency, count accuracy,
+- [x] **1.6** Tests: ownership, soft delete, like idempotency, count accuracy,
       pagination bounds.
 
 **Demoable after Phase 1:** post → see it in the feed → like → comment.
@@ -226,3 +229,60 @@ than discovering a wrong pattern in Phase 4.
 3. **Feed scope.** The FigJam feed mixes curated news, followed users, skills,
    events and leaderboard highlights. Phase 1 delivers posts only. Is that enough
    for the demo?
+
+---
+
+## Delivered — Phase 0 + Phase 1 (2026-07-17)
+
+### Endpoints
+
+| Method | Path |
+|---|---|
+| POST | `/api/v1/community/posts` |
+| GET | `/api/v1/community/posts/feed` (paginated) |
+| GET | `/api/v1/community/posts` (mine, paginated) |
+| GET | `/api/v1/community/posts/{id}` |
+| PUT | `/api/v1/community/posts/{id}` |
+| DELETE | `/api/v1/community/posts/{id}` |
+| POST/DELETE | `/api/v1/community/posts/{id}/like` |
+| POST/GET | `/api/v1/community/posts/{postId}/comments` |
+| GET | `/api/v1/community/comments/{id}/replies` |
+| DELETE | `/api/v1/community/comments/{id}` |
+| GET | `/api/v1/community/hashtags/trending` |
+
+### Decisions worth keeping
+
+- `PageResponse<T>` lives in `shared/response` and is returned inside the existing
+  `ApiResponse<T>`. Spring's `Page` is not serialised directly: it leaks Pageable
+  internals and its JSON shape is unstable across versions. **Phases 2-5 reuse this.**
+- Feed hydration is batched: likes, saves and hashtags each cost one query per page,
+  not per row. `PostServiceImplTest` pins this with `times(1)` verifications, so an
+  N+1 reintroduced later fails the build.
+- Counters use `UPDATE ... SET likeCount = likeCount + :delta` rather than
+  read-modify-write, so two concurrent likes cannot both read 4 and both write 5.
+- Like/unlike are idempotent — `post_reactions` has `UNIQUE(post_id, user_id)` and
+  the endpoint backs a toggle.
+- Comment threading is capped at one level: replying to a reply attaches to the same
+  top-level parent, so the client never renders arbitrary nesting. A parent from a
+  different post is rejected.
+- Ownership-scoped lookups return **not found**, never forbidden.
+
+### Two bugs fixed on the way
+
+- `PostComment.parentComment` was `@JoinColumn(nullable = false)`, contradicting
+  migration 0009. Under the test profile's `ddl-auto: create-drop` Hibernate would
+  generate a NOT NULL column and reject **every top-level comment**, since only
+  replies have a parent.
+- The hashtag regex used `\p{L}`, which silently truncated Khmer tags. Khmer writes a
+  syllable as a consonant plus vowel signs and coeng, which Unicode classifies as
+  marks (`\p{M}`), not letters. `#បច្ចេកវិទ្យា` was being cut at the first vowel sign.
+  Caught by `HashtagServiceImplTest`, which now pins Khmer extraction.
+
+### Not done in Phase 1
+
+- `posts.community_id` is not set on create. It belongs with Phase 4, when
+  communities become joinable and `Visibility.COMMUNITY` can mean something.
+- The feed serves `Visibility.PUBLIC` only. `FRIENDS` and `COMMUNITY` need the follow
+  graph and memberships from Phase 4.
+- Comment likes: `post_comments.like_count` exists and is returned, but nothing
+  increments it yet.
