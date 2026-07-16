@@ -35,6 +35,10 @@ public class Post extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "community_id")
+    private Community community;
+
     @Column(name = "content_text", columnDefinition = "TEXT")
     private String contentText;
 
