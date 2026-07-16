@@ -1,0 +1,752 @@
+{
+  "info": {
+    "name": "GenLink KH — Backend API",
+    "description": "GenLink KH backend (Spring Boot, port 8888).\n\n## Quick start\n1. Set the `baseUrl` variable if your server is not on http://localhost:8888.\n2. Run **Auth > Register**, then **Auth > Verify Email** with the 6-digit OTP.\n   The OTP is printed to the backend console (`EMAIL OTP FOR ...`), which is handy\n   because SMTP may not be configured.\n3. Or just run **Auth > Login** if you already have an account.\n\nLogin, Verify Email, Verify OTP and the Refresh requests all capture\n`accessToken` and `refreshToken` into collection variables automatically, so\nevery other request is authenticated for you.\n\n## Notes\n- All responses are wrapped: `{ success, message, data, errorCode, timestamp }`.\n- Auth is Bearer JWT, set once at collection level. Public endpoints override it to none.\n- Access tokens last 15 minutes and carry a `tv` (token version) claim. Logout,\n  change-password and revoke-all bump it, so the token dies immediately — that is\n  intended, just log in again.\n- `Accept-Language: km` or `en` controls the language of system content such as\n  interest names. Default is Khmer.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8888", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "email", "value": "demo@genlink.kh", "type": "string" },
+    { "key": "password", "value": "Password123", "type": "string" },
+    { "key": "username", "value": "demo_user", "type": "string" },
+    { "key": "otp", "value": "000000", "type": "string" },
+    { "key": "acceptLanguage", "value": "en", "type": "string" },
+    { "key": "interestId", "value": "", "type": "string" },
+    { "key": "portfolioId", "value": "", "type": "string" },
+    { "key": "sessionId", "value": "", "type": "string" },
+    { "key": "resourceId", "value": "", "type": "string" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Nothing global yet. Token capture lives on the auth requests."
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Public endpoints. These override collection auth to 'none'.",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('registered', () => pm.response.to.have.status(200));",
+                  "// OTP is printed in the backend console: 'EMAIL OTP FOR <email>: 123456'.",
+                  "// Copy it into the {{otp}} variable, then run Verify Email."
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Demo User\",\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"phoneNumber\": \"+85512345678\",\n  \"password\": \"{{password}}\",\n  \"universityName\": \"ACLEDA University\",\n  \"workStatus\": \"STUDENT\",\n  \"preferredLanguage\": \"KHMER\"\n}"
+            },
+            "description": "workStatus: STUDENT | FRESH_GRADUATE | YOUNG_PROFESSIONAL | CREATOR | FREELANCER | ENTREPRENEUR | OTHER\npreferredLanguage: KHMER | ENGLISH\n\nCreates the account as PENDING and sends an OTP."
+          }
+        },
+        {
+          "name": "Verify Email (activate + get tokens)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  console.log('Tokens captured.');",
+                  "}",
+                  "pm.test('verified', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/verify-email", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "verify-email"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\"\n}" },
+            "description": "Set {{otp}} to the 6 digits from the backend console first. Activates the account and returns tokens."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  console.log('Tokens captured.');",
+                  "}",
+                  "pm.test('logged in', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}" },
+            "description": "Rate limited: 5 failures per 15 min, then a 15 min block (AUTH_TOO_MANY_ATTEMPTS)."
+          }
+        },
+        {
+          "name": "Google Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/google", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "google"] },
+            "body": { "mode": "raw", "raw": "{\n  \"idToken\": \"<google-id-token>\"\n}" },
+            "description": "Send a GOOGLE ID token from google_sign_in — not a Firebase ID token.\nVerified against Google's public keys using app.google.client-id, so GOOGLE_CLIENT_ID must be set on the server.\nHard to exercise from Postman; easiest from the Flutter client."
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/resend-otp", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "resend-otp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "description": "Deliberately does not reveal whether the account exists — an unknown email returns the same message."
+          }
+        },
+        {
+          "name": "Resend Verification OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/resend-verification-otp", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "resend-verification-otp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" },
+            "description": "Same behaviour as Resend OTP; this is the hardened implementation the other one delegates to."
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "verify-otp"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\"\n}" }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "forgot-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "reset-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\",\n  \"newPassword\": \"NewPassword123\"\n}" }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  console.log('Tokens rotated.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "refresh"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "description": "Rotates the refresh token. Reusing an old one is detected (TOKEN_REUSE_DETECTED). /auth/refresh-token is an alias."
+          }
+        },
+        {
+          "name": "Me (auth)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "me"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "logout"] },
+            "description": "Revokes refresh tokens AND bumps token_version, so the current access token stops working immediately. Expect 401 on the next authenticated request until you log in again."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "me"] }
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "me"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Demo User Updated\",\n  \"bio\": \"Flutter learner from Phnom Penh\",\n  \"universityName\": \"ACLEDA University\",\n  \"workStatus\": \"STUDENT\",\n  \"location\": \"Phnom Penh\",\n  \"preferredLanguage\": \"KHMER\"\n}"
+            },
+            "description": "Partial update — omit any field to leave it unchanged. Duplicate username or phone is rejected."
+          }
+        },
+        {
+          "name": "Update Avatar",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/avatar", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "avatar"] },
+            "body": { "mode": "raw", "raw": "{\n  \"avatarUrl\": \"https://cdn.example.com/avatar.png\"\n}" }
+          }
+        },
+        {
+          "name": "Get Public Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept-Language", "value": "{{acceptLanguage}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/public/{{username}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "public", "{{username}}"] },
+            "description": "Public-safe view plus portfolio, interests and social links.\nPRIVATE profiles are owner-only (PROFILE_PRIVATE).\nFRIENDS requires a mutual accepted follow (PROFILE_FRIENDS_ONLY)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile > Settings",
+      "item": [
+        {
+          "name": "Get Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/settings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "settings"] },
+            "description": "Creates defaults on first read rather than 404ing."
+          }
+        },
+        {
+          "name": "Update Settings",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/settings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "settings"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"language\": \"KHMER\",\n  \"theme\": \"SYSTEM_DEFAULT\",\n  \"notificationEnabled\": true,\n  \"privacyProfile\": \"PUBLIC\",\n  \"allowMessages\": true,\n  \"allowFollowRequest\": true,\n  \"biometricEnabled\": false\n}"
+            },
+            "description": "theme: LIGHT | DARK | SYSTEM_DEFAULT\nlanguage: KHMER | ENGLISH\nprivacyProfile: PUBLIC | FRIENDS | PRIVATE\nPartial update — omit fields to leave them unchanged."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile > Interests",
+      "item": [
+        {
+          "name": "Get Interest Catalog",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.length) {",
+                  "  pm.collectionVariables.set('interestId', json.data[0].interestId);",
+                  "  console.log('interestId captured: ' + json.data[0].interestId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept-Language", "value": "{{acceptLanguage}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/interests", "host": ["{{baseUrl}}"], "path": ["api", "v1", "interests"] },
+            "description": "Options for the onboarding chooser. `name` is already localised — send Accept-Language: km for Khmer.\nCaptures the first interestId into a variable for the PUT below."
+          }
+        },
+        {
+          "name": "Get My Interests",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept-Language", "value": "{{acceptLanguage}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/interests", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "interests"] }
+          }
+        },
+        {
+          "name": "Replace My Interests",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept-Language", "value": "{{acceptLanguage}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/interests", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "interests"] },
+            "body": { "mode": "raw", "raw": "{\n  \"interestIds\": [\"{{interestId}}\"]\n}" },
+            "description": "Replaces the whole selection (max 20). Run 'Get Interest Catalog' first to populate {{interestId}}.\nUnknown or inactive ids are rejected rather than silently dropped."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile > Portfolio",
+      "item": [
+        {
+          "name": "List Portfolio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/portfolio", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "portfolio"] }
+          }
+        },
+        {
+          "name": "Create Portfolio Item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.portfolioId) {",
+                  "  pm.collectionVariables.set('portfolioId', json.data.portfolioId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/portfolio", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "portfolio"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"My first Flutter app\",\n  \"description\": \"A habit tracker built during the competition\",\n  \"link\": \"https://github.com/example/app\",\n  \"imageUrl\": \"https://cdn.example.com/cover.png\"\n}" }
+          }
+        },
+        {
+          "name": "Update Portfolio Item",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/portfolio/{{portfolioId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "portfolio", "{{portfolioId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"My first Flutter app (v2)\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Portfolio Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/portfolio/{{portfolioId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "portfolio", "{{portfolioId}}"] },
+            "description": "Soft delete. Another user's id returns 'not found' rather than revealing the row exists."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile > Social Links",
+      "item": [
+        {
+          "name": "List Social Links",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/social-links", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "social-links"] }
+          }
+        },
+        {
+          "name": "Upsert Social Link",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/social-links", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "social-links"] },
+            "body": { "mode": "raw", "raw": "{\n  \"platform\": \"GITHUB\",\n  \"url\": \"https://github.com/RenMakara\"\n}" },
+            "description": "platform: FACEBOOK | INSTAGRAM | TELEGRAM | TIKTOK | YOUTUBE | LINKEDIN | GITHUB | X | WEBSITE | OTHER\nOne link per platform — this creates or replaces.\nURL must start with http:// or https://."
+          }
+        },
+        {
+          "name": "Delete Social Link",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/profile/social-links/GITHUB", "host": ["{{baseUrl}}"], "path": ["api", "v1", "profile", "social-links", "GITHUB"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Account Security",
+      "item": [
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/security/password", "host": ["{{baseUrl}}"], "path": ["api", "v1", "security", "password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"NewPassword123\"\n}" },
+            "description": "Revokes every session and bumps token_version, so your current token dies immediately — log in again afterwards.\nRate limited: 5 failures per 15 min, then a 15 min block.\nGoogle-only accounts get AUTH_PASSWORD_NOT_SET."
+          }
+        },
+        {
+          "name": "List Active Sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.length) {",
+                  "  pm.collectionVariables.set('sessionId', json.data[0].sessionId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/security/sessions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "security", "sessions"] },
+            "description": "Live sign-ins with device, IP and last-used. Token hashes are never exposed."
+          }
+        },
+        {
+          "name": "Revoke One Session",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/security/sessions/{{sessionId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "security", "sessions", "{{sessionId}}"] },
+            "description": "Known limitation: revokes that device's refresh token, but its existing access token still works until it expires (max 15 min). Token versioning is per-user, so bumping it would sign out every device."
+          }
+        },
+        {
+          "name": "Revoke All Sessions",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/security/sessions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "security", "sessions"] },
+            "description": "Immediate: bumps token_version, so all access tokens die at once — including this one."
+          }
+        },
+        {
+          "name": "Security Activity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/security/activity", "host": ["{{baseUrl}}"], "path": ["api", "v1", "security", "activity"] },
+            "description": "Last 50 security events: logins, failures, password changes, session revokes."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/users/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "users", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Community",
+      "item": [
+        {
+          "name": "Create Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.postId) { pm.collectionVariables.set('resourceId', json.data.postId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/community/posts", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "posts"] },
+            "body": { "mode": "raw", "raw": "{\n  \"contentText\": \"Hello GenLink KH!\",\n  \"imageUrl\": null,\n  \"postType\": \"TEXT\",\n  \"visibility\": \"PUBLIC\",\n  \"language\": \"ENGLISH\"\n}" },
+            "description": "postType: TEXT | IMAGE | POLL | ANNOUNCEMENT\nvisibility: PUBLIC | FRIENDS | COMMUNITY"
+          }
+        },
+        {
+          "name": "List My Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/community/posts", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "posts"] }
+          }
+        },
+        {
+          "name": "Update Post",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "posts", "{{resourceId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"contentText\": \"Edited post\",\n  \"postType\": \"TEXT\",\n  \"visibility\": \"PUBLIC\",\n  \"language\": \"ENGLISH\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Post",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "posts", "{{resourceId}}"] }
+          }
+        },
+        {
+          "name": "Create Discussion",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/community/discussions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "discussions"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"How do you stay focused while studying?\",\n  \"content\": \"Share your tips.\",\n  \"category\": \"EDUCATION\",\n  \"anonymous\": false,\n  \"language\": \"ENGLISH\"\n}" }
+          }
+        },
+        {
+          "name": "List My Discussions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/community/discussions", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "discussions"] }
+          }
+        },
+        {
+          "name": "Create Event",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/community/events", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "events"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Flutter Workshop\",\n  \"description\": \"Intro to Flutter for beginners\",\n  \"category\": \"WORKSHOP\",\n  \"coverImageUrl\": null,\n  \"dateTime\": \"2026-08-01T14:00:00\",\n  \"locationName\": \"ACLEDA University\",\n  \"attendeeLimit\": 50,\n  \"status\": \"PUBLISHED\",\n  \"language\": \"ENGLISH\"\n}" },
+            "description": "status: DRAFT | PUBLISHED | CANCELLED | COMPLETED\ndateTime is a local date-time (no timezone offset)."
+          }
+        },
+        {
+          "name": "List My Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/community/events", "host": ["{{baseUrl}}"], "path": ["api", "v1", "community", "events"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Productivity",
+      "item": [
+        {
+          "name": "Create Habit",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/productivity/habits", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "habits"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Read 20 minutes\",\n  \"category\": \"LEARNING\",\n  \"frequency\": \"DAILY\",\n  \"reminderTime\": \"07:30:00\"\n}" }
+          }
+        },
+        {
+          "name": "List My Habits",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/productivity/habits", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "habits"] } }
+        },
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/productivity/tasks", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "tasks"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Finish backend API\",\n  \"description\": \"Wire the profile endpoints\",\n  \"priority\": \"HIGH\",\n  \"category\": \"WORK\",\n  \"dueDate\": \"2026-07-20T17:00:00\",\n  \"reminderTime\": \"2026-07-20T09:00:00\"\n}" }
+          }
+        },
+        {
+          "name": "List My Tasks",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/productivity/tasks", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "tasks"] } }
+        },
+        {
+          "name": "Create Goal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/productivity/goals", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "goals"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Become a Flutter Developer\",\n  \"description\": \"Ship one app\",\n  \"goalType\": \"CAREER\",\n  \"deadline\": \"2026-12-31\"\n}" }
+          }
+        },
+        {
+          "name": "List My Goals",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/productivity/goals", "host": ["{{baseUrl}}"], "path": ["api", "v1", "productivity", "goals"] } }
+        }
+      ]
+    },
+    {
+      "name": "Finance",
+      "item": [
+        {
+          "name": "Create Expense",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/expenses", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "expenses"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Coffee\",\n  \"amount\": 2.50,\n  \"category\": \"FOOD\",\n  \"description\": \"Morning coffee\",\n  \"expenseDate\": \"2026-07-17\",\n  \"paymentMethod\": \"CASH\"\n}" }
+          }
+        },
+        {
+          "name": "List My Expenses",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/finance/expenses", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "expenses"] } }
+        },
+        {
+          "name": "Create Budget",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/budgets", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "budgets"] },
+            "body": { "mode": "raw", "raw": "{\n  \"month\": 7,\n  \"year\": 2026,\n  \"totalBudget\": 300.00\n}" },
+            "description": "One budget per user per month/year."
+          }
+        },
+        {
+          "name": "List My Budgets",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/finance/budgets", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "budgets"] } }
+        },
+        {
+          "name": "Create Saving Goal",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/finance/savings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "savings"] },
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"New laptop\",\n  \"targetAmount\": 800.00,\n  \"targetDate\": \"2026-12-01\"\n}" }
+          }
+        },
+        {
+          "name": "List My Saving Goals",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/finance/savings", "host": ["{{baseUrl}}"], "path": ["api", "v1", "finance", "savings"] } }
+        }
+      ]
+    },
+    {
+      "name": "Entertainment",
+      "item": [
+        { "name": "List Quizzes", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/entertainment/quizzes", "host": ["{{baseUrl}}"], "path": ["api", "v1", "entertainment", "quizzes"] } } },
+        { "name": "List Challenges", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/entertainment/challenges", "host": ["{{baseUrl}}"], "path": ["api", "v1", "entertainment", "challenges"] } } },
+        { "name": "List Badges", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/entertainment/badges", "host": ["{{baseUrl}}"], "path": ["api", "v1", "entertainment", "badges"] } } },
+        { "name": "List Leaderboards", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/entertainment/leaderboards", "host": ["{{baseUrl}}"], "path": ["api", "v1", "entertainment", "leaderboards"] } } }
+      ]
+    },
+    {
+      "name": "Mobile (BFF-lite)",
+      "description": "Aggregation endpoints for dashboard-heavy screens. Capped at 5-6 by design.",
+      "item": [
+        { "name": "Home Dashboard", "request": { "method": "GET", "header": [{ "key": "Accept-Language", "value": "{{acceptLanguage}}" }], "url": { "raw": "{{baseUrl}}/api/v1/mobile/home", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "home"] } } },
+        { "name": "Profile Summary", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/mobile/profile-summary", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "profile-summary"] } } },
+        { "name": "Finance Dashboard", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/mobile/finance-dashboard", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "finance-dashboard"] } } },
+        { "name": "Productivity Dashboard", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/mobile/productivity-dashboard", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "productivity-dashboard"] } } },
+        { "name": "Event Detail", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/api/v1/mobile/events/{{resourceId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "events", "{{resourceId}}"] } } },
+        { "name": "Notifications", "request": { "method": "GET", "header": [{ "key": "Accept-Language", "value": "{{acceptLanguage}}" }], "url": { "raw": "{{baseUrl}}/api/v1/mobile/notifications", "host": ["{{baseUrl}}"], "path": ["api", "v1", "mobile", "notifications"] } } }
+      ]
+    },
+    {
+      "name": "Health & Docs",
+      "item": [
+        { "name": "Health", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] } } },
+        { "name": "OpenAPI JSON", "request": { "auth": { "type": "noauth" }, "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/v3/api-docs", "host": ["{{baseUrl}}"], "path": ["v3", "api-docs"] } } }
+      ]
+    }
+  ]
+}

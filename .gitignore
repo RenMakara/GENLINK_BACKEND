@@ -41,3 +41,8 @@ out/
 .vscode/
 
 *.json
+
+# The blanket *.json rules above exist to keep credentials (service-account.json
+# and friends) out of git, so they stay. This narrowly re-allows the API
+# collection that ships with the docs. Last matching rule wins.
+!docs/*.postman_collection.json
