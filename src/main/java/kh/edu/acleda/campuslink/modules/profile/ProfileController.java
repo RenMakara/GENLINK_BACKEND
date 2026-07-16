@@ -3,11 +3,13 @@ package kh.edu.acleda.campuslink.modules.profile;
 import jakarta.validation.Valid;
 import kh.edu.acleda.campuslink.modules.profile.dto.ProfileResponse;
 import kh.edu.acleda.campuslink.modules.profile.dto.ProfileUpdateRequest;
+import kh.edu.acleda.campuslink.modules.profile.dto.PublicProfileResponse;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,5 +48,15 @@ public class ProfileController {
         @RequestBody Map<String, String> request) {
         ProfileResponse response = profileService.updateAvatar(userDetails.getUsername(), request.get("avatarUrl"));
         return ResponseEntity.ok(ApiResponse.success("Avatar updated", response));
+    }
+
+    /**
+     * Nested under /public/ so a username can never collide with the sibling
+     * literal routes (/me, /settings, /portfolio).
+     */
+    @GetMapping("/public/{username}")
+    public ResponseEntity<ApiResponse<PublicProfileResponse>> publicProfile(@PathVariable String username) {
+        PublicProfileResponse response = profileService.getPublicProfile(username);
+        return ResponseEntity.ok(ApiResponse.success("Public profile retrieved", response));
     }
 }

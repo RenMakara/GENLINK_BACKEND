@@ -1,12 +1,20 @@
 package kh.edu.acleda.campuslink.modules.profile;
 
+import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.community.enums.FollowStatus;
+import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.profile.dto.ProfileResponse;
 import kh.edu.acleda.campuslink.modules.profile.dto.ProfileUpdateRequest;
+import kh.edu.acleda.campuslink.modules.profile.dto.PublicProfileResponse;
+import kh.edu.acleda.campuslink.modules.profile.entity.UserSetting;
+import kh.edu.acleda.campuslink.modules.profile.repository.UserSettingRepository;
+import kh.edu.acleda.campuslink.modules.profile.service.PortfolioService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
+import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,9 +22,72 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProfileServiceImpl implements ProfileService {
 
     private final UserRepository userRepository;
+    private final UserSettingRepository userSettingRepository;
+    private final FollowRepository followRepository;
+    private final PortfolioService portfolioService;
+    private final CurrentUserProvider currentUserProvider;
 
-    public ProfileServiceImpl(UserRepository userRepository) {
+    public ProfileServiceImpl(UserRepository userRepository,
+                              UserSettingRepository userSettingRepository,
+                              FollowRepository followRepository,
+                              PortfolioService portfolioService,
+                              CurrentUserProvider currentUserProvider) {
         this.userRepository = userRepository;
+        this.userSettingRepository = userSettingRepository;
+        this.followRepository = followRepository;
+        this.portfolioService = portfolioService;
+        this.currentUserProvider = currentUserProvider;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicProfileResponse getPublicProfile(String username) {
+        User target = userRepository.findByUsername(username)
+            .orElseThrow(() -> new NotFoundException("User not found: " + username));
+        if (target.getAccountStatus() == AccountStatus.DELETED
+            || target.getAccountStatus() == AccountStatus.BANNED
+            || target.getDeletedAt() != null) {
+            throw new NotFoundException("User not found: " + username);
+        }
+
+        UUID viewerId = currentUserProvider.getCurrentUserId();
+        if (!target.getId().equals(viewerId)) {
+            enforceProfilePrivacy(target.getId(), viewerId);
+        }
+
+        return new PublicProfileResponse(
+            target.getId(),
+            target.getFullName(),
+            target.getUsername(),
+            target.getAvatarUrl(),
+            target.getBio(),
+            target.getUniversityName(),
+            target.getWorkStatus(),
+            target.getLocation(),
+            target.getTotalXp(),
+            target.getLevel(),
+            target.getCreatedAt(),
+            portfolioService.getByUserId(target.getId())
+        );
+    }
+
+    private void enforceProfilePrivacy(UUID targetId, UUID viewerId) {
+        String privacy = userSettingRepository.findByUserId(targetId)
+            .map(UserSetting::getPrivacyProfile)
+            .orElse("PUBLIC");
+
+        if ("PRIVATE".equalsIgnoreCase(privacy)) {
+            throw new ApiException("This profile is private", "PROFILE_PRIVATE");
+        }
+        if ("FRIENDS".equalsIgnoreCase(privacy) && !areFriends(viewerId, targetId)) {
+            throw new ApiException("This profile is visible to friends only", "PROFILE_FRIENDS_ONLY");
+        }
+    }
+
+    /** Friendship is a mutual accepted follow in both directions. */
+    private boolean areFriends(UUID viewerId, UUID targetId) {
+        return followRepository.existsByFollowerIdAndFollowingIdAndStatus(viewerId, targetId, FollowStatus.ACCEPTED)
+            && followRepository.existsByFollowerIdAndFollowingIdAndStatus(targetId, viewerId, FollowStatus.ACCEPTED);
     }
 
     @Override

@@ -1,8 +1,12 @@
 package kh.edu.acleda.campuslink.modules.profile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.profile.dto.ProfileUpdateRequest;
+import kh.edu.acleda.campuslink.modules.profile.repository.UserSettingRepository;
+import kh.edu.acleda.campuslink.modules.profile.service.PortfolioService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
+import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
@@ -25,10 +29,24 @@ class ProfileServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private UserSettingRepository userSettingRepository;
+    @Mock
+    private FollowRepository followRepository;
+    @Mock
+    private PortfolioService portfolioService;
+    @Mock
+    private CurrentUserProvider currentUserProvider;
+
+    /** Only userRepository is exercised here; the rest back getPublicProfile. */
+    private ProfileServiceImpl newProfileService() {
+        return new ProfileServiceImpl(
+            userRepository, userSettingRepository, followRepository, portfolioService, currentUserProvider);
+    }
 
     @Test
     void updateCurrentProfileAllowsEditableFieldsOnly() {
-        ProfileServiceImpl profileService = new ProfileServiceImpl(userRepository);
+        ProfileServiceImpl profileService = newProfileService();
         User user = activeUser("student@example.com");
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);
@@ -60,7 +78,7 @@ class ProfileServiceImplTest {
 
     @Test
     void updateCurrentProfileCanChangePreferredLanguageBackToEnglish() {
-        ProfileServiceImpl profileService = new ProfileServiceImpl(userRepository);
+        ProfileServiceImpl profileService = newProfileService();
         User user = activeUser("student@example.com");
         user.setPreferredLanguage(Language.KHMER);
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
@@ -86,7 +104,7 @@ class ProfileServiceImplTest {
 
     @Test
     void updateCurrentProfileRejectsDuplicateUsername() {
-        ProfileServiceImpl profileService = new ProfileServiceImpl(userRepository);
+        ProfileServiceImpl profileService = newProfileService();
         User user = activeUser("student@example.com");
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(userRepository.existsByUsername("taken")).thenReturn(true);
@@ -100,7 +118,7 @@ class ProfileServiceImplTest {
 
     @Test
     void updateCurrentProfileRejectsBannedUser() {
-        ProfileServiceImpl profileService = new ProfileServiceImpl(userRepository);
+        ProfileServiceImpl profileService = newProfileService();
         User user = activeUser("student@example.com");
         user.setAccountStatus(AccountStatus.BANNED);
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
