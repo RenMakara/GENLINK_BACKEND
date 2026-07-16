@@ -9,8 +9,14 @@ import kh.edu.acleda.campuslink.modules.profile.dto.request.SaveItemRequest;
 import kh.edu.acleda.campuslink.modules.profile.dto.response.SavedItemResponse;
 import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
 import kh.edu.acleda.campuslink.modules.profile.service.SavedItemService;
+import kh.edu.acleda.campuslink.shared.enums.Language;
+import kh.edu.acleda.campuslink.shared.localization.LanguageResolver;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,20 +36,34 @@ import org.springframework.web.bind.annotation.RestController;
 public class SavedItemController {
 
     private final SavedItemService savedItemService;
+    private final LanguageResolver languageResolver;
 
-    public SavedItemController(SavedItemService savedItemService) {
+    public SavedItemController(SavedItemService savedItemService, LanguageResolver languageResolver) {
         this.savedItemService = savedItemService;
+        this.languageResolver = languageResolver;
     }
 
+    /** Rows arrive with title, subtitle and image, so the screen renders in one call. */
     @GetMapping
     public ResponseEntity<ApiResponse<List<SavedItemResponse>>> getMine(
-        @RequestParam(required = false) SavedItemType type) {
-        return ResponseEntity.ok(ApiResponse.success("Saved items retrieved", savedItemService.getMine(type)));
+        @AuthenticationPrincipal UserDetails userDetails,
+        @RequestParam(required = false) SavedItemType type,
+        @RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage) {
+        Language language = resolve(userDetails, acceptLanguage);
+        return ResponseEntity.ok(ApiResponse.success("Saved items retrieved", savedItemService.getMine(type, language)));
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<SavedItemResponse>> save(@Valid @RequestBody SaveItemRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Item saved", savedItemService.save(request)));
+    public ResponseEntity<ApiResponse<SavedItemResponse>> save(
+        @AuthenticationPrincipal UserDetails userDetails,
+        @RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage,
+        @Valid @RequestBody SaveItemRequest request) {
+        Language language = resolve(userDetails, acceptLanguage);
+        return ResponseEntity.ok(ApiResponse.success("Item saved", savedItemService.save(request, language)));
+    }
+
+    private Language resolve(UserDetails userDetails, String acceptLanguage) {
+        return languageResolver.resolve(userDetails == null ? null : userDetails.getUsername(), acceptLanguage);
     }
 
     @DeleteMapping("/{itemType}/{itemId}")

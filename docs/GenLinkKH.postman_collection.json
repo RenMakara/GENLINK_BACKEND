@@ -996,13 +996,18 @@
     },
     {
       "name": "Profile > Saved Items",
-      "description": "One saved list across every domain, backed by saved_items. Chosen over the per-domain saved_posts / user_saved_motivations tables, which are now superseded.",
+      "description": "One saved list across every domain, backed by saved_items.\n\nRows are hydrated: each carries title, subtitle, imageUrl and `available`, so the Saved screen renders from ONE call instead of one fetch per item.\n\n`available: false` means the saved thing was deleted — item_id is not a foreign key because the table is polymorphic. Show a 'no longer available' row rather than a blank one.",
       "item": [
         {
           "name": "List Saved (all)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "{{acceptLanguage}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/profile/saved",
               "host": [
@@ -1015,14 +1020,19 @@
                 "saved"
               ]
             },
-            "description": "Newest first. Add ?type=POST to filter."
+            "description": "Newest first, hydrated. Add ?type=POST to filter.\n\nTitles of system content (MOTIVATION, LESSON, SHORT_CONTENT) follow Accept-Language.\nLookups are batched per type, so a 50-item list is ~7 queries, not 50."
           }
         },
         {
           "name": "List Saved (filtered by type)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "{{acceptLanguage}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/v1/profile/saved?type=POST",
               "host": [
@@ -1064,6 +1074,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{acceptLanguage}}"
               }
             ],
             "url": {

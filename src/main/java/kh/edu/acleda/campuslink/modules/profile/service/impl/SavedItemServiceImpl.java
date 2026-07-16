@@ -1,16 +1,22 @@
 package kh.edu.acleda.campuslink.modules.profile.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import kh.edu.acleda.campuslink.modules.profile.dto.request.SaveItemRequest;
 import kh.edu.acleda.campuslink.modules.profile.dto.response.SavedItemResponse;
 import kh.edu.acleda.campuslink.modules.profile.entity.SavedItem;
 import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
 import kh.edu.acleda.campuslink.modules.profile.repository.SavedItemRepository;
+import kh.edu.acleda.campuslink.modules.profile.service.SavedItemPreview;
+import kh.edu.acleda.campuslink.modules.profile.service.SavedItemPreviewResolver;
 import kh.edu.acleda.campuslink.modules.profile.service.SavedItemService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
@@ -20,47 +26,74 @@ import org.springframework.transaction.annotation.Transactional;
 public class SavedItemServiceImpl implements SavedItemService {
 
     private final SavedItemRepository savedItemRepository;
+    private final SavedItemPreviewResolver previewResolver;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public SavedItemServiceImpl(SavedItemRepository savedItemRepository,
+                                SavedItemPreviewResolver previewResolver,
                                 UserRepository userRepository,
                                 CurrentUserProvider currentUserProvider) {
         this.savedItemRepository = savedItemRepository;
+        this.previewResolver = previewResolver;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<SavedItemResponse> getMine(SavedItemType itemType) {
+    public List<SavedItemResponse> getMine(SavedItemType itemType, Language language) {
         UUID userId = currentUserProvider.getCurrentUserId();
         List<SavedItem> items = itemType == null
             ? savedItemRepository.findByUserIdOrderBySavedAtDesc(userId)
             : savedItemRepository.findByUserIdAndItemTypeOrderBySavedAtDesc(userId, itemType);
-        return items.stream().map(this::toResponse).toList();
+
+        Map<UUID, SavedItemPreview> previews = loadPreviews(items, language);
+        return items.stream().map(item -> toResponse(item, previews.get(item.getItemId()))).toList();
+    }
+
+    /**
+     * Batched per type so the whole list costs one query per distinct type, not one
+     * per saved item. That is the entire point of hydrating here rather than making
+     * the client fetch each item.
+     */
+    private Map<UUID, SavedItemPreview> loadPreviews(List<SavedItem> items, Language language) {
+        if (items.isEmpty()) {
+            return Map.of();
+        }
+        Map<SavedItemType, List<UUID>> idsByType = items.stream()
+            .collect(Collectors.groupingBy(SavedItem::getItemType,
+                Collectors.mapping(SavedItem::getItemId, Collectors.toList())));
+
+        Map<UUID, SavedItemPreview> previews = new HashMap<>();
+        idsByType.forEach((type, ids) -> previews.putAll(previewResolver.resolve(type, ids, language)));
+        return previews;
     }
 
     @Override
     @Transactional
-    public SavedItemResponse save(SaveItemRequest request) {
+    public SavedItemResponse save(SaveItemRequest request, Language language) {
         UUID userId = currentUserProvider.getCurrentUserId();
 
         // Save is a UI toggle, so tapping it twice must not 500 on the unique
         // (user_id, item_type, item_id) constraint.
-        return savedItemRepository.findByUserIdAndItemTypeAndItemId(userId, request.itemType(), request.itemId())
-            .map(this::toResponse)
+        SavedItem item = savedItemRepository
+            .findByUserIdAndItemTypeAndItemId(userId, request.itemType(), request.itemId())
             .orElseGet(() -> {
                 User user = userRepository.findById(userId)
                     .orElseThrow(() -> new NotFoundException("User not found"));
-                SavedItem item = SavedItem.builder()
+                return savedItemRepository.save(SavedItem.builder()
                     .user(user)
                     .itemType(request.itemType())
                     .itemId(request.itemId())
                     .savedAt(LocalDateTime.now())
-                    .build();
-                return toResponse(savedItemRepository.save(item));
+                    .build());
             });
+
+        SavedItemPreview preview = previewResolver
+            .resolve(item.getItemType(), List.of(item.getItemId()), language)
+            .get(item.getItemId());
+        return toResponse(item, preview);
     }
 
     @Override
@@ -79,7 +112,17 @@ public class SavedItemServiceImpl implements SavedItemService {
             currentUserProvider.getCurrentUserId(), itemType, itemId);
     }
 
-    private SavedItemResponse toResponse(SavedItem item) {
-        return new SavedItemResponse(item.getId(), item.getItemType(), item.getItemId(), item.getSavedAt());
+    private SavedItemResponse toResponse(SavedItem item, SavedItemPreview preview) {
+        // A missing preview means the target was deleted: the row stays, flagged.
+        return new SavedItemResponse(
+            item.getId(),
+            item.getItemType(),
+            item.getItemId(),
+            item.getSavedAt(),
+            preview != null,
+            preview == null ? null : preview.title(),
+            preview == null ? null : preview.subtitle(),
+            preview == null ? null : preview.imageUrl()
+        );
     }
 }
