@@ -60,7 +60,8 @@ public class AuthController {
     public ResponseEntity<ApiResponse<String>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         log.info("REST request to resend OTP to: {}", request.email());
         authService.resendOtp(request.email());
-        return ResponseEntity.ok(ApiResponse.success("New verification code has been sent to your email.", null));
+        // Deliberately does not confirm the account exists.
+        return ResponseEntity.ok(ApiResponse.success("If the account is eligible, a verification OTP has been sent.", null));
     }
 
     @PostMapping("/resend-verification-otp")

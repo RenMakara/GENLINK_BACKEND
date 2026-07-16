@@ -9,10 +9,14 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import kh.edu.acleda.campuslink.shared.enums.Language;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.time.LocalDate;
 
+@Getter
 @Entity
 @Table(name = "users")
 @AttributeOverrides({
@@ -22,68 +26,96 @@ import java.time.LocalDate;
 })
 public class User extends BaseEntity {
 
+    @Setter
     @Column(name = "email", nullable = false, unique = true, length = 180)
     private String email;
 
+    @Setter
     @Column(name = "password_hash", columnDefinition = "TEXT")
     private String passwordHash;
 
+    @Setter
     @Column(name = "full_name", nullable = false, length = 120)
     private String fullName;
 
+    @Setter
     @Column(name = "username", nullable = false, unique = true, length = 60)
     private String username;
 
+    @Setter
     @Column(name = "phone_number", unique = true, length = 30)
     private String phoneNumber;
 
+    @Setter
     @Column(name = "university_name", length = 180)
     private String universityName;
 
+    @Setter
     @Column(name = "bio", columnDefinition = "TEXT")
     private String bio;
 
+    @Setter
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(name = "gender", length = 30)
     private Gender gender;
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(name = "work_status", nullable = false, length = 50)
     private WorkStatus workStatus = WorkStatus.STUDENT;
 
+    @Setter
     @Column(name = "location", length = 120)
     private String location;
 
+    @Setter
     @Column(name = "google_id")
     private String googleId;
 
+    /**
+     * Embedded in every access token as the "tv" claim. Incrementing it invalidates
+     * all access tokens already issued for this user.
+     */
+    @Setter
+    @Column(name = "token_version", nullable = false)
+    private Integer tokenVersion = 0;
+
+    @Setter
     @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AuthProvider authProvider = AuthProvider.LOCAL;
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role = Role.USER;
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(name = "account_status", nullable = false, length = 30)
     private AccountStatus accountStatus = AccountStatus.PENDING;
 
+    @Setter
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;
 
+    @Setter
     @Column(name = "total_xp", nullable = false)
     private int totalXp = 0;
 
+    @Setter
     @Column(name = "level", nullable = false)
     private int level = 1;
 
+    @Setter
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
@@ -91,44 +123,14 @@ public class User extends BaseEntity {
     @Column(name = "preferred_language", nullable = false, length = 20)
     private Language preferredLanguage = Language.ENGLISH;
 
-    public String getEmail() {
-        return email;
+    /** Null-safe: rows created before token_version existed read back as 0. */
+    public int getTokenVersion() {
+        return tokenVersion == null ? 0 : tokenVersion;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
-    }
-
-    public String getFullName() {
-        return fullName;
-    }
-
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
+    /** Call when every existing access token for this user must stop working. */
+    public void incrementTokenVersion() {
+        this.tokenVersion = getTokenVersion() + 1;
     }
 
     public String getPhone() {
@@ -139,92 +141,12 @@ public class User extends BaseEntity {
         this.phoneNumber = phone;
     }
 
-    public String getUniversityName() {
-        return universityName;
-    }
-
-    public void setUniversityName(String universityName) {
-        this.universityName = universityName;
-    }
-
     public String getUniversity() {
         return universityName;
     }
 
     public void setUniversity(String university) {
         this.universityName = university;
-    }
-
-    public String getBio() {
-        return bio;
-    }
-
-    public void setBio(String bio) {
-        this.bio = bio;
-    }
-
-    public LocalDate getDateOfBirth() {
-        return dateOfBirth;
-    }
-
-    public void setDateOfBirth(LocalDate dateOfBirth) {
-        this.dateOfBirth = dateOfBirth;
-    }
-
-    public Gender getGender() {
-        return gender;
-    }
-
-    public void setGender(Gender gender) {
-        this.gender = gender;
-    }
-
-    public WorkStatus getWorkStatus() {
-        return workStatus;
-    }
-
-    public void setWorkStatus(WorkStatus workStatus) {
-        this.workStatus = workStatus;
-    }
-
-    public String getLocation() {
-        return location;
-    }
-
-    public void setLocation(String location) {
-        this.location = location;
-    }
-
-    public String getGoogleId() {
-        return googleId;
-    }
-
-    public void setGoogleId(String googleId) {
-        this.googleId = googleId;
-    }
-
-    public String getAvatarUrl() {
-        return avatarUrl;
-    }
-
-    public void setAvatarUrl(String avatarUrl) {
-        this.avatarUrl = avatarUrl;
-    }
-
-    public AuthProvider getAuthProvider() {
-        return authProvider;
-    }
-
-    public void setAuthProvider(AuthProvider authProvider) {
-        this.authProvider = authProvider;
-    }
-
-    public Role getRole() {
-        return role;
-    }
-
-    public void setRole(Role role) {
-        this.role = role;
     }
 
     public boolean isActive() {
@@ -241,50 +163,6 @@ public class User extends BaseEntity {
 
     public void setStatus(UserStatus status) {
         this.accountStatus = AccountStatus.valueOf(status.name());
-    }
-
-    public AccountStatus getAccountStatus() {
-        return accountStatus;
-    }
-
-    public void setAccountStatus(AccountStatus accountStatus) {
-        this.accountStatus = accountStatus;
-    }
-
-    public boolean isEmailVerified() {
-        return emailVerified;
-    }
-
-    public void setEmailVerified(boolean emailVerified) {
-        this.emailVerified = emailVerified;
-    }
-
-    public int getTotalXp() {
-        return totalXp;
-    }
-
-    public void setTotalXp(int totalXp) {
-        this.totalXp = totalXp;
-    }
-
-    public int getLevel() {
-        return level;
-    }
-
-    public void setLevel(int level) {
-        this.level = level;
-    }
-
-    public Instant getDeletedAt() {
-        return deletedAt;
-    }
-
-    public void setDeletedAt(Instant deletedAt) {
-        this.deletedAt = deletedAt;
-    }
-
-    public Language getPreferredLanguage() {
-        return preferredLanguage;
     }
 
     public void setPreferredLanguage(Language preferredLanguage) {

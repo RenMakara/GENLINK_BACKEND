@@ -1,6 +1,5 @@
 package kh.edu.acleda.campuslink.modules.auth;
 
-import com.google.firebase.auth.FirebaseToken;
 import kh.edu.acleda.campuslink.modules.auth.dto.*;
 import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
 import kh.edu.acleda.campuslink.modules.auth.entity.Provider;
@@ -38,7 +37,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
-    private final FirebaseAuthService firebaseAuthService;
+    private final GoogleTokenVerifier googleTokenVerifier;
     private final RefreshTokenService refreshTokenService;
     private final OtpService otpService;
     private final SocialAccountRepository socialAccountRepository;
@@ -82,7 +81,7 @@ public class AuthServiceImpl implements AuthService {
             throw new ApiException("Invalid email or password", AuthErrorCode.AUTH_INVALID_CREDENTIALS);
         }
 
-        String token = jwtService.generateAccessToken(authentication);
+        String token = jwtService.generateAccessToken(user.getEmail(), user.getTokenVersion());
         String refreshToken = refreshTokenService.create(user, deviceInfo, clientIp, userAgent);
         authRateLimitService.clearLoginFailures(request.email(), clientIp);
         securityAuditService.logSuccess("LOGIN_SUCCESS", user, request.email());
@@ -94,12 +93,12 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse googleLogin(GoogleLoginRequest request) {
-        log.info("Attempting Firebase Social login");
-        FirebaseToken tokenData = firebaseAuthService.verifyToken(request.idToken());
-        String email = tokenData.getEmail();
-        String uid = tokenData.getUid();
-        String name = tokenData.getName();
-        String pictureUrl = tokenData.getPicture();
+        log.info("Attempting Google social login");
+        GoogleTokenVerifier.GoogleUser tokenData = googleTokenVerifier.verify(request.idToken());
+        String email = tokenData.email();
+        String uid = tokenData.sub();
+        String name = tokenData.name();
+        String pictureUrl = tokenData.picture();
 
         User user = userRepository.findByEmail(email)
             .map(existingUser -> {
@@ -138,7 +137,7 @@ public class AuthServiceImpl implements AuthService {
                 return savedUser;
             });
 
-        String token = jwtService.generateAccessToken(user.getEmail());
+        String token = jwtService.generateAccessToken(user.getEmail(), user.getTokenVersion());
         String refreshToken = refreshTokenService.create(user);
 
         log.info("User {} successfully authenticated via Social login", email);
@@ -213,7 +212,7 @@ public class AuthServiceImpl implements AuthService {
         user.setAccountStatus(AccountStatus.ACTIVE);
         userRepository.save(user);
 
-        String token = jwtService.generateAccessToken(user.getEmail());
+        String token = jwtService.generateAccessToken(user.getEmail(), user.getTokenVersion());
         String refreshToken = refreshTokenService.create(
             user,
             RequestMetadataUtil.getCurrentDeviceInfo(),
@@ -229,19 +228,10 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void resendOtp(String email) {
         log.info("Resending OTP to: {}", email);
-        User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new ApiException("User not found", AuthErrorCode.USER_NOT_FOUND));
-
-        if (user.isEmailVerified()) {
-            throw new ApiException("Email is already verified", AuthErrorCode.OTP_ALREADY_USED);
-        }
-
-        if (user.getAccountStatus() == AccountStatus.BANNED) {
-            throw new ApiException("Your account has been banned", AuthErrorCode.AUTH_ACCOUNT_BANNED);
-        }
-        otpService.issue(user, OtpPurpose.RESEND_VERIFICATION);
-        securityAuditService.logSuccess("RESEND_OTP_REQUEST", user, email);
-        log.info("New OTP sent to {}", email);
+        // Delegates to the hardened path. This endpoint used to answer USER_NOT_FOUND
+        // and "already verified" on a public route, which let anyone enumerate which
+        // emails are registered. Both routes now behave identically.
+        resendVerificationOtp(new ResendVerificationOtpRequest(email));
     }
 
     @Override
@@ -335,7 +325,7 @@ public class AuthServiceImpl implements AuthService {
             throw ex;
         }
         User user = rotation.user();
-        String accessToken = jwtService.generateAccessToken(user.getEmail());
+        String accessToken = jwtService.generateAccessToken(user.getEmail(), user.getTokenVersion());
         String newRefreshToken = rotation.refreshToken();
         securityAuditService.logSuccess("REFRESH_SUCCESS", user, user.getEmail());
 
@@ -359,6 +349,10 @@ public class AuthServiceImpl implements AuthService {
             
             userRepository.findByEmail(email).ifPresent(user -> {
                 refreshTokenService.revoke(user);
+                // Also invalidates access tokens already issued; without this the
+                // bearer token keeps working until it expires.
+                user.incrementTokenVersion();
+                userRepository.save(user);
                 securityAuditService.logSuccess("LOGOUT", user, email);
             });
         }

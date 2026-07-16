@@ -50,7 +50,7 @@ class AuthServiceImplTest {
     @Mock
     private UserService userService;
     @Mock
-    private FirebaseAuthService firebaseAuthService;
+    private GoogleTokenVerifier googleTokenVerifier;
     @Mock
     private RefreshTokenService refreshTokenService;
     @Mock
@@ -199,7 +199,7 @@ class AuthServiceImplTest {
         Authentication authentication = new UsernamePasswordAuthenticationToken(user.getEmail(), "password123");
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(authenticationManager.authenticate(any())).thenReturn(authentication);
-        when(jwtService.generateAccessToken(authentication)).thenReturn("access-token");
+        when(jwtService.generateAccessToken(user.getEmail(), user.getTokenVersion())).thenReturn("access-token");
         when(refreshTokenService.create(any(User.class), any(), any(), any())).thenReturn("refresh-token");
 
         authService.login(new LoginRequest(user.getEmail(), "password123"));
@@ -214,7 +214,7 @@ class AuthServiceImplTest {
         user.setPreferredLanguage(Language.KHMER);
         when(refreshTokenService.rotate(any(), any(), any(), any()))
             .thenReturn(new RefreshTokenRotation(user, "new-refresh-token"));
-        when(jwtService.generateAccessToken(user.getEmail())).thenReturn("new-access-token");
+        when(jwtService.generateAccessToken(user.getEmail(), user.getTokenVersion())).thenReturn("new-access-token");
 
         authService.refreshToken(new RefreshTokenRequest("old-refresh-token"));
 

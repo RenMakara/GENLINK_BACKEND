@@ -9,6 +9,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Throttles credential guessing, keyed per action so that, for example, failed
+ * change-password attempts cannot lock the account out of login and vice versa.
+ */
 @Service
 public class AuthRateLimitService {
 
@@ -16,41 +20,68 @@ public class AuthRateLimitService {
     private static final long WINDOW_MINUTES = 15;
     private static final long BLOCK_MINUTES = 15;
 
-    private final Map<String, LoginAttemptState> loginAttempts = new ConcurrentHashMap<>();
+    private static final String LOGIN = "LOGIN";
+    private static final String PASSWORD_CHANGE = "PASSWORD_CHANGE";
+
+    private final Map<String, AttemptState> attempts = new ConcurrentHashMap<>();
 
     public void checkLoginAllowed(String email, String clientIp) {
-        LoginAttemptState state = loginAttempts.get(key(email, clientIp));
-        if (state != null && state.blockedUntil != null && state.blockedUntil.isAfter(Instant.now())) {
-            throw new ApiException("Too many login attempts. Please try again later.", AuthErrorCode.AUTH_TOO_MANY_ATTEMPTS);
-        }
+        checkAllowed(LOGIN, email, clientIp, "Too many login attempts. Please try again later.");
     }
 
     public void recordLoginFailure(String email, String clientIp) {
-        String key = key(email, clientIp);
+        recordFailure(LOGIN, email, clientIp);
+    }
+
+    public void clearLoginFailures(String email, String clientIp) {
+        clearFailures(LOGIN, email, clientIp);
+    }
+
+    public void checkPasswordChangeAllowed(String email, String clientIp) {
+        checkAllowed(PASSWORD_CHANGE, email, clientIp, "Too many password change attempts. Please try again later.");
+    }
+
+    public void recordPasswordChangeFailure(String email, String clientIp) {
+        recordFailure(PASSWORD_CHANGE, email, clientIp);
+    }
+
+    public void clearPasswordChangeFailures(String email, String clientIp) {
+        clearFailures(PASSWORD_CHANGE, email, clientIp);
+    }
+
+    private void checkAllowed(String action, String email, String clientIp, String message) {
+        AttemptState state = attempts.get(key(action, email, clientIp));
+        if (state != null && state.blockedUntil != null && state.blockedUntil.isAfter(Instant.now())) {
+            throw new ApiException(message, AuthErrorCode.AUTH_TOO_MANY_ATTEMPTS);
+        }
+    }
+
+    private void recordFailure(String action, String email, String clientIp) {
+        String key = key(action, email, clientIp);
         Instant now = Instant.now();
-        loginAttempts.compute(key, (ignored, state) -> {
+        attempts.compute(key, (ignored, state) -> {
             if (state == null || state.windowStartedAt.plus(WINDOW_MINUTES, ChronoUnit.MINUTES).isBefore(now)) {
-                return new LoginAttemptState(now, 1, null);
+                return new AttemptState(now, 1, null);
             }
             int failedAttempts = state.failedAttempts + 1;
             Instant blockedUntil = failedAttempts >= MAX_FAILED_ATTEMPTS
                 ? now.plus(BLOCK_MINUTES, ChronoUnit.MINUTES)
                 : state.blockedUntil;
-            return new LoginAttemptState(state.windowStartedAt, failedAttempts, blockedUntil);
+            return new AttemptState(state.windowStartedAt, failedAttempts, blockedUntil);
         });
         // TODO: Replace in-memory rate limiter with Redis for distributed deployment.
     }
 
-    public void clearLoginFailures(String email, String clientIp) {
-        loginAttempts.remove(key(email, clientIp));
+    private void clearFailures(String action, String email, String clientIp) {
+        attempts.remove(key(action, email, clientIp));
     }
 
-    private String key(String email, String clientIp) {
+    private String key(String action, String email, String clientIp) {
         String normalizedEmail = email == null ? "unknown" : email.trim().toLowerCase();
         String normalizedIp = clientIp == null || clientIp.isBlank() ? "unknown" : clientIp.trim();
-        return normalizedEmail + "|" + normalizedIp;
+        return action + "|" + normalizedEmail + "|" + normalizedIp;
     }
 
-    private record LoginAttemptState(Instant windowStartedAt, int failedAttempts, Instant blockedUntil) {
+    private record AttemptState(Instant windowStartedAt, int failedAttempts, Instant blockedUntil) {
     }
 }

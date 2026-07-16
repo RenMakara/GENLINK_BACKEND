@@ -42,12 +42,44 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (jwtService.validateToken(token)) {
                 String username = jwtService.getUsername(token);
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                if (isUsable(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Building the Authentication directly skips the account-status checks that
+     * DaoAuthenticationProvider would normally run, so they are enforced here.
+     * Without the isEnabled() check a banned or soft-deleted account keeps full
+     * access for as long as its JWT stays unexpired.
+     */
+    private boolean isUsable(String token, UserDetails userDetails) {
+        if (!userDetails.isEnabled()) {
+            return false;
+        }
+        return isTokenVersionCurrent(token, userDetails);
+    }
+
+    /**
+     * A signed, unexpired token is not enough: it must also match the account's current
+     * token version. This is what makes logout, password change and revoke-all take
+     * effect immediately rather than when the token expires.
+     *
+     * <p>Fails closed - a token with no version claim (issued before versioning) or an
+     * unexpected UserDetails type is rejected. The user object is already loaded above,
+     * so this costs no extra query.
+     */
+    private boolean isTokenVersionCurrent(String token, UserDetails userDetails) {
+        Integer tokenVersion = jwtService.getTokenVersion(token);
+        if (tokenVersion == null || !(userDetails instanceof AuthenticatedUser authenticatedUser)) {
+            return false;
+        }
+        return tokenVersion == authenticatedUser.getTokenVersion();
     }
 }
