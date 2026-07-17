@@ -1,7 +1,7 @@
 # Community Domain — Implementation Plan
 
-Status: **Phases 0-4 done** (2026-07-17), except 4.4 (interest-based suggestions).
-Phase 5 (Opportunities) not started.
+Status: **Phases 0-5 done** (Phase 5 on 2026-07-18), except 4.4 (interest-based
+suggestions). Chat, Polls, Stories deferred.
 Created: 2026-07-17
 Owner: Enat (Community domain, per Team Assignment v5)
 Scope: backend only
@@ -171,11 +171,11 @@ values and only `PUBLIC` meant anything, because nothing could resolve "friends"
 
 ---
 
-## Phase 5 — Opportunities
+## Phase 5 — Opportunities — DONE
 
-- [ ] **5.1** `Opportunity` CRUD (admin/seeded), paginated list, filters by type
+- [x] **5.1** `Opportunity` CRUD (admin/seeded), paginated list, filters by type
       and deadline.
-- [ ] **5.2** Nothing else needed for saving: `saved_items` already covers
+- [x] **5.2** Nothing else needed for saving: `saved_items` already covers
       `OPPORTUNITY`.
 
 ---
@@ -404,8 +404,11 @@ other order takes someone's money and then tells them the event is full. Pinned 
   one would imply a payment rail that does not exist.
 - Rejoining after cancelling reuses the RSVP row; the unique constraint forbids a
   second one.
-- `attendeeCount` uses `UPDATE ... SET count = count + :delta`, so two people
-  joining at once cannot both read 9 and both write 10 and overshoot capacity.
+- Capacity is race-safe. `reserveSeat` is a single conditional UPDATE -
+  `SET attendee_count = attendee_count + 1 WHERE attendee_count < attendee_limit` -
+  so two people racing for the last seat cannot both get in; the database serialises
+  the two updates and the loser gets EVENT_FULL. (An earlier version read the count
+  and then incremented, which could overshoot by one - fixed 2026-07-18.)
 - Only PUBLISHED events are discoverable; a DRAFT belongs to its organiser alone.
   Past events are excluded from browse.
 - A free event never touches the wallet. A free event never keeps a stale price.
@@ -480,3 +483,55 @@ The interesting part of this phase, and the easiest to get wrong.
   possible; `CommentResponse.likeCount` is hard-coded to 0 for forum comments.
 - Anonymity is all-or-nothing: an author cannot un-anonymise later without the edit
   revealing them retroactively to anyone who saw the earlier version.
+
+---
+
+## Delivered — Phase 5 (2026-07-18)
+
+The Opportunity Hub - internships, scholarships, hackathons, jobs, volunteering.
+Finishes the last phase and connects the OPPORTUNITY save type, which was already
+wired into saved_items and SavedItemPreviewResolver but had nothing to create
+opportunities.
+
+### Endpoints
+
+| Method | Path | Who |
+|---|---|---|
+| GET | `/api/v1/community/opportunities` (browse, `?type=`, `?includeExpired=`) | any user |
+| GET | `/api/v1/community/opportunities/{id}` | any user |
+| POST/PUT/DELETE | `/api/v1/community/opportunities/{id}` | ADMIN only |
+
+### Decisions
+
+- Opportunities are **admin-managed content**: the table has no owner column, so
+  create/update/delete are gated with `@PreAuthorize("hasRole('ADMIN')")`
+  (@EnableMethodSecurity is already on). Browse and read are open to any
+  authenticated user. A non-admin write returns 403, handled by the existing
+  AccessDeniedException handler.
+- `type` stays free text (INTERNSHIP, SCHOLARSHIP, HACKATHON, ...), matching the
+  VARCHAR column; the vocabulary is not settled enough to bake an enum in.
+- Browse hides expired opportunities by default (`deadline >= today`), open-ended
+  ones (no deadline) always show, and `?includeExpired=true` lifts the filter.
+- `savedByMe` is resolved server-side and batched one query per page, so the
+  "Save Opp-ty" bookmark renders without a request per row. `expired` is on the
+  row too, for greying out Apply.
+
+### Known gaps
+
+- **No seeded opportunities.** Browse is empty until an ADMIN creates some, and
+  there is no admin user seeded either - Role defaults to USER. For a demo, either
+  seed a few rows or flip one user to ADMIN in the database.
+- No per-type saved filter; saved opportunities appear under Saved Items filtered
+  by OPPORTUNITY instead.
+
+---
+
+## Bug fixed — RSVP capacity race (2026-07-18)
+
+Event RSVP checked capacity by reading attendeeCount in memory and then
+incrementing with a separate atomic UPDATE. The atomic delta kept the counter from
+being corrupted, but two users racing for the last seat could both pass the check
+and both increment, overshooting capacity by one. Replaced with `reserveSeat`, a
+single conditional UPDATE that only increments while a seat is free and returns the
+rows affected; 0 means full. Because the whole RSVP is one transaction, a payment
+failure after the reservation rolls the seat back. cancelRsvp uses `releaseSeat`.

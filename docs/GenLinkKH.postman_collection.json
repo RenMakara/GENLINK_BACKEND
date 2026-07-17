@@ -109,6 +109,11 @@
       "key": "forumCommentId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "opportunityId",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -2672,6 +2677,152 @@
                     "discussions",
                     "comments",
                     "{{forumCommentId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Opportunities",
+          "description": "The Opportunity Hub (internships, scholarships, hackathons, jobs, volunteering). Browse/read are open to any user; create/update/delete require an ADMIN account. Save an opportunity via Profile > Saved Items (itemType OPPORTUNITY).",
+          "item": [
+            {
+              "name": "Browse Opportunities",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/opportunities?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "opportunities"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Active opportunities, soonest deadline first. Add ?type=INTERNSHIP to filter, ?includeExpired=true to show past ones.\n\nEach row carries savedByMe and expired. Empty until an ADMIN creates some."
+              }
+            },
+            {
+              "name": "Get Opportunity By Id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/opportunities/{{opportunityId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "opportunities",
+                    "{{opportunityId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Opportunity (ADMIN)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.opportunityId) { pm.collectionVariables.set('opportunityId', json.data.opportunityId); }"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/opportunities",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "opportunities"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Backend Internship\",\n  \"organization\": \"ACLEDA\",\n  \"type\": \"INTERNSHIP\",\n  \"description\": \"Spring Boot internship\",\n  \"deadline\": \"2026-09-30\",\n  \"location\": \"Phnom Penh\",\n  \"applyLink\": \"https://apply.example.com\"\n}"
+                },
+                "description": "Requires ROLE_ADMIN. A non-admin token gets 403.\n\ntype is free text: INTERNSHIP | SCHOLARSHIP | HACKATHON | JOB | VOLUNTEER | ...\ndeadline optional (open-ended if omitted)."
+              }
+            },
+            {
+              "name": "Update Opportunity (ADMIN)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/opportunities/{{opportunityId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "opportunities",
+                    "{{opportunityId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Backend Internship (updated)\",\n  \"organization\": \"ACLEDA\",\n  \"type\": \"INTERNSHIP\",\n  \"description\": \"Updated\",\n  \"deadline\": \"2026-10-15\",\n  \"location\": \"Phnom Penh\",\n  \"applyLink\": \"https://apply.example.com\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Delete Opportunity (ADMIN)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/opportunities/{{opportunityId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "opportunities",
+                    "{{opportunityId}}"
                   ]
                 }
               }

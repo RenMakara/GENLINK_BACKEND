@@ -172,9 +172,12 @@ public class EventServiceImpl implements EventService {
             return new RsvpResponse(eventId, RsvpStatus.JOINED, event.getAttendeeCount(), 0, null, false);
         }
 
-        // Capacity is checked BEFORE payment. The other order takes someone's money
-        // and then tells them the event is full.
-        if (isFull(event)) {
+        // Reserve the seat atomically BEFORE payment, and before anything else that
+        // could charge or reward. If it comes back 0 the event is full and no money
+        // has moved. Because the whole method is one transaction, a later failure -
+        // insufficient balance throws from settlePayment - rolls this reservation back,
+        // releasing the seat. That is why reserve-then-pay is safe here.
+        if (eventRepository.reserveSeat(eventId) == 0) {
             throw new ApiException("Event is full", "EVENT_FULL");
         }
 
@@ -192,7 +195,6 @@ public class EventServiceImpl implements EventService {
                 .checkedIn(false)
                 .build());
         }
-        eventRepository.adjustAttendeeCount(eventId, 1);
         int xp = awardXp(eventId);
 
         return new RsvpResponse(eventId, RsvpStatus.JOINED, event.getAttendeeCount() + 1, xp,
@@ -212,7 +214,7 @@ public class EventServiceImpl implements EventService {
         // would imply a payment rail that does not exist.
         rsvp.setStatus(RsvpStatus.CANCELLED);
         rsvpRepository.save(rsvp);
-        eventRepository.adjustAttendeeCount(eventId, -1);
+        eventRepository.releaseSeat(eventId);
     }
 
     @Override

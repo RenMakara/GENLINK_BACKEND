@@ -91,6 +91,7 @@ class EventServiceImplTest {
             return e;
         });
         when(rsvpRepository.findByEventIdAndUserId(EVENT_ID, USER_ID)).thenReturn(Optional.empty());
+        when(eventRepository.reserveSeat(EVENT_ID)).thenReturn(1);
     }
 
     @Test
@@ -101,7 +102,7 @@ class EventServiceImplTest {
         assertThat(response.attendeeCount()).isEqualTo(4);
         assertThat(response.xpAwarded()).isEqualTo(10);
         assertThat(user.getTotalXp()).isEqualTo(60);
-        verify(eventRepository).adjustAttendeeCount(EVENT_ID, 1);
+        verify(eventRepository).reserveSeat(EVENT_ID);
         verify(xpHistoryRepository).save(any(XpHistory.class));
     }
 
@@ -115,13 +116,13 @@ class EventServiceImplTest {
 
         assertThat(response.attendeeCount()).isEqualTo(3);
         assertThat(response.xpAwarded()).isZero();
-        verify(eventRepository, never()).adjustAttendeeCount(any(), anyInt());
+        verify(eventRepository, never()).reserveSeat(any());
         verify(xpHistoryRepository, never()).save(any(XpHistory.class));
     }
 
     @Test
     void rsvpIsRejectedWhenTheEventIsFull() {
-        event.setAttendeeCount(50);
+        when(eventRepository.reserveSeat(EVENT_ID)).thenReturn(0);
 
         assertThatThrownBy(() -> service.rsvp(EVENT_ID))
             .isInstanceOf(ApiException.class)
@@ -136,7 +137,7 @@ class EventServiceImplTest {
     void aFullPaidEventIsRejectedBeforeTheWalletIsTouched() {
         event.setIsPaid(true);
         event.setPrice(new BigDecimal("5.00"));
-        event.setAttendeeCount(50);
+        when(eventRepository.reserveSeat(EVENT_ID)).thenReturn(0);
 
         assertThatThrownBy(() -> service.rsvp(EVENT_ID)).isInstanceOf(ApiException.class);
 
@@ -174,7 +175,7 @@ class EventServiceImplTest {
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("balance is too low");
 
-        verify(eventRepository, never()).adjustAttendeeCount(any(), anyInt());
+        verify(rsvpRepository, never()).save(any(EventRsvp.class));
     }
 
     @Test
@@ -212,7 +213,7 @@ class EventServiceImplTest {
         service.rsvp(EVENT_ID);
 
         assertThat(cancelled.getStatus()).isEqualTo(RsvpStatus.JOINED);
-        verify(eventRepository).adjustAttendeeCount(EVENT_ID, 1);
+        verify(eventRepository).reserveSeat(EVENT_ID);
     }
 
     @Test
@@ -222,7 +223,7 @@ class EventServiceImplTest {
 
         service.cancelRsvp(EVENT_ID);
 
-        verify(eventRepository).adjustAttendeeCount(EVENT_ID, -1);
+        verify(eventRepository).releaseSeat(EVENT_ID);
     }
 
     @Test
@@ -232,7 +233,7 @@ class EventServiceImplTest {
 
         service.cancelRsvp(EVENT_ID);
 
-        verify(eventRepository, never()).adjustAttendeeCount(any(), anyInt());
+        verify(eventRepository, never()).releaseSeat(any());
     }
 
     @Test

@@ -40,12 +40,21 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
         countQuery = "SELECT COUNT(e) FROM Event e WHERE e.deletedAt IS NULL AND e.organizer.id = :organizerId")
     Page<Event> findByOrganizer(@Param("organizerId") UUID organizerId, Pageable pageable);
 
+    /** Releasing a seat on cancel; no capacity constraint applies going down. */
+    @Modifying
+    @Query("UPDATE Event e SET e.attendeeCount = e.attendeeCount - 1 WHERE e.id = :eventId")
+    void releaseSeat(@Param("eventId") UUID eventId);
+
     /**
-     * Straight to the database rather than read-modify-write: two people joining at
-     * once must not both read 9 and both write 10, which would push an event past its
-     * capacity.
+     * Reserves one seat atomically. The WHERE clause is the capacity guard: reading the
+     * count and then incrementing lets two racers both see 9 and both write 10, pushing
+     * a limited event past capacity. Doing the check and the increment in one statement
+     * closes that window - the database serialises the two updates.
+     *
+     * @return 1 if a seat was reserved, 0 if the event is already full
      */
     @Modifying
-    @Query("UPDATE Event e SET e.attendeeCount = e.attendeeCount + :delta WHERE e.id = :eventId")
-    void adjustAttendeeCount(@Param("eventId") UUID eventId, @Param("delta") int delta);
+    @Query("UPDATE Event e SET e.attendeeCount = e.attendeeCount + 1 "
+        + "WHERE e.id = :eventId AND (e.attendeeLimit IS NULL OR e.attendeeCount < e.attendeeLimit)")
+    int reserveSeat(@Param("eventId") UUID eventId);
 }
