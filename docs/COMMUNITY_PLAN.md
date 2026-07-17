@@ -1,7 +1,7 @@
 # Community Domain — Implementation Plan
 
-Status: **Phases 0, 1, 2 and 4 done** (2026-07-17), except 4.4 (interest-based
-suggestions). Phases 3 and 5 not started.
+Status: **Phases 0-4 done** (2026-07-17), except 4.4 (interest-based suggestions).
+Phase 5 (Opportunities) not started.
 Created: 2026-07-17
 Owner: Enat (Community domain, per Team Assignment v5)
 Scope: backend only
@@ -18,8 +18,8 @@ early phases establish patterns the later ones copy.
 
 Measured 2026-07-17, not estimated. Kept as the record of what was found, and of
 what "the endpoint exists" was worth. Posts, comments, likes and hashtags are now
-real — see "Delivered" at the end. Events and Forum are still exactly as described
-below.
+real — see the Delivered sections at the end. Phases 0-4 have since landed; only
+Opportunities remains from the original plan.
 
 | Thing | Count |
 |---|---|
@@ -138,13 +138,13 @@ Defer: QR check-in, map/location search.
 
 ---
 
-## Phase 3 — Forum
+## Phase 3 — Forum — DONE
 
-- [ ] **3.1** `DiscussionServiceImpl` for real: CRUD, ownership, soft delete.
-- [ ] **3.2** `ForumComment`: add, list (paginated), delete. Maintain `commentCount`.
-- [ ] **3.3** Anonymous discussions: `is_anonymous` exists. The author id must
+- [x] **3.1** `DiscussionServiceImpl` for real: CRUD, ownership, soft delete.
+- [x] **3.2** `ForumComment`: add, list (paginated), delete. Maintain `commentCount`.
+- [x] **3.3** Anonymous discussions: `is_anonymous` exists. The author id must
       still be stored for moderation, and withheld in the response.
-- [ ] **3.4** Category filter, reactions, `report_count`.
+- [x] **3.4** Category filter, reactions, `report_count`.
 
 Note: the dictionary calls this `discussion_comments`; the actual table is
 `forum_comments`. Same thing, two names — see section "Dictionary drift".
@@ -422,3 +422,61 @@ other order takes someone's money and then tells them the event is full. Pinned 
 - **No QR check-in.** `event_rsvps.checked_in` and `qr_code` exist, unused.
 - **No refund on cancel**, deliberately.
 - **No map/location search.** `latitude`/`longitude` exist, unused.
+
+---
+
+## Delivered — Phase 3 (2026-07-17)
+
+### Endpoints
+
+| Method | Path |
+|---|---|
+| POST | `/api/v1/community/discussions` |
+| GET | `/api/v1/community/discussions` (browse, `?category=`) |
+| GET | `/api/v1/community/discussions/mine` |
+| GET | `/api/v1/community/discussions/{id}` |
+| PUT/DELETE | `/api/v1/community/discussions/{id}` |
+| POST/DELETE | `/api/v1/community/discussions/{id}/react` |
+| POST | `/api/v1/community/discussions/{id}/report` |
+| POST/GET | `/api/v1/community/discussions/{id}/comments` |
+| DELETE | `/api/v1/community/discussions/comments/{id}` |
+
+### Migration 0019 — two counters that counted nothing
+
+`forum_discussions` already carried `reaction_count` and `report_count`, but
+**neither had a table behind it**. Nothing recorded *who* reacted or reported, so
+they could only ever be free-floating integers: no idempotency, no `reactedByMe`,
+and nothing stopping one user inflating a count by tapping twice.
+
+0019 adds `forum_reactions` and `discussion_reports`, both with
+`UNIQUE(discussion_id, user_id)`. That constraint is what makes `report_count` mean
+"distinct people flagged this" rather than "how many taps".
+
+### Anonymity
+
+The interesting part of this phase, and the easiest to get wrong.
+
+- The author **is stored** on every discussion, anonymous or not. Moderation needs
+  to know who wrote it, and the row is the only record.
+- `DiscussionResponse` is **the only place anonymity is enforced** — it withholds
+  the author rather than the entity discarding it. Nothing else may carry the user
+  through. `anonymousDiscussionHidesItsAuthorFromOtherUsers` asserts the name does
+  not survive anywhere in the payload, not just that the field is null.
+- `mine` stays true for the author of their own anonymous discussion. That is safe:
+  it tells the writer something they already know, and is false for everyone else.
+- **Commenters are never anonymous.** Only the discussion author can be; replying to
+  an anonymous thread does not hide the replier.
+
+### Known gaps
+
+- **Nothing reviews the report queue.** Reports land in `discussion_reports` and a
+  log line. There is no moderation screen, no threshold, no auto-hide — so a
+  reported discussion stays up and visible. Reporting currently achieves nothing
+  beyond recording the report.
+- **Forum comments are flat.** `forum_comments` has no `parent_comment_id`, so
+  "Reply Comment" in the flow is not possible here. Threading exists on post
+  comments only. Would need a migration.
+- **`forum_comments.like_count` does not exist**, so comment reactions are not
+  possible; `CommentResponse.likeCount` is hard-coded to 0 for forum comments.
+- Anonymity is all-or-nothing: an author cannot un-anonymise later without the edit
+  revealing them retroactively to anyone who saw the earlier version.

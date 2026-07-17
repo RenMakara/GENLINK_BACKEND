@@ -35,3 +35,5 @@ databaseChangeLog:
       file: db/changelog/changes/0017-add-interests-and-social-links.sql
   - include:
       file: db/changelog/changes/0018-add-event-pricing.sql
+  - include:
+      file: db/changelog/changes/0019-add-forum-reactions-and-reports.sql

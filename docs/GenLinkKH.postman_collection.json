@@ -99,6 +99,16 @@
       "key": "eventId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "discussionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "forumCommentId",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -1727,8 +1737,21 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"How do you stay focused while studying?\",\n  \"content\": \"Share your tips.\",\n  \"category\": \"EDUCATION\",\n  \"anonymous\": false,\n  \"language\": \"ENGLISH\"\n}"
+            },
+            "description": "anonymous=true hides the author in every response.\n\nThe author id is still STORED on the row for moderation - it is withheld at the DTO boundary, not discarded. Commenters are never anonymous; only the discussion author is."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.discussionId) { pm.collectionVariables.set('discussionId', json.data.discussionId); }"
+                ]
+              }
             }
-          }
+          ]
         },
         {
           "name": "List My Discussions",
@@ -1736,7 +1759,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/community/discussions",
+              "raw": "{{baseUrl}}/api/v1/community/discussions/mine?page=0&size=20",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1744,9 +1767,21 @@
                 "api",
                 "v1",
                 "community",
-                "discussions"
+                "discussions",
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
               ]
-            }
+            },
+            "description": "Your own discussions, including ones you posted anonymously. Paginated."
           }
         },
         {
@@ -2371,6 +2406,226 @@
                   "key": "size",
                   "value": "20"
                 }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Browse Discussions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/discussions?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "discussions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "The forum list, newest first. Add ?category=TECH to filter.\n\nAnonymous rows come back with author = null. reactedByMe and mine are resolved server-side."
+          }
+        },
+        {
+          "name": "Get Discussion By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "discussions",
+                "{{discussionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "React to Discussion",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/react",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "discussions",
+                "{{discussionId}}",
+                "react"
+              ]
+            },
+            "description": "Idempotent. forum_reactions has UNIQUE(discussion_id, user_id), so a double tap returns the same count. Returns {reactionCount}."
+          }
+        },
+        {
+          "name": "Remove Reaction",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/react",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "discussions",
+                "{{discussionId}}",
+                "react"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Report Discussion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "discussions",
+                "{{discussionId}}",
+                "report"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"SPAM\",\n  \"details\": \"Buying followers\"\n}"
+            },
+            "description": "One report per user per discussion, so report_count means distinct people, not taps.\nReporting twice is a silent no-op.\n\nNOTE: nothing reviews the report queue yet - there is no moderation screen. Reports land in discussion_reports and a log line."
+          }
+        },
+        {
+          "name": "Add Discussion Comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.commentId) { pm.collectionVariables.set('forumCommentId', json.data.commentId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "discussions",
+                "{{discussionId}}",
+                "comments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Try the Pomodoro timer.\",\n  \"parentCommentId\": null,\n  \"language\": \"ENGLISH\"\n}"
+            },
+            "description": "Forum comments are flat - parentCommentId is ignored here (forum_comments has no parent column). Threading exists on post comments only."
+          }
+        },
+        {
+          "name": "List Discussion Comments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/comments?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "discussions",
+                "{{discussionId}}",
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Oldest first, so a thread reads top to bottom. Commenters are always identified."
+          }
+        },
+        {
+          "name": "Delete Discussion Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/discussions/comments/{{forumCommentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "discussions",
+                "comments",
+                "{{forumCommentId}}"
               ]
             }
           }
