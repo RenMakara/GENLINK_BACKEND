@@ -48,7 +48,16 @@ public class HashtagServiceImpl implements HashtagService {
     public void syncForPost(Post post, String contentText) {
         Set<String> tags = extract(contentText);
 
-        // Editing a post can remove tags, so links are rebuilt rather than appended to.
+        // Editing a post rebuilds its links, so decrement the usage count of every tag
+        // it was previously linked to first. Without this, re-syncing an edited post
+        // re-incremented all its current tags on top of the old count, inflating
+        // trending on every edit. Net effect for an unchanged tag is -1 then +1 = 0.
+        for (PostHashtag oldLink : postHashtagRepository.findByPostId(post.getId())) {
+            Hashtag hashtag = oldLink.getHashtag();
+            int current = hashtag.getUsageCount() == null ? 0 : hashtag.getUsageCount();
+            hashtag.setUsageCount(Math.max(0, current - 1));
+            hashtagRepository.save(hashtag);
+        }
         postHashtagRepository.deleteByPostId(post.getId());
         postHashtagRepository.flush();
         if (tags.isEmpty()) {

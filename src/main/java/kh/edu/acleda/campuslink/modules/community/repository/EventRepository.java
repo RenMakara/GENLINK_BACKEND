@@ -24,7 +24,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
      * Browse list. Only PUBLISHED events are discoverable - a DRAFT belongs to its
      * organizer alone - and past events are filtered out.
      */
-    @Query(value = "SELECT e FROM Event e JOIN FETCH e.organizer WHERE e.deletedAt IS NULL "
+    @Query(value = "SELECT e FROM Event e LEFT JOIN FETCH e.organizer WHERE e.deletedAt IS NULL "
         + "AND e.status = :status AND e.dateTime >= :from "
         + "AND (:category IS NULL OR e.category = :category)",
         countQuery = "SELECT COUNT(e) FROM Event e WHERE e.deletedAt IS NULL "
@@ -35,7 +35,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
                              @Param("category") String category,
                              Pageable pageable);
 
-    @Query(value = "SELECT e FROM Event e JOIN FETCH e.organizer "
+    @Query(value = "SELECT e FROM Event e LEFT JOIN FETCH e.organizer "
         + "WHERE e.deletedAt IS NULL AND e.organizer.id = :organizerId",
         countQuery = "SELECT COUNT(e) FROM Event e WHERE e.deletedAt IS NULL AND e.organizer.id = :organizerId")
     Page<Event> findByOrganizer(@Param("organizerId") UUID organizerId, Pageable pageable);

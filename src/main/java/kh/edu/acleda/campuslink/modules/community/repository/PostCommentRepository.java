@@ -16,13 +16,13 @@ public interface PostCommentRepository extends JpaRepository<PostComment, UUID> 
      * Top-level comments only; replies hang off parentCommentId and are fetched with
      * their parent. countQuery is explicit because JOIN FETCH cannot be counted.
      */
-    @Query(value = "SELECT c FROM PostComment c JOIN FETCH c.user "
+    @Query(value = "SELECT c FROM PostComment c LEFT JOIN FETCH c.user "
         + "WHERE c.post.id = :postId AND c.deletedAt IS NULL AND c.parentComment IS NULL",
         countQuery = "SELECT COUNT(c) FROM PostComment c "
             + "WHERE c.post.id = :postId AND c.deletedAt IS NULL AND c.parentComment IS NULL")
     Page<PostComment> findTopLevel(@Param("postId") UUID postId, Pageable pageable);
 
-    @Query(value = "SELECT c FROM PostComment c JOIN FETCH c.user "
+    @Query(value = "SELECT c FROM PostComment c LEFT JOIN FETCH c.user "
         + "WHERE c.parentComment.id = :parentId AND c.deletedAt IS NULL",
         countQuery = "SELECT COUNT(c) FROM PostComment c WHERE c.parentComment.id = :parentId AND c.deletedAt IS NULL")
     Page<PostComment> findReplies(@Param("parentId") UUID parentId, Pageable pageable);

@@ -114,6 +114,31 @@ class HashtagServiceImplTest {
         assertThat(existing.getUsageCount()).isEqualTo(5);
     }
 
+    /** -1 for the old link then +1 for the new one nets to zero: no edit inflation. */
+    @Test
+    void reSyncingAnUnchangedTagDoesNotInflateItsCount() {
+        Hashtag flutter = Hashtag.builder().tag("flutter").usageCount(5).build();
+        when(postHashtagRepository.findByPostId(post.getId()))
+            .thenReturn(List.of(PostHashtag.builder().post(post).hashtag(flutter).build()));
+        when(hashtagRepository.findByTagIn(anyCollection())).thenReturn(List.of(flutter));
+
+        service.syncForPost(post, "still about #flutter");
+
+        assertThat(flutter.getUsageCount()).isEqualTo(5);
+    }
+
+    /** A tag removed on edit loses its count and is not re-added. */
+    @Test
+    void removingATagOnEditDecrementsItsCount() {
+        Hashtag dart = Hashtag.builder().tag("dart").usageCount(3).build();
+        when(postHashtagRepository.findByPostId(post.getId()))
+            .thenReturn(List.of(PostHashtag.builder().post(post).hashtag(dart).build()));
+
+        service.syncForPost(post, "no tags anymore");
+
+        assertThat(dart.getUsageCount()).isEqualTo(2);
+    }
+
     @SuppressWarnings("unchecked")
     private List<String> savedTags() {
         ArgumentCaptor<Hashtag> captor = ArgumentCaptor.forClass(Hashtag.class);

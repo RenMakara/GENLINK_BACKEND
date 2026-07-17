@@ -23,13 +23,13 @@ public interface ForumDiscussionRepository extends JpaRepository<ForumDiscussion
      * row is loaded, then withheld at the DTO boundary, because the service still
      * needs it to answer "is this mine".
      */
-    @Query(value = "SELECT d FROM ForumDiscussion d JOIN FETCH d.user WHERE d.deletedAt IS NULL "
+    @Query(value = "SELECT d FROM ForumDiscussion d LEFT JOIN FETCH d.user WHERE d.deletedAt IS NULL "
         + "AND (:category IS NULL OR d.category = :category)",
         countQuery = "SELECT COUNT(d) FROM ForumDiscussion d WHERE d.deletedAt IS NULL "
             + "AND (:category IS NULL OR d.category = :category)")
     Page<ForumDiscussion> findFeed(@Param("category") String category, Pageable pageable);
 
-    @Query(value = "SELECT d FROM ForumDiscussion d JOIN FETCH d.user "
+    @Query(value = "SELECT d FROM ForumDiscussion d LEFT JOIN FETCH d.user "
         + "WHERE d.deletedAt IS NULL AND d.user.id = :userId",
         countQuery = "SELECT COUNT(d) FROM ForumDiscussion d WHERE d.deletedAt IS NULL AND d.user.id = :userId")
     Page<ForumDiscussion> findByAuthor(@Param("userId") UUID userId, Pageable pageable);
