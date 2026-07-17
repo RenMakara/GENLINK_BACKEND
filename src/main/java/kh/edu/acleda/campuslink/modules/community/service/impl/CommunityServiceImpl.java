@@ -25,10 +25,12 @@ import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class CommunityServiceImpl implements CommunityService {
 
@@ -134,6 +136,14 @@ public class CommunityServiceImpl implements CommunityService {
         }
         community.setDeletedAt(Instant.now());
         communityRepository.save(community);
+
+        // Destructive and irreversible from the API: it takes the community away from
+        // every member at once, and a soft delete leaves nothing else to point at when
+        // someone asks where it went. memberCount is included because that is the blast
+        // radius.
+        log.info("Community soft-deleted: id={} slug={} members={} by user={}",
+            communityId, community.getSlug(), community.getMemberCount(),
+            currentUserProvider.getCurrentUserId());
     }
 
     @Override

@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,6 +15,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+@Slf4j
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -61,9 +63,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      */
     private boolean isUsable(String token, UserDetails userDetails) {
         if (!userDetails.isEnabled()) {
+            // Worth a warning: a banned or deleted account is still holding a signed
+            // token and actively calling the API. Rejections here are otherwise
+            // completely silent - nothing throws, the request simply arrives
+            // unauthenticated and turns into a bare 401.
+            log.warn("Rejected request for disabled account: {}", userDetails.getUsername());
             return false;
         }
-        return isTokenVersionCurrent(token, userDetails);
+        if (!isTokenVersionCurrent(token, userDetails)) {
+            // Debug, not warn: this is the expected outcome after logout, a password
+            // change or revoke-all, and a client retrying once is normal. A sudden
+            // flood of these means tokens are being replayed.
+            log.debug("Rejected superseded token for {}", userDetails.getUsername());
+            return false;
+        }
+        return true;
     }
 
     /**

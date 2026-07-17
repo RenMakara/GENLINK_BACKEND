@@ -35,11 +35,13 @@ import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class EventServiceImpl implements EventService {
 
@@ -142,6 +144,13 @@ public class EventServiceImpl implements EventService {
         Event event = loadOwned(eventId);
         event.setDeletedAt(Instant.now());
         eventRepository.save(event);
+
+        // attendeeCount is the blast radius, and on a paid event those people were
+        // charged with no refund path. If anyone ever asks "where did my money go",
+        // this line is the trail.
+        log.info("Event soft-deleted: id={} attendees={} paid={} by user={}",
+            eventId, event.getAttendeeCount(), Boolean.TRUE.equals(event.getIsPaid()),
+            currentUserProvider.getCurrentUserId());
     }
 
     @Override
@@ -243,6 +252,13 @@ public class EventServiceImpl implements EventService {
             .description("Simulated payment for event: " + event.getTitle())
             .status(TransactionStatus.SUCCESS)
             .build());
+
+        // The only place a balance moves outside the finance module. It is simulated,
+        // but "my wallet is wrong" is otherwise untraceable: the success path never
+        // reaches GlobalExceptionHandler, so nothing else would record it. Says
+        // SIMULATED out loud so a log reader never mistakes it for a real payment.
+        log.info("SIMULATED wallet debit: user={} event={} amount={} balanceAfter={}",
+            userId, event.getId(), price, wallet.getBalance());
         return price;
     }
 
