@@ -12,7 +12,7 @@ import java.util.UUID;
 
 public interface ForumCommentRepository extends JpaRepository<ForumComment, UUID> {
 
-    @Query(value = "SELECT c FROM ForumComment c JOIN FETCH c.user "
+    @Query(value = "SELECT c FROM ForumComment c LEFT JOIN FETCH c.user "
         + "WHERE c.discussion.id = :discussionId AND c.deletedAt IS NULL",
         countQuery = "SELECT COUNT(c) FROM ForumComment c "
             + "WHERE c.discussion.id = :discussionId AND c.deletedAt IS NULL")

@@ -20,19 +20,19 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
      * Recent public posts for the home feed preview. Joins the author eagerly:
      * the preview reads user.fullName, which would otherwise fire one query per post.
      */
-    @Query("SELECT p FROM Post p JOIN FETCH p.user WHERE p.deletedAt IS NULL AND p.visibility = :visibility ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM Post p LEFT JOIN FETCH p.user WHERE p.deletedAt IS NULL AND p.visibility = :visibility ORDER BY p.createdAt DESC")
     List<Post> findFeedPreview(Visibility visibility, Pageable pageable);
 
     /**
      * The feed. countQuery is given explicitly because JOIN FETCH cannot appear in a
      * count query, and Spring would otherwise fail to derive one.
      */
-    @Query(value = "SELECT p FROM Post p JOIN FETCH p.user "
+    @Query(value = "SELECT p FROM Post p LEFT JOIN FETCH p.user "
         + "WHERE p.deletedAt IS NULL AND p.visibility = :visibility",
         countQuery = "SELECT COUNT(p) FROM Post p WHERE p.deletedAt IS NULL AND p.visibility = :visibility")
     Page<Post> findFeed(@Param("visibility") Visibility visibility, Pageable pageable);
 
-    @Query(value = "SELECT p FROM Post p JOIN FETCH p.user WHERE p.deletedAt IS NULL AND p.user.id = :userId",
+    @Query(value = "SELECT p FROM Post p LEFT JOIN FETCH p.user WHERE p.deletedAt IS NULL AND p.user.id = :userId",
         countQuery = "SELECT COUNT(p) FROM Post p WHERE p.deletedAt IS NULL AND p.user.id = :userId")
     Page<Post> findByAuthor(@Param("userId") UUID userId, Pageable pageable);
 
@@ -44,7 +44,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
      * visibility. friendIds and communityIds must be non-empty - "IN ()" is invalid
      * SQL - so callers pass a placeholder id when the viewer has neither.
      */
-    @Query(value = "SELECT p FROM Post p JOIN FETCH p.user WHERE p.deletedAt IS NULL AND ("
+    @Query(value = "SELECT p FROM Post p LEFT JOIN FETCH p.user WHERE p.deletedAt IS NULL AND ("
         + "p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC "
         + "OR p.user.id = :viewerId "
         + "OR (p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.FRIENDS "
@@ -63,7 +63,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
                                @Param("communityIds") Collection<UUID> communityIds,
                                Pageable pageable);
 
-    @Query(value = "SELECT p FROM Post p JOIN FETCH p.user "
+    @Query(value = "SELECT p FROM Post p LEFT JOIN FETCH p.user "
         + "WHERE p.deletedAt IS NULL AND p.community.id = :communityId",
         countQuery = "SELECT COUNT(p) FROM Post p WHERE p.deletedAt IS NULL AND p.community.id = :communityId")
     Page<Post> findByCommunity(@Param("communityId") UUID communityId, Pageable pageable);
