@@ -81,29 +81,29 @@ class OpportunityServiceImplTest {
     /** activeFrom = today when expired ones are excluded; null when included. */
     @Test
     void browseWithoutExpiredFiltersFromToday() {
-        when(opportunityRepository.browse(eq("INTERNSHIP"), any(LocalDate.class), any()))
+        when(opportunityRepository.browseActive(eq("INTERNSHIP"), any(LocalDate.class), any()))
             .thenReturn(new PageImpl<>(List.of(opportunity)));
 
         PageResponse<OpportunityResponse> page = service.browse("INTERNSHIP", false, PageRequest.of(0, 20));
 
         assertThat(page.content()).hasSize(1);
-        verify(opportunityRepository).browse(eq("INTERNSHIP"), any(LocalDate.class), any());
+        verify(opportunityRepository).browseActive(eq("INTERNSHIP"), any(LocalDate.class), any());
     }
 
     @Test
-    void browseWithExpiredPassesNullActiveFrom() {
-        when(opportunityRepository.browse(isNull(), isNull(), any()))
+    void browseWithExpiredUsesBrowseAllWithNoDateParam() {
+        when(opportunityRepository.browseAll(isNull(), any()))
             .thenReturn(new PageImpl<>(List.of(opportunity)));
 
         service.browse(null, true, PageRequest.of(0, 20));
 
-        verify(opportunityRepository).browse(isNull(), isNull(), any());
+        verify(opportunityRepository).browseAll(isNull(), any());
     }
 
     /** savedByMe is resolved server-side, batched one query per page. */
     @Test
     void browseMarksSavedOpportunities() {
-        when(opportunityRepository.browse(any(), any(), any())).thenReturn(new PageImpl<>(List.of(opportunity)));
+        when(opportunityRepository.browseActive(any(), any(), any())).thenReturn(new PageImpl<>(List.of(opportunity)));
         when(savedItemRepository.findSavedItemIds(eq(USER_ID), eq(SavedItemType.OPPORTUNITY), anyCollection()))
             .thenReturn(List.of(OPP_ID));
 

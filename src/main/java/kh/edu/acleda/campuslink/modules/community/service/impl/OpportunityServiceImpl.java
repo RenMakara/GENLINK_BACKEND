@@ -40,9 +40,12 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<OpportunityResponse> browse(String type, boolean includeExpired, Pageable pageable) {
-        // activeFrom null means "no deadline filter", i.e. include expired.
-        LocalDate activeFrom = includeExpired ? null : LocalDate.now();
-        return hydrate(opportunityRepository.browse(type, activeFrom, pageable));
+        // Two methods rather than one with a nullable date param: a bare date in an
+        // `IS NULL` check breaks on PostgreSQL (could not determine data type).
+        Page<Opportunity> page = includeExpired
+            ? opportunityRepository.browseAll(type, pageable)
+            : opportunityRepository.browseActive(type, LocalDate.now(), pageable);
+        return hydrate(page);
     }
 
     @Override
