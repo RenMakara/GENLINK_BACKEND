@@ -114,6 +114,11 @@
       "key": "opportunityId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "expenseId",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -2982,148 +2987,288 @@
       "name": "Finance",
       "item": [
         {
-          "name": "Create Expense",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
+          "name": "Expenses",
+          "description": "Expense tracker: CRUD, filters, and the monthly spending summary.",
+          "item": [
+            {
+              "name": "Create Expense",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const j=pm.response.json(); if(j&&j.data&&j.data.expenseId){pm.collectionVariables.set('expenseId',j.data.expenseId);}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Coffee\",\n  \"amount\": 2.50,\n  \"category\": \"FOOD\",\n  \"description\": \"Morning coffee\",\n  \"expenseDate\": \"2026-07-18\",\n  \"paymentMethod\": \"CASH\"\n}"
+                },
+                "description": "amount must be positive. category is free text."
               }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/finance/expenses",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "finance",
-                "expenses"
-              ]
             },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"Coffee\",\n  \"amount\": 2.50,\n  \"category\": \"FOOD\",\n  \"description\": \"Morning coffee\",\n  \"expenseDate\": \"2026-07-17\",\n  \"paymentMethod\": \"CASH\"\n}"
-            }
-          }
-        },
-        {
-          "name": "List My Expenses",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/finance/expenses",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "finance",
-                "expenses"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Budget",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
+            {
+              "name": "List Expenses",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Newest first, paginated. Filters: ?category=FOOD, and ?month=7&year=2026 together (month alone is ignored - it cannot bound a range)."
               }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/finance/budgets",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "finance",
-                "budgets"
-              ]
             },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"month\": 7,\n  \"year\": 2026,\n  \"totalBudget\": 300.00\n}"
-            },
-            "description": "One budget per user per month/year."
-          }
-        },
-        {
-          "name": "List My Budgets",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/finance/budgets",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "finance",
-                "budgets"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Saving Goal",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
+            {
+              "name": "Monthly Summary",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses/summary?month=7&year=2026",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses",
+                    "summary"
+                  ],
+                  "query": [
+                    {
+                      "key": "month",
+                      "value": "7"
+                    },
+                    {
+                      "key": "year",
+                      "value": "2026"
+                    }
+                  ]
+                },
+                "description": "Total + per-category breakdown for the spending chart. Defaults to the current month if month/year omitted. A null category is reported as UNCATEGORIZED."
               }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/finance/savings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "finance",
-                "savings"
-              ]
             },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"New laptop\",\n  \"targetAmount\": 800.00,\n  \"targetDate\": \"2026-12-01\"\n}"
+            {
+              "name": "Get Expense By Id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses/{{expenseId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses",
+                    "{{expenseId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Expense",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses/{{expenseId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses",
+                    "{{expenseId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Coffee (large)\",\n  \"amount\": 3.00,\n  \"category\": \"FOOD\",\n  \"description\": \"Upsized\",\n  \"expenseDate\": \"2026-07-18\",\n  \"paymentMethod\": \"CASH\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Delete Expense",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses/{{expenseId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses",
+                    "{{expenseId}}"
+                  ]
+                }
+              }
             }
-          }
+          ]
         },
         {
-          "name": "List My Saving Goals",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/finance/savings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "finance",
-                "savings"
-              ]
+          "name": "Budgets (stub - Phase 2)",
+          "item": [
+            {
+              "name": "Create Budget",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"month\": 7,\n  \"year\": 2026,\n  \"totalBudget\": 300.00\n}"
+                },
+                "description": "One budget per user per month/year."
+              }
+            },
+            {
+              "name": "List My Budgets",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets"
+                  ]
+                }
+              }
             }
-          }
+          ]
+        },
+        {
+          "name": "Saving Goals (stub - Phase 3)",
+          "item": [
+            {
+              "name": "Create Saving Goal",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/savings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "savings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"New laptop\",\n  \"targetAmount\": 800.00,\n  \"targetDate\": \"2026-12-01\"\n}"
+                }
+              }
+            },
+            {
+              "name": "List My Saving Goals",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/savings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "savings"
+                  ]
+                }
+              }
+            }
+          ]
         }
-      ]
+      ],
+      "description": "Finance domain, by feature. Expenses done; Budgets and Saving Goals are still stubs (Phases 2-3)."
     },
     {
       "name": "Entertainment",

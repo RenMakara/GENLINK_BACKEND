@@ -2,13 +2,25 @@ package kh.edu.acleda.campuslink.modules.finance.service;
 
 import kh.edu.acleda.campuslink.modules.finance.dto.request.ExpenseCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.ExpenseResponse;
+import kh.edu.acleda.campuslink.modules.finance.dto.response.MonthlySummaryResponse;
+import kh.edu.acleda.campuslink.shared.response.PageResponse;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface ExpenseService {
+
     ExpenseResponse create(ExpenseCreateRequest request);
-    List<ExpenseResponse> getMine();
+
+    /** The caller's expenses, newest first. category, month and year are optional filters. */
+    PageResponse<ExpenseResponse> getMine(String category, Integer month, Integer year, Pageable pageable);
+
+    ExpenseResponse getById(UUID id);
+
     ExpenseResponse update(UUID id, ExpenseCreateRequest request);
+
     void delete(UUID id);
+
+    /** Total and per-category breakdown for a month, for the spending chart. */
+    MonthlySummaryResponse monthlySummary(int month, int year);
 }
