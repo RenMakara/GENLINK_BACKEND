@@ -1,7 +1,7 @@
 # Community Domain — Implementation Plan
 
-Status: **Phases 0, 1 and 4 done** (2026-07-17), except 4.4 (interest-based
-suggestions). Phases 2, 3 and 5 not started.
+Status: **Phases 0, 1, 2 and 4 done** (2026-07-17), except 4.4 (interest-based
+suggestions). Phases 3 and 5 not started.
 Created: 2026-07-17
 Owner: Enat (Community domain, per Team Assignment v5)
 Scope: backend only
@@ -121,16 +121,17 @@ The single most visible surface in the app. Also unblocks `/mobile/home`, whose
 
 ---
 
-## Phase 2 — Events + RSVP
+## Phase 2 — Events + RSVP — DONE
 
-- [ ] **2.1** `EventServiceImpl` for real: CRUD, ownership, soft delete.
-- [ ] **2.2** `GET /api/v1/community/events` — paginated, filters: upcoming,
-      category, free/paid.
-- [ ] **2.3** RSVP: `POST /events/{id}/rsvp`, `DELETE /events/{id}/rsvp`.
+- [x] **2.1** `EventServiceImpl` for real: CRUD, ownership, soft delete.
+- [x] **2.2** `GET /api/v1/community/events` — paginated, upcoming + category.
+      **Free/paid filter not done** — the columns exist now, the filter does not.
+- [x] **2.3** RSVP: `POST /events/{id}/rsvp`, `DELETE /events/{id}/rsvp`.
       Capacity check **before** payment (see the corrected paid-RSVP flow),
-      `UNIQUE(event_id, user_id)`, maintain `attendeeCount`, award XP,
-      notify the organiser.
-- [ ] **2.4** Paid events route through the demo wallet — simulation only. Never
+      `UNIQUE(event_id, user_id)`, maintain `attendeeCount`, award XP.
+      **Organiser notification not done** — the notification module exists but is
+      not wired to anything, so this would be the first caller.
+- [x] **2.4** Paid events route through the demo wallet — simulation only. Never
       imply a real KHQR transfer.
 
 Defer: QR check-in, map/location search.
@@ -357,3 +358,67 @@ timeline, not a social product.
   still join. Follows gained a PENDING path; communities did not.
 - `user_settings.allow_follow_request` is still unused — PENDING keys off
   `privacyProfile` instead.
+
+---
+
+## Delivered — Phase 2 (2026-07-17)
+
+### Endpoints
+
+| Method | Path |
+|---|---|
+| POST | `/api/v1/community/events` |
+| GET | `/api/v1/community/events` (browse: published + upcoming, `?category=`) |
+| GET | `/api/v1/community/events/mine` (includes drafts) |
+| GET | `/api/v1/community/events/{id}` |
+| PUT/DELETE | `/api/v1/community/events/{id}` |
+| POST/DELETE | `/api/v1/community/events/{id}/rsvp` |
+| GET | `/api/v1/community/events/{id}/attendees` |
+
+### Migration 0018 — paid events did not exist
+
+The Events flow has a Free/Paid toggle and a price. **`events` had neither column**,
+not in migration 0009 and not in the data dictionary, so every event was implicitly
+free and the paid RSVP path could not be built at all.
+
+0018 adds `is_paid` and `price`, plus
+`chk_events_paid_requires_price CHECK (is_paid = FALSE OR (price IS NOT NULL AND price > 0))`
+— a paid event with no price would take a payment of nothing and still write a
+wallet transaction.
+
+### The ordering that matters
+
+Capacity is checked **before** payment, matching the corrected paid-RSVP flow. The
+other order takes someone's money and then tells them the event is full. Pinned by
+`aFullPaidEventIsRejectedBeforeTheWalletIsTouched`.
+
+### Decisions worth keeping
+
+- Paid RSVP deducts the demo wallet and writes a `demo_transaction` of type
+  `EVENT_PAYMENT`. `RsvpResponse.simulatedPayment` is true whenever money moved, so
+  the client can label the screen a simulation. **Nothing here touches a real
+  payment rail.**
+- RSVP is idempotent: it backs a button and `(event_id, user_id)` is unique. A
+  second tap does not double-count or re-award XP.
+- Cancelling **does not refund** — the demo wallet has no refund flow, and inventing
+  one would imply a payment rail that does not exist.
+- Rejoining after cancelling reuses the RSVP row; the unique constraint forbids a
+  second one.
+- `attendeeCount` uses `UPDATE ... SET count = count + :delta`, so two people
+  joining at once cannot both read 9 and both write 10 and overshoot capacity.
+- Only PUBLISHED events are discoverable; a DRAFT belongs to its organiser alone.
+  Past events are excluded from browse.
+- A free event never touches the wallet. A free event never keeps a stale price.
+- +10 XP per RSVP, written to `xp_history` and `users.total_xp`.
+- `EventResponse` carries organizer, `myRsvpStatus` and `full`, so the list renders
+  Join/Cancel/Full without a request per row. It previously had no organizer.
+
+### Known gaps
+
+- **No organiser notification.** The flow says the organiser is told when someone
+  joins. The `notification` module exists but nothing calls it yet — this would be
+  its first caller.
+- **No free/paid filter** on browse, though the columns now exist.
+- **No QR check-in.** `event_rsvps.checked_in` and `qr_code` exist, unused.
+- **No refund on cancel**, deliberately.
+- **No map/location search.** `latitude`/`longitude` exist, unused.
