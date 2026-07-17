@@ -98,11 +98,11 @@ public class EmailServiceImpl implements EmailService {
         boolean forgotPassword = purpose == OtpPurpose.FORGOT_PASSWORD;
         if (language == Language.KHMER) {
             return forgotPassword
-                ? "CampusLink KH - លេខកូដកំណត់ពាក្យសម្ងាត់ឡើងវិញ"
-                : "CampusLink KH - លេខកូដផ្ទៀងផ្ទាត់";
+                ? "GenLink KH - កំណត់ពាក្យសម្ងាត់ឡើងវិញ"
+                : "GenLink KH - ផ្ទៀងផ្ទាត់លេខកូដ";
         }
         return forgotPassword
-            ? "CampusLink KH - Password Reset Code"
-            : "CampusLink KH - Verification Code";
+            ? "GenLink KH - Password Reset Code"
+            : "GenLink KH - Verification Code";
     }
 }
