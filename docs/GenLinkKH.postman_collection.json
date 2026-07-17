@@ -79,6 +79,21 @@
       "key": "commentId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "communityId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "communitySlug",
+      "value": "flutter-kh",
+      "type": "string"
+    },
+    {
+      "key": "targetUserId",
+      "value": "",
+      "type": "string"
     }
   ],
   "event": [
@@ -1350,9 +1365,9 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"contentText\": \"Hello GenLink KH!\",\n  \"imageUrl\": null,\n  \"postType\": \"TEXT\",\n  \"visibility\": \"PUBLIC\",\n  \"language\": \"ENGLISH\"\n}"
+              "raw": "{\n  \"contentText\": \"Hello GenLink KH! #flutter\",\n  \"imageUrl\": null,\n  \"postType\": \"TEXT\",\n  \"visibility\": \"PUBLIC\",\n  \"language\": \"ENGLISH\",\n  \"communityId\": null\n}"
             },
-            "description": "postType: TEXT | IMAGE | POLL | ANNOUNCEMENT\nvisibility: PUBLIC | FRIENDS | COMMUNITY"
+            "description": "postType: TEXT | IMAGE | POLL | ANNOUNCEMENT\nvisibility: PUBLIC | FRIENDS | COMMUNITY\n\ncommunityId is optional. Set it to post into a community — you must be an active member. visibility=COMMUNITY without a communityId is visible to nobody.\n\n#hashtags are parsed from contentText automatically (Khmer works too)."
           }
         },
         {
@@ -1462,7 +1477,7 @@
                 }
               ]
             },
-            "description": "The public feed, newest first.\n\ndata is a PageResponse: {content, page, size, totalElements, totalPages, hasNext}.\n\nEach row already carries author, likedByMe, savedByMe, hashtags and createdAt — the screen renders from this one call, no per-post follow-ups."
+            "description": "The personalised feed, newest first.\n\nReturns: public posts, your own posts, FRIENDS-only posts from mutual follows, and posts in communities you have joined.\n\ndata is a PageResponse. Each row carries author, likedByMe, savedByMe, hashtags and createdAt, so the screen renders from this one call."
           }
         },
         {
@@ -1773,6 +1788,435 @@
                 "v1",
                 "community",
                 "events"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Community",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  pm.collectionVariables.set('communityId', json.data.communityId);",
+                  "  pm.collectionVariables.set('communitySlug', json.data.slug);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/communities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "communities"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Flutter KH\",\n  \"description\": \"Flutter devs in Cambodia\",\n  \"category\": \"TECH\",\n  \"coverImageUrl\": null,\n  \"avatarUrl\": null,\n  \"privacy\": \"PUBLIC\"\n}"
+            },
+            "description": "The slug is derived from the name — never send one. The creator becomes OWNER and the first member.\n\nprivacy: PUBLIC | PRIVATE"
+          }
+        },
+        {
+          "name": "Discover Communities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/communities?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "communities"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Public communities only, biggest first. Add ?category=TECH to filter.\nPrivate communities are not browsable — reach them by direct link."
+          }
+        },
+        {
+          "name": "My Communities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/communities/mine?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "communities",
+                "mine"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Community By Slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/communities/{{communitySlug}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "communities",
+                "{{communitySlug}}"
+              ]
+            },
+            "description": "joined and myRole tell the client whether to show Join or Leave, and whether to show admin controls."
+          }
+        },
+        {
+          "name": "Join Community",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/communities/{{communityId}}/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "communities",
+                "{{communityId}}",
+                "join"
+              ]
+            },
+            "description": "Idempotent. Rejoining after leaving reuses the same membership row."
+          }
+        },
+        {
+          "name": "Leave Community",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/communities/{{communityId}}/leave",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "communities",
+                "{{communityId}}",
+                "leave"
+              ]
+            },
+            "description": "The OWNER cannot leave (COMMUNITY_OWNER_CANNOT_LEAVE) — transfer ownership first."
+          }
+        },
+        {
+          "name": "Community Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/communities/{{communityId}}/members?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "communities",
+                "{{communityId}}",
+                "members"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Community Feed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/posts/community/{{communityId}}?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "posts",
+                "community",
+                "{{communityId}}"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Follow User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/users/{{targetUserId}}/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "users",
+                "{{targetUserId}}",
+                "follow"
+              ]
+            },
+            "description": "Idempotent. Returns ACCEPTED for an open profile, PENDING when the target's profile is PRIVATE.\nFollowing yourself is rejected."
+          }
+        },
+        {
+          "name": "Unfollow User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/users/{{targetUserId}}/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "users",
+                "{{targetUserId}}",
+                "follow"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Follow Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/users/{{targetUserId}}/follow-stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "users",
+                "{{targetUserId}}",
+                "follow-stats"
+              ]
+            },
+            "description": "followers/following counts, plus followStatus and friend for the caller.\nfriend = mutual ACCEPTED follow, which is what FRIENDS visibility means."
+          }
+        },
+        {
+          "name": "Followers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/users/{{targetUserId}}/followers?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "users",
+                "{{targetUserId}}",
+                "followers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Following",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/users/{{targetUserId}}/following?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "users",
+                "{{targetUserId}}",
+                "following"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Follow Requests (incoming)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/follow-requests?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "follow-requests"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Pending requests awaiting your approval. Only PRIVATE profiles generate these."
+          }
+        },
+        {
+          "name": "Accept Follow Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/follow-requests/{{targetUserId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "follow-requests",
+                "{{targetUserId}}",
+                "accept"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reject Follow Request",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/community/follow-requests/{{targetUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "community",
+                "follow-requests",
+                "{{targetUserId}}"
               ]
             }
           }

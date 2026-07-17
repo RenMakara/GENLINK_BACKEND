@@ -38,11 +38,23 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.success("Post created", postService.create(request)));
     }
 
-    /** The public feed. Rows arrive with author, likedByMe, savedByMe and hashtags. */
+    /**
+     * The personalised feed: public posts, your own, friends-only posts from mutual
+     * follows, and posts in communities you have joined. Rows arrive with author,
+     * likedByMe, savedByMe and hashtags.
+     */
     @GetMapping("/feed")
     public ResponseEntity<ApiResponse<PageResponse<PostResponse>>> feed(
         @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success("Feed retrieved", postService.getFeed(pageable)));
+    }
+
+    @GetMapping("/community/{communityId}")
+    public ResponseEntity<ApiResponse<PageResponse<PostResponse>>> communityFeed(
+        @PathVariable UUID communityId,
+        @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Community feed retrieved",
+            postService.getCommunityFeed(communityId, pageable)));
     }
 
     @GetMapping

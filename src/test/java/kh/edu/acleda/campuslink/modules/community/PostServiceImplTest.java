@@ -11,6 +11,9 @@ import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.entity.PostReaction;
 import kh.edu.acleda.campuslink.modules.community.enums.PostType;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
+import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
@@ -54,6 +57,9 @@ class PostServiceImplTest {
     @Mock private PostRepository postRepository;
     @Mock private PostReactionRepository postReactionRepository;
     @Mock private SavedItemRepository savedItemRepository;
+    @Mock private CommunityRepository communityRepository;
+    @Mock private CommunityMemberRepository communityMemberRepository;
+    @Mock private FollowRepository followRepository;
     @Mock private HashtagService hashtagService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
@@ -65,6 +71,7 @@ class PostServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new PostServiceImpl(postRepository, postReactionRepository, savedItemRepository,
+            communityRepository, communityMemberRepository, followRepository,
             hashtagService, userRepository, currentUserProvider);
 
         author = new User();
@@ -92,13 +99,15 @@ class PostServiceImplTest {
         when(hashtagService.tagsForPosts(any())).thenReturn(Map.of());
         when(postReactionRepository.findLikedPostIds(any(), anyCollection())).thenReturn(List.of());
         when(savedItemRepository.findSavedItemIds(any(), any(), anyCollection())).thenReturn(List.of());
+        when(followRepository.findFriendIds(any())).thenReturn(List.of());
+        when(communityMemberRepository.findActiveCommunityIds(any())).thenReturn(List.of());
     }
 
     /** The stub used to echo the request back with a null id and save nothing. */
     @Test
     void createPersistsThePostAndReturnsARealId() {
         PostResponse response = service.create(new PostCreateRequest(
-            "Hello #genlink", null, PostType.TEXT, Visibility.PUBLIC, Language.ENGLISH));
+            "Hello #genlink", null, PostType.TEXT, Visibility.PUBLIC, Language.ENGLISH, null));
 
         verify(postRepository).save(any(Post.class));
         assertThat(response.author().userId()).isEqualTo(USER_ID);
@@ -107,7 +116,7 @@ class PostServiceImplTest {
 
     @Test
     void createDefaultsTypeAndVisibilityWhenOmitted() {
-        service.create(new PostCreateRequest("no type given", null, null, null, null));
+        service.create(new PostCreateRequest("no type given", null, null, null, null, null));
 
         var captor = org.mockito.ArgumentCaptor.forClass(Post.class);
         verify(postRepository).save(captor.capture());
@@ -117,14 +126,14 @@ class PostServiceImplTest {
 
     @Test
     void createSyncsHashtags() {
-        service.create(new PostCreateRequest("Hello #genlink", null, null, null, null));
+        service.create(new PostCreateRequest("Hello #genlink", null, null, null, null, null));
 
         verify(hashtagService).syncForPost(any(Post.class), eq("Hello #genlink"));
     }
 
     @Test
     void feedRowsCarryAuthorAndFlags() {
-        when(postRepository.findFeed(eq(Visibility.PUBLIC), any()))
+        when(postRepository.findVisibleFeed(eq(USER_ID), anyCollection(), anyCollection(), any()))
             .thenReturn(new PageImpl<>(List.of(post)));
         when(postReactionRepository.findLikedPostIds(eq(USER_ID), anyCollection())).thenReturn(List.of(POST_ID));
         when(savedItemRepository.findSavedItemIds(eq(USER_ID), eq(SavedItemType.POST), anyCollection()))
@@ -145,7 +154,7 @@ class PostServiceImplTest {
     void feedResolvesLikesAndSavesInOneQueryEach() {
         Post second = Post.builder().user(author).likeCount(0).commentCount(0).build();
         ReflectionTestUtils.setField(second, "id", UUID.randomUUID());
-        when(postRepository.findFeed(eq(Visibility.PUBLIC), any()))
+        when(postRepository.findVisibleFeed(eq(USER_ID), anyCollection(), anyCollection(), any()))
             .thenReturn(new PageImpl<>(List.of(post, second)));
 
         service.getFeed(PageRequest.of(0, 20));
@@ -157,7 +166,7 @@ class PostServiceImplTest {
 
     @Test
     void emptyFeedSkipsHydrationQueries() {
-        when(postRepository.findFeed(eq(Visibility.PUBLIC), any())).thenReturn(new PageImpl<>(List.of()));
+        when(postRepository.findVisibleFeed(eq(USER_ID), anyCollection(), anyCollection(), any())).thenReturn(new PageImpl<>(List.of()));
 
         assertThat(service.getFeed(PageRequest.of(0, 20)).content()).isEmpty();
         verify(postReactionRepository, never()).findLikedPostIds(any(), anyCollection());
@@ -218,7 +227,7 @@ class PostServiceImplTest {
         when(postRepository.findByIdAndUserIdAndDeletedAtIsNull(POST_ID, USER_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.update(POST_ID,
-            new PostCreateRequest("hack", null, null, null, null)))
+            new PostCreateRequest("hack", null, null, null, null, null)))
             .isInstanceOf(NotFoundException.class);
     }
 }

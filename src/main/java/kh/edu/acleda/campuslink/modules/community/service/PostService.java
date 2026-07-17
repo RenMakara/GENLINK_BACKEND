@@ -11,8 +11,13 @@ public interface PostService {
 
     PostResponse create(PostCreateRequest request);
 
-    /** The public feed, newest first. */
+    /**
+     * The personalised feed, newest first: public posts, the viewer's own, friends-only
+     * posts from mutual follows, and community posts from communities they are in.
+     */
     PageResponse<PostResponse> getFeed(Pageable pageable);
+
+    PageResponse<PostResponse> getCommunityFeed(UUID communityId, Pageable pageable);
 
     PageResponse<PostResponse> getMine(Pageable pageable);
 

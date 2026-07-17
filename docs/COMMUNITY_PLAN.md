@@ -1,6 +1,7 @@
 # Community Domain — Implementation Plan
 
-Status: **Phase 0 and Phase 1 done** (2026-07-17). Phases 2-5 not started.
+Status: **Phases 0, 1 and 4 done** (2026-07-17), except 4.4 (interest-based
+suggestions). Phases 2, 3 and 5 not started.
 Created: 2026-07-17
 Owner: Enat (Community domain, per Team Assignment v5)
 Scope: backend only
@@ -149,19 +150,23 @@ Note: the dictionary calls this `discussion_comments`; the actual table is
 
 ---
 
-## Phase 4 — Communities + Follows
+## Phase 4 — Communities + Follows — DONE
 
-Unlocks personalisation. Today `Visibility` has three values and only `PUBLIC`
-means anything, because nothing can resolve "friends" or "my communities".
+Done ahead of Phases 2-3: it finishes what Phase 1 started. `Visibility` had three
+values and only `PUBLIC` meant anything, because nothing could resolve "friends" or
+"my communities". All three now work.
 
-- [ ] **4.1** Community CRUD, join/leave, `memberCount`, roles
+- [x] **4.1** Community CRUD, join/leave, `memberCount`, roles
       (OWNER/ADMIN/MODERATOR/MEMBER), `CommunityPrivacy`.
-- [ ] **4.2** Follow/unfollow, followers/following counts.
+- [x] **4.2** Follow/unfollow, followers/following counts.
       A friend is a **mutual ACCEPTED follow** — already relied on by
       `getPublicProfile`.
-- [ ] **4.3** Feed personalisation: posts from followed users and joined
+- [x] **4.3** Feed personalisation: posts from followed users and joined
       communities. Enforce `FRIENDS` and `COMMUNITY` visibility properly.
 - [ ] **4.4** Onboarding interests already exist — use them to seed suggestions.
+      **Not done.** Suggestions rank by `memberCount` only. Interests are collected
+      at onboarding and still drive nothing, so a Khmer-learning student and a
+      startup founder see the same list.
 
 ---
 
@@ -286,3 +291,69 @@ than discovering a wrong pattern in Phase 4.
   graph and memberships from Phase 4.
 - Comment likes: `post_comments.like_count` exists and is returned, but nothing
   increments it yet.
+
+---
+
+## Delivered — Phase 4 (2026-07-17)
+
+Taken before Phases 2-3 because it completes Phase 1: the feed was a public
+timeline, not a social product.
+
+### Endpoints
+
+| Method | Path |
+|---|---|
+| POST | `/api/v1/community/communities` |
+| GET | `/api/v1/community/communities` (discover, paginated) |
+| GET | `/api/v1/community/communities/mine` |
+| GET | `/api/v1/community/communities/{slug}` |
+| PUT/DELETE | `/api/v1/community/communities/{id}` |
+| POST | `/api/v1/community/communities/{id}/join` |
+| DELETE | `/api/v1/community/communities/{id}/leave` |
+| GET | `/api/v1/community/communities/{id}/members` |
+| GET | `/api/v1/community/posts/community/{id}` |
+| POST/DELETE | `/api/v1/community/users/{id}/follow` |
+| GET | `/api/v1/community/users/{id}/follow-stats`, `/followers`, `/following` |
+| GET | `/api/v1/community/follow-requests` |
+| POST | `/api/v1/community/follow-requests/{id}/accept` |
+| DELETE | `/api/v1/community/follow-requests/{id}` |
+
+### What this unlocked
+
+- **The feed is now personalised.** `findVisibleFeed` serves public posts, the
+  viewer's own, FRIENDS posts from mutual follows, and COMMUNITY posts from
+  communities they have joined. `Visibility` finally means something.
+- `posts.community_id` is set on create — the column existed since 0015, unused.
+- `/mobile/home`'s `recommendedCommunities` can return real rows.
+- `follows` is no longer used by only `getPublicProfile`.
+
+### Decisions worth keeping
+
+- **Slugs are derived from the name, never sent by the client**, with a numeric
+  suffix on collision. Khmer names normalise to nothing under NFKD, so they fall
+  back to a generated slug rather than an empty one.
+- **The slug is never regenerated on update.** It is a public URL; silently
+  changing it breaks every link already shared.
+- **The creator is the first member**, otherwise a community starts with an owner
+  who is not in it and `memberCount` disagrees with `community_members`.
+- **The OWNER cannot leave** — that would orphan the community with nobody able to
+  administer it. Transfer ownership first (not built).
+- **Rejoining reuses the membership row**, because `UNIQUE(community_id, user_id)`
+  forbids a second one. Status moves LEFT -> ACTIVE.
+- **A PRIVATE profile makes follows PENDING** and needs approval, mirroring how
+  `getPublicProfile` hides a private profile. Everything else is ACCEPTED at once.
+- **A friend is a mutual ACCEPTED follow** — one-way is a follower, not a friend.
+- Empty `IN ()` is invalid SQL, so a viewer with no friends and no communities gets
+  a placeholder id that matches nothing, and still sees the public feed.
+
+### Known gaps
+
+- **Ownership transfer does not exist**, so an owner can never leave their own
+  community. Needs a `PUT /communities/{id}/members/{userId}/role` endpoint.
+- **Role management is not exposed**: `CommunityRole` has ADMIN and MODERATOR but
+  nothing can promote anyone. Only the creator is ever anything but MEMBER.
+- **Private community membership is open**: `CommunityPrivacy.PRIVATE` hides a
+  community from discovery, but `join` does not gate on it. Anyone with the id can
+  still join. Follows gained a PENDING path; communities did not.
+- `user_settings.allow_follow_request` is still unused — PENDING keys off
+  `privacyProfile` instead.

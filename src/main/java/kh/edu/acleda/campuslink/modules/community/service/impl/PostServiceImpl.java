@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.community.service.impl;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -9,10 +10,14 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
+import kh.edu.acleda.campuslink.modules.community.entity.Community;
 import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.entity.PostReaction;
 import kh.edu.acleda.campuslink.modules.community.enums.PostType;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
+import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
@@ -33,10 +38,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class PostServiceImpl implements PostService {
 
     private static final String DEFAULT_REACTION = "LIKE";
+    /** Stands in for an empty IN list, which is invalid SQL. Matches nothing. */
+    private static final UUID PLACEHOLDER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
 
     private final PostRepository postRepository;
     private final PostReactionRepository postReactionRepository;
     private final SavedItemRepository savedItemRepository;
+    private final CommunityRepository communityRepository;
+    private final CommunityMemberRepository communityMemberRepository;
+    private final FollowRepository followRepository;
     private final HashtagService hashtagService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
@@ -44,12 +54,18 @@ public class PostServiceImpl implements PostService {
     public PostServiceImpl(PostRepository postRepository,
                            PostReactionRepository postReactionRepository,
                            SavedItemRepository savedItemRepository,
+                           CommunityRepository communityRepository,
+                           CommunityMemberRepository communityMemberRepository,
+                           FollowRepository followRepository,
                            HashtagService hashtagService,
                            UserRepository userRepository,
                            CurrentUserProvider currentUserProvider) {
         this.postRepository = postRepository;
         this.postReactionRepository = postReactionRepository;
         this.savedItemRepository = savedItemRepository;
+        this.communityRepository = communityRepository;
+        this.communityMemberRepository = communityMemberRepository;
+        this.followRepository = followRepository;
         this.hashtagService = hashtagService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
@@ -59,8 +75,11 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public PostResponse create(PostCreateRequest request) {
         User author = loadCurrentUser();
+        Community community = resolveCommunity(request.communityId());
+
         Post post = Post.builder()
             .user(author)
+            .community(community)
             .contentText(request.contentText())
             .imageUrl(request.imageUrl())
             .postType(request.postType() == null ? PostType.TEXT : request.postType())
@@ -73,6 +92,9 @@ public class PostServiceImpl implements PostService {
             .build();
 
         Post saved = postRepository.save(post);
+        if (community != null) {
+            communityRepository.adjustPostCount(community.getId(), 1);
+        }
         hashtagService.syncForPost(saved, saved.getContentText());
         return toResponse(saved, false, false, hashtagsFor(saved.getId()));
     }
@@ -80,7 +102,40 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<PostResponse> getFeed(Pageable pageable) {
-        return hydratePage(postRepository.findFeed(Visibility.PUBLIC, pageable));
+        UUID viewerId = currentUserProvider.getCurrentUserId();
+        return hydratePage(postRepository.findVisibleFeed(
+            viewerId, orPlaceholder(followRepository.findFriendIds(viewerId)),
+            orPlaceholder(communityMemberRepository.findActiveCommunityIds(viewerId)), pageable));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<PostResponse> getCommunityFeed(UUID communityId, Pageable pageable) {
+        return hydratePage(postRepository.findByCommunity(communityId, pageable));
+    }
+
+    /**
+     * "IN ()" is invalid SQL, so an empty list becomes a placeholder that matches
+     * nothing. A user with no friends and no communities still gets the public feed.
+     */
+    private Collection<UUID> orPlaceholder(List<UUID> ids) {
+        return ids.isEmpty() ? List.of(PLACEHOLDER_ID) : ids;
+    }
+
+    /** Posting into a community you are not an active member of is not allowed. */
+    private Community resolveCommunity(UUID communityId) {
+        if (communityId == null) {
+            return null;
+        }
+        Community community = communityRepository.findByIdAndDeletedAtIsNull(communityId)
+            .orElseThrow(() -> new NotFoundException("Community not found"));
+        boolean member = communityMemberRepository
+            .findActiveCommunityIds(currentUserProvider.getCurrentUserId())
+            .contains(communityId);
+        if (!member) {
+            throw new NotFoundException("Community not found");
+        }
+        return community;
     }
 
     @Override
