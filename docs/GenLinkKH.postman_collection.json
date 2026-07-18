@@ -3163,10 +3163,22 @@
           ]
         },
         {
-          "name": "Budgets (stub - Phase 2)",
+          "name": "Budgets",
           "item": [
             {
               "name": "Create Budget",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var d = pm.response.json().data;",
+                      "if (d && d.budgetId) { pm.collectionVariables.set('budgetId', d.budgetId); }"
+                    ]
+                  }
+                }
+              ],
               "request": {
                 "method": "POST",
                 "header": [
@@ -3189,9 +3201,9 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"month\": 7,\n  \"year\": 2026,\n  \"totalBudget\": 300.00\n}"
+                  "raw": "{\n  \"month\": 7,\n  \"year\": 2026,\n  \"totalBudget\": 300.00,\n  \"categories\": [\n    { \"category\": \"FOOD\", \"allocatedAmount\": 120.00 },\n    { \"category\": \"TRANSPORT\", \"allocatedAmount\": 60.00 }\n  ]\n}"
                 },
-                "description": "One budget per user per month/year."
+                "description": "One budget per user per month/year. categories is optional. Captures budgetId into a collection variable."
               }
             },
             {
@@ -3200,7 +3212,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/api/v1/finance/budgets",
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets?page=0&size=20",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -3209,8 +3221,122 @@
                     "v1",
                     "finance",
                     "budgets"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
                   ]
-                }
+                },
+                "description": "Paginated, newest first. Light: no category breakdown, spend computed live."
+              }
+            },
+            {
+              "name": "Current Month Budget",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets/current?month=7&year=2026",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets",
+                    "current"
+                  ],
+                  "query": [
+                    {
+                      "key": "month",
+                      "value": "7"
+                    },
+                    {
+                      "key": "year",
+                      "value": "2026"
+                    }
+                  ]
+                },
+                "description": "Budget for a month with the category breakdown. month/year default to the current month if omitted."
+              }
+            },
+            {
+              "name": "Get Budget by Id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets/{{budgetId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets",
+                    "{{budgetId}}"
+                  ]
+                },
+                "description": "Detail with category breakdown. Spent/remaining/status computed live from expenses."
+              }
+            },
+            {
+              "name": "Update Budget",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets/{{budgetId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets",
+                    "{{budgetId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"month\": 7,\n  \"year\": 2026,\n  \"totalBudget\": 400.00,\n  \"categories\": [\n    { \"category\": \"FOOD\", \"allocatedAmount\": 150.00 }\n  ]\n}"
+                },
+                "description": "Categories are replaced wholesale."
+              }
+            },
+            {
+              "name": "Delete Budget",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets/{{budgetId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets",
+                    "{{budgetId}}"
+                  ]
+                },
+                "description": "Soft delete."
               }
             }
           ]
@@ -3268,7 +3394,7 @@
           ]
         }
       ],
-      "description": "Finance domain, by feature. Expenses done; Budgets and Saving Goals are still stubs (Phases 2-3)."
+      "description": "Finance domain, by feature. Expenses and Budgets done; Saving Goals is still a stub (Phase 3)."
     },
     {
       "name": "Entertainment",
