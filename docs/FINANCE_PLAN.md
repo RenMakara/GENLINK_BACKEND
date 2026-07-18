@@ -1,6 +1,6 @@
 # Finance Domain — Implementation Plan
 
-Status: Phases 1-2 done (2026-07-18); Phases 3-6 not started. Owner: Sela (Finance, per Team Assignment v5).
+Status: Phases 1-3 done (2026-07-18); Phases 4-6 not started. Owner: Sela (Finance, per Team Assignment v5).
 Scope: backend only. Payments are simulation only — no real banking, no real KHQR.
 
 ---
@@ -13,7 +13,7 @@ Measured 2026-07-18. Tables exist (migration 0008); services are stubs.
 |---|---|---|---|---|
 | Expense | yes | yes | **done** | yes |
 | Budget | yes | yes | **done** | yes |
-| Saving goal | yes | yes | **stub** | yes |
+| Saving goal | yes | yes | **done** | yes |
 | Financial lesson | yes | yes | none | none |
 | Demo wallet | yes | yes | none | none |
 
@@ -60,11 +60,19 @@ No dependencies. Everything else reads from expenses.
 - [x] `GET /budgets` list (light, no categories); `GET /budgets/current`,
       `GET /budgets/{id}` (with category breakdown). Tests.
 
-## Phase 3 — Saving Goals
+## Phase 3 — Saving Goals — DONE
 
-- [ ] Goal CRUD, target amount/date.
-- [ ] Deposit: adds to currentAmount, writes a saving_deposits row, flips status
-      to COMPLETED when the target is reached. Deposit history. Progress bar data.
+- [x] Goal CRUD, target amount/date, owner-scoped (another user's id reads as
+      not found). Update re-derives completion from the new target; a CANCELLED
+      goal stays cancelled.
+- [x] Deposit (`POST /savings/{id}/deposits`): appends a saving_deposits row and
+      adds to currentAmount in the same transaction, flips status to COMPLETED
+      when the target is reached. Deposits into a cancelled goal are rejected.
+      Because deposits are append-only (no edit/delete), the stored counter cannot
+      drift, so it stays the source of truth rather than a recompute.
+- [x] Deposit history (`GET /savings/{id}/deposits`), most recent first.
+- [x] Progress bar data: response carries remainingAmount (floored at 0) and
+      progressPercent (0-100, capped) alongside current/target. Tests.
 
 ## Phase 4 — Financial Literacy
 
