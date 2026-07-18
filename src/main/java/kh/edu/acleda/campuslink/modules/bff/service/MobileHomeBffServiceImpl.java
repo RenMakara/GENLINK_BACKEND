@@ -149,7 +149,7 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
             .findByUserIdAndMonthAndYearAndDeletedAtIsNull(userId, today.getMonthValue(), today.getYear())
             .orElse(null);
         List<SavingGoal> goals = savingGoalRepository
-            .findByUserIdAndDeletedAtIsNullAndStatus(userId, SavingGoalStatus.IN_PROGRESS);
+            .findByUserIdAndDeletedAtIsNullAndStatusOrderByCreatedAtDesc(userId, SavingGoalStatus.IN_PROGRESS);
 
         // Nothing to show at all - let the client render the "set a budget" empty state.
         if (budget == null && goals.isEmpty()) {
