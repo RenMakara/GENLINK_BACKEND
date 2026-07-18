@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import kh.edu.acleda.campuslink.modules.bff.dto.MobileProfileSummaryResponse;
 import kh.edu.acleda.campuslink.modules.bff.service.MobileFinanceBffService;
 import kh.edu.acleda.campuslink.modules.bff.service.MobileHomeBffService;
+import kh.edu.acleda.campuslink.modules.bff.service.MobileProductivityBffService;
 import kh.edu.acleda.campuslink.modules.bff.service.MobileProfileBffService;
 import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileEventDetailResponse;
 import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileFinanceDashboardResponse;
@@ -33,15 +34,18 @@ public class MobileController {
     private final MobileProfileBffService mobileProfileBffService;
     private final MobileHomeBffService mobileHomeBffService;
     private final MobileFinanceBffService mobileFinanceBffService;
+    private final MobileProductivityBffService mobileProductivityBffService;
     private final LanguageResolver languageResolver;
 
     public MobileController(MobileProfileBffService mobileProfileBffService,
                             MobileHomeBffService mobileHomeBffService,
                             MobileFinanceBffService mobileFinanceBffService,
+                            MobileProductivityBffService mobileProductivityBffService,
                             LanguageResolver languageResolver) {
         this.mobileProfileBffService = mobileProfileBffService;
         this.mobileHomeBffService = mobileHomeBffService;
         this.mobileFinanceBffService = mobileFinanceBffService;
+        this.mobileProductivityBffService = mobileProductivityBffService;
         this.languageResolver = languageResolver;
     }
 
@@ -68,9 +72,12 @@ public class MobileController {
     }
 
     @GetMapping("/productivity-dashboard")
-    public ResponseEntity<ApiResponse<MobileProductivityDashboardResponse>> productivityDashboard() {
-        // TODO: Aggregate productivity dashboard data from productivity services.
-        return ResponseEntity.ok(ApiResponse.success("Productivity dashboard retrieved", new MobileProductivityDashboardResponse("TODO: productivity dashboard aggregation")));
+    public ResponseEntity<ApiResponse<MobileProductivityDashboardResponse>> productivityDashboard(
+        @AuthenticationPrincipal UserDetails userDetails,
+        @RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage) {
+        Language language = languageResolver.resolve(userDetails.getUsername(), acceptLanguage);
+        return ResponseEntity.ok(ApiResponse.success("Productivity dashboard retrieved",
+            mobileProductivityBffService.getDashboard(userDetails.getUsername(), language)));
     }
 
     @GetMapping("/events/{id}")

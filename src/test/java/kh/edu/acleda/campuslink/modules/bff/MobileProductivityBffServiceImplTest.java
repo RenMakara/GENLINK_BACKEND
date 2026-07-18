@@ -1,0 +1,177 @@
+package kh.edu.acleda.campuslink.modules.bff;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.bff.service.MobileProductivityBffServiceImpl;
+import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileProductivityDashboardResponse;
+import kh.edu.acleda.campuslink.modules.productivity.entity.FocusSession;
+import kh.edu.acleda.campuslink.modules.productivity.entity.Goal;
+import kh.edu.acleda.campuslink.modules.productivity.entity.Habit;
+import kh.edu.acleda.campuslink.modules.productivity.entity.HabitCheckIn;
+import kh.edu.acleda.campuslink.modules.productivity.entity.MotivationContent;
+import kh.edu.acleda.campuslink.modules.productivity.entity.Task;
+import kh.edu.acleda.campuslink.modules.productivity.repository.FocusSessionRepository;
+import kh.edu.acleda.campuslink.modules.productivity.repository.GoalRepository;
+import kh.edu.acleda.campuslink.modules.productivity.repository.HabitCheckInRepository;
+import kh.edu.acleda.campuslink.modules.productivity.repository.HabitRepository;
+import kh.edu.acleda.campuslink.modules.productivity.repository.MotivationContentRepository;
+import kh.edu.acleda.campuslink.modules.productivity.repository.TaskRepository;
+import kh.edu.acleda.campuslink.modules.user.UserRepository;
+import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.shared.enums.Language;
+import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+class MobileProductivityBffServiceImplTest {
+
+    private static final Language EN = Language.ENGLISH;
+    private static final String EMAIL = "dara@example.com";
+    private static final UUID USER_ID = UUID.randomUUID();
+
+    @Mock private UserRepository userRepository;
+    @Mock private HabitRepository habitRepository;
+    @Mock private HabitCheckInRepository habitCheckInRepository;
+    @Mock private TaskRepository taskRepository;
+    @Mock private GoalRepository goalRepository;
+    @Mock private FocusSessionRepository focusSessionRepository;
+    @Mock private MotivationContentRepository motivationRepository;
+
+    private MobileProductivityBffServiceImpl service;
+    private User user;
+
+    @BeforeEach
+    void setUp() {
+        service = new MobileProductivityBffServiceImpl(userRepository, habitRepository, habitCheckInRepository,
+            taskRepository, goalRepository, focusSessionRepository, motivationRepository);
+        user = new User();
+        ReflectionTestUtils.setField(user, "id", USER_ID);
+
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        when(habitRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of());
+        when(habitCheckInRepository.findByUserIdAndCheckInDateAndCompletedTrue(eq(USER_ID), any()))
+            .thenReturn(List.of());
+        when(taskRepository.findByUserIdAndDeletedAtIsNullOrderByCompletedAscDueDateAsc(USER_ID))
+            .thenReturn(List.of());
+        when(goalRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of());
+        when(focusSessionRepository.findByUserIdAndCompletedTrue(USER_ID)).thenReturn(List.of());
+        when(motivationRepository.findByDeletedAtIsNull()).thenReturn(List.of());
+    }
+
+    private Habit habit(String title) {
+        Habit h = Habit.builder().user(user).title(title).build();
+        ReflectionTestUtils.setField(h, "id", UUID.randomUUID());
+        return h;
+    }
+
+    @Test
+    void aBrandNewUserGetsAWellFormedBody() {
+        MobileProductivityDashboardResponse r = service.getDashboard(EMAIL, EN);
+
+        assertThat(r.habits().total()).isZero();
+        assertThat(r.habits().items()).isEmpty();
+        assertThat(r.tasks().total()).isZero();
+        assertThat(r.goals()).isEmpty();
+        assertThat(r.focus().todaySessions()).isZero();
+        assertThat(r.motivation()).isNull();
+    }
+
+    @Test
+    void habitsReflectTodaysCheckIns() {
+        Habit h1 = habit("Read");
+        Habit h2 = habit("Run");
+        when(habitRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(USER_ID))
+            .thenReturn(List.of(h1, h2));
+        HabitCheckIn done = HabitCheckIn.builder().habit(h1).user(user)
+            .checkInDate(LocalDate.now()).completed(true).build();
+        when(habitCheckInRepository.findByUserIdAndCheckInDateAndCompletedTrue(eq(USER_ID), any()))
+            .thenReturn(List.of(done));
+
+        MobileProductivityDashboardResponse.HabitsToday habits = service.getDashboard(EMAIL, EN).habits();
+
+        assertThat(habits.total()).isEqualTo(2);
+        assertThat(habits.checkedInToday()).isEqualTo(1);
+        assertThat(habits.items()).filteredOn(MobileProductivityDashboardResponse.HabitItem::checkedInToday)
+            .hasSize(1);
+    }
+
+    @Test
+    void tasksSummaryCountsCompletedDueTodayAndOverdue() {
+        Task done = Task.builder().user(user).title("a").completed(true).build();
+        Task dueToday = Task.builder().user(user).title("b").completed(false)
+            .dueDate(LocalDate.now().atTime(18, 0)).build();
+        Task overdue = Task.builder().user(user).title("c").completed(false)
+            .dueDate(LocalDateTime.now().minusDays(1)).build();
+        when(taskRepository.findByUserIdAndDeletedAtIsNullOrderByCompletedAscDueDateAsc(USER_ID))
+            .thenReturn(List.of(done, dueToday, overdue));
+
+        MobileProductivityDashboardResponse.TasksSummary tasks = service.getDashboard(EMAIL, EN).tasks();
+
+        assertThat(tasks.total()).isEqualTo(3);
+        assertThat(tasks.completed()).isEqualTo(1);
+        assertThat(tasks.dueToday()).isEqualTo(1);
+        assertThat(tasks.overdue()).isEqualTo(1);
+    }
+
+    @Test
+    void goalsUseTheStoredSyncedProgress() {
+        Goal g = Goal.builder().user(user).title("Ship app")
+            .progressPercentage(new BigDecimal("50.00")).status("IN_PROGRESS").build();
+        ReflectionTestUtils.setField(g, "id", UUID.randomUUID());
+        when(goalRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(g));
+
+        MobileProductivityDashboardResponse.GoalProgress gp = service.getDashboard(EMAIL, EN).goals().get(0);
+
+        assertThat(gp.progressPercentage()).isEqualByComparingTo("50.00");
+        assertThat(gp.status()).isEqualTo("IN_PROGRESS");
+    }
+
+    @Test
+    void focusAggregatesTodayMinutesAndTotalXp() {
+        FocusSession today = FocusSession.builder().user(user).durationMinutes(25).completed(true)
+            .xpEarned(5).startedAt(LocalDateTime.now()).build();
+        FocusSession past = FocusSession.builder().user(user).durationMinutes(50).completed(true)
+            .xpEarned(10).startedAt(LocalDateTime.now().minusDays(2)).build();
+        when(focusSessionRepository.findByUserIdAndCompletedTrue(USER_ID)).thenReturn(List.of(today, past));
+
+        MobileProductivityDashboardResponse.FocusSummary focus = service.getDashboard(EMAIL, EN).focus();
+
+        assertThat(focus.todaySessions()).isEqualTo(1);
+        assertThat(focus.todayMinutes()).isEqualTo(25);
+        assertThat(focus.totalXp()).isEqualTo(15);
+    }
+
+    @Test
+    void motivationCardIsPresentWhenSeeded() {
+        MotivationContent m = MotivationContent.builder().titleEn("Start small").contentEn("Begin now").build();
+        ReflectionTestUtils.setField(m, "id", UUID.randomUUID());
+        when(motivationRepository.findByDeletedAtIsNull()).thenReturn(List.of(m));
+
+        assertThat(service.getDashboard(EMAIL, EN).motivation()).isNotNull();
+    }
+
+    @Test
+    void unknownUserThrowsNotFound() {
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getDashboard(EMAIL, EN)).isInstanceOf(NotFoundException.class);
+    }
+}

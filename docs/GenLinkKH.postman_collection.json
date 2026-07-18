@@ -4626,7 +4626,8 @@
                 "mobile",
                 "productivity-dashboard"
               ]
-            }
+            },
+            "description": "Aggregated Productivity screen: today's habits + check-in state, tasks summary, top goals with progress, focus stats, and a motivation card. Degrades to zeros/empties/null for a new user."
           }
         },
         {
