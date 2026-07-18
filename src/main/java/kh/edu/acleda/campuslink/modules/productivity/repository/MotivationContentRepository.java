@@ -1,8 +1,35 @@
 package kh.edu.acleda.campuslink.modules.productivity.repository;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.productivity.entity.MotivationContent;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-import java.util.UUID;
+public interface MotivationContentRepository extends JpaRepository<MotivationContent, UUID> {
 
-public interface MotivationContentRepository extends JpaRepository<MotivationContent, UUID> {}
+    List<MotivationContent> findByDeletedAtIsNull();
+
+    Optional<MotivationContent> findByIdAndDeletedAtIsNull(UUID id);
+
+    List<MotivationContent> findByDeletedAtIsNullOrderByCreatedAtDesc();
+
+    List<MotivationContent> findByCategoryAndDeletedAtIsNullOrderByCreatedAtDesc(String category);
+
+    /**
+     * Atomic counter bumps so concurrent saves cannot lose an increment.
+     * clear/flushAutomatically so a re-read in the same transaction sees the new count
+     * rather than the stale first-level-cached entity.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE MotivationContent m SET m.savedCount = m.savedCount + 1 WHERE m.id = :id")
+    void incrementSavedCount(@Param("id") UUID id);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE MotivationContent m SET m.savedCount = m.savedCount - 1 "
+        + "WHERE m.id = :id AND m.savedCount > 0")
+    void decrementSavedCount(@Param("id") UUID id);
+}

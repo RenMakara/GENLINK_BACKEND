@@ -49,6 +49,9 @@ public class SecurityConfig {
                     "/api/v1/auth/verify-email",
                     "/api/v1/auth/verify-otp",
                     "/api/v1/auth/resend-otp",
+                    // A PENDING user has no token yet, so this must be reachable
+                    // unauthenticated; it is written not to disclose account existence.
+                    "/api/v1/auth/resend-verification-otp",
                     "/api/v1/auth/refresh",
                     "/api/v1/auth/refresh-token",
                     "/api/v1/auth/forgot-password",

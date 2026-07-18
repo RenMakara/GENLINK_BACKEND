@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,6 +15,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+@Slf4j
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -42,12 +44,56 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (jwtService.validateToken(token)) {
                 String username = jwtService.getUsername(token);
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                if (isUsable(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Building the Authentication directly skips the account-status checks that
+     * DaoAuthenticationProvider would normally run, so they are enforced here.
+     * Without the isEnabled() check a banned or soft-deleted account keeps full
+     * access for as long as its JWT stays unexpired.
+     */
+    private boolean isUsable(String token, UserDetails userDetails) {
+        if (!userDetails.isEnabled()) {
+            // Worth a warning: a banned or deleted account is still holding a signed
+            // token and actively calling the API. Rejections here are otherwise
+            // completely silent - nothing throws, the request simply arrives
+            // unauthenticated and turns into a bare 401.
+            log.warn("Rejected request for disabled account: {}", userDetails.getUsername());
+            return false;
+        }
+        if (!isTokenVersionCurrent(token, userDetails)) {
+            // Debug, not warn: this is the expected outcome after logout, a password
+            // change or revoke-all, and a client retrying once is normal. A sudden
+            // flood of these means tokens are being replayed.
+            log.debug("Rejected superseded token for {}", userDetails.getUsername());
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * A signed, unexpired token is not enough: it must also match the account's current
+     * token version. This is what makes logout, password change and revoke-all take
+     * effect immediately rather than when the token expires.
+     *
+     * <p>Fails closed - a token with no version claim (issued before versioning) or an
+     * unexpected UserDetails type is rejected. The user object is already loaded above,
+     * so this costs no extra query.
+     */
+    private boolean isTokenVersionCurrent(String token, UserDetails userDetails) {
+        Integer tokenVersion = jwtService.getTokenVersion(token);
+        if (tokenVersion == null || !(userDetails instanceof AuthenticatedUser authenticatedUser)) {
+            return false;
+        }
+        return tokenVersion == authenticatedUser.getTokenVersion();
     }
 }

@@ -25,3 +25,21 @@ databaseChangeLog:
       file: db/changelog/changes/0012-create-notification-tables.sql
   - include:
       file: db/changelog/changes/0013-create-domain-indexes-constraints.sql
+  - include:
+      file: db/changelog/changes/0014-improve-auth-security.sql
+  - include:
+      file: db/changelog/changes/0015-add-community-social-tables.sql
+  - include:
+      file: db/changelog/changes/0016-add-user-token-version.sql
+  - include:
+      file: db/changelog/changes/0017-add-interests-and-social-links.sql
+  - include:
+      file: db/changelog/changes/0018-add-event-pricing.sql
+  - include:
+      file: db/changelog/changes/0019-add-forum-reactions-and-reports.sql
+  - include:
+      file: db/changelog/changes/0020-add-financial-literacy-progress.sql
+  - include:
+      file: db/changelog/changes/0021-seed-financial-literacy.sql
+  - include:
+      file: db/changelog/changes/0022-seed-motivation-content.sql

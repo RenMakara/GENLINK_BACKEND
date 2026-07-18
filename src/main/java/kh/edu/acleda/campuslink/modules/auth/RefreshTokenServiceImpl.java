@@ -42,6 +42,12 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Override
     @Transactional
     public String create(User user, String deviceInfo, String ipAddress) {
+        return create(user, deviceInfo, ipAddress, null);
+    }
+
+    @Override
+    @Transactional
+    public String create(User user, String deviceInfo, String ipAddress, String userAgent) {
         String token = jwtService.generateRefreshToken(user.getEmail());
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUser(user);
@@ -49,6 +55,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         refreshToken.setExpiresAt(Instant.now().plus(jwtProperties.getRefreshTokenExpirationMs(), ChronoUnit.MILLIS));
         refreshToken.setDeviceInfo(deviceInfo);
         refreshToken.setIpAddress(ipAddress);
+        refreshToken.setUserAgent(userAgent);
         refreshTokenRepository.save(refreshToken);
         return token;
     }
@@ -62,32 +69,36 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Override
     @Transactional
     public RefreshTokenRotation rotate(String token, String deviceInfo, String ipAddress) {
+        return rotate(token, deviceInfo, ipAddress, null);
+    }
+
+    @Override
+    @Transactional
+    public RefreshTokenRotation rotate(String token, String deviceInfo, String ipAddress, String userAgent) {
         if (!jwtService.validateToken(token)) {
-            throw new ApiException("Invalid refresh token");
+            throw new ApiException("Invalid refresh token", AuthErrorCode.TOKEN_INVALID);
         }
 
         RefreshToken storedToken = refreshTokenRepository.findByTokenHash(hash(token))
-            .orElseThrow(() -> new ApiException("Refresh token not found in database"));
+            .orElseThrow(() -> new ApiException("Refresh token not found in database", AuthErrorCode.TOKEN_INVALID));
 
         if (storedToken.getRevokedAt() != null) {
-            throw new ApiException("Refresh token has been revoked");
+            refreshTokenRepository.revokeByUser(storedToken.getUser(), Instant.now());
+            throw new ApiException("Refresh token reuse detected. Please login again.", AuthErrorCode.TOKEN_REUSE_DETECTED);
         }
 
         if (storedToken.getExpiresAt().isBefore(Instant.now())) {
-            throw new ApiException("Refresh token has expired");
+            throw new ApiException("Refresh token has expired", AuthErrorCode.TOKEN_EXPIRED);
         }
 
         User user = storedToken.getUser();
-        if (user.getAccountStatus() == AccountStatus.BANNED) {
-            throw new ApiException("Your account has been banned");
-        }
-        if (user.getAccountStatus() == AccountStatus.DELETED || user.getDeletedAt() != null) {
-            throw new ApiException("Your account has been deleted");
-        }
         if (user.getAccountStatus() != AccountStatus.ACTIVE || !user.isEmailVerified()) {
-            throw new ApiException("Please verify your email address before refreshing tokens");
+            storedToken.setRevokedAt(Instant.now());
+            refreshTokenRepository.save(storedToken);
+            throw new ApiException("Account is not allowed to refresh tokens", AuthErrorCode.AUTH_ACCOUNT_NOT_ALLOWED);
         }
 
+        storedToken.setLastUsedAt(Instant.now());
         storedToken.setRevokedAt(Instant.now());
         refreshTokenRepository.save(storedToken);
 
@@ -98,6 +109,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         newRefreshToken.setExpiresAt(Instant.now().plus(jwtProperties.getRefreshTokenExpirationMs(), ChronoUnit.MILLIS));
         newRefreshToken.setDeviceInfo(deviceInfo);
         newRefreshToken.setIpAddress(ipAddress);
+        newRefreshToken.setUserAgent(userAgent);
         refreshTokenRepository.save(newRefreshToken);
         return new RefreshTokenRotation(user, newRawToken);
     }

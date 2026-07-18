@@ -23,13 +23,11 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(username)
             .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
-        return new org.springframework.security.core.userdetails.User(
+        return new AuthenticatedUser(
             user.getEmail(),
             user.getPasswordHash() == null ? "" : user.getPasswordHash(),
             user.getAccountStatus() == AccountStatus.ACTIVE && user.getDeletedAt() == null,
-            true,
-            true,
-            true,
+            user.getTokenVersion(),
             Collections.singleton(user.getRole().asAuthority()));
     }
 }

@@ -15,6 +15,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtTokenProvider implements JwtService {
 
+    private static final String TOKEN_VERSION_CLAIM = "tv";
+
     private final JwtProperties properties;
     private final SecretKey secretKey;
 
@@ -24,13 +26,24 @@ public class JwtTokenProvider implements JwtService {
     }
 
     @Override
-    public String generateAccessToken(Authentication authentication) {
-        return generateAccessToken(authentication.getName());
+    public String generateAccessToken(String username, int tokenVersion) {
+        Instant now = Instant.now();
+        Instant expiry = now.plus(Duration.ofMillis(properties.getAccessTokenExpirationMs()));
+
+        return Jwts.builder()
+            .issuer(properties.getIssuer())
+            .subject(username)
+            .claim(TOKEN_VERSION_CLAIM, tokenVersion)
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(expiry))
+            .signWith(secretKey)
+            .compact();
     }
 
     @Override
-    public String generateAccessToken(String username) {
-        return generateToken(username, Duration.ofMillis(properties.getAccessTokenExpirationMs()));
+    public Integer getTokenVersion(String token) {
+        Object claim = parseClaims(token).get(TOKEN_VERSION_CLAIM);
+        return claim instanceof Number number ? number.intValue() : null;
     }
 
     @Override

@@ -31,7 +31,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiResponse<Void>> handleApiException(ApiException ex) {
         log.warn("API Exception: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.failure(ex.getMessage(), "AUTH_ERROR"));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.failure(ex.getMessage(), ex.getErrorCode()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -56,7 +56,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
         log.warn("Authentication failed: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-            .body(ApiResponse.failure("Invalid email or password", "INVALID_CREDENTIALS"));
+            .body(ApiResponse.failure("Invalid email or password", "AUTH_INVALID_CREDENTIALS"));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

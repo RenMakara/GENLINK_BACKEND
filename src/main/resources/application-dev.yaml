@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:16801/campuslink_db}
+    username: ${DB_USERNAME:campuslink_usr}
+    password: ${DB_PASSWORD:campuslink@168}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+        show_sql: false
+  liquibase:
+    enabled: true
+  mail:
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+
+app:
+  jwt:
+    # Default restored so dev boots without the env var; set JWT_ISSUER to override.
+    issuer: ${JWT_ISSUER:genlink-kh}
+    secret: ${JWT_SECRET}
+  # client-id lives under app.google, not app.jwt - GoogleTokenVerifier reads
+  # app.google.client-id, and a value nested under jwt is read by nothing.
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
+    project-id: ${GOOGLE_PROJECT_ID:genlinkkh-dev}
+
+logging:
+  level:
+    root: info
+    kh.edu.acleda.campuslink: debug
+#    org.hibernate.SQL: debug
+    org.liquibase: info

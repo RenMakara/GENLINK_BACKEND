@@ -3,6 +3,10 @@ package kh.edu.acleda.campuslink.modules.productivity.dto.response;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * @param overdue true when the task has a past due date and is not yet completed -
+ *                computed on read, not stored.
+ */
 public record TaskResponse(
     UUID taskId,
     String title,
@@ -10,6 +14,8 @@ public record TaskResponse(
     String priority,
     String category,
     LocalDateTime dueDate,
-    Boolean completed
+    LocalDateTime reminderTime,
+    boolean completed,
+    boolean overdue
 ) {
 }

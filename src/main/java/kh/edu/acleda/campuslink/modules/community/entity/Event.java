@@ -66,6 +66,13 @@ public class Event extends BaseEntity {
     @Column(name = "attendee_count", nullable = false)
     private Integer attendeeCount;
 
+    /** Paid RSVP is settled against the demo wallet. Simulation only, never real money. */
+    @Column(name = "is_paid", nullable = false)
+    private Boolean isPaid;
+
+    @Column(name = "price", precision = 12, scale = 2)
+    private BigDecimal price;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
     private EventStatus status;

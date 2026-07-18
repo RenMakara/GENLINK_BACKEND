@@ -1,6 +1,8 @@
 spring:
   application:
-    name: campuslink-kh
+    name: GENLINK-KH
+  profiles:
+    default: dev
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -40,10 +42,13 @@ app:
   jwt:
     issuer: ${JWT_ISSUER:campuslink-kh}
     secret: ${JWT_SECRET}
-    access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:3600000}
+    # 15 minutes. Access tokens are stateless, so this bounds the window in which a
+    # stolen token stays usable; the token-version claim handles explicit revocation.
+    access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}
     refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
   google:
     client-id: ${GOOGLE_CLIENT_ID}
+    project-id: ${GOOGLE_PROJECT_ID:genlinkkh}
   localization:
     default-language: ${APP_DEFAULT_LANGUAGE:ENGLISH}
 
@@ -55,4 +60,4 @@ springdoc:
 
 logging:
   level:
-    org.liquibase: debug
+    org.liquibase: info

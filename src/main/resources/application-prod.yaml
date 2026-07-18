@@ -1,9 +1,37 @@
 spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+        show_sql: false
+  liquibase:
+    enabled: true
+  mail:
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+
+app:
+  jwt:
+    issuer: ${JWT_ISSUER:campuslink-kh}
+    secret: ${JWT_SECRET}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
+    project-id: ${GOOGLE_PROJECT_ID}
+
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
 
 logging:
   level:
     root: info
-
+    org.hibernate.SQL: warn
+    org.liquibase: info

@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import lombok.AllArgsConstructor;
@@ -34,9 +35,15 @@ public class SavedItem extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "item_type", nullable = false, length = 80)
-    private String itemType;
+    private SavedItemType itemType;
 
+    /**
+     * Deliberately not a foreign key: this table is polymorphic, so the referenced
+     * row lives in a different table per item_type. Nothing stops the target being
+     * deleted, so readers must tolerate ids that no longer resolve.
+     */
     @Column(name = "item_id", nullable = false)
     private UUID itemId;
 

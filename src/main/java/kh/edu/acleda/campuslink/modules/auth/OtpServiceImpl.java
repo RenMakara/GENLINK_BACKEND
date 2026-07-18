@@ -24,6 +24,10 @@ public class OtpServiceImpl implements OtpService {
 
     private static final int OTP_BOUND = 1_000_000;
     private static final int OTP_TTL_MINUTES = 10;
+    private static final int MAX_VERIFY_ATTEMPTS = 5;
+    private static final int MAX_RESENDS_PER_WINDOW = 5;
+    private static final long RESEND_WINDOW_MINUTES = 15;
+    private static final long MIN_RESEND_WAIT_SECONDS = 60;
 
     private final OtpCodeRepository otpCodeRepository;
     private final List<OtpDeliveryService> deliveryServices;
@@ -38,7 +42,8 @@ public class OtpServiceImpl implements OtpService {
     @Override
     @Transactional
     public void issue(User user, OtpPurpose purpose) {
-        otpCodeRepository.deleteByUserAndPurposeAndVerifiedAtIsNull(user, purpose);
+        enforceResendLimit(user, purpose);
+        otpCodeRepository.markActiveOtpsVerified(user.getEmail(), purpose, Instant.now());
         String code = generateCode();
 
         OtpCode otpCode = new OtpCode();
@@ -56,17 +61,28 @@ public class OtpServiceImpl implements OtpService {
     @Override
     @Transactional
     public void verify(User user, String code, OtpPurpose purpose, OtpPurpose... fallbackPurposes) {
-        OtpCode otpCode = findLatestPendingOtp(user, purpose, fallbackPurposes)
-            .orElseThrow(() -> new ApiException("Invalid verification code"));
+        OtpCode otpCode = findLatestOtp(user, purpose, fallbackPurposes)
+            .orElseThrow(() -> new ApiException("Invalid verification code", AuthErrorCode.OTP_INVALID));
+
+        if (otpCode.getVerifiedAt() != null) {
+            throw new ApiException("Verification code has already been used", AuthErrorCode.OTP_ALREADY_USED);
+        }
 
         if (otpCode.getExpiresAt().isBefore(Instant.now())) {
-            throw new ApiException("Verification code has expired");
+            throw new ApiException("Verification code has expired", AuthErrorCode.OTP_EXPIRED);
+        }
+
+        if (otpCode.getAttemptCount() >= MAX_VERIFY_ATTEMPTS) {
+            throw new ApiException("Too many verification attempts. Please request a new code.", AuthErrorCode.OTP_TOO_MANY_ATTEMPTS);
         }
 
         if (!otpCode.getOtpHash().equals(hash(code))) {
             otpCode.setAttemptCount(otpCode.getAttemptCount() + 1);
             otpCodeRepository.save(otpCode);
-            throw new ApiException("Invalid verification code");
+            if (otpCode.getAttemptCount() >= MAX_VERIFY_ATTEMPTS) {
+                throw new ApiException("Too many verification attempts. Please request a new code.", AuthErrorCode.OTP_TOO_MANY_ATTEMPTS);
+            }
+            throw new ApiException("Invalid verification code", AuthErrorCode.OTP_INVALID);
         }
 
         otpCode.setVerifiedAt(Instant.now());
@@ -77,18 +93,37 @@ public class OtpServiceImpl implements OtpService {
         return String.format("%06d", secureRandom.nextInt(OTP_BOUND));
     }
 
-    private Optional<OtpCode> findLatestPendingOtp(User user, OtpPurpose purpose, OtpPurpose... fallbackPurposes) {
+    private Optional<OtpCode> findLatestOtp(User user, OtpPurpose purpose, OtpPurpose... fallbackPurposes) {
         Optional<OtpCode> otpCode = otpCodeRepository
-            .findTopByUserAndPurposeAndVerifiedAtIsNullOrderByCreatedAtDesc(user, purpose);
+            .findTopByUserAndPurposeOrderByCreatedAtDesc(user, purpose);
         if (otpCode.isPresent()) {
             return otpCode;
         }
         return Arrays.stream(fallbackPurposes)
             .map(fallbackPurpose -> otpCodeRepository
-                .findTopByUserAndPurposeAndVerifiedAtIsNullOrderByCreatedAtDesc(user, fallbackPurpose))
+                .findTopByUserAndPurposeOrderByCreatedAtDesc(user, fallbackPurpose))
             .filter(Optional::isPresent)
             .map(Optional::get)
             .findFirst();
+    }
+
+    private void enforceResendLimit(User user, OtpPurpose purpose) {
+        Instant now = Instant.now();
+        Optional<OtpCode> latestOtp = otpCodeRepository.findTopByEmailIgnoreCaseAndPurposeOrderByCreatedAtDesc(
+            user.getEmail(), purpose);
+        if (latestOtp.isPresent()
+            && latestOtp.get().getCreatedAt() != null
+            && latestOtp.get().getCreatedAt().plus(MIN_RESEND_WAIT_SECONDS, ChronoUnit.SECONDS).isAfter(now)) {
+            throw new ApiException("Please wait before requesting another verification code", AuthErrorCode.OTP_RESEND_TOO_SOON);
+        }
+
+        long recentOtpCount = otpCodeRepository.countByEmailIgnoreCaseAndPurposeAndCreatedAtAfter(
+            user.getEmail(),
+            purpose,
+            now.minus(RESEND_WINDOW_MINUTES, ChronoUnit.MINUTES));
+        if (recentOtpCount >= MAX_RESENDS_PER_WINDOW) {
+            throw new ApiException("OTP resend limit exceeded", AuthErrorCode.OTP_RESEND_LIMIT_EXCEEDED);
+        }
     }
 
     private String hash(String value) {

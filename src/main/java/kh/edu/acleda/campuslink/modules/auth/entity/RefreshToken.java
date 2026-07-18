@@ -37,4 +37,10 @@ public class RefreshToken extends BaseEntity {
 
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
+
+    @Column(name = "user_agent", columnDefinition = "TEXT")
+    private String userAgent;
+
+    @Column(name = "last_used_at")
+    private Instant lastUsedAt;
 }

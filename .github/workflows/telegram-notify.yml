@@ -44,7 +44,7 @@ jobs:
             exit 0
           fi
 
-          msg=$(printf '🚀 <b>CampusLink KH Bankend</b> 🚀\n\n📁 <b>Repo:</b> %s\n🌿 <b>Branch:</b> %s\n👤 <b>Pushed by:</b> %s\n\n📝 <b>Commits</b>\n%s' \
+          msg=$(printf '🚀 <b>GenLink Notify</b> 🚀\n\n📁 <b>Repo:</b> %s\n🌿 <b>Branch:</b> %s\n👤 <b>Pushed by:</b> %s\n\n📝 <b>Commits</b>\n%s' \
             "$GH_REPOSITORY" \
             "$GH_REF_NAME" \
             "$GH_ACTOR" \

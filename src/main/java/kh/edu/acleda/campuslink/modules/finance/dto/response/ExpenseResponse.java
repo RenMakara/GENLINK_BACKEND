@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.finance.dto.response;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ public record ExpenseResponse(
     String category,
     String description,
     LocalDate expenseDate,
-    String paymentMethod
+    String paymentMethod,
+    Instant createdAt
 ) {
 }

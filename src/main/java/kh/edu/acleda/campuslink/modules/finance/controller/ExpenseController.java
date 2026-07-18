@@ -2,10 +2,17 @@ package kh.edu.acleda.campuslink.modules.finance.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
+import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.ExpenseCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.ExpenseResponse;
+import kh.edu.acleda.campuslink.modules.finance.dto.response.MonthlySummaryResponse;
 import kh.edu.acleda.campuslink.modules.finance.service.ExpenseService;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
+import kh.edu.acleda.campuslink.shared.response.PageResponse;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,10 +21,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/finance/expenses")
@@ -35,13 +40,39 @@ public class ExpenseController {
         return ResponseEntity.ok(ApiResponse.success("Expense created", expenseService.create(request)));
     }
 
+    /** Newest first. Optional filters: ?category, and ?month + ?year together. */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ExpenseResponse>>> getMine() {
-        return ResponseEntity.ok(ApiResponse.success("Expense list retrieved", expenseService.getMine()));
+    public ResponseEntity<ApiResponse<PageResponse<ExpenseResponse>>> getMine(
+        @RequestParam(required = false) String category,
+        @RequestParam(required = false) Integer month,
+        @RequestParam(required = false) Integer year,
+        @PageableDefault(size = 20, sort = "expenseDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Expenses retrieved",
+            expenseService.getMine(category, month, year, pageable)));
+    }
+
+    /**
+     * Spending summary for a month, for the chart. Defaults to the current month.
+     * Literal path, declared before /{id} so it cannot be shadowed.
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<ApiResponse<MonthlySummaryResponse>> summary(
+        @RequestParam(required = false) Integer month,
+        @RequestParam(required = false) Integer year) {
+        LocalDate now = LocalDate.now();
+        int m = month == null ? now.getMonthValue() : month;
+        int y = year == null ? now.getYear() : year;
+        return ResponseEntity.ok(ApiResponse.success("Summary retrieved", expenseService.monthlySummary(m, y)));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<ExpenseResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success("Expense retrieved", expenseService.getById(id)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<ExpenseResponse>> update(@PathVariable UUID id, @Valid @RequestBody ExpenseCreateRequest request) {
+    public ResponseEntity<ApiResponse<ExpenseResponse>> update(@PathVariable UUID id,
+                                                               @Valid @RequestBody ExpenseCreateRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Expense updated", expenseService.update(id, request)));
     }
 

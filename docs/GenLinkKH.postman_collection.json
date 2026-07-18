@@ -1,0 +1,4725 @@
+{
+  "info": {
+    "name": "GenLink KH — Backend API",
+    "description": "GenLink KH backend (Spring Boot, port 8888).\n\n## Quick start\n1. Set the `baseUrl` variable if your server is not on http://localhost:8888.\n2. Run **Auth > Register**, then **Auth > Verify Email** with the 6-digit OTP.\n   The OTP is printed to the backend console (`EMAIL OTP FOR ...`), which is handy\n   because SMTP may not be configured.\n3. Or just run **Auth > Login** if you already have an account.\n\nLogin, Verify Email, Verify OTP and the Refresh requests all capture\n`accessToken` and `refreshToken` into collection variables automatically, so\nevery other request is authenticated for you.\n\n## Notes\n- All responses are wrapped: `{ success, message, data, errorCode, timestamp }`.\n- Auth is Bearer JWT, set once at collection level. Public endpoints override it to none.\n- Access tokens last 15 minutes and carry a `tv` (token version) claim. Logout,\n  change-password and revoke-all bump it, so the token dies immediately — that is\n  intended, just log in again.\n- `Accept-Language: km` or `en` controls the language of system content such as\n  interest names. Default is Khmer.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8888",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "demo@genlink.kh",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "Password123",
+      "type": "string"
+    },
+    {
+      "key": "username",
+      "value": "demo_user",
+      "type": "string"
+    },
+    {
+      "key": "otp",
+      "value": "000000",
+      "type": "string"
+    },
+    {
+      "key": "acceptLanguage",
+      "value": "en",
+      "type": "string"
+    },
+    {
+      "key": "interestId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "portfolioId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resourceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "commentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "communityId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "communitySlug",
+      "value": "flutter-kh",
+      "type": "string"
+    },
+    {
+      "key": "targetUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "eventId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "discussionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "forumCommentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "opportunityId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "expenseId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Nothing global yet. Token capture lives on the auth requests."
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Public endpoints. These override collection auth to 'none'.",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('registered', () => pm.response.to.have.status(200));",
+                  "// OTP is printed in the backend console: 'EMAIL OTP FOR <email>: 123456'.",
+                  "// Copy it into the {{otp}} variable, then run Verify Email."
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Demo User\",\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"phoneNumber\": \"+85512345678\",\n  \"password\": \"{{password}}\",\n  \"universityName\": \"ACLEDA University\",\n  \"workStatus\": \"STUDENT\",\n  \"preferredLanguage\": \"KHMER\"\n}"
+            },
+            "description": "workStatus: STUDENT | FRESH_GRADUATE | YOUNG_PROFESSIONAL | CREATOR | FREELANCER | ENTREPRENEUR | OTHER\npreferredLanguage: KHMER | ENGLISH\n\nCreates the account as PENDING and sends an OTP."
+          }
+        },
+        {
+          "name": "Verify Email (activate + get tokens)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  console.log('Tokens captured.');",
+                  "}",
+                  "pm.test('verified', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-email"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\"\n}"
+            },
+            "description": "Set {{otp}} to the 6 digits from the backend console first. Activates the account and returns tokens."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  console.log('Tokens captured.');",
+                  "}",
+                  "pm.test('logged in', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "description": "Rate limited: 5 failures per 15 min, then a 15 min block (AUTH_TOO_MANY_ATTEMPTS)."
+          }
+        },
+        {
+          "name": "Google Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/google",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "google"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"<google-id-token>\"\n}"
+            },
+            "description": "Send a GOOGLE ID token from google_sign_in — not a Firebase ID token.\nVerified against Google's public keys using app.google.client-id, so GOOGLE_CLIENT_ID must be set on the server.\nHard to exercise from Postman; easiest from the Flutter client."
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/resend-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "resend-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
+            "description": "Deliberately does not reveal whether the account exists — an unknown email returns the same message."
+          }
+        },
+        {
+          "name": "Resend Verification OTP",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/resend-verification-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "resend-verification-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
+            "description": "Same behaviour as Resend OTP; this is the hardened implementation the other one delegates to."
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\",\n  \"newPassword\": \"NewPassword123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  console.log('Tokens rotated.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "description": "Rotates the refresh token. Reusing an old one is detected (TOKEN_REUSE_DETECTED). /auth/refresh-token is an alias."
+          }
+        },
+        {
+          "name": "Me (auth)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Revokes refresh tokens AND bumps token_version, so the current access token stops working immediately. Expect 401 on the next authenticated request until you log in again."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Me & Public Profile",
+          "item": [
+            {
+              "name": "Get My Profile",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "me"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update My Profile",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "me"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Demo User Updated\",\n  \"bio\": \"Flutter learner from Phnom Penh\",\n  \"universityName\": \"ACLEDA University\",\n  \"workStatus\": \"STUDENT\",\n  \"location\": \"Phnom Penh\",\n  \"preferredLanguage\": \"KHMER\"\n}"
+                },
+                "description": "Partial update — omit any field to leave it unchanged. Duplicate username or phone is rejected."
+              }
+            },
+            {
+              "name": "Update Avatar",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/avatar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "avatar"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"avatarUrl\": \"https://cdn.example.com/avatar.png\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Get Public Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept-Language",
+                    "value": "{{acceptLanguage}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/public/{{username}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "public",
+                    "{{username}}"
+                  ]
+                },
+                "description": "Public-safe view plus portfolio, interests and social links.\nPRIVATE profiles are owner-only (PROFILE_PRIVATE).\nFRIENDS requires a mutual accepted follow (PROFILE_FRIENDS_ONLY)."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Settings",
+          "item": [
+            {
+              "name": "Get Settings",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "settings"
+                  ]
+                },
+                "description": "Creates defaults on first read rather than 404ing."
+              }
+            },
+            {
+              "name": "Update Settings",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/settings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "settings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"language\": \"KHMER\",\n  \"theme\": \"SYSTEM_DEFAULT\",\n  \"notificationEnabled\": true,\n  \"privacyProfile\": \"PUBLIC\",\n  \"allowMessages\": true,\n  \"allowFollowRequest\": true,\n  \"biometricEnabled\": false\n}"
+                },
+                "description": "theme: LIGHT | DARK | SYSTEM_DEFAULT\nlanguage: KHMER | ENGLISH\nprivacyProfile: PUBLIC | FRIENDS | PRIVATE\nPartial update — omit fields to leave them unchanged."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Interests",
+          "item": [
+            {
+              "name": "Get Interest Catalog",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.length) {",
+                      "  pm.collectionVariables.set('interestId', json.data[0].interestId);",
+                      "  console.log('interestId captured: ' + json.data[0].interestId);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept-Language",
+                    "value": "{{acceptLanguage}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/interests",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "interests"
+                  ]
+                },
+                "description": "Options for the onboarding chooser. `name` is already localised — send Accept-Language: km for Khmer.\nCaptures the first interestId into a variable for the PUT below."
+              }
+            },
+            {
+              "name": "Get My Interests",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept-Language",
+                    "value": "{{acceptLanguage}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/interests",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "interests"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Replace My Interests",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "{{acceptLanguage}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/interests",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "interests"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"interestIds\": [\"{{interestId}}\"]\n}"
+                },
+                "description": "Replaces the whole selection (max 20). Run 'Get Interest Catalog' first to populate {{interestId}}.\nUnknown or inactive ids are rejected rather than silently dropped."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Portfolio",
+          "item": [
+            {
+              "name": "List Portfolio",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/portfolio",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "portfolio"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Portfolio Item",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.portfolioId) {",
+                      "  pm.collectionVariables.set('portfolioId', json.data.portfolioId);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/portfolio",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "portfolio"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"My first Flutter app\",\n  \"description\": \"A habit tracker built during the competition\",\n  \"link\": \"https://github.com/example/app\",\n  \"imageUrl\": \"https://cdn.example.com/cover.png\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Update Portfolio Item",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/portfolio/{{portfolioId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "portfolio",
+                    "{{portfolioId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"My first Flutter app (v2)\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Delete Portfolio Item",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/portfolio/{{portfolioId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "portfolio",
+                    "{{portfolioId}}"
+                  ]
+                },
+                "description": "Soft delete. Another user's id returns 'not found' rather than revealing the row exists."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Social Links",
+          "item": [
+            {
+              "name": "List Social Links",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/social-links",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "social-links"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Upsert Social Link",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/social-links",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "social-links"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"platform\": \"GITHUB\",\n  \"url\": \"https://github.com/RenMakara\"\n}"
+                },
+                "description": "platform: FACEBOOK | INSTAGRAM | TELEGRAM | TIKTOK | YOUTUBE | LINKEDIN | GITHUB | X | WEBSITE | OTHER\nOne link per platform — this creates or replaces.\nURL must start with http:// or https://."
+              }
+            },
+            {
+              "name": "Delete Social Link",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/social-links/GITHUB",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "social-links",
+                    "GITHUB"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Saved Items",
+          "description": "One saved list across every domain, backed by saved_items.\n\nRows are hydrated: each carries title, subtitle, imageUrl and `available`, so the Saved screen renders from ONE call instead of one fetch per item.\n\n`available: false` means the saved thing was deleted — item_id is not a foreign key because the table is polymorphic. Show a 'no longer available' row rather than a blank one.",
+          "item": [
+            {
+              "name": "List Saved (all)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept-Language",
+                    "value": "{{acceptLanguage}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/saved",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "saved"
+                  ]
+                },
+                "description": "Newest first, hydrated. Add ?type=POST to filter.\n\nTitles of system content (MOTIVATION, LESSON, SHORT_CONTENT) follow Accept-Language.\nLookups are batched per type, so a 50-item list is ~7 queries, not 50."
+              }
+            },
+            {
+              "name": "List Saved (filtered by type)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept-Language",
+                    "value": "{{acceptLanguage}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/saved?type=POST",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "saved"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "POST",
+                      "description": "POST | DISCUSSION | EVENT | OPPORTUNITY | MOTIVATION | LESSON | SHORT_CONTENT"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Save Item",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.itemId) { pm.collectionVariables.set('resourceId', json.data.itemId); }"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept-Language",
+                    "value": "{{acceptLanguage}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/saved",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "saved"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"itemType\": \"POST\",\n  \"itemId\": \"{{resourceId}}\"\n}"
+                },
+                "description": "itemType: POST | DISCUSSION | EVENT | OPPORTUNITY | MOTIVATION | LESSON | SHORT_CONTENT\n\nIdempotent: saving twice returns the existing row instead of failing on the unique constraint.\n\nitemId is not a foreign key (the table is polymorphic), so no check is made that the target exists."
+              }
+            },
+            {
+              "name": "Is Saved?",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/saved/check?itemType=POST&itemId={{resourceId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "saved",
+                    "check"
+                  ],
+                  "query": [
+                    {
+                      "key": "itemType",
+                      "value": "POST"
+                    },
+                    {
+                      "key": "itemId",
+                      "value": "{{resourceId}}"
+                    }
+                  ]
+                },
+                "description": "For rendering the save toggle without fetching the whole list. Returns { saved: true|false }."
+              }
+            },
+            {
+              "name": "Unsave Item",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/saved/POST/{{resourceId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "saved",
+                    "POST",
+                    "{{resourceId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Profile domain: own profile, settings, interests, portfolio, social links, saved items."
+    },
+    {
+      "name": "Account Security",
+      "item": [
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/security/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "security",
+                "password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"NewPassword123\"\n}"
+            },
+            "description": "Revokes every session and bumps token_version, so your current token dies immediately — log in again afterwards.\nRate limited: 5 failures per 15 min, then a 15 min block.\nGoogle-only accounts get AUTH_PASSWORD_NOT_SET."
+          }
+        },
+        {
+          "name": "List Active Sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.length) {",
+                  "  pm.collectionVariables.set('sessionId', json.data[0].sessionId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/security/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "security",
+                "sessions"
+              ]
+            },
+            "description": "Live sign-ins with device, IP and last-used. Token hashes are never exposed."
+          }
+        },
+        {
+          "name": "Revoke One Session",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/security/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "security",
+                "sessions",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "Known limitation: revokes that device's refresh token, but its existing access token still works until it expires (max 15 min). Token versioning is per-user, so bumping it would sign out every device."
+          }
+        },
+        {
+          "name": "Revoke All Sessions",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/security/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "security",
+                "sessions"
+              ]
+            },
+            "description": "Immediate: bumps token_version, so all access tokens die at once — including this one."
+          }
+        },
+        {
+          "name": "Security Activity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/security/activity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "security",
+                "activity"
+              ]
+            },
+            "description": "Last 50 security events: logins, failures, password changes, session revokes."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Community",
+      "item": [
+        {
+          "name": "Posts & Feed",
+          "description": "Create, edit and delete posts; the personalised feed; likes; a community's own feed.",
+          "item": [
+            {
+              "name": "Create Post",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.postId) { pm.collectionVariables.set('resourceId', json.data.postId); }"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"contentText\": \"Hello GenLink KH! #flutter\",\n  \"imageUrl\": null,\n  \"postType\": \"TEXT\",\n  \"visibility\": \"PUBLIC\",\n  \"language\": \"ENGLISH\",\n  \"communityId\": null\n}"
+                },
+                "description": "postType: TEXT | IMAGE | POLL | ANNOUNCEMENT\nvisibility: PUBLIC | FRIENDS | COMMUNITY\n\ncommunityId is optional. Set it to post into a community — you must be an active member. visibility=COMMUNITY without a communityId is visible to nobody.\n\n#hashtags are parsed from contentText automatically (Khmer works too)."
+              }
+            },
+            {
+              "name": "List My Posts",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Paginated. data is a PageResponse: {content, page, size, totalElements, totalPages, hasNext}."
+              }
+            },
+            {
+              "name": "Update Post",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "{{resourceId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"contentText\": \"Edited post\",\n  \"postType\": \"TEXT\",\n  \"visibility\": \"PUBLIC\",\n  \"language\": \"ENGLISH\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Delete Post",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "{{resourceId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Feed (paginated)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/feed?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "feed"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "The personalised feed, newest first.\n\nReturns: public posts, your own posts, FRIENDS-only posts from mutual follows, and posts in communities you have joined.\n\ndata is a PageResponse. Each row carries author, likedByMe, savedByMe, hashtags and createdAt, so the screen renders from this one call."
+              }
+            },
+            {
+              "name": "Get Post By Id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "{{resourceId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Like Post",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}/like",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "{{resourceId}}",
+                    "like"
+                  ]
+                },
+                "description": "Idempotent — backs the like toggle. Liking twice returns the same count rather than 500ing on UNIQUE(post_id, user_id). Returns {likeCount}."
+              }
+            },
+            {
+              "name": "Unlike Post",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}/like",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "{{resourceId}}",
+                    "like"
+                  ]
+                },
+                "description": "Unliking something never liked is a no-op. Returns {likeCount}."
+              }
+            },
+            {
+              "name": "Community Feed",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/community/{{communityId}}?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "community",
+                    "{{communityId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Post Comments",
+          "description": "Comments and one-level replies on feed posts.",
+          "item": [
+            {
+              "name": "Add Comment",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.commentId) { pm.collectionVariables.set('commentId', json.data.commentId); }"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}/comments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "{{resourceId}}",
+                    "comments"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"content\": \"Nice post!\",\n  \"parentCommentId\": null,\n  \"language\": \"ENGLISH\"\n}"
+                },
+                "description": "Set parentCommentId to reply. Threading is one level deep: replying to a reply attaches to the same top-level parent."
+              }
+            },
+            {
+              "name": "List Comments",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}/comments?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "{{resourceId}}",
+                    "comments"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Top-level comments only, paginated. Replies come from the /replies route."
+              }
+            },
+            {
+              "name": "List Replies",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/comments/{{commentId}}/replies?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "comments",
+                    "{{commentId}}",
+                    "replies"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Comment",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/comments/{{commentId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "comments",
+                    "{{commentId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Hashtags",
+          "description": "Parsed automatically from post content; trending backs the Trending tab.",
+          "item": [
+            {
+              "name": "Trending Hashtags",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/hashtags/trending?limit=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "hashtags",
+                    "trending"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "description": "Ranked by usage_count. Tags are parsed from post content on create, lower-cased, and Khmer tags work (#បច្ចេកវិទ្យា)."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Communities",
+          "description": "Create/discover/join/leave groups. Slug is server-generated; OWNER cannot leave.",
+          "item": [
+            {
+              "name": "Create Community",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data) {",
+                      "  pm.collectionVariables.set('communityId', json.data.communityId);",
+                      "  pm.collectionVariables.set('communitySlug', json.data.slug);",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Flutter KH\",\n  \"description\": \"Flutter devs in Cambodia\",\n  \"category\": \"TECH\",\n  \"coverImageUrl\": null,\n  \"avatarUrl\": null,\n  \"privacy\": \"PUBLIC\"\n}"
+                },
+                "description": "The slug is derived from the name — never send one. The creator becomes OWNER and the first member.\n\nprivacy: PUBLIC | PRIVATE"
+              }
+            },
+            {
+              "name": "Discover Communities",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Public communities only, biggest first. Add ?category=TECH to filter.\nPrivate communities are not browsable — reach them by direct link."
+              }
+            },
+            {
+              "name": "My Communities",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities/mine?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities",
+                    "mine"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Community By Slug",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities/{{communitySlug}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities",
+                    "{{communitySlug}}"
+                  ]
+                },
+                "description": "joined and myRole tell the client whether to show Join or Leave, and whether to show admin controls."
+              }
+            },
+            {
+              "name": "Join Community",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities/{{communityId}}/join",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities",
+                    "{{communityId}}",
+                    "join"
+                  ]
+                },
+                "description": "Idempotent. Rejoining after leaving reuses the same membership row."
+              }
+            },
+            {
+              "name": "Leave Community",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities/{{communityId}}/leave",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities",
+                    "{{communityId}}",
+                    "leave"
+                  ]
+                },
+                "description": "The OWNER cannot leave (COMMUNITY_OWNER_CANNOT_LEAVE) — transfer ownership first."
+              }
+            },
+            {
+              "name": "Community Members",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities/{{communityId}}/members?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities",
+                    "{{communityId}}",
+                    "members"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Follows",
+          "description": "Follow graph. PRIVATE profiles produce PENDING requests; a friend is a mutual ACCEPTED follow.",
+          "item": [
+            {
+              "name": "Follow User",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/users/{{targetUserId}}/follow",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "users",
+                    "{{targetUserId}}",
+                    "follow"
+                  ]
+                },
+                "description": "Idempotent. Returns ACCEPTED for an open profile, PENDING when the target's profile is PRIVATE.\nFollowing yourself is rejected."
+              }
+            },
+            {
+              "name": "Unfollow User",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/users/{{targetUserId}}/follow",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "users",
+                    "{{targetUserId}}",
+                    "follow"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Follow Stats",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/users/{{targetUserId}}/follow-stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "users",
+                    "{{targetUserId}}",
+                    "follow-stats"
+                  ]
+                },
+                "description": "followers/following counts, plus followStatus and friend for the caller.\nfriend = mutual ACCEPTED follow, which is what FRIENDS visibility means."
+              }
+            },
+            {
+              "name": "Followers",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/users/{{targetUserId}}/followers?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "users",
+                    "{{targetUserId}}",
+                    "followers"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Following",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/users/{{targetUserId}}/following?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "users",
+                    "{{targetUserId}}",
+                    "following"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Follow Requests (incoming)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/follow-requests?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "follow-requests"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Pending requests awaiting your approval. Only PRIVATE profiles generate these."
+              }
+            },
+            {
+              "name": "Accept Follow Request",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/follow-requests/{{targetUserId}}/accept",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "follow-requests",
+                    "{{targetUserId}}",
+                    "accept"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Reject Follow Request",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/follow-requests/{{targetUserId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "follow-requests",
+                    "{{targetUserId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Events & RSVP",
+          "description": "Events with capacity and simulated paid entry via the demo wallet. Capacity is checked before payment.",
+          "item": [
+            {
+              "name": "Create Event",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/events",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "events"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Flutter Workshop\",\n  \"description\": \"Intro to Flutter\",\n  \"category\": \"WORKSHOP\",\n  \"coverImageUrl\": null,\n  \"dateTime\": \"2026-08-01T14:00:00\",\n  \"locationName\": \"ACLEDA University\",\n  \"attendeeLimit\": 50,\n  \"status\": \"PUBLISHED\",\n  \"language\": \"ENGLISH\",\n  \"paid\": false,\n  \"price\": null\n}"
+                },
+                "description": "status: DRAFT | PUBLISHED | CANCELLED | COMPLETED\ndateTime is a local date-time (no offset).\n\npaid + price: a paid event MUST have a price above zero (chk_events_paid_requires_price).\nPayment is SIMULATED against the demo wallet - there is no real KHQR transfer."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.eventId) { pm.collectionVariables.set('eventId', json.data.eventId); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List My Events",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/events/mine?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "events",
+                    "mine"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Events you organise, including drafts. Paginated."
+              }
+            },
+            {
+              "name": "Browse Events",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/events?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "events"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Published upcoming events, soonest first. Add ?category=WORKSHOP to filter.\n\nPast events and DRAFTs are excluded. Rows carry organizer, myRsvpStatus and full, so the list renders Join/Cancel without extra calls."
+              }
+            },
+            {
+              "name": "Get Event By Id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/events/{{eventId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "events",
+                    "{{eventId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RSVP to Event",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/events/{{eventId}}/rsvp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "events",
+                    "{{eventId}}",
+                    "rsvp"
+                  ]
+                },
+                "description": "Idempotent - RSVPing twice does not double-count or re-award XP.\n\nOrder matters: capacity is checked BEFORE payment, so a full paid event never charges you.\n\nFree event -> joins, +10 XP.\nPaid event -> deducts the demo wallet, writes a demo_transaction (EVENT_PAYMENT), returns amountPaid and simulatedPayment=true. Label it a simulation on screen.\n\nErrors: EVENT_FULL, EVENT_CANCELLED, EVENT_PAST, DEMO_WALLET_NOT_FOUND, DEMO_WALLET_INSUFFICIENT_BALANCE."
+              }
+            },
+            {
+              "name": "Cancel RSVP",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/events/{{eventId}}/rsvp",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "events",
+                    "{{eventId}}",
+                    "rsvp"
+                  ]
+                },
+                "description": "No refund: the demo wallet has no refund flow."
+              }
+            },
+            {
+              "name": "Event Attendees",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/events/{{eventId}}/attendees?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "events",
+                    "{{eventId}}",
+                    "attendees"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forum",
+          "description": "Discussions with optional anonymity, reactions, reports and flat comments.",
+          "item": [
+            {
+              "name": "Create Discussion",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"How do you stay focused while studying?\",\n  \"content\": \"Share your tips.\",\n  \"category\": \"EDUCATION\",\n  \"anonymous\": false,\n  \"language\": \"ENGLISH\"\n}"
+                },
+                "description": "anonymous=true hides the author in every response.\n\nThe author id is still STORED on the row for moderation - it is withheld at the DTO boundary, not discarded. Commenters are never anonymous; only the discussion author is."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.discussionId) { pm.collectionVariables.set('discussionId', json.data.discussionId); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List My Discussions",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/mine?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "mine"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Your own discussions, including ones you posted anonymously. Paginated."
+              }
+            },
+            {
+              "name": "Browse Discussions",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "The forum list, newest first. Add ?category=TECH to filter.\n\nAnonymous rows come back with author = null. reactedByMe and mine are resolved server-side."
+              }
+            },
+            {
+              "name": "Get Discussion By Id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "{{discussionId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "React to Discussion",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/react",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "{{discussionId}}",
+                    "react"
+                  ]
+                },
+                "description": "Idempotent. forum_reactions has UNIQUE(discussion_id, user_id), so a double tap returns the same count. Returns {reactionCount}."
+              }
+            },
+            {
+              "name": "Remove Reaction",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/react",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "{{discussionId}}",
+                    "react"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Report Discussion",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/report",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "{{discussionId}}",
+                    "report"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"SPAM\",\n  \"details\": \"Buying followers\"\n}"
+                },
+                "description": "One report per user per discussion, so report_count means distinct people, not taps.\nReporting twice is a silent no-op.\n\nNOTE: nothing reviews the report queue yet - there is no moderation screen. Reports land in discussion_reports and a log line."
+              }
+            },
+            {
+              "name": "Add Discussion Comment",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.commentId) { pm.collectionVariables.set('forumCommentId', json.data.commentId); }"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/comments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "{{discussionId}}",
+                    "comments"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"content\": \"Try the Pomodoro timer.\",\n  \"parentCommentId\": null,\n  \"language\": \"ENGLISH\"\n}"
+                },
+                "description": "Forum comments are flat - parentCommentId is ignored here (forum_comments has no parent column). Threading exists on post comments only."
+              }
+            },
+            {
+              "name": "List Discussion Comments",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/comments?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "{{discussionId}}",
+                    "comments"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Oldest first, so a thread reads top to bottom. Commenters are always identified."
+              }
+            },
+            {
+              "name": "Delete Discussion Comment",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/comments/{{forumCommentId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "comments",
+                    "{{forumCommentId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Opportunities",
+          "description": "The Opportunity Hub (internships, scholarships, hackathons, jobs, volunteering). Browse/read are open to any user; create/update/delete require an ADMIN account. Save an opportunity via Profile > Saved Items (itemType OPPORTUNITY).",
+          "item": [
+            {
+              "name": "Browse Opportunities",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/opportunities?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "opportunities"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Active opportunities, soonest deadline first. Add ?type=INTERNSHIP to filter, ?includeExpired=true to show past ones.\n\nEach row carries savedByMe and expired. Empty until an ADMIN creates some."
+              }
+            },
+            {
+              "name": "Get Opportunity By Id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/opportunities/{{opportunityId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "opportunities",
+                    "{{opportunityId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Opportunity (ADMIN)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "if (json && json.data && json.data.opportunityId) { pm.collectionVariables.set('opportunityId', json.data.opportunityId); }"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/opportunities",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "opportunities"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Backend Internship\",\n  \"organization\": \"ACLEDA\",\n  \"type\": \"INTERNSHIP\",\n  \"description\": \"Spring Boot internship\",\n  \"deadline\": \"2026-09-30\",\n  \"location\": \"Phnom Penh\",\n  \"applyLink\": \"https://apply.example.com\"\n}"
+                },
+                "description": "Requires ROLE_ADMIN. A non-admin token gets 403.\n\ntype is free text: INTERNSHIP | SCHOLARSHIP | HACKATHON | JOB | VOLUNTEER | ...\ndeadline optional (open-ended if omitted)."
+              }
+            },
+            {
+              "name": "Update Opportunity (ADMIN)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/opportunities/{{opportunityId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "opportunities",
+                    "{{opportunityId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Backend Internship (updated)\",\n  \"organization\": \"ACLEDA\",\n  \"type\": \"INTERNSHIP\",\n  \"description\": \"Updated\",\n  \"deadline\": \"2026-10-15\",\n  \"location\": \"Phnom Penh\",\n  \"applyLink\": \"https://apply.example.com\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Delete Opportunity (ADMIN)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/opportunities/{{opportunityId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "opportunities",
+                    "{{opportunityId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "description": "The Community domain, grouped by feature. Run Auth > Login first; everything here needs a token (captured automatically)."
+    },
+    {
+      "name": "Productivity",
+      "item": [
+        {
+          "name": "Create Habit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var d = pm.response.json().data;",
+                  "if (d && d.habitId) { pm.collectionVariables.set('habitId', d.habitId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/habits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "habits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Read 20 minutes\",\n  \"category\": \"LEARNING\",\n  \"frequency\": \"DAILY\",\n  \"reminderTime\": \"07:30:00\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List My Habits",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/habits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "habits"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Check-in Habit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/habits/{{habitId}}/check-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "habits",
+                "{{habitId}}",
+                "check-in"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"completed\": true\n}"
+            },
+            "description": "Idempotent for the day. Omit date for today; send completed:false to undo. Returns the habit with the recomputed streak."
+          }
+        },
+        {
+          "name": "Get Habit by Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/habits/{{habitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "habits",
+                "{{habitId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Habit",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/habits/{{habitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "habits",
+                "{{habitId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Read 30 minutes\",\n  \"category\": \"LEARNING\",\n  \"frequency\": \"DAILY\",\n  \"reminderTime\": \"08:00:00\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Habit",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/habits/{{habitId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "habits",
+                "{{habitId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var d = pm.response.json().data;",
+                  "if (d && d.taskId) { pm.collectionVariables.set('taskId', d.taskId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Finish backend API\",\n  \"description\": \"Wire the profile endpoints\",\n  \"priority\": \"HIGH\",\n  \"category\": \"WORK\",\n  \"dueDate\": \"2026-07-20T17:00:00\",\n  \"reminderTime\": \"2026-07-20T09:00:00\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List My Tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Tasks (overdue)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks?scope=overdue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "overdue",
+                  "description": "today | overdue | upcoming"
+                },
+                {
+                  "key": "category",
+                  "value": "WORK",
+                  "disabled": true
+                },
+                {
+                  "key": "priority",
+                  "value": "HIGH",
+                  "disabled": true
+                },
+                {
+                  "key": "completed",
+                  "value": "false",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Complete Task",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks/{{taskId}}/complete?completed=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks",
+                "{{taskId}}",
+                "complete"
+              ],
+              "query": [
+                {
+                  "key": "completed",
+                  "value": "true",
+                  "description": "false to reopen"
+                }
+              ]
+            },
+            "description": "Mark complete (or reopen with completed=false)."
+          }
+        },
+        {
+          "name": "Get Task by Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks",
+                "{{taskId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks",
+                "{{taskId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Finish backend API v2\",\n  \"description\": \"Wire the profile endpoints\",\n  \"priority\": \"MEDIUM\",\n  \"category\": \"WORK\",\n  \"dueDate\": \"2026-07-21T17:00:00\",\n  \"reminderTime\": \"2026-07-21T09:00:00\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks",
+                "{{taskId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Goal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var d = pm.response.json().data;",
+                  "if (d && d.goalId) { pm.collectionVariables.set('goalId', d.goalId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/goals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "goals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Become a Flutter Developer\",\n  \"description\": \"Ship one app\",\n  \"goalType\": \"CAREER\",\n  \"deadline\": \"2026-12-31\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List My Goals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/goals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "goals"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Goal by Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/goals/{{goalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "goals",
+                "{{goalId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Milestone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var d = pm.response.json().data;",
+                  "if (d && d.milestones && d.milestones.length) {",
+                  "  pm.collectionVariables.set('milestoneId', d.milestones[d.milestones.length - 1].milestoneId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/goals/{{goalId}}/milestones",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "goals",
+                "{{goalId}}",
+                "milestones"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Finish the tutorial\"\n}"
+            },
+            "description": "Captures the new milestoneId. Returns the goal with recomputed progress."
+          }
+        },
+        {
+          "name": "Complete Milestone",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/goals/{{goalId}}/milestones/{{milestoneId}}/complete?completed=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "goals",
+                "{{goalId}}",
+                "milestones",
+                "{{milestoneId}}",
+                "complete"
+              ],
+              "query": [
+                {
+                  "key": "completed",
+                  "value": "true",
+                  "description": "false to reopen"
+                }
+              ]
+            },
+            "description": "Completing every milestone flips the goal to COMPLETED (100%)."
+          }
+        },
+        {
+          "name": "Update Goal",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/goals/{{goalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "goals",
+                "{{goalId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Become a Flutter Developer\",\n  \"description\": \"Ship two apps\",\n  \"goalType\": \"CAREER\",\n  \"deadline\": \"2027-06-30\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Milestone",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/goals/{{goalId}}/milestones/{{milestoneId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "goals",
+                "{{goalId}}",
+                "milestones",
+                "{{milestoneId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Goal",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/goals/{{goalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "goals",
+                "{{goalId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Start Focus Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var d = pm.response.json().data;",
+                  "if (d && d.sessionId) { pm.collectionVariables.set('sessionId', d.sessionId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/focus-sessions/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "focus-sessions",
+                "start"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"POMODORO\",\n  \"durationMinutes\": 25,\n  \"ambientSound\": \"RAIN\"\n}"
+            },
+            "description": "Begins a session (no XP yet). Captures sessionId."
+          }
+        },
+        {
+          "name": "Complete Focus Session",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/focus-sessions/{{sessionId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "focus-sessions",
+                "{{sessionId}}",
+                "complete"
+              ]
+            },
+            "description": "Awards duration-scaled XP once (min(30, minutes/5))."
+          }
+        },
+        {
+          "name": "Focus Session History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/focus-sessions?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "focus-sessions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Focus Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/focus-sessions/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "focus-sessions",
+                "stats"
+              ]
+            },
+            "description": "Today + all-time sessions, minutes and XP."
+          }
+        },
+        {
+          "name": "List Motivation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/motivation?category=FOCUS",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "motivation"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "FOCUS",
+                  "description": "Optional. Omit for all.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Bilingual (send Accept-Language: km for Khmer). Each item carries a saved flag."
+          }
+        },
+        {
+          "name": "Save Motivation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/motivation/c0000000-0000-4000-8000-000000000001/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "motivation",
+                "c0000000-0000-4000-8000-000000000001",
+                "save"
+              ]
+            },
+            "description": "Idempotent. Uses a seeded motivation id."
+          }
+        },
+        {
+          "name": "Unsave Motivation",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/motivation/c0000000-0000-4000-8000-000000000001/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "motivation",
+                "c0000000-0000-4000-8000-000000000001",
+                "save"
+              ]
+            }
+          }
+        },
+        {
+          "name": "My Saved Motivation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/motivation/saved",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "motivation",
+                "saved"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finance",
+      "item": [
+        {
+          "name": "Expenses",
+          "description": "Expense tracker: CRUD, filters, and the monthly spending summary.",
+          "item": [
+            {
+              "name": "Create Expense",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const j=pm.response.json(); if(j&&j.data&&j.data.expenseId){pm.collectionVariables.set('expenseId',j.data.expenseId);}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Coffee\",\n  \"amount\": 2.50,\n  \"category\": \"FOOD\",\n  \"description\": \"Morning coffee\",\n  \"expenseDate\": \"2026-07-18\",\n  \"paymentMethod\": \"CASH\"\n}"
+                },
+                "description": "amount must be positive. category is free text."
+              }
+            },
+            {
+              "name": "List Expenses",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Newest first, paginated. Filters: ?category=FOOD, and ?month=7&year=2026 together (month alone is ignored - it cannot bound a range)."
+              }
+            },
+            {
+              "name": "Monthly Summary",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses/summary?month=7&year=2026",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses",
+                    "summary"
+                  ],
+                  "query": [
+                    {
+                      "key": "month",
+                      "value": "7"
+                    },
+                    {
+                      "key": "year",
+                      "value": "2026"
+                    }
+                  ]
+                },
+                "description": "Total + per-category breakdown for the spending chart. Defaults to the current month if month/year omitted. A null category is reported as UNCATEGORIZED."
+              }
+            },
+            {
+              "name": "Get Expense By Id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses/{{expenseId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses",
+                    "{{expenseId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Expense",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses/{{expenseId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses",
+                    "{{expenseId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Coffee (large)\",\n  \"amount\": 3.00,\n  \"category\": \"FOOD\",\n  \"description\": \"Upsized\",\n  \"expenseDate\": \"2026-07-18\",\n  \"paymentMethod\": \"CASH\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Delete Expense",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses/{{expenseId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "expenses",
+                    "{{expenseId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Budgets",
+          "item": [
+            {
+              "name": "Create Budget",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var d = pm.response.json().data;",
+                      "if (d && d.budgetId) { pm.collectionVariables.set('budgetId', d.budgetId); }"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"month\": 7,\n  \"year\": 2026,\n  \"totalBudget\": 300.00,\n  \"categories\": [\n    { \"category\": \"FOOD\", \"allocatedAmount\": 120.00 },\n    { \"category\": \"TRANSPORT\", \"allocatedAmount\": 60.00 }\n  ]\n}"
+                },
+                "description": "One budget per user per month/year. categories is optional. Captures budgetId into a collection variable."
+              }
+            },
+            {
+              "name": "List My Budgets",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Paginated, newest first. Light: no category breakdown, spend computed live."
+              }
+            },
+            {
+              "name": "Current Month Budget",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets/current?month=7&year=2026",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets",
+                    "current"
+                  ],
+                  "query": [
+                    {
+                      "key": "month",
+                      "value": "7"
+                    },
+                    {
+                      "key": "year",
+                      "value": "2026"
+                    }
+                  ]
+                },
+                "description": "Budget for a month with the category breakdown. month/year default to the current month if omitted."
+              }
+            },
+            {
+              "name": "Get Budget by Id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets/{{budgetId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets",
+                    "{{budgetId}}"
+                  ]
+                },
+                "description": "Detail with category breakdown. Spent/remaining/status computed live from expenses."
+              }
+            },
+            {
+              "name": "Update Budget",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets/{{budgetId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets",
+                    "{{budgetId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"month\": 7,\n  \"year\": 2026,\n  \"totalBudget\": 400.00,\n  \"categories\": [\n    { \"category\": \"FOOD\", \"allocatedAmount\": 150.00 }\n  ]\n}"
+                },
+                "description": "Categories are replaced wholesale."
+              }
+            },
+            {
+              "name": "Delete Budget",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets/{{budgetId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "budgets",
+                    "{{budgetId}}"
+                  ]
+                },
+                "description": "Soft delete."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Saving Goals",
+          "item": [
+            {
+              "name": "Create Saving Goal",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "var d = pm.response.json().data;",
+                      "if (d && d.savingGoalId) { pm.collectionVariables.set('savingGoalId', d.savingGoalId); }"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/savings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "savings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"New laptop\",\n  \"targetAmount\": 800.00,\n  \"targetDate\": \"2026-12-01\"\n}"
+                },
+                "description": "targetDate is optional. Captures savingGoalId into a collection variable."
+              }
+            },
+            {
+              "name": "List My Saving Goals",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/savings?status=IN_PROGRESS",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "savings"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "IN_PROGRESS",
+                      "description": "Optional: IN_PROGRESS | COMPLETED | CANCELLED. Omit for all.",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Newest first. Each goal carries currentAmount, remainingAmount and progressPercent."
+              }
+            },
+            {
+              "name": "Get Saving Goal by Id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/savings/{{savingGoalId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "savings",
+                    "{{savingGoalId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Saving Goal",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/savings/{{savingGoalId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "savings",
+                    "{{savingGoalId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"New laptop\",\n  \"targetAmount\": 600.00,\n  \"targetDate\": \"2026-11-01\"\n}"
+                },
+                "description": "Lowering targetAmount below what is saved auto-completes the goal."
+              }
+            },
+            {
+              "name": "Add Deposit",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/savings/{{savingGoalId}}/deposits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "savings",
+                    "{{savingGoalId}}",
+                    "deposits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 50.00,\n  \"note\": \"weekly allowance\"\n}"
+                },
+                "description": "Adds to the goal; auto-completes it when the target is reached. depositDate optional (defaults to today). Returns the updated goal."
+              }
+            },
+            {
+              "name": "Deposit History",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/savings/{{savingGoalId}}/deposits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "savings",
+                    "{{savingGoalId}}",
+                    "deposits"
+                  ]
+                },
+                "description": "Most recent first."
+              }
+            },
+            {
+              "name": "Delete Saving Goal",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/savings/{{savingGoalId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "savings",
+                    "{{savingGoalId}}"
+                  ]
+                },
+                "description": "Soft delete."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Demo Wallet",
+          "item": [
+            {
+              "name": "Get Wallet (creates on first access)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/wallet",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "wallet"
+                  ]
+                },
+                "description": "Simulated wallet - no real money. Created with a 0 balance on first call."
+              }
+            },
+            {
+              "name": "Top Up (simulated)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/wallet/top-up",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "wallet",
+                    "top-up"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 100.00,\n  \"note\": \"demo top-up\"\n}"
+                },
+                "description": "Simulated deposit. Top up before RSVPing to a paid event."
+              }
+            },
+            {
+              "name": "Pay (mock KHQR)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/wallet/pay",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "wallet",
+                    "pay"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 15.00,\n  \"merchant\": \"Brown Coffee\",\n  \"note\": \"iced latte\"\n}"
+                },
+                "description": "Simulated KHQR payment. Client passes the scanned amount and merchant. Fails with DEMO_WALLET_INSUFFICIENT_BALANCE if the balance is too low."
+              }
+            },
+            {
+              "name": "Transaction History",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/wallet/transactions?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "wallet",
+                    "transactions"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Paginated, most recent first."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Financial Literacy",
+          "item": [
+            {
+              "name": "Learning Dashboard",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/dashboard",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "dashboard"
+                  ]
+                },
+                "description": "Six topics with per-topic lesson/completed counts + total literacy XP."
+              }
+            },
+            {
+              "name": "List Lessons",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/lessons?topic=SAVING_MONEY",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "lessons"
+                  ],
+                  "query": [
+                    {
+                      "key": "topic",
+                      "value": "SAVING_MONEY",
+                      "description": "Optional: SAVING_MONEY | BUDGETING | DEBT_AWARENESS | INVESTING_BASICS | EMERGENCY_FUND | SMART_SPENDING. Omit for all.",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Send Accept-Language: km for Khmer (falls back to English where Khmer is unseeded)."
+              }
+            },
+            {
+              "name": "Lesson Detail",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/lessons/a0000000-0000-4000-8000-000000000001",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "lessons",
+                    "a0000000-0000-4000-8000-000000000001"
+                  ]
+                },
+                "description": "Uses a seeded lesson id (Why saving early matters)."
+              }
+            },
+            {
+              "name": "Finish Learning",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/lessons/a0000000-0000-4000-8000-000000000001/complete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "lessons",
+                    "a0000000-0000-4000-8000-000000000001",
+                    "complete"
+                  ]
+                },
+                "description": "Marks the lesson read. No reward - that comes from the quiz."
+              }
+            },
+            {
+              "name": "Get Quiz",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/lessons/a0000000-0000-4000-8000-000000000001/quiz",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "lessons",
+                    "a0000000-0000-4000-8000-000000000001",
+                    "quiz"
+                  ]
+                },
+                "description": "Questions + options; the correct answer is withheld."
+              }
+            },
+            {
+              "name": "Submit Quiz",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/lessons/a0000000-0000-4000-8000-000000000001/quiz/submit",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "lessons",
+                    "a0000000-0000-4000-8000-000000000001",
+                    "quiz",
+                    "submit"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"answers\": [\n    { \"questionId\": \"b0000000-0000-4000-8000-000000000001\", \"selectedOption\": \"B\" },\n    { \"questionId\": \"b0000000-0000-4000-8000-000000000002\", \"selectedOption\": \"B\" }\n  ]\n}"
+                },
+                "description": "Both answers correct -> score 100, passes. First pass grants XP + a $1 simulated wallet reward (once)."
+              }
+            }
+          ]
+        }
+      ],
+      "description": "Finance domain, by feature. All 6 phases done: Expenses, Budgets, Saving Goals, Demo Wallet, Financial Literacy + the mobile finance-dashboard BFF."
+    },
+    {
+      "name": "Entertainment",
+      "item": [
+        {
+          "name": "List Quizzes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/quizzes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "quizzes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Challenges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/challenges",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "challenges"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Badges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/badges",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "badges"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Leaderboards",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/leaderboards",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "leaderboards"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mobile (BFF-lite)",
+      "description": "Aggregation endpoints for dashboard-heavy screens. Capped at 5-6 by design.",
+      "item": [
+        {
+          "name": "Home Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "{{acceptLanguage}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/home",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "home"
+              ]
+            },
+            "description": "Home Super Dashboard - every card in one call.\n\nReturns: user, todayProgress (habits + tasks), dailyChallenge, financeSnapshot (budget + savings), upcomingEvent, recommendedCommunities, dailyMotivation, feedPreview.\n\nCards are NULLABLE by design: a new user has no budget, no RSVP and maybe no challenge. null means 'render this card's empty state', not an error. Lists are empty, never null.\n\nTitles of system content (challenge, motivation) follow Accept-Language.\n\nDaily motivation rotates by day-of-year, so it is stable across refreshes."
+          }
+        },
+        {
+          "name": "Profile Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/profile-summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "profile-summary"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Finance Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/finance-dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "finance-dashboard"
+              ]
+            },
+            "description": "Aggregated Finance screen in one call: month overview (spent + budget total/remaining/status), top categories, saving progress, recent expenses, demo wallet balance, a rotating tip and quick-action keys. Degrades to nulls/empties for a new user."
+          }
+        },
+        {
+          "name": "Productivity Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/productivity-dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "productivity-dashboard"
+              ]
+            },
+            "description": "Aggregated Productivity screen: today's habits + check-in state, tasks summary, top goals with progress, focus stats, and a motivation card. Degrades to zeros/empties/null for a new user."
+          }
+        },
+        {
+          "name": "Event Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/events/{{resourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "events",
+                "{{resourceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "{{acceptLanguage}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/mobile/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "notifications"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health & Docs",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "OpenAPI JSON",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

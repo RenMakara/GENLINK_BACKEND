@@ -60,14 +60,22 @@ public class AuthController {
     public ResponseEntity<ApiResponse<String>> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
         log.info("REST request to resend OTP to: {}", request.email());
         authService.resendOtp(request.email());
-        return ResponseEntity.ok(ApiResponse.success("New verification code has been sent to your email.", null));
+        // Deliberately does not confirm the account exists.
+        return ResponseEntity.ok(ApiResponse.success("If the account is eligible, a verification OTP has been sent.", null));
+    }
+
+    @PostMapping("/resend-verification-otp")
+    public ResponseEntity<ApiResponse<String>> resendVerificationOtp(@Valid @RequestBody ResendVerificationOtpRequest request) {
+        log.info("REST request to resend verification OTP to: {}", request.email());
+        authService.resendVerificationOtp(request);
+        return ResponseEntity.ok(ApiResponse.success("If the account is eligible, a verification OTP has been sent.", null));
     }
 
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         log.info("REST request to start password reset for: {}", request.email());
         authService.forgotPassword(request);
-        return ResponseEntity.ok(ApiResponse.success("Password reset code has been sent to your email.", null));
+        return ResponseEntity.ok(ApiResponse.success("If this email exists, a password reset OTP has been sent.", null));
     }
 
     @PostMapping("/reset-password")
