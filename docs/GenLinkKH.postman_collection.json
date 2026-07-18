@@ -3422,6 +3422,120 @@
               ]
             }
           }
+        },
+        {
+          "name": "Start Focus Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var d = pm.response.json().data;",
+                  "if (d && d.sessionId) { pm.collectionVariables.set('sessionId', d.sessionId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/focus-sessions/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "focus-sessions",
+                "start"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"POMODORO\",\n  \"durationMinutes\": 25,\n  \"ambientSound\": \"RAIN\"\n}"
+            },
+            "description": "Begins a session (no XP yet). Captures sessionId."
+          }
+        },
+        {
+          "name": "Complete Focus Session",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/focus-sessions/{{sessionId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "focus-sessions",
+                "{{sessionId}}",
+                "complete"
+              ]
+            },
+            "description": "Awards duration-scaled XP once (min(30, minutes/5))."
+          }
+        },
+        {
+          "name": "Focus Session History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/focus-sessions?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "focus-sessions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Focus Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/focus-sessions/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "focus-sessions",
+                "stats"
+              ]
+            },
+            "description": "Today + all-time sessions, minutes and XP."
+          }
         }
       ]
     },

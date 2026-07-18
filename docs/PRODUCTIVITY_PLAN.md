@@ -1,6 +1,6 @@
 # Productivity Domain — Implementation Plan
 
-Status: Phases 1-3 done (2026-07-19); Phases 4-6 not started. Scope: backend only.
+Status: Phases 1-4 done (2026-07-19); Phases 5-6 not started. Scope: backend only.
 Owner: (Productivity, per Team Assignment v5).
 
 The "Study & Productivity" super-app pillar: habits, tasks, goals, a focus timer, and
@@ -65,9 +65,13 @@ Key entity facts:
   / IN_PROGRESS / COMPLETED, auto-flipping to COMPLETED at 100%. Stored columns are also
   synced on milestone changes but the response computes from milestones. Tests.
 
-### Phase 4 — Focus sessions (Pomodoro)
-- Start a session, complete it (or abandon). On completion award XP (see decision 2)
-  to xp_history + users.total_xp. Session history + simple stats (total minutes, today).
+### Phase 4 — Focus sessions (Pomodoro) — DONE
+- [x] Start a session (`POST /focus-sessions/start`), complete it
+  (`POST /focus-sessions/{id}/complete`). Completion is idempotent - XP is paid once.
+- [x] On completion award duration-scaled XP `min(30, minutes/5)` to xp_history
+  (sourceType FOCUS_SESSION) + users.total_xp; a sub-5-minute session earns 0.
+- [x] Paginated history (`GET /focus-sessions`) and stats (`GET /focus-sessions/stats`:
+  today's + all-time sessions/minutes/xp). Tests.
 
 ### Phase 5 — Motivation
 - List motivation content (bilingual), detail.
