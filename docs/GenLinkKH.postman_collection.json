@@ -3001,6 +3001,18 @@
         },
         {
           "name": "Create Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var d = pm.response.json().data;",
+                  "if (d && d.taskId) { pm.collectionVariables.set('taskId', d.taskId); }"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -3042,6 +3054,145 @@
                 "v1",
                 "productivity",
                 "tasks"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Tasks (overdue)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks?scope=overdue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "overdue",
+                  "description": "today | overdue | upcoming"
+                },
+                {
+                  "key": "category",
+                  "value": "WORK",
+                  "disabled": true
+                },
+                {
+                  "key": "priority",
+                  "value": "HIGH",
+                  "disabled": true
+                },
+                {
+                  "key": "completed",
+                  "value": "false",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Complete Task",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks/{{taskId}}/complete?completed=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks",
+                "{{taskId}}",
+                "complete"
+              ],
+              "query": [
+                {
+                  "key": "completed",
+                  "value": "true",
+                  "description": "false to reopen"
+                }
+              ]
+            },
+            "description": "Mark complete (or reopen with completed=false)."
+          }
+        },
+        {
+          "name": "Get Task by Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks",
+                "{{taskId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks",
+                "{{taskId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Finish backend API v2\",\n  \"description\": \"Wire the profile endpoints\",\n  \"priority\": \"MEDIUM\",\n  \"category\": \"WORK\",\n  \"dueDate\": \"2026-07-21T17:00:00\",\n  \"reminderTime\": \"2026-07-21T09:00:00\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "tasks",
+                "{{taskId}}"
               ]
             }
           }
