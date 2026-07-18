@@ -3538,9 +3538,125 @@
               }
             }
           ]
+        },
+        {
+          "name": "Demo Wallet",
+          "item": [
+            {
+              "name": "Get Wallet (creates on first access)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/wallet",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "wallet"
+                  ]
+                },
+                "description": "Simulated wallet - no real money. Created with a 0 balance on first call."
+              }
+            },
+            {
+              "name": "Top Up (simulated)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/wallet/top-up",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "wallet",
+                    "top-up"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 100.00,\n  \"note\": \"demo top-up\"\n}"
+                },
+                "description": "Simulated deposit. Top up before RSVPing to a paid event."
+              }
+            },
+            {
+              "name": "Pay (mock KHQR)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/wallet/pay",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "wallet",
+                    "pay"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 15.00,\n  \"merchant\": \"Brown Coffee\",\n  \"note\": \"iced latte\"\n}"
+                },
+                "description": "Simulated KHQR payment. Client passes the scanned amount and merchant. Fails with DEMO_WALLET_INSUFFICIENT_BALANCE if the balance is too low."
+              }
+            },
+            {
+              "name": "Transaction History",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/wallet/transactions?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "wallet",
+                    "transactions"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Paginated, most recent first."
+              }
+            }
+          ]
         }
       ],
-      "description": "Finance domain, by feature. Expenses, Budgets and Saving Goals done (Phases 1-3)."
+      "description": "Finance domain, by feature. Expenses, Budgets, Saving Goals and Demo Wallet done (Phases 1-3, 5)."
     },
     {
       "name": "Entertainment",

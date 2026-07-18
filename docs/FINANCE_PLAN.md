@@ -1,6 +1,7 @@
 # Finance Domain — Implementation Plan
 
-Status: Phases 1-3 done (2026-07-18); Phases 4-6 not started. Owner: Sela (Finance, per Team Assignment v5).
+Status: Phases 1-3, 5 done; Phase 4 and 6 not started. Owner: Sela (Finance, per Team Assignment v5).
+Order note: Phase 5 done before 4 (per the suggested order) to unblock Community paid RSVP.
 Scope: backend only. Payments are simulation only — no real banking, no real KHQR.
 
 ---
@@ -15,7 +16,7 @@ Measured 2026-07-18. Tables exist (migration 0008); services are stubs.
 | Budget | yes | yes | **done** | yes |
 | Saving goal | yes | yes | **done** | yes |
 | Financial lesson | yes | yes | none | none |
-| Demo wallet | yes | yes | none | none |
+| Demo wallet | yes | yes | **done** | **done** |
 
 `ExpenseServiceImpl.create` echoes the request back with a null id and saves
 nothing — the same lying stub as Community. Treat "endpoint exists" as unproven.
@@ -26,9 +27,10 @@ Two schema gaps (same pattern as Community):
 - **No finance quiz-attempt table.** `financial_quiz_questions` exists, but there
   is nowhere to record a user's answer/score to award quiz XP once (Phase 4).
 
-Demo wallet already has a real consumer: Community paid RSVP debits it. But there
-is no way to CREATE a wallet or add balance yet, so paid RSVP fails with
-DEMO_WALLET_NOT_FOUND until Phase 5 lands.
+Demo wallet already has a real consumer: Community paid RSVP debits it. Before
+Phase 5 there was no way to CREATE a wallet or add balance, so paid RSVP failed
+with DEMO_WALLET_NOT_FOUND. Phase 5 (done) adds get-or-create + top-up, so that
+path now works.
 
 ---
 
@@ -85,12 +87,18 @@ No dependencies. Everything else reads from expenses.
       wanted; otherwise fold "passed" into lesson_progress.
 - [ ] XP writes to xp_history + users.total_xp, consistent with Community RSVP.
 
-## Phase 5 — Demo Wallet / KHQR Simulation
+## Phase 5 — Demo Wallet / KHQR Simulation — DONE
 
-- [ ] Get-or-create wallet, balance.
-- [ ] Top-up (simulated deposit), scan mock KHQR, mock payment, transaction
-      history. All simulation - label it, never imply a real transfer.
-- [ ] Unblocks Community paid RSVP (currently DEMO_WALLET_NOT_FOUND with no wallet).
+- [x] Get-or-create wallet (`GET /finance/wallet`), balance + currency (USD).
+      Created on first access; the UNIQUE(user_id) race is caught and re-read.
+- [x] Top-up (`POST /finance/wallet/top-up`, DEPOSIT) and mock KHQR payment
+      (`POST /finance/wallet/pay`, MOCK_KHQR_PAYMENT); paginated transaction
+      history (`GET /finance/wallet/transactions`). Every balance move writes a
+      DemoTransaction and logs "SIMULATED" - never implies a real transfer.
+      Insufficient balance throws before any write (no FAILED row), matching the
+      paid-RSVP debit path.
+- [x] Unblocks Community paid RSVP: a user can now open a wallet and top up, so
+      settlePayment no longer dead-ends at DEMO_WALLET_NOT_FOUND. Tests.
 
 ## Phase 6 — BFF
 
