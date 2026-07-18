@@ -35,6 +35,7 @@ class TaskServiceImplTest {
     private static final UUID TASK_ID = UUID.randomUUID();
 
     @Mock private TaskRepository taskRepository;
+    @Mock private kh.edu.acleda.campuslink.modules.entertainment.service.RewardService rewardService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -43,7 +44,7 @@ class TaskServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new TaskServiceImpl(taskRepository, userRepository, currentUserProvider);
+        service = new TaskServiceImpl(taskRepository, rewardService, userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
 

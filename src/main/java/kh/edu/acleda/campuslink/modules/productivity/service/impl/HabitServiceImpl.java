@@ -15,6 +15,7 @@ import kh.edu.acleda.campuslink.modules.productivity.entity.Habit;
 import kh.edu.acleda.campuslink.modules.productivity.entity.HabitCheckIn;
 import kh.edu.acleda.campuslink.modules.productivity.repository.HabitCheckInRepository;
 import kh.edu.acleda.campuslink.modules.productivity.repository.HabitRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.productivity.service.HabitService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -28,18 +29,23 @@ public class HabitServiceImpl implements HabitService {
 
     /** completionRate is measured over this trailing window of days. */
     private static final int RATE_WINDOW_DAYS = 30;
+    private static final String XP_SOURCE = "HABIT";
+    private static final int CHECK_IN_XP = 5;
 
     private final HabitRepository habitRepository;
     private final HabitCheckInRepository checkInRepository;
+    private final RewardService rewardService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public HabitServiceImpl(HabitRepository habitRepository,
                             HabitCheckInRepository checkInRepository,
+                            RewardService rewardService,
                             UserRepository userRepository,
                             CurrentUserProvider currentUserProvider) {
         this.habitRepository = habitRepository;
         this.checkInRepository = checkInRepository;
+        this.rewardService = rewardService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -108,8 +114,14 @@ public class HabitServiceImpl implements HabitService {
         // insert, which the unique constraint would reject anyway.
         HabitCheckIn checkIn = checkInRepository.findByHabitIdAndUserIdAndCheckInDate(id, userId, date)
             .orElseGet(() -> HabitCheckIn.builder().habit(habit).user(habit.getUser()).checkInDate(date).build());
+        boolean wasCompleted = Boolean.TRUE.equals(checkIn.getCompleted());
         checkIn.setCompleted(completed);
         checkInRepository.save(checkIn);
+
+        // XP only on the transition to completed, so re-checking the same day pays once.
+        if (completed && !wasCompleted) {
+            rewardService.award(loadCurrentUser(), XP_SOURCE, id, CHECK_IN_XP);
+        }
         return toResponse(habit);
     }
 

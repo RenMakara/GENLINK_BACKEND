@@ -81,17 +81,38 @@ for lists, owner-scoped lookups return not-found, soft delete via deletedAt, bil
 via _en/_km + LanguageResolver, XP via xp_history + users.total_xp. English seed only;
 Khmer left for the content team.
 
-## Decisions (locked with product)
+## Decisions (locked with product; revised 2026-07-19 after reviewing the user flow)
 
 1. **Quiz XP = once per quiz, scaled by score.** `xp = round(xpReward * correct/total)`,
-   granted only on the first completed attempt; replays still log an attempt + update best
-   score but pay 0 XP. (Anti-farm.)
-2. **Badges = list + earned flag + ADMIN grant.** Users see all badges (earned flag) and
-   their own; awarding is an ADMIN-only grant endpoint. No requirement-parsing.
-3. **Leaderboard = OVERALL_XP + weekly/monthly, computed on read.** All-time from
-   users.total_xp; weekly/monthly summed from xp_history. Top N + the caller's rank/points.
-   Per-category is a later stretch; the stored leaderboards table is left unused for now.
-4. **Short content = deferred** (see Phase 5).
+   granted only on the first completed attempt; replays still log an attempt but pay 0.
+2. **Central reward pipeline (NEW).** The flow shows Earn XP -> Update User Level + XP
+   History + Badge check. Add a shared `RewardService.award(user, source, sourceId, xp)`
+   that bumps total_xp, recomputes users.level, writes xp_history, and auto-unlocks
+   milestone badges. Retrofit the 4 existing inline XP sites (RSVP, quiz, focus, lesson)
+   and add XP to habit check-in + task completion. Level formula: 100 XP per level
+   (`level = 1 + total_xp/100`), documented and easy to tune.
+3. **Badges = auto-unlock on milestones** (revised from ADMIN-grant). Seed the named
+   badges from the flow (Productivity Hero, Communication Helper, Financial Starter,
+   Consistency Master, Quiz champion, Event explorer) with XP/count thresholds; the reward
+   pipeline unlocks them. Still expose list + earned flag + "my badges".
+4. **Leaderboard = period x category, computed on read** (expanded). period =
+   WEEKLY/MONTHLY/ALL_TIME; category = OVERALL_XP + PRODUCTIVITY/COMMUNITY_ENGAGEMENT/
+   FINANCIAL_LEARNING/QUIZ_PERFORMANCE from xp_history.source_type. Top N + caller rank.
+   **Friends ranking deferred** (needs the follow graph).
+5. **Short content = build a basic version** (revised). List/detail by category +
+   like/save/share counters + creator-profile link. No upload/media pipeline.
+6. **Multiplayer quiz = deferred pending confirmation.** The flow has Find Opponent ->
+   Start Match; real-time matchmaking is a feature on its own (WebSocket, like Chat).
+
+## Revised phase order (dependency-driven)
+
+0. **Reward pipeline** (foundation) - RewardService + level + retrofit + habit/task XP.
+1. Quiz - DONE (single-player; will call RewardService after Phase 0).
+3. **Badges** - catalog + earned flag + auto-unlock wired into RewardService.
+2. **Daily Challenges** - join/complete/claim via RewardService.
+4. **Leaderboard** - period x category on read.
+5. **Short content** - list/detail + counters.
+Deferred: Multiplayer quiz, Friends ranking, Chat.
 
 ## Follow-ups
 

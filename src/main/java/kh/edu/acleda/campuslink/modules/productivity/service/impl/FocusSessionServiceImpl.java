@@ -4,8 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import kh.edu.acleda.campuslink.modules.entertainment.entity.XpHistory;
-import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.productivity.dto.request.FocusSessionStartRequest;
 import kh.edu.acleda.campuslink.modules.productivity.dto.response.FocusSessionResponse;
 import kh.edu.acleda.campuslink.modules.productivity.dto.response.FocusStatsResponse;
@@ -33,16 +32,16 @@ public class FocusSessionServiceImpl implements FocusSessionService {
     private static final int XP_CAP = 30;          // capped so a huge duration can't farm XP
 
     private final FocusSessionRepository focusSessionRepository;
-    private final XpHistoryRepository xpHistoryRepository;
+    private final RewardService rewardService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public FocusSessionServiceImpl(FocusSessionRepository focusSessionRepository,
-                                   XpHistoryRepository xpHistoryRepository,
+                                   RewardService rewardService,
                                    UserRepository userRepository,
                                    CurrentUserProvider currentUserProvider) {
         this.focusSessionRepository = focusSessionRepository;
-        this.xpHistoryRepository = xpHistoryRepository;
+        this.rewardService = rewardService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -116,13 +115,7 @@ public class FocusSessionServiceImpl implements FocusSessionService {
         if (xp <= 0) {
             return;
         }
-        User user = loadCurrentUser();
-        user.setTotalXp(user.getTotalXp() + xp);
-        userRepository.save(user);
-        xpHistoryRepository.save(XpHistory.builder()
-            .user(user).sourceType(XP_SOURCE).sourceId(session.getId()).xpAmount(xp).build());
-        log.info("Focus session XP: user={} session={} minutes={} xp={}",
-            user.getId(), session.getId(), session.getDurationMinutes(), xp);
+        rewardService.award(loadCurrentUser(), XP_SOURCE, session.getId(), xp);
     }
 
     private FocusSessionResponse toResponse(FocusSession s) {

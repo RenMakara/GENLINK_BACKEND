@@ -41,6 +41,7 @@ class HabitServiceImplTest {
 
     @Mock private HabitRepository habitRepository;
     @Mock private HabitCheckInRepository checkInRepository;
+    @Mock private kh.edu.acleda.campuslink.modules.entertainment.service.RewardService rewardService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -50,7 +51,8 @@ class HabitServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new HabitServiceImpl(habitRepository, checkInRepository, userRepository, currentUserProvider);
+        service = new HabitServiceImpl(habitRepository, checkInRepository, rewardService, userRepository,
+            currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
         habit = Habit.builder().user(user).title("Read").category("STUDY").frequency("DAILY").build();
