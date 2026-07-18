@@ -17,7 +17,7 @@ import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizAttemptRepo
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizOptionRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizQuestionRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizRepository;
-import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.entertainment.service.impl.QuizServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -37,6 +37,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -62,7 +63,7 @@ class QuizServiceImplTest {
     @Mock private QuizOptionRepository optionRepository;
     @Mock private QuizAttemptRepository attemptRepository;
     @Mock private QuizAttemptAnswerRepository answerRepository;
-    @Mock private XpHistoryRepository xpHistoryRepository;
+    @Mock private RewardService rewardService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -73,7 +74,7 @@ class QuizServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new QuizServiceImpl(quizRepository, questionRepository, optionRepository, attemptRepository,
-            answerRepository, xpHistoryRepository, userRepository, currentUserProvider);
+            answerRepository, rewardService, userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
         ReflectionTestUtils.setField(user, "totalXp", 0);
@@ -146,8 +147,7 @@ class QuizServiceImplTest {
         assertThat(r.score()).isEqualTo(100);
         assertThat(r.correctCount()).isEqualTo(2);
         assertThat(r.xpEarned()).isEqualTo(30);
-        assertThat(user.getTotalXp()).isEqualTo(30);
-        verify(xpHistoryRepository).save(any());
+        verify(rewardService).award(any(), eq("QUIZ"), eq(QUIZ_ID), eq(30));
     }
 
     @Test
@@ -166,8 +166,7 @@ class QuizServiceImplTest {
 
         assertThat(r.score()).isEqualTo(100);
         assertThat(r.xpEarned()).isZero();
-        assertThat(user.getTotalXp()).isZero();
-        verify(xpHistoryRepository, never()).save(any());
+        verify(rewardService, never()).award(any(), any(), any(), anyInt());
     }
 
     @Test

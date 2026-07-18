@@ -10,6 +10,7 @@ import kh.edu.acleda.campuslink.modules.productivity.dto.request.TaskCreateReque
 import kh.edu.acleda.campuslink.modules.productivity.dto.response.TaskResponse;
 import kh.edu.acleda.campuslink.modules.productivity.entity.Task;
 import kh.edu.acleda.campuslink.modules.productivity.repository.TaskRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.productivity.service.TaskService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -21,14 +22,20 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TaskServiceImpl implements TaskService {
 
+    private static final String XP_SOURCE = "TASK";
+    private static final int COMPLETE_XP = 5;
+
     private final TaskRepository taskRepository;
+    private final RewardService rewardService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public TaskServiceImpl(TaskRepository taskRepository,
+                           RewardService rewardService,
                            UserRepository userRepository,
                            CurrentUserProvider currentUserProvider) {
         this.taskRepository = taskRepository;
+        this.rewardService = rewardService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -96,8 +103,13 @@ public class TaskServiceImpl implements TaskService {
     @Transactional
     public TaskResponse setCompleted(UUID id, boolean completed) {
         Task task = loadOwned(id);
+        boolean wasCompleted = Boolean.TRUE.equals(task.getCompleted());
         task.setCompleted(completed);
         taskRepository.save(task);
+        // XP only on the transition to completed, so toggling does not farm XP.
+        if (completed && !wasCompleted) {
+            rewardService.award(loadCurrentUser(), XP_SOURCE, id, COMPLETE_XP);
+        }
         return toResponse(task);
     }
 

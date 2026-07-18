@@ -13,8 +13,7 @@ import kh.edu.acleda.campuslink.modules.community.enums.RsvpStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.EventServiceImpl;
-import kh.edu.acleda.campuslink.modules.entertainment.entity.XpHistory;
-import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
@@ -39,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -54,7 +54,7 @@ class EventServiceImplTest {
     @Mock private EventRsvpRepository rsvpRepository;
     @Mock private DemoWalletRepository demoWalletRepository;
     @Mock private DemoTransactionRepository demoTransactionRepository;
-    @Mock private XpHistoryRepository xpHistoryRepository;
+    @Mock private RewardService rewardService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -65,7 +65,7 @@ class EventServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new EventServiceImpl(eventRepository, rsvpRepository, demoWalletRepository,
-            demoTransactionRepository, xpHistoryRepository, userRepository, currentUserProvider);
+            demoTransactionRepository, rewardService, userRepository, currentUserProvider);
 
         user = new User();
         user.setEmail("user@example.com");
@@ -101,9 +101,8 @@ class EventServiceImplTest {
         assertThat(response.status()).isEqualTo(RsvpStatus.JOINED);
         assertThat(response.attendeeCount()).isEqualTo(4);
         assertThat(response.xpAwarded()).isEqualTo(10);
-        assertThat(user.getTotalXp()).isEqualTo(60);
         verify(eventRepository).reserveSeat(EVENT_ID);
-        verify(xpHistoryRepository).save(any(XpHistory.class));
+        verify(rewardService).award(any(), eq("EVENT_RSVP"), eq(EVENT_ID), eq(10));
     }
 
     /** RSVP backs a button and (event_id, user_id) is unique. */
@@ -117,7 +116,7 @@ class EventServiceImplTest {
         assertThat(response.attendeeCount()).isEqualTo(3);
         assertThat(response.xpAwarded()).isZero();
         verify(eventRepository, never()).reserveSeat(any());
-        verify(xpHistoryRepository, never()).save(any(XpHistory.class));
+        verify(rewardService, never()).award(any(), any(), any(), anyInt());
     }
 
     @Test

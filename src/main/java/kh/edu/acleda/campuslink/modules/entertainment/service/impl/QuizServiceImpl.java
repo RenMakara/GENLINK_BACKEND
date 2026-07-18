@@ -17,15 +17,14 @@ import kh.edu.acleda.campuslink.modules.entertainment.entity.QuizAttempt;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.QuizAttemptAnswer;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.QuizOption;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.QuizQuestion;
-import kh.edu.acleda.campuslink.modules.entertainment.entity.XpHistory;
 import kh.edu.acleda.campuslink.modules.entertainment.enums.QuizDifficulty;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizAttemptAnswerRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizAttemptRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizOptionRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizQuestionRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizRepository;
-import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.service.QuizService;
+import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -33,15 +32,12 @@ import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.localization.LocalizedTextSelector;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class QuizServiceImpl implements QuizService {
 
-    private static final Logger log = LoggerFactory.getLogger(QuizServiceImpl.class);
     private static final String XP_SOURCE = "QUIZ";
 
     private final QuizRepository quizRepository;
@@ -49,7 +45,7 @@ public class QuizServiceImpl implements QuizService {
     private final QuizOptionRepository optionRepository;
     private final QuizAttemptRepository attemptRepository;
     private final QuizAttemptAnswerRepository answerRepository;
-    private final XpHistoryRepository xpHistoryRepository;
+    private final RewardService rewardService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
@@ -58,7 +54,7 @@ public class QuizServiceImpl implements QuizService {
                            QuizOptionRepository optionRepository,
                            QuizAttemptRepository attemptRepository,
                            QuizAttemptAnswerRepository answerRepository,
-                           XpHistoryRepository xpHistoryRepository,
+                           RewardService rewardService,
                            UserRepository userRepository,
                            CurrentUserProvider currentUserProvider) {
         this.quizRepository = quizRepository;
@@ -66,7 +62,7 @@ public class QuizServiceImpl implements QuizService {
         this.optionRepository = optionRepository;
         this.attemptRepository = attemptRepository;
         this.answerRepository = answerRepository;
-        this.xpHistoryRepository = xpHistoryRepository;
+        this.rewardService = rewardService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -152,7 +148,7 @@ public class QuizServiceImpl implements QuizService {
         answerRepository.saveAll(answerRows);
 
         if (xpEarned > 0) {
-            awardXp(user, quizId, xpEarned);
+            rewardService.award(user, XP_SOURCE, quizId, xpEarned);
         }
         return new QuizAttemptResponse(attempt.getId(), score, correctCount, total, xpEarned, results);
     }
@@ -167,14 +163,6 @@ public class QuizServiceImpl implements QuizService {
                     : LocalizedTextSelector.select(a.getQuiz().getTitleEn(), a.getQuiz().getTitleKm(), language),
                 a.getScore(), a.getCorrectCount(), a.getTotalQuestions(), a.getXpEarned(), a.getCompletedAt()))
             .toList();
-    }
-
-    private void awardXp(User user, UUID quizId, int xp) {
-        user.setTotalXp(user.getTotalXp() + xp);
-        userRepository.save(user);
-        xpHistoryRepository.save(XpHistory.builder()
-            .user(user).sourceType(XP_SOURCE).sourceId(quizId).xpAmount(xp).build());
-        log.info("Quiz XP: user={} quiz={} xp={}", user.getId(), quizId, xp);
     }
 
     private Quiz loadQuiz(UUID id) {

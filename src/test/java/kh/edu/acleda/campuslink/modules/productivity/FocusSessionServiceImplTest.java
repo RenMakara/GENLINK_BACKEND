@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.productivity.dto.request.FocusSessionStartRequest;
 import kh.edu.acleda.campuslink.modules.productivity.dto.response.FocusSessionResponse;
 import kh.edu.acleda.campuslink.modules.productivity.dto.response.FocusStatsResponse;
@@ -27,6 +27,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,7 +41,7 @@ class FocusSessionServiceImplTest {
     private static final UUID SESSION_ID = UUID.randomUUID();
 
     @Mock private FocusSessionRepository focusSessionRepository;
-    @Mock private XpHistoryRepository xpHistoryRepository;
+    @Mock private RewardService rewardService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -48,7 +50,7 @@ class FocusSessionServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new FocusSessionServiceImpl(focusSessionRepository, xpHistoryRepository,
+        service = new FocusSessionServiceImpl(focusSessionRepository, rewardService,
             userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
@@ -92,8 +94,7 @@ class FocusSessionServiceImplTest {
         assertThat(r.completed()).isTrue();
         assertThat(r.xpEarned()).isEqualTo(5);
         assertThat(r.endedAt()).isNotNull();
-        assertThat(user.getTotalXp()).isEqualTo(5);
-        verify(xpHistoryRepository).save(any());
+        verify(rewardService).award(any(), eq("FOCUS_SESSION"), any(), eq(5));
     }
 
     @Test
@@ -110,8 +111,7 @@ class FocusSessionServiceImplTest {
             .thenReturn(Optional.of(session(3, false)));
 
         assertThat(service.complete(SESSION_ID).xpEarned()).isZero();
-        assertThat(user.getTotalXp()).isZero();
-        verify(xpHistoryRepository, never()).save(any());
+        verify(rewardService, never()).award(any(), any(), any(), anyInt());
     }
 
     @Test
@@ -122,8 +122,7 @@ class FocusSessionServiceImplTest {
 
         service.complete(SESSION_ID);
 
-        assertThat(user.getTotalXp()).isZero();
-        verify(xpHistoryRepository, never()).save(any());
+        verify(rewardService, never()).award(any(), any(), any(), anyInt());
     }
 
     @Test
