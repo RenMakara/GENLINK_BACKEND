@@ -45,6 +45,9 @@ public class FinancialLesson extends BaseEntity {
     @Column(name = "content_type", length = 50)
     private String contentType;
 
+    @Column(name = "media_url", length = 500)
+    private String mediaUrl;
+
     @Column(name = "estimated_time")
     private Integer estimatedTime;
 

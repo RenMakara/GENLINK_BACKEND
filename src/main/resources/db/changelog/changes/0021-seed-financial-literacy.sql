@@ -1,0 +1,30 @@
+--liquibase formatted sql
+
+--changeset genlink:0021-seed-financial-literacy
+-- English sample lessons + quizzes so the literacy endpoints are demoable. Khmer
+-- content (title_km/content_km/question_*_km/option_*_km/explanation_km) is left NULL
+-- on purpose - LocalizedTextSelector falls back to English, and real Khmer authoring
+-- is a content-team task, not machine translation. One lesson per topic, 2 questions each.
+INSERT INTO financial_lessons (lesson_id, title_en, content_en, topic, content_type, estimated_time, xp_reward, media_url) VALUES
+    ('a0000000-0000-4000-8000-000000000001', 'Why saving early matters', 'Saving even a small amount every week builds a habit and, over time, a cushion. Start with a fixed amount and treat it like a bill you owe yourself.', 'SAVING_MONEY', 'ARTICLE', 4, 20, NULL),
+    ('a0000000-0000-4000-8000-000000000002', 'Build your first budget', 'A budget is a plan for your money: list your income, then your fixed and flexible spending. What is left is what you can save or spend freely.', 'BUDGETING', 'ARTICLE', 5, 20, NULL),
+    ('a0000000-0000-4000-8000-000000000003', 'Understand debt before you borrow', 'Debt is borrowed money you must repay, usually with interest. Borrow only what you can repay, and always know the interest rate before you sign.', 'DEBT_AWARENESS', 'KHMER_TIP', 3, 20, NULL),
+    ('a0000000-0000-4000-8000-000000000004', 'Investing basics', 'Investing puts your money to work so it can grow. It carries risk, so start small, diversify, and invest only money you will not need soon.', 'INVESTING_BASICS', 'VIDEO', 6, 25, 'https://example.com/videos/investing-basics.mp4'),
+    ('a0000000-0000-4000-8000-000000000005', 'Your emergency fund', 'An emergency fund covers surprise costs like a medical bill or a broken phone. Aim for about one month of expenses kept separate from daily spending.', 'EMERGENCY_FUND', 'ARTICLE', 4, 20, NULL),
+    ('a0000000-0000-4000-8000-000000000006', 'Spend smart', 'Smart spending means paying for what you value and cutting what you do not. Wait a day before big buys and review your subscriptions monthly.', 'SMART_SPENDING', 'KHMER_TIP', 3, 20, NULL);
+
+INSERT INTO financial_quiz_questions (question_id, lesson_id, question_text_en, option_a_en, option_b_en, option_c_en, option_d_en, correct_answer, explanation_en) VALUES
+    ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'What is the best way to start saving?', 'Wait until you earn more', 'Save a small fixed amount regularly', 'Only save leftover money', 'Borrow to save', 'B', 'A regular fixed amount builds the habit; leftovers rarely appear.'),
+    ('b0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000001', 'Saving early mainly helps because of...', 'Luck', 'Time letting savings grow', 'Higher spending', 'Avoiding all banks', 'B', 'Starting early gives your money more time to accumulate.'),
+    ('b0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000002', 'A budget is best described as...', 'A punishment', 'A plan for your money', 'A type of loan', 'A bank account', 'B', 'A budget is simply a plan for income and spending.'),
+    ('b0000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000002', 'In a budget, what comes first?', 'Flexible spending', 'Income', 'Savings goal', 'Debt', 'B', 'You plan against your income, so list it first.'),
+    ('b0000000-0000-4000-8000-000000000005', 'a0000000-0000-4000-8000-000000000003', 'Before borrowing, you should always know the...', 'Lender name', 'Interest rate', 'Bank colour', 'Weather', 'B', 'The interest rate tells you the true cost of the debt.'),
+    ('b0000000-0000-4000-8000-000000000006', 'a0000000-0000-4000-8000-000000000003', 'How much should you borrow?', 'As much as offered', 'Only what you can repay', 'Nothing ever', 'Twice your income', 'B', 'Borrow only what you can comfortably repay.'),
+    ('b0000000-0000-4000-8000-000000000007', 'a0000000-0000-4000-8000-000000000004', 'Investing always involves...', 'Guaranteed profit', 'Some risk', 'No risk', 'A bank only', 'B', 'All investing carries some risk; returns are never guaranteed.'),
+    ('b0000000-0000-4000-8000-000000000008', 'a0000000-0000-4000-8000-000000000004', 'A good rule when starting to invest is...', 'Invest rent money', 'Start small and diversify', 'Put all in one stock', 'Borrow to invest', 'B', 'Starting small and diversifying limits your risk.'),
+    ('b0000000-0000-4000-8000-000000000009', 'a0000000-0000-4000-8000-000000000005', 'An emergency fund is for...', 'Holidays', 'Surprise costs', 'Daily coffee', 'Investing', 'B', 'It covers unexpected costs, not planned spending.'),
+    ('b0000000-0000-4000-8000-000000000010', 'a0000000-0000-4000-8000-000000000005', 'A common emergency fund target is...', 'One month of expenses', 'One dollar', 'Ten years of pay', 'Nothing', 'A', 'About one month of expenses is a practical starting target.'),
+    ('b0000000-0000-4000-8000-000000000011', 'a0000000-0000-4000-8000-000000000006', 'Smart spending means...', 'Buying everything on sale', 'Paying for what you value', 'Never spending', 'Only borrowing', 'B', 'Spend on what matters to you and cut the rest.'),
+    ('b0000000-0000-4000-8000-000000000012', 'a0000000-0000-4000-8000-000000000006', 'A good habit before a big purchase is to...', 'Buy immediately', 'Wait a day', 'Borrow for it', 'Ignore the price', 'B', 'A short wait curbs impulse buys.');
+
+--rollback DELETE FROM financial_quiz_questions WHERE lesson_id IN ('a0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000004','a0000000-0000-4000-8000-000000000005','a0000000-0000-4000-8000-000000000006'); DELETE FROM financial_lessons WHERE lesson_id IN ('a0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000004','a0000000-0000-4000-8000-000000000005','a0000000-0000-4000-8000-000000000006');

@@ -37,3 +37,7 @@ databaseChangeLog:
       file: db/changelog/changes/0018-add-event-pricing.sql
   - include:
       file: db/changelog/changes/0019-add-forum-reactions-and-reports.sql
+  - include:
+      file: db/changelog/changes/0020-add-financial-literacy-progress.sql
+  - include:
+      file: db/changelog/changes/0021-seed-financial-literacy.sql

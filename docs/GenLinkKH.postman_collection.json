@@ -3654,9 +3654,165 @@
               }
             }
           ]
+        },
+        {
+          "name": "Financial Literacy",
+          "item": [
+            {
+              "name": "Learning Dashboard",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/dashboard",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "dashboard"
+                  ]
+                },
+                "description": "Six topics with per-topic lesson/completed counts + total literacy XP."
+              }
+            },
+            {
+              "name": "List Lessons",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/lessons?topic=SAVING_MONEY",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "lessons"
+                  ],
+                  "query": [
+                    {
+                      "key": "topic",
+                      "value": "SAVING_MONEY",
+                      "description": "Optional: SAVING_MONEY | BUDGETING | DEBT_AWARENESS | INVESTING_BASICS | EMERGENCY_FUND | SMART_SPENDING. Omit for all.",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Send Accept-Language: km for Khmer (falls back to English where Khmer is unseeded)."
+              }
+            },
+            {
+              "name": "Lesson Detail",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/lessons/a0000000-0000-4000-8000-000000000001",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "lessons",
+                    "a0000000-0000-4000-8000-000000000001"
+                  ]
+                },
+                "description": "Uses a seeded lesson id (Why saving early matters)."
+              }
+            },
+            {
+              "name": "Finish Learning",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/lessons/a0000000-0000-4000-8000-000000000001/complete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "lessons",
+                    "a0000000-0000-4000-8000-000000000001",
+                    "complete"
+                  ]
+                },
+                "description": "Marks the lesson read. No reward - that comes from the quiz."
+              }
+            },
+            {
+              "name": "Get Quiz",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/lessons/a0000000-0000-4000-8000-000000000001/quiz",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "lessons",
+                    "a0000000-0000-4000-8000-000000000001",
+                    "quiz"
+                  ]
+                },
+                "description": "Questions + options; the correct answer is withheld."
+              }
+            },
+            {
+              "name": "Submit Quiz",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/literacy/lessons/a0000000-0000-4000-8000-000000000001/quiz/submit",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "literacy",
+                    "lessons",
+                    "a0000000-0000-4000-8000-000000000001",
+                    "quiz",
+                    "submit"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"answers\": [\n    { \"questionId\": \"b0000000-0000-4000-8000-000000000001\", \"selectedOption\": \"B\" },\n    { \"questionId\": \"b0000000-0000-4000-8000-000000000002\", \"selectedOption\": \"B\" }\n  ]\n}"
+                },
+                "description": "Both answers correct -> score 100, passes. First pass grants XP + a $1 simulated wallet reward (once)."
+              }
+            }
+          ]
         }
       ],
-      "description": "Finance domain, by feature. Expenses, Budgets, Saving Goals and Demo Wallet done (Phases 1-3, 5)."
+      "description": "Finance domain, by feature. All 6 phases done: Expenses, Budgets, Saving Goals, Demo Wallet, Financial Literacy + the mobile finance-dashboard BFF."
     },
     {
       "name": "Entertainment",

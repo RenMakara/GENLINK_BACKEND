@@ -1,8 +1,8 @@
 # Finance Domain — Implementation Plan
 
-Status: Phases 1-3, 5, 6 done; Phase 4 not started. Owner: Sela (Finance, per Team Assignment v5).
-Order note: Phase 5 done before 4 (per the suggested order) to unblock Community paid RSVP;
-Phase 6 (BFF) done before 4 since it only needs the finished phases.
+Status: Phases 1-6 all done. Owner: Sela (Finance, per Team Assignment v5).
+Order note: 5 and 6 were done before 4 (5 unblocks Community paid RSVP; 6 only needs
+the finished phases). Phase 4 detail lives in backend/docs/FINANCE_LITERACY_PLAN.md.
 Scope: backend only. Payments are simulation only — no real banking, no real KHQR.
 
 ---
@@ -16,17 +16,16 @@ Measured 2026-07-18. Tables exist (migration 0008); services are stubs.
 | Expense | yes | yes | **done** | yes |
 | Budget | yes | yes | **done** | yes |
 | Saving goal | yes | yes | **done** | yes |
-| Financial lesson | yes | yes | none | none |
+| Financial lesson | yes | yes | **done** | **done** |
 | Demo wallet | yes | yes | **done** | **done** |
 
 `ExpenseServiceImpl.create` echoes the request back with a null id and saves
 nothing — the same lying stub as Community. Treat "endpoint exists" as unproven.
 
-Two schema gaps (same pattern as Community):
-- **No `lesson_progress` table.** The data dictionary had it; migration 0008 did
-  not create it. Needed to award lesson XP once per user (Phase 4).
-- **No finance quiz-attempt table.** `financial_quiz_questions` exists, but there
-  is nowhere to record a user's answer/score to award quiz XP once (Phase 4).
+Two schema gaps (same pattern as Community) — both closed by migration 0020 in Phase 4:
+- ~~No `lesson_progress` table.~~ Added: tracks completion + best score + a `rewarded`
+  flag so lesson XP is awarded once per user.
+- ~~No finance quiz-attempt table.~~ Added `finance_quiz_attempts` for retake history.
 
 Demo wallet already has a real consumer: Community paid RSVP debits it. Before
 Phase 5 there was no way to CREATE a wallet or add balance, so paid RSVP failed
@@ -77,16 +76,20 @@ No dependencies. Everything else reads from expenses.
 - [x] Progress bar data: response carries remainingAmount (floored at 0) and
       progressPercent (0-100, capped) alongside current/target. Tests.
 
-## Phase 4 — Financial Literacy
+## Phase 4 — Financial Literacy — DONE
 
-- [ ] Lessons: list by topic, detail. Bilingual (title_en/km, content_en/km) via
-      LanguageResolver + LocalizedTextSelector.
-- [ ] **Migration: lesson_progress** (user, lesson, completed, unique(user,lesson))
-      so lesson XP is awarded once.
-- [ ] Quiz: questions per lesson, submit answers -> score. XP once per lesson.
-      **Migration: a finance quiz attempt/answer table** if per-attempt history is
-      wanted; otherwise fold "passed" into lesson_progress.
-- [ ] XP writes to xp_history + users.total_xp, consistent with Community RSVP.
+Full detail in backend/docs/FINANCE_LITERACY_PLAN.md.
+
+- [x] Migration 0020: `lesson_progress` (+ `rewarded` guard), `finance_quiz_attempts`
+      (history), `financial_lessons.media_url`; `TransactionType.REWARD`. Seed 0021:
+      English sample lessons + quizzes (Khmer left NULL for the content team).
+- [x] Lessons: dashboard (6 topics + progress), list by topic, bilingual detail via
+      LanguageResolver + LocalizedTextSelector; "Finish Learning" via /complete.
+- [x] Quiz: questions per lesson with the correct answer withheld; submit grades,
+      records an attempt, keeps best score.
+- [x] Reward on first pass >= 60% (retakes allowed), once: XP -> xp_history +
+      users.total_xp (sourceType FINANCE_LESSON) AND a $1 simulated wallet credit
+      (TransactionType.REWARD) — both gated by `rewarded`.
 
 ## Phase 5 — Demo Wallet / KHQR Simulation — DONE
 
