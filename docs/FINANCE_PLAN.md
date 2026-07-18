@@ -1,7 +1,8 @@
 # Finance Domain — Implementation Plan
 
-Status: Phases 1-3, 5 done; Phase 4 and 6 not started. Owner: Sela (Finance, per Team Assignment v5).
-Order note: Phase 5 done before 4 (per the suggested order) to unblock Community paid RSVP.
+Status: Phases 1-3, 5, 6 done; Phase 4 not started. Owner: Sela (Finance, per Team Assignment v5).
+Order note: Phase 5 done before 4 (per the suggested order) to unblock Community paid RSVP;
+Phase 6 (BFF) done before 4 since it only needs the finished phases.
 Scope: backend only. Payments are simulation only — no real banking, no real KHQR.
 
 ---
@@ -100,11 +101,20 @@ No dependencies. Everything else reads from expenses.
 - [x] Unblocks Community paid RSVP: a user can now open a wallet and top up, so
       settlePayment no longer dead-ends at DEMO_WALLET_NOT_FOUND. Tests.
 
-## Phase 6 — BFF
+## Phase 6 — BFF — DONE
 
-- [ ] `GET /api/v1/mobile/finance-dashboard` (currently a "TODO" stub): monthly
-      summary, budget remaining, saving progress, recent expenses, a financial
-      tip, quick actions.
+- [x] `GET /api/v1/mobile/finance-dashboard` (was a "TODO" stub returning a
+      message): month overview (spent + budget total/remaining/status), top
+      spending categories, saving progress, recent expenses, demo wallet balance,
+      a rotating tip, and quick-action keys. Aggregation lives in
+      MobileFinanceBffServiceImpl (bff module), resolving the user by email like
+      the home BFF. Every section degrades independently - a brand-new user gets a
+      well-formed body with nulls/empties. Spend is computed live from expenses
+      (not Budget.spentAmount). Tests.
+- [ ] Follow-ups: the tip is English-only - needs a bilingual finance-tip seed or
+      reviewed Khmer. The home dashboard's finance card still reads the stale
+      Budget.spentAmount counter (shows spent=0) - flagged separately to fix the
+      same live-spend way.
 
 ---
 
