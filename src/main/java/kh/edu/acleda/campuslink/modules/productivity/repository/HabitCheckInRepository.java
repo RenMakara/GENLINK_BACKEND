@@ -15,4 +15,7 @@ public interface HabitCheckInRepository extends JpaRepository<HabitCheckIn, UUID
 
     /** All check-ins for a habit, newest first - used to compute streak and rate. */
     List<HabitCheckIn> findByHabitIdAndUserIdOrderByCheckInDateDesc(UUID habitId, UUID userId);
+
+    /** The user's completed check-ins for a day - backs the dashboard's per-habit flag. */
+    List<HabitCheckIn> findByUserIdAndCheckInDateAndCompletedTrue(UUID userId, LocalDate checkInDate);
 }

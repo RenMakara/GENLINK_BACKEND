@@ -1,6 +1,6 @@
 # Productivity Domain — Implementation Plan
 
-Status: Phases 1-5 done (2026-07-19); Phase 6 not started. Scope: backend only.
+Status: all 6 phases done (2026-07-19). Scope: backend only.
 Owner: (Productivity, per Team Assignment v5).
 
 The "Study & Productivity" super-app pillar: habits, tasks, goals, a focus timer, and
@@ -80,10 +80,13 @@ Key entity facts:
   bumped atomically (@Modifying, clear/flushAutomatically) only on a real save/unsave,
   and the UNIQUE(user,motivation) race is caught. "My saved" list. Tests.
 
-### Phase 6 — Productivity dashboard BFF (optional)
-- Fill the `MobileProductivityDashboardResponse` stub: today's habits + check-in state,
-  tasks due today, goal progress, focus stats, a motivation card. Mirrors the finance
-  dashboard BFF.
+### Phase 6 — Productivity dashboard BFF — DONE
+- [x] `GET /api/v1/mobile/productivity-dashboard` (was a "TODO" stub): today's habits +
+  per-habit check-in state, tasks summary (total/completed/dueToday/overdue), top goals
+  with progress, focus stats (today + total XP), a rotating motivation card. In
+  MobileProductivityBffServiceImpl (bff module), by-email like the home BFF; every
+  section degrades independently. Goal progress read from the stored synced columns
+  (no per-goal milestone query). Tests.
 
 ## Endpoints (under /api/v1/productivity, existing controllers extended)
 
