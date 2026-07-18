@@ -1,0 +1,100 @@
+# Entertainment Domain — Implementation Plan
+
+Status: Phase 1 (Quiz) done (2026-07-19); Phases 2-4 to build, short content deferred. Scope: backend only.
+Owner: (Entertainment / Gamification, per Team Assignment v5).
+
+The gamification pillar: quizzes, daily challenges, badges, a leaderboard, and short
+(reel) content. Plugs into the XP system (xp_history + users.total_xp) already used by
+Community RSVP, Finance literacy, and Productivity focus sessions.
+
+---
+
+## Where Entertainment stands now
+
+Measured 2026-07-19. Tables exist (migration 0010); the four services are stubs that
+each return an empty list from a single `getAll()`.
+
+| Feature | Tables | Service | Controller |
+|---|---|---|---|
+| Quiz | quizzes, quiz_questions, quiz_options, quiz_attempts, quiz_attempt_answers | **stub** | yes (list only) |
+| Daily challenge | daily_challenges, user_challenges | **stub** | yes (list only) |
+| Badge | badges, user_badges | **stub** | yes (list only) |
+| Leaderboard | leaderboards | **stub** | yes (list only) |
+| Short content | short_contents | none | none |
+
+Key schema facts:
+- **quiz_attempts** has NO unique(quiz,user) - replays are allowed; attempt answers are
+  logged in quiz_attempt_answers. Options carry a `correct` boolean.
+- **user_challenges** has `status` (NOT_STARTED/IN_PROGRESS/COMPLETED/CLAIMED),
+  `progress`, `completed_at`, `claimed_at`, and UNIQUE(challenge,user). challenge_type is
+  HABIT/TASK/FINANCE/QUIZ/EVENT/COMMUNITY/FOCUS.
+- **user_badges** UNIQUE(user,badge); badge has a free-text `requirement` (not
+  machine-evaluable) + icon_url.
+- **leaderboards** stores rank+points per (user,category,period) - but ranks can also be
+  computed on read from users.total_xp / xp_history.
+- **short_contents** has like/save/share counters + creator_id + video/thumbnail URLs.
+
+Reused infra: xp_history + users.total_xp (award pattern from EventServiceImpl);
+LanguageResolver + LocalizedTextSelector for bilingual content.
+
+---
+
+## Phases (proposed)
+
+### Phase 1 — Quiz — DONE
+- [x] List quizzes (filter category / difficulty), detail = questions + options with the
+  `correct` flag withheld; bilingual via LanguageResolver.
+- [x] Submit (`POST /quizzes/{id}/attempts`): grades against quiz_options.correct, writes
+  quiz_attempts + quiz_attempt_answers (a row per answered question), returns score +
+  per-question correctness. XP = round(xpReward * correct/total), awarded once per quiz
+  (existsBy...XpEarnedGreaterThan guard); replays log an attempt but pay 0.
+- [x] History (`GET /quizzes/history`). Seed 0023 = one English quiz. Tests.
+
+### Phase 2 — Daily Challenges
+- List active challenges (deadline in future) with the user's status.
+- Join (create user_challenge IN_PROGRESS), complete (mark COMPLETED), claim (award XP
+  once, set CLAIMED). Progress is user/client-driven - no cross-domain auto-tracking
+  (that would couple Entertainment to every other domain). Seed English challenges.
+- Keeps the Home daily-challenge card real.
+
+### Phase 3 — Badges
+- List all badges with an `earned` flag; "my badges". Awarding approach: see decision 2.
+- Seed English badges.
+
+### Phase 4 — Leaderboard
+- Ranking computed on read (see decision 3): OVERALL_XP from users.total_xp, plus
+  weekly/monthly windows from xp_history. Top N + the current user's own rank.
+
+### Phase 5 — Short content — DEFERRED
+- Deferred like Chat (decision 4). short_contents stays entity+repo only. Short-form
+  video needs a media pipeline and is a feature on its own; the app demos fine without it.
+
+## Endpoints (under /api/v1/entertainment)
+
+`/quizzes` (+ `/{id}`, `/{id}/attempts`), `/challenges` (+ `/{id}/join|complete|claim`,
+`/mine`), `/badges` (+ `/mine`), `/leaderboard`, and (if included) `/short-content`.
+
+## Conventions
+
+Same as the rest: UUID PKs, BaseEntity, DTO in/out, ApiResponse envelope, PageResponse
+for lists, owner-scoped lookups return not-found, soft delete via deletedAt, bilingual
+via _en/_km + LanguageResolver, XP via xp_history + users.total_xp. English seed only;
+Khmer left for the content team.
+
+## Decisions (locked with product)
+
+1. **Quiz XP = once per quiz, scaled by score.** `xp = round(xpReward * correct/total)`,
+   granted only on the first completed attempt; replays still log an attempt + update best
+   score but pay 0 XP. (Anti-farm.)
+2. **Badges = list + earned flag + ADMIN grant.** Users see all badges (earned flag) and
+   their own; awarding is an ADMIN-only grant endpoint. No requirement-parsing.
+3. **Leaderboard = OVERALL_XP + weekly/monthly, computed on read.** All-time from
+   users.total_xp; weekly/monthly summed from xp_history. Top N + the caller's rank/points.
+   Per-category is a later stretch; the stored leaderboards table is left unused for now.
+4. **Short content = deferred** (see Phase 5).
+
+## Follow-ups
+
+- Khmer content for quizzes, challenges, badges needs review (English-only seed).
+- Cross-domain challenge auto-progress (e.g. "complete 3 tasks") is deliberately out of
+  scope - progress is user-driven for now.
