@@ -1,6 +1,6 @@
 # Finance Domain — Implementation Plan
 
-Status: Phase 1 done (2026-07-18); Phases 2-6 not started. Owner: Sela (Finance, per Team Assignment v5).
+Status: Phases 1-2 done (2026-07-18); Phases 3-6 not started. Owner: Sela (Finance, per Team Assignment v5).
 Scope: backend only. Payments are simulation only — no real banking, no real KHQR.
 
 ---
@@ -11,8 +11,8 @@ Measured 2026-07-18. Tables exist (migration 0008); services are stubs.
 
 | Feature | Entity | Repo | Service | Controller |
 |---|---|---|---|---|
-| Expense | yes | yes | **stub** | yes |
-| Budget | yes | yes | **stub** | yes |
+| Expense | yes | yes | **done** | yes |
+| Budget | yes | yes | **done** | yes |
 | Saving goal | yes | yes | **stub** | yes |
 | Financial lesson | yes | yes | none | none |
 | Demo wallet | yes | yes | none | none |
@@ -45,15 +45,20 @@ DEMO_WALLET_NOT_FOUND until Phase 5 lands.
 
 No dependencies. Everything else reads from expenses.
 
-## Phase 2 — Budget Planner
+## Phase 2 — Budget Planner — DONE
 
-- [ ] Monthly budget CRUD, UNIQUE(user, month, year).
-- [ ] Category budgets (budget_categories).
-- [ ] **Spent/remaining/status computed from expenses on read**, not a cached
+- [x] Monthly budget CRUD, UNIQUE(user, month, year) enforced with a clear
+      BUDGET_ALREADY_EXISTS error, not a raw constraint 500.
+- [x] Category budgets (budget_categories); update replaces them wholesale.
+- [x] **Spent/remaining/status computed from expenses on read**, not a cached
       counter. The columns exist, but a cached counter that must track every
       expense create/edit/delete is exactly the drift bug hit repeatedly in
-      Community. Compute `spent = SUM(expenses in that month)` on read instead.
-- [ ] Budget alert = status SAFE / WARNING / LIMIT_REACHED from spent vs total.
+      Community. Compute `spent = SUM(expenses in that month)` on read instead
+      (ExpenseRepository.sumForMonth for total, sumByCategory per category).
+- [x] Budget alert = status SAFE / WARNING / LIMIT_REACHED from spent vs total
+      (WARNING at >= 80%, LIMIT_REACHED at >= 100%).
+- [x] `GET /budgets` list (light, no categories); `GET /budgets/current`,
+      `GET /budgets/{id}` (with category breakdown). Tests.
 
 ## Phase 3 — Saving Goals
 
