@@ -93,6 +93,18 @@ public class DemoWalletServiceImpl implements DemoWalletService {
     }
 
     @Override
+    @Transactional
+    public WalletResponse creditReward(BigDecimal amount, String reason) {
+        DemoWallet wallet = loadOrCreateWallet();
+        wallet.setBalance(wallet.getBalance().add(amount));
+        demoWalletRepository.save(wallet);
+        record(wallet, TransactionType.REWARD, amount, reason);
+        log.info("SIMULATED wallet reward: user={} amount={} reason={} balanceAfter={}",
+            wallet.getUser().getId(), amount, reason, wallet.getBalance());
+        return toResponse(wallet);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public PageResponse<TransactionResponse> transactions(Pageable pageable) {
         DemoWallet wallet = demoWalletRepository.findByUserId(currentUserProvider.getCurrentUserId())

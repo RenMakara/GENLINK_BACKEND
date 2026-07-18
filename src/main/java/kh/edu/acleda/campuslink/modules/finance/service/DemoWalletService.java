@@ -19,5 +19,11 @@ public interface DemoWalletService {
     /** Simulated KHQR payment; debits the balance. */
     WalletResponse pay(WalletPaymentRequest request);
 
+    /**
+     * Credits a simulated reward (e.g. the learning-budget bonus for passing a literacy
+     * quiz) to the current user's wallet as a REWARD transaction.
+     */
+    WalletResponse creditReward(java.math.BigDecimal amount, String reason);
+
     PageResponse<TransactionResponse> transactions(Pageable pageable);
 }
