@@ -1,6 +1,6 @@
 # Productivity Domain — Implementation Plan
 
-Status: Phases 1-4 done (2026-07-19); Phases 5-6 not started. Scope: backend only.
+Status: Phases 1-5 done (2026-07-19); Phase 6 not started. Scope: backend only.
 Owner: (Productivity, per Team Assignment v5).
 
 The "Study & Productivity" super-app pillar: habits, tasks, goals, a focus timer, and
@@ -73,9 +73,12 @@ Key entity facts:
 - [x] Paginated history (`GET /focus-sessions`) and stats (`GET /focus-sessions/stats`:
   today's + all-time sessions/minutes/xp). Tests.
 
-### Phase 5 — Motivation
-- List motivation content (bilingual), detail.
-- Save / unsave (idempotent, maintains saved_count atomically), "my saved" list.
+### Phase 5 — Motivation — DONE
+- [x] List motivation content (bilingual, optional ?category), detail; seed 0022 adds
+  English samples (Khmer left for the content team).
+- [x] Save / unsave (idempotent), each carrying the user's `saved` flag; saved_count is
+  bumped atomically (@Modifying, clear/flushAutomatically) only on a real save/unsave,
+  and the UNIQUE(user,motivation) race is caught. "My saved" list. Tests.
 
 ### Phase 6 — Productivity dashboard BFF (optional)
 - Fill the `MobileProductivityDashboardResponse` stub: today's habits + check-in state,
