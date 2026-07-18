@@ -1,6 +1,6 @@
 # Productivity Domain — Implementation Plan
 
-Status: Phases 1-2 done (2026-07-19); Phases 3-6 not started. Scope: backend only.
+Status: Phases 1-3 done (2026-07-19); Phases 4-6 not started. Scope: backend only.
 Owner: (Productivity, per Team Assignment v5).
 
 The "Study & Productivity" super-app pillar: habits, tasks, goals, a focus timer, and
@@ -58,10 +58,12 @@ Key entity facts:
   avoid the `:param IS NULL` Postgres trap. `overdue` computed on read (past due +
   not completed). Tests.
 
-### Phase 3 — Goals & milestones
-- Goal CRUD; milestone add/toggle/delete.
-- **progressPercentage computed from milestones** (done/total); status auto-flips to
-  COMPLETED at 100%.
+### Phase 3 — Goals & milestones — DONE
+- [x] Goal CRUD, owner-scoped, soft delete; milestone add / complete-reopen / delete
+  (milestones nested under the goal, verified via findByIdAndGoalId).
+- [x] **progressPercentage + status computed from milestones** (done/total): NOT_STARTED
+  / IN_PROGRESS / COMPLETED, auto-flipping to COMPLETED at 100%. Stored columns are also
+  synced on milestone changes but the response computes from milestones. Tests.
 
 ### Phase 4 — Focus sessions (Pomodoro)
 - Start a session, complete it (or abandon). On completion award XP (see decision 2)
