@@ -41,3 +41,5 @@ databaseChangeLog:
       file: db/changelog/changes/0020-add-financial-literacy-progress.sql
   - include:
       file: db/changelog/changes/0021-seed-financial-literacy.sql
+  - include:
+      file: db/changelog/changes/0022-seed-motivation-content.sql

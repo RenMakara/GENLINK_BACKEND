@@ -3536,6 +3536,97 @@
             },
             "description": "Today + all-time sessions, minutes and XP."
           }
+        },
+        {
+          "name": "List Motivation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/motivation?category=FOCUS",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "motivation"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "FOCUS",
+                  "description": "Optional. Omit for all.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Bilingual (send Accept-Language: km for Khmer). Each item carries a saved flag."
+          }
+        },
+        {
+          "name": "Save Motivation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/motivation/c0000000-0000-4000-8000-000000000001/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "motivation",
+                "c0000000-0000-4000-8000-000000000001",
+                "save"
+              ]
+            },
+            "description": "Idempotent. Uses a seeded motivation id."
+          }
+        },
+        {
+          "name": "Unsave Motivation",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/motivation/c0000000-0000-4000-8000-000000000001/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "motivation",
+                "c0000000-0000-4000-8000-000000000001",
+                "save"
+              ]
+            }
+          }
+        },
+        {
+          "name": "My Saved Motivation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/motivation/saved",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productivity",
+                "motivation",
+                "saved"
+              ]
+            }
+          }
         }
       ]
     },
