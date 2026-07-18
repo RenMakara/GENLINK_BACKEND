@@ -3803,7 +3803,8 @@
                 "mobile",
                 "finance-dashboard"
               ]
-            }
+            },
+            "description": "Aggregated Finance screen in one call: month overview (spent + budget total/remaining/status), top categories, saving progress, recent expenses, demo wallet balance, a rotating tip and quick-action keys. Degrades to nulls/empties for a new user."
           }
         },
         {

@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.modules.mobile.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import kh.edu.acleda.campuslink.modules.bff.dto.MobileProfileSummaryResponse;
+import kh.edu.acleda.campuslink.modules.bff.service.MobileFinanceBffService;
 import kh.edu.acleda.campuslink.modules.bff.service.MobileHomeBffService;
 import kh.edu.acleda.campuslink.modules.bff.service.MobileProfileBffService;
 import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileEventDetailResponse;
@@ -31,13 +32,16 @@ public class MobileController {
 
     private final MobileProfileBffService mobileProfileBffService;
     private final MobileHomeBffService mobileHomeBffService;
+    private final MobileFinanceBffService mobileFinanceBffService;
     private final LanguageResolver languageResolver;
 
     public MobileController(MobileProfileBffService mobileProfileBffService,
                             MobileHomeBffService mobileHomeBffService,
+                            MobileFinanceBffService mobileFinanceBffService,
                             LanguageResolver languageResolver) {
         this.mobileProfileBffService = mobileProfileBffService;
         this.mobileHomeBffService = mobileHomeBffService;
+        this.mobileFinanceBffService = mobileFinanceBffService;
         this.languageResolver = languageResolver;
     }
 
@@ -57,9 +61,10 @@ public class MobileController {
     }
 
     @GetMapping("/finance-dashboard")
-    public ResponseEntity<ApiResponse<MobileFinanceDashboardResponse>> financeDashboard() {
-        // TODO: Aggregate finance dashboard data from finance services.
-        return ResponseEntity.ok(ApiResponse.success("Finance dashboard retrieved", new MobileFinanceDashboardResponse("TODO: finance dashboard aggregation")));
+    public ResponseEntity<ApiResponse<MobileFinanceDashboardResponse>> financeDashboard(
+        @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(ApiResponse.success("Finance dashboard retrieved",
+            mobileFinanceBffService.getFinanceDashboard(userDetails.getUsername())));
     }
 
     @GetMapping("/productivity-dashboard")
