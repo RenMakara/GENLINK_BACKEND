@@ -1,6 +1,6 @@
 # Productivity Domain — Implementation Plan
 
-Status: Phase 1 (Habits) done (2026-07-19); Phases 2-6 not started. Scope: backend only.
+Status: Phases 1-2 done (2026-07-19); Phases 3-6 not started. Scope: backend only.
 Owner: (Productivity, per Team Assignment v5).
 
 The "Study & Productivity" super-app pillar: habits, tasks, goals, a focus timer, and
@@ -50,9 +50,13 @@ Key entity facts:
   is not done yet, so a streak is not lost before the day's check-in); rate = completed
   days over the last 30, as a percent. `checkedInToday` flag included. Tests.
 
-### Phase 2 — Tasks
-- Task CRUD, toggle complete, soft delete.
-- List with filters: category, priority, completed, due-date range; "today" / overdue.
+### Phase 2 — Tasks — DONE
+- [x] Task CRUD, owner-scoped, soft delete; `POST /tasks/{id}/complete?completed=`
+  to complete/reopen.
+- [x] List with optional filters: category, priority, completed, and scope
+  (today / overdue / upcoming). Filters applied in memory (bounded per-user list) to
+  avoid the `:param IS NULL` Postgres trap. `overdue` computed on read (past due +
+  not completed). Tests.
 
 ### Phase 3 — Goals & milestones
 - Goal CRUD; milestone add/toggle/delete.

@@ -1,36 +1,141 @@
 package kh.edu.acleda.campuslink.modules.productivity.service.impl;
 
-import kh.edu.acleda.campuslink.modules.productivity.dto.request.TaskCreateRequest;
-import kh.edu.acleda.campuslink.modules.productivity.dto.response.TaskResponse;
-import kh.edu.acleda.campuslink.modules.productivity.service.TaskService;
-import org.springframework.stereotype.Service;
-
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
+import kh.edu.acleda.campuslink.modules.productivity.dto.request.TaskCreateRequest;
+import kh.edu.acleda.campuslink.modules.productivity.dto.response.TaskResponse;
+import kh.edu.acleda.campuslink.modules.productivity.entity.Task;
+import kh.edu.acleda.campuslink.modules.productivity.repository.TaskRepository;
+import kh.edu.acleda.campuslink.modules.productivity.service.TaskService;
+import kh.edu.acleda.campuslink.modules.user.UserRepository;
+import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
+import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TaskServiceImpl implements TaskService {
 
+    private final TaskRepository taskRepository;
+    private final UserRepository userRepository;
+    private final CurrentUserProvider currentUserProvider;
+
+    public TaskServiceImpl(TaskRepository taskRepository,
+                           UserRepository userRepository,
+                           CurrentUserProvider currentUserProvider) {
+        this.taskRepository = taskRepository;
+        this.userRepository = userRepository;
+        this.currentUserProvider = currentUserProvider;
+    }
+
     @Override
+    @Transactional
     public TaskResponse create(TaskCreateRequest request) {
-        // TODO: Implement Task creation using CurrentUserProvider and repository.
-        return new TaskResponse(null, request.title(), request.description(), request.priority(), request.category(), request.dueDate(), false);
+        User user = loadCurrentUser();
+        Task task = taskRepository.save(Task.builder()
+            .user(user)
+            .title(request.title())
+            .description(request.description())
+            .priority(request.priority())
+            .category(request.category())
+            .dueDate(request.dueDate())
+            .reminderTime(request.reminderTime())
+            .completed(false)
+            .build());
+        return toResponse(task);
+    }
+
+    /**
+     * Filters are applied in memory: a user's task list is small and bounded, so this
+     * avoids a dynamic query - and the `:param IS NULL` trick that broke on PostgreSQL
+     * for the opportunities date filter.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<TaskResponse> getMine(String category, String priority, Boolean completed, String scope) {
+        UUID userId = currentUserProvider.getCurrentUserId();
+        LocalDateTime now = LocalDateTime.now();
+        Predicate<Task> matches = t ->
+            (category == null || category.equalsIgnoreCase(t.getCategory()))
+            && (priority == null || priority.equalsIgnoreCase(t.getPriority()))
+            && (completed == null || completed.equals(Boolean.TRUE.equals(t.getCompleted())))
+            && scopeMatches(t, scope, now);
+
+        return taskRepository.findByUserIdAndDeletedAtIsNullOrderByCompletedAscDueDateAsc(userId).stream()
+            .filter(matches)
+            .map(this::toResponse)
+            .toList();
     }
 
     @Override
-    public List<TaskResponse> getMine() {
-        // TODO: Load authenticated user's Task records.
-        return List.of();
+    @Transactional(readOnly = true)
+    public TaskResponse getById(UUID id) {
+        return toResponse(loadOwned(id));
     }
 
     @Override
+    @Transactional
     public TaskResponse update(UUID id, TaskCreateRequest request) {
-        // TODO: Validate ownership, update allowed fields, and persist.
-        return new TaskResponse(null, request.title(), request.description(), request.priority(), request.category(), request.dueDate(), false);
+        Task task = loadOwned(id);
+        task.setTitle(request.title());
+        task.setDescription(request.description());
+        task.setPriority(request.priority());
+        task.setCategory(request.category());
+        task.setDueDate(request.dueDate());
+        task.setReminderTime(request.reminderTime());
+        taskRepository.save(task);
+        return toResponse(task);
     }
 
     @Override
+    @Transactional
+    public TaskResponse setCompleted(UUID id, boolean completed) {
+        Task task = loadOwned(id);
+        task.setCompleted(completed);
+        taskRepository.save(task);
+        return toResponse(task);
+    }
+
+    @Override
+    @Transactional
     public void delete(UUID id) {
-        // TODO: Soft delete the Task record after ownership validation.
+        Task task = loadOwned(id);
+        task.setDeletedAt(Instant.now());
+        taskRepository.save(task);
+    }
+
+    private boolean scopeMatches(Task t, String scope, LocalDateTime now) {
+        if (scope == null || scope.isBlank() || scope.equalsIgnoreCase("all")) {
+            return true;
+        }
+        LocalDateTime due = t.getDueDate();
+        return switch (scope.toLowerCase()) {
+            case "overdue" -> due != null && due.isBefore(now) && !Boolean.TRUE.equals(t.getCompleted());
+            case "today" -> due != null && due.toLocalDate().equals(LocalDate.now());
+            case "upcoming" -> due != null && due.isAfter(now);
+            default -> true;
+        };
+    }
+
+    private TaskResponse toResponse(Task t) {
+        boolean completed = Boolean.TRUE.equals(t.getCompleted());
+        boolean overdue = t.getDueDate() != null && t.getDueDate().isBefore(LocalDateTime.now()) && !completed;
+        return new TaskResponse(t.getId(), t.getTitle(), t.getDescription(), t.getPriority(),
+            t.getCategory(), t.getDueDate(), t.getReminderTime(), completed, overdue);
+    }
+
+    private Task loadOwned(UUID id) {
+        return taskRepository.findByIdAndUserIdAndDeletedAtIsNull(id, currentUserProvider.getCurrentUserId())
+            .orElseThrow(() -> new NotFoundException("Task not found"));
+    }
+
+    private User loadCurrentUser() {
+        return userRepository.findById(currentUserProvider.getCurrentUserId())
+            .orElseThrow(() -> new NotFoundException("User not found"));
     }
 }
