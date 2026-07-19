@@ -1,15 +1,24 @@
 package kh.edu.acleda.campuslink.modules.entertainment.dto.response;
 
+import java.util.List;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.entertainment.enums.LeaderboardCategory;
 import kh.edu.acleda.campuslink.modules.entertainment.enums.LeaderboardPeriod;
 
+/**
+ * A leaderboard computed on read: the top players for a category/period plus the caller's
+ * own standing.
+ *
+ * @param me the caller's rank/points; rank is null when they have no points in this view
+ */
 public record LeaderboardResponse(
-    UUID leaderboardId,
-    UUID userId,
     LeaderboardCategory category,
     LeaderboardPeriod period,
-    Integer rank,
-    Integer points
+    List<Entry> entries,
+    Me me
 ) {
+
+    public record Entry(int rank, UUID userId, String name, String avatarUrl, int level, long points) {}
+
+    public record Me(Integer rank, long points) {}
 }
