@@ -49,3 +49,5 @@ databaseChangeLog:
       file: db/changelog/changes/0024-add-badge-code-and-seed.sql
   - include:
       file: db/changelog/changes/0025-seed-daily-challenges.sql
+  - include:
+      file: db/changelog/changes/0026-add-short-content-interactions.sql
