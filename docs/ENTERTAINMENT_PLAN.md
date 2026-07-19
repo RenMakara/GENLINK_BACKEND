@@ -1,6 +1,6 @@
 # Entertainment Domain — Implementation Plan
 
-Status: Phase 1 (Quiz) done (2026-07-19); Phases 2-4 to build, short content deferred. Scope: backend only.
+Status: Quiz + Reward pipeline + Badges done (2026-07-19); Challenges/Leaderboard/ShortContent to build. Scope: backend only.
 Owner: (Entertainment / Gamification, per Team Assignment v5).
 
 The gamification pillar: quizzes, daily challenges, badges, a leaderboard, and short
@@ -57,9 +57,15 @@ LanguageResolver + LocalizedTextSelector for bilingual content.
   (that would couple Entertainment to every other domain). Seed English challenges.
 - Keeps the Home daily-challenge card real.
 
-### Phase 3 — Badges
-- List all badges with an `earned` flag; "my badges". Awarding approach: see decision 2.
-- Seed English badges.
+### Phase 3 — Badges — DONE
+- [x] Migration 0024: added a `code` column to badges and seeded the 6 named milestone
+  badges (Productivity Hero, Communication Helper, Financial Starter, Consistency Master,
+  Quiz Champion, Event Explorer).
+- [x] Catalog with an `earned` flag (`GET /badges`) + "my badges" (`GET /badges/mine`),
+  bilingual.
+- [x] Auto-unlock via BadgeAwarderImpl, wired into the reward pipeline (replaces the
+  no-op). Rules keyed by badge `code`, evaluated from xp_history counts per source +
+  total XP. Idempotent (existsBy + UNIQUE(user,badge)). Tests.
 
 ### Phase 4 — Leaderboard
 - Ranking computed on read (see decision 3): OVERALL_XP from users.total_xp, plus
