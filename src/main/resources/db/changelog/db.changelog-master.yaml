@@ -45,3 +45,5 @@ databaseChangeLog:
       file: db/changelog/changes/0022-seed-motivation-content.sql
   - include:
       file: db/changelog/changes/0023-seed-entertainment-quiz.sql
+  - include:
+      file: db/changelog/changes/0024-add-badge-code-and-seed.sql

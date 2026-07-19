@@ -4603,6 +4603,27 @@
                 "entertainment",
                 "badges"
               ]
+            },
+            "description": "Catalog with an earned flag per badge. Badges auto-unlock as you earn XP."
+          }
+        },
+        {
+          "name": "My Badges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/badges/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "badges",
+                "mine"
+              ]
             }
           }
         },
