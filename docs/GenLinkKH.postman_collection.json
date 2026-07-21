@@ -4584,7 +4584,93 @@
                 "entertainment",
                 "challenges"
               ]
+            },
+            "description": "Active challenges, each with the user's status. Uses seeded challenge IDs below."
+          }
+        },
+        {
+          "name": "My Challenges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/challenges/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "challenges",
+                "mine"
+              ]
             }
+          }
+        },
+        {
+          "name": "Join Challenge",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/challenges/f0000000-0000-4000-8000-000000000002/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "challenges",
+                "f0000000-0000-4000-8000-000000000002",
+                "join"
+              ]
+            },
+            "description": "Seeded 'Take a quiz' challenge."
+          }
+        },
+        {
+          "name": "Complete Challenge",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/challenges/f0000000-0000-4000-8000-000000000002/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "challenges",
+                "f0000000-0000-4000-8000-000000000002",
+                "complete"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Claim Challenge Reward",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/challenges/f0000000-0000-4000-8000-000000000002/claim",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "challenges",
+                "f0000000-0000-4000-8000-000000000002",
+                "claim"
+              ]
+            },
+            "description": "Awards XP once (via the reward pipeline -> level + badge checks) and marks CLAIMED."
           }
         },
         {
@@ -4628,12 +4714,12 @@
           }
         },
         {
-          "name": "List Leaderboards",
+          "name": "Leaderboard",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/entertainment/leaderboards",
+              "raw": "{{baseUrl}}/api/v1/entertainment/leaderboards?category=OVERALL_XP&period=ALL_TIME",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -4642,6 +4728,179 @@
                 "v1",
                 "entertainment",
                 "leaderboards"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "OVERALL_XP",
+                  "description": "OVERALL_XP | PRODUCTIVITY | COMMUNITY_ENGAGEMENT | FINANCIAL_LEARNING | QUIZ_PERFORMANCE"
+                },
+                {
+                  "key": "period",
+                  "value": "ALL_TIME",
+                  "description": "WEEKLY | MONTHLY | ALL_TIME (FRIENDS not implemented yet)"
+                }
+              ]
+            },
+            "description": "Top 20 players + your own rank/points, computed on read from XP history."
+          }
+        },
+        {
+          "name": "Create Short Content",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var d = pm.response.json().data;",
+                  "if (d && d.shortContentId) { pm.collectionVariables.set('shortContentId', d.shortContentId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/short-content",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "short-content"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"3 study tips\",\n  \"description\": \"Quick tips for focused study\",\n  \"category\": \"EDUCATION\",\n  \"videoUrl\": \"https://example.com/videos/study-tips.mp4\",\n  \"thumbnailUrl\": \"https://example.com/thumbs/study-tips.jpg\"\n}"
+            },
+            "description": "Metadata only (no upload). Creator = current user. Captures shortContentId."
+          }
+        },
+        {
+          "name": "Short Content Feed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/short-content?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "short-content"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "category",
+                  "value": "EDUCATION",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paginated feed with liked/saved flags per item."
+          }
+        },
+        {
+          "name": "Like Short Content",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/short-content/{{shortContentId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "short-content",
+                "{{shortContentId}}",
+                "like"
+              ]
+            },
+            "description": "Idempotent. DELETE the same path to unlike."
+          }
+        },
+        {
+          "name": "Save Short Content",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/short-content/{{shortContentId}}/save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "short-content",
+                "{{shortContentId}}",
+                "save"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Share Short Content",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/short-content/{{shortContentId}}/share",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "short-content",
+                "{{shortContentId}}",
+                "share"
+              ]
+            }
+          }
+        },
+        {
+          "name": "My Saved Short Content",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/short-content/saved",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "short-content",
+                "saved"
               ]
             }
           }

@@ -1,6 +1,6 @@
 # Entertainment Domain — Implementation Plan
 
-Status: Quiz + Reward pipeline + Badges done (2026-07-19); Challenges/Leaderboard/ShortContent to build. Scope: backend only.
+Status: DONE (2026-07-19) - Quiz, Reward pipeline, Badges, Challenges, Leaderboard, Short Content. Deferred: multiplayer quiz, friends ranking. Scope: backend only.
 Owner: (Entertainment / Gamification, per Team Assignment v5).
 
 The gamification pillar: quizzes, daily challenges, badges, a leaderboard, and short
@@ -50,12 +50,17 @@ LanguageResolver + LocalizedTextSelector for bilingual content.
   (existsBy...XpEarnedGreaterThan guard); replays log an attempt but pay 0.
 - [x] History (`GET /quizzes/history`). Seed 0023 = one English quiz. Tests.
 
-### Phase 2 — Daily Challenges
-- List active challenges (deadline in future) with the user's status.
-- Join (create user_challenge IN_PROGRESS), complete (mark COMPLETED), claim (award XP
-  once, set CLAIMED). Progress is user/client-driven - no cross-domain auto-tracking
-  (that would couple Entertainment to every other domain). Seed English challenges.
-- Keeps the Home daily-challenge card real.
+### Phase 2 — Daily Challenges — DONE
+- [x] List active challenges (no deadline or a future one) with the user's status
+  (`GET /challenges`); "my challenges" (`GET /challenges/mine`). Bilingual.
+- [x] Join -> complete -> claim: `POST /challenges/{id}/join|complete|claim`. Join creates
+  user_challenge IN_PROGRESS (idempotent); complete flips IN_PROGRESS -> COMPLETED
+  (progress 100); claim awards XP once via the reward pipeline (source CHALLENGE, so it
+  also fires level + badge checks) and sets CLAIMED. Guarded against double-claim /
+  claim-before-complete / not-joined.
+- [x] Seed 0025 = 3 English challenges (HABIT/QUIZ/FINANCE), keeping the Home card real.
+- Note: progress is user-driven; the daily-vs-weekly split from the flow has no schema
+  field, so it is not distinguished yet (would need a period column). Tests.
 
 ### Phase 3 — Badges — DONE
 - [x] Migration 0024: added a `code` column to badges and seeded the 6 named milestone
@@ -67,13 +72,23 @@ LanguageResolver + LocalizedTextSelector for bilingual content.
   no-op). Rules keyed by badge `code`, evaluated from xp_history counts per source +
   total XP. Idempotent (existsBy + UNIQUE(user,badge)). Tests.
 
-### Phase 4 — Leaderboard
-- Ranking computed on read (see decision 3): OVERALL_XP from users.total_xp, plus
-  weekly/monthly windows from xp_history. Top N + the current user's own rank.
+### Phase 4 — Leaderboard — DONE
+- [x] `GET /leaderboards?category=&period=` computed on read. category = OVERALL_XP +
+  PRODUCTIVITY/COMMUNITY_ENGAGEMENT/FINANCIAL_LEARNING/QUIZ_PERFORMANCE (mapped to
+  xp_history.source_type); period = WEEKLY/MONTHLY/ALL_TIME (added ALL_TIME to the enum;
+  the cutoff is always a comparison with Instant.EPOCH for all-time, avoiding the
+  `:date IS NULL` trap). Returns the top 20 with names/level + the caller's rank/points.
+- Friends ranking deferred (needs the follow graph) - returns NOT_IMPLEMENTED for now.
+  The stored `leaderboards` table stays unused (compute-on-read). Tests.
 
-### Phase 5 — Short content — DEFERRED
-- Deferred like Chat (decision 4). short_contents stays entity+repo only. Short-form
-  video needs a media pipeline and is a feature on its own; the app demos fine without it.
+### Phase 5 — Short content — DONE
+- [x] Feed (`GET /short-content?category=`, paginated), detail, and a create endpoint
+  (`POST /short-content`, metadata only - no media upload; creator = current user, since
+  short_contents.creator_id is NOT NULL and there is no seeded user).
+- [x] Idempotent like/unlike, save/unsave (per-user join tables in migration 0026, atomic
+  like/save counters); share increments a counter (fire-and-forget). Feed carries
+  liked/saved flags (batched, no N+1). "My saved" list. Bilingual. Tests.
+- Note: still no media upload/transcode - that stays out of scope.
 
 ## Endpoints (under /api/v1/entertainment)
 
