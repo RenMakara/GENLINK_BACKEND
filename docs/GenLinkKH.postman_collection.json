@@ -4479,6 +4479,91 @@
                 "v1",
                 "entertainment",
                 "quizzes"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "FINANCE",
+                  "disabled": true
+                },
+                {
+                  "key": "difficulty",
+                  "value": "EASY",
+                  "description": "EASY | MEDIUM | HARD",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Quiz",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/quizzes/d0000000-0000-4000-8000-000000000001",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "quizzes",
+                "d0000000-0000-4000-8000-000000000001"
+              ]
+            },
+            "description": "Seeded quiz. Questions + options; the correct flag is withheld."
+          }
+        },
+        {
+          "name": "Submit Quiz",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/quizzes/d0000000-0000-4000-8000-000000000001/attempts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "quizzes",
+                "d0000000-0000-4000-8000-000000000001",
+                "attempts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    { \"questionId\": \"d1000000-0000-4000-8000-000000000001\", \"selectedOptionId\": \"d2000000-0000-4000-8000-000000000101\" },\n    { \"questionId\": \"d1000000-0000-4000-8000-000000000002\", \"selectedOptionId\": \"d2000000-0000-4000-8000-000000000201\" },\n    { \"questionId\": \"d1000000-0000-4000-8000-000000000003\", \"selectedOptionId\": \"d2000000-0000-4000-8000-000000000302\" }\n  ]\n}"
+            },
+            "description": "All three answers correct -> score 100. First completion grants XP once (scaled by score); replays pay 0."
+          }
+        },
+        {
+          "name": "Quiz History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/quizzes/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "quizzes",
+                "history"
               ]
             }
           }
@@ -4517,6 +4602,27 @@
                 "v1",
                 "entertainment",
                 "badges"
+              ]
+            },
+            "description": "Catalog with an earned flag per badge. Badges auto-unlock as you earn XP."
+          }
+        },
+        {
+          "name": "My Badges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/badges/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entertainment",
+                "badges",
+                "mine"
               ]
             }
           }

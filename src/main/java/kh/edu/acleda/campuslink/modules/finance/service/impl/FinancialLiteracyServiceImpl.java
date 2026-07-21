@@ -7,8 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import kh.edu.acleda.campuslink.modules.entertainment.entity.XpHistory;
-import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.QuizSubmitRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.LessonDetailResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.LessonSummaryResponse;
@@ -54,7 +53,7 @@ public class FinancialLiteracyServiceImpl implements FinancialLiteracyService {
     private final FinancialQuizQuestionRepository questionRepository;
     private final LessonProgressRepository progressRepository;
     private final FinanceQuizAttemptRepository attemptRepository;
-    private final XpHistoryRepository xpHistoryRepository;
+    private final RewardService rewardService;
     private final UserRepository userRepository;
     private final DemoWalletService demoWalletService;
     private final CurrentUserProvider currentUserProvider;
@@ -63,7 +62,7 @@ public class FinancialLiteracyServiceImpl implements FinancialLiteracyService {
                                         FinancialQuizQuestionRepository questionRepository,
                                         LessonProgressRepository progressRepository,
                                         FinanceQuizAttemptRepository attemptRepository,
-                                        XpHistoryRepository xpHistoryRepository,
+                                        RewardService rewardService,
                                         UserRepository userRepository,
                                         DemoWalletService demoWalletService,
                                         CurrentUserProvider currentUserProvider) {
@@ -71,7 +70,7 @@ public class FinancialLiteracyServiceImpl implements FinancialLiteracyService {
         this.questionRepository = questionRepository;
         this.progressRepository = progressRepository;
         this.attemptRepository = attemptRepository;
-        this.xpHistoryRepository = xpHistoryRepository;
+        this.rewardService = rewardService;
         this.userRepository = userRepository;
         this.demoWalletService = demoWalletService;
         this.currentUserProvider = currentUserProvider;
@@ -212,11 +211,7 @@ public class FinancialLiteracyServiceImpl implements FinancialLiteracyService {
     private int awardXp(FinancialLesson lesson) {
         User user = loadCurrentUser();
         int xp = lesson.getXpReward();
-        user.setTotalXp(user.getTotalXp() + xp);
-        userRepository.save(user);
-        xpHistoryRepository.save(XpHistory.builder()
-            .user(user).sourceType(XP_SOURCE).sourceId(lesson.getId()).xpAmount(xp).build());
-        log.info("Literacy reward: user={} lesson={} xp={}", user.getId(), lesson.getId(), xp);
+        rewardService.award(user, XP_SOURCE, lesson.getId(), xp);
         return xp;
     }
 

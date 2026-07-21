@@ -37,6 +37,10 @@ public class Badge extends BaseEntity {
     @Column(name = "requirement", columnDefinition = "TEXT")
     private String requirement;
 
+    /** Stable key linking a named milestone badge to its unlock rule; null for others. */
+    @Column(name = "code", length = 80)
+    private String code;
+
     @Column(name = "icon_url", columnDefinition = "TEXT")
     private String iconUrl;
 

@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.QuizSubmitRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.QuizSubmitRequest.Answer;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.QuizResultResponse;
@@ -37,6 +37,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -56,7 +57,7 @@ class FinancialLiteracyServiceImplTest {
     @Mock private FinancialQuizQuestionRepository questionRepository;
     @Mock private LessonProgressRepository progressRepository;
     @Mock private FinanceQuizAttemptRepository attemptRepository;
-    @Mock private XpHistoryRepository xpHistoryRepository;
+    @Mock private RewardService rewardService;
     @Mock private UserRepository userRepository;
     @Mock private DemoWalletService demoWalletService;
     @Mock private CurrentUserProvider currentUserProvider;
@@ -68,7 +69,7 @@ class FinancialLiteracyServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new FinancialLiteracyServiceImpl(lessonRepository, questionRepository, progressRepository,
-            attemptRepository, xpHistoryRepository, userRepository, demoWalletService, currentUserProvider);
+            attemptRepository, rewardService, userRepository, demoWalletService, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
         ReflectionTestUtils.setField(user, "totalXp", 0);
@@ -131,7 +132,7 @@ class FinancialLiteracyServiceImplTest {
         assertThat(r.passed()).isTrue();
         assertThat(r.xpEarned()).isEqualTo(20);
         assertThat(r.learningBudgetCredited()).isEqualByComparingTo("1.00");
-        assertThat(user.getTotalXp()).isEqualTo(20);
+        verify(rewardService).award(eq(user), eq("FINANCE_LESSON"), eq(LESSON_ID), eq(20));
         verify(demoWalletService).creditReward(eq(new BigDecimal("1.00")), any());
         verify(attemptRepository).save(any(FinanceQuizAttempt.class));
     }
@@ -144,7 +145,7 @@ class FinancialLiteracyServiceImplTest {
         assertThat(r.passed()).isFalse();
         assertThat(r.xpEarned()).isZero();
         assertThat(r.learningBudgetCredited()).isEqualByComparingTo("0");
-        assertThat(user.getTotalXp()).isZero();
+        verify(rewardService, never()).award(any(), any(), any(), anyInt());
         verify(demoWalletService, never()).creditReward(any(), any());
     }
 
@@ -160,7 +161,7 @@ class FinancialLiteracyServiceImplTest {
         assertThat(r.passed()).isTrue();
         assertThat(r.xpEarned()).isZero();
         assertThat(r.learningBudgetCredited()).isEqualByComparingTo("0");
-        assertThat(user.getTotalXp()).isZero();
+        verify(rewardService, never()).award(any(), any(), any(), anyInt());
         verify(demoWalletService, never()).creditReward(any(), any());
     }
 

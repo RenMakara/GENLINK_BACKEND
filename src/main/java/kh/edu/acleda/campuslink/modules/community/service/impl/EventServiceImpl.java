@@ -21,8 +21,7 @@ import kh.edu.acleda.campuslink.modules.community.enums.RsvpStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
 import kh.edu.acleda.campuslink.modules.community.service.EventService;
-import kh.edu.acleda.campuslink.modules.entertainment.entity.XpHistory;
-import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionStatus;
@@ -52,7 +51,7 @@ public class EventServiceImpl implements EventService {
     private final EventRsvpRepository rsvpRepository;
     private final DemoWalletRepository demoWalletRepository;
     private final DemoTransactionRepository demoTransactionRepository;
-    private final XpHistoryRepository xpHistoryRepository;
+    private final RewardService rewardService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
@@ -60,14 +59,14 @@ public class EventServiceImpl implements EventService {
                             EventRsvpRepository rsvpRepository,
                             DemoWalletRepository demoWalletRepository,
                             DemoTransactionRepository demoTransactionRepository,
-                            XpHistoryRepository xpHistoryRepository,
+                            RewardService rewardService,
                             UserRepository userRepository,
                             CurrentUserProvider currentUserProvider) {
         this.eventRepository = eventRepository;
         this.rsvpRepository = rsvpRepository;
         this.demoWalletRepository = demoWalletRepository;
         this.demoTransactionRepository = demoTransactionRepository;
-        this.xpHistoryRepository = xpHistoryRepository;
+        this.rewardService = rewardService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -265,15 +264,7 @@ public class EventServiceImpl implements EventService {
     }
 
     private int awardXp(UUID eventId) {
-        User user = loadCurrentUser();
-        user.setTotalXp(user.getTotalXp() + RSVP_XP);
-        userRepository.save(user);
-        xpHistoryRepository.save(XpHistory.builder()
-            .user(user)
-            .sourceType(XP_SOURCE)
-            .sourceId(eventId)
-            .xpAmount(RSVP_XP)
-            .build());
+        rewardService.award(loadCurrentUser(), XP_SOURCE, eventId, RSVP_XP);
         return RSVP_XP;
     }
 
