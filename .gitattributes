@@ -1,3 +1,13 @@
 /gradlew text eol=lf
 *.bat text eol=crlf
 *.jar binary
+
+# Shell scripts are authored on Windows but executed on Ubuntu. Without
+# eol=lf they arrive with CRLF and Linux fails with the cryptic
+# "/bin/bash^M: bad interpreter: No such file or directory".
+*.sh text eol=lf
+
+# Same reasoning for the container/deploy files consumed by Linux tooling.
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
