@@ -40,7 +40,7 @@ server:
 
 app:
   jwt:
-    issuer: ${JWT_ISSUER:campuslink-kh}
+    issuer: ${JWT_ISSUER:genlink-kh}
     secret: ${JWT_SECRET}
     # 15 minutes. Access tokens are stateless, so this bounds the window in which a
     # stolen token stays usable; the token-version claim handles explicit revocation.
