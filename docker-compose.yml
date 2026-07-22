@@ -1,0 +1,163 @@
+  # GenLink KH — production stack.
+#
+# Grows over the deployment steps:
+#   Step 1 (now)  postgres  + optional redis
+#   Step 3        app       (Spring Boot, once its Dockerfile exists)
+#   Step 4        nginx runs on the HOST, not here, and proxies to `app`
+#
+# Nothing here is published to the public internet. Ports are bound to
+# 127.0.0.1 so they are reachable only from the droplet itself (or through
+# an SSH tunnel). Nginx is the single public door — that is what makes the
+# later IP -> domain migration a config change instead of a code change.
+#
+# No `version:` key: Compose V2 ignores it and warns when present.
+
+name: genlink
+
+services:
+  # ── PostgreSQL ────────────────────────────────────────────────────────
+  postgres:
+    # Pinned to a minor-stable tag. Never use `latest` in production: a
+    # silent major upgrade can make the data directory unreadable.
+    image: postgres:16-alpine
+    container_name: genlink-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Keeps the data files in the documented location and lets us mount a
+      # named volume at exactly that path.
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+    volumes:
+      # Named volume = data survives `docker compose down`, image upgrades
+      # and droplet reboots. See Step 6.
+      - postgres_data:/var/lib/postgresql/data
+
+    ports:
+      # 127.0.0.1 prefix is the security control: Postgres is NOT exposed to
+      # the internet. Connect from your laptop with an SSH tunnel:
+      #   ssh -L 5432:localhost:5432 root@165.22.101.156
+      - "127.0.0.1:5432:5432"
+
+    healthcheck:
+      # Compose waits for this before starting dependents (Step 3), so the
+      # app never boots against a database that is still initialising.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      # Generous: first boot has to initialise the cluster.
+      start_period: 30s
+
+    # Container logs are written by the Docker daemon and grow forever
+    # unless capped. See Step 7 for the host-wide default.
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Spring Boot ───────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: genlink-api:latest
+    container_name: genlink-api
+    restart: unless-stopped
+
+    # Every value comes from .env — nothing secret is written in this file,
+    # so docker-compose.yml stays safe to commit.
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-genlink-kh}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_PROJECT_ID: ${GOOGLE_PROJECT_ID:-genlinkkh}
+      APP_DEFAULT_LANGUAGE: ${APP_DEFAULT_LANGUAGE:-ENGLISH}
+      # Lets Spring trust Nginx's X-Forwarded-* headers (Step 4). This is
+      # what makes http://IP -> https://domain a config-only migration.
+      SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-framework}
+      # The app stores habit check-ins and deadlines as timezone-naive
+      # LocalDate/LocalDateTime, so "today" is decided by the container
+      # clock. Left at UTC, a Cambodian user's day would roll over at 07:00
+      # local. Pin it to the users' zone.
+      TZ: ${TZ:-Asia/Phnom_Penh}
+
+    depends_on:
+      postgres:
+        # Waits for pg_isready, not just "container started". Liquibase runs
+        # at boot and would fail against a database still initialising.
+        condition: service_healthy
+
+    ports:
+      # Loopback only. Nginx (on the host) proxies to this; the port is
+      # never reachable from the internet. Keeping it bound lets you curl
+      # the app directly from the droplet while debugging.
+      - "127.0.0.1:8888:8888"
+
+    # Caps the JVM. Combined with MaxRAMPercentage=75 in the Dockerfile
+    # this gives roughly a 576 MB heap and leaves room for Postgres.
+    # Raise it if your droplet is larger than 2 GB.
+    mem_limit: 768m
+
+    healthcheck:
+      # /actuator/health is permitAll() in SecurityConfig, so this needs no
+      # token. `wget --spider` avoids installing curl in the image.
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8888/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Generous: first boot also runs every Liquibase migration.
+      start_period: 90s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Redis (optional, OFF by default) ──────────────────────────────────
+  #
+  # Started only with:  docker compose --profile cache up -d
+  #
+  # Leave it off for now. The application has `spring-boot-starter-cache`
+  # but NOT `spring-boot-starter-data-redis`, so Spring cannot talk to
+  # Redis yet — running it today would consume RAM and serve no traffic.
+  # Turn it on in the same commit that adds the dependency.
+  redis:
+    image: redis:7-alpine
+    container_name: genlink-redis
+    restart: unless-stopped
+    profiles: ["cache"]
+    # `--save ""` disables snapshotting: as a pure cache there is nothing
+    # worth persisting, and it avoids fork-related memory spikes.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+    # Explicitly named so it is easy to find, back up and restore:
+    #   docker volume inspect genlink_postgres_data
+    name: genlink_postgres_data
