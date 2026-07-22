@@ -77,7 +77,11 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+<<<<<<< HEAD
       JWT_ISSUER: ${JWT_ISSUER:-genlink_kh}
+=======
+      JWT_ISSUER: ${JWT_ISSUER:-genlink-kh}
+>>>>>>> 941e260756be21de43e3e43a81f6473cbd4bfa3c
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME}
