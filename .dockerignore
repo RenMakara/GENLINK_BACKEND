@@ -1,0 +1,40 @@
+# Everything here is excluded from the build context — the files Docker
+# uploads to the daemon before building.
+#
+# This is a SECURITY control, not just a speed one. Anything in the context
+# can be COPY'd into an image layer, and layers are readable by anyone who
+# pulls the image. Deleting a file in a later step does NOT remove it from
+# the earlier layer.
+
+# ── Secrets — never in an image ────────────────────────────────────────
+.env
+.env.*
+*.pem
+*.key
+service-account.json
+firebase/
+
+# ── Build output — the image builds its own ────────────────────────────
+# Also avoids shipping host-built classes compiled by a different JDK.
+build/
+out/
+bin/
+.gradle/
+
+# ── VCS and IDE ────────────────────────────────────────────────────────
+# .git can be large and carries full history, including secrets that were
+# committed and later removed.
+.git
+.gitignore
+.gitattributes
+.idea/
+*.iml
+.vscode/
+
+# ── Docs and local tooling ─────────────────────────────────────────────
+docs/
+*.md
+docker-compose.yml
+Dockerfile
+postman/
+*.log
