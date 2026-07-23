@@ -76,8 +76,15 @@ fi
 
 # Verify the archive is readable by pg_restore. This catches truncation and
 # TTY corruption now, instead of during an emergency restore.
-if ! docker compose exec -T "$SERVICE" pg_restore --list /dev/stdin \
-     < "$OUTFILE" > /dev/null 2>&1; then
+#
+# The stream is written to a seekable temp file INSIDE the container before
+# listing it. A custom-format (-Fc) archive stores data-block offsets that
+# pg_restore must seek to read, and a forwarded stdin pipe (/dev/stdin) is
+# not seekable — so `pg_restore --list /dev/stdin` reported even valid dumps
+# as "not a valid archive". A real file removes that false negative.
+if ! docker compose exec -T "$SERVICE" sh -c \
+     'cat > /tmp/verify.dump && pg_restore --list /tmp/verify.dump > /dev/null 2>&1; rc=$?; rm -f /tmp/verify.dump; exit $rc' \
+     < "$OUTFILE"; then
   echo "ERROR: dump failed verification — not a valid pg_restore archive" >&2
   rm -f "$OUTFILE"
   exit 1
