@@ -1,0 +1,60 @@
+name: Deploy to production
+
+# Auto-deploy when main advances. Other branches (dev, feature work) never
+# touch the server — only a merge/push to main ships.
+on:
+  push:
+    branches: [main]
+
+# Never run two deploys at once. If a second push lands mid-deploy it waits
+# for the first to finish rather than racing it. cancel-in-progress is false
+# on purpose: a half-finished deploy must be allowed to complete (or roll
+# back) cleanly.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Connects to the droplet with a dedicated deploy key and runs the
+      # version-controlled deploy script. No build happens in the runner —
+      # the script builds on the droplet (see scripts/deploy.sh).
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          # Abort the SSH session on the first failing command, so a failed
+          # deploy shows up as a red X here instead of a false green.
+          script_stop: true
+          # 15 min: a cold Gradle build that downloads dependencies is slow.
+          command_timeout: 15m
+          script: |
+            cd /opt/GENLINK_BACKEND
+            ./scripts/deploy.sh
+
+      # Optional: reuse your existing Telegram secrets to announce the
+      # result. Runs whether the deploy passed or failed.
+      - name: Notify Telegram
+        if: always() && env.TELEGRAM_BOT_TOKEN != ''
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
+          STATUS: ${{ job.status }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+        run: |
+          icon="✅"; [ "$STATUS" != "success" ] && icon="❌"
+          msg=$(printf '%s <b>Deploy %s</b>\n\n👤 %s\n🔖 %s' \
+            "$icon" "$STATUS" "$ACTOR" "${SHA:0:7}")
+          curl -sS -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d message_thread_id="${TELEGRAM_THREAD_ID}" \
+            -d parse_mode="HTML" \
+            --data-urlencode text="$msg" || true
