@@ -37,8 +37,8 @@ jobs:
             cd /opt/GENLINK_BACKEND
             ./scripts/deploy.sh
 
-      # Optional: reuse your existing Telegram secrets to announce the
-      # result. Runs whether the deploy passed or failed.
+      # Announce the result to Telegram (reuses your existing secrets).
+      # Runs on both success and failure so a silent failure is impossible.
       - name: Notify Telegram
         if: always() && env.TELEGRAM_BOT_TOKEN != ''
         env:
@@ -46,15 +46,48 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
           STATUS: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
           SHA: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          COMMIT_URL: ${{ github.event.head_commit.url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          icon="✅"; [ "$STATUS" != "success" ] && icon="❌"
-          msg=$(printf '%s <b>Deploy %s</b>\n\n👤 %s\n🔖 %s' \
-            "$icon" "$STATUS" "$ACTOR" "${SHA:0:7}")
+          # HTML-escape user-controlled text. Telegram's HTML parse_mode
+          # would otherwise break on a commit message containing < > or &.
+          esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+
+          short_sha="${SHA:0:7}"
+          repo_name="${REPO#*/}"                              # drop "owner/"
+          title="$(esc "$(printf '%s' "$COMMIT_MSG" | head -n1)")"
+          actor="$(esc "$ACTOR")"
+          branch="$(esc "$BRANCH")"
+
+          if [ "$STATUS" = "success" ]; then
+            header="✅ <b>Deploy succeeded</b>"
+            footer="🟢 Live · http://165.22.101.156"
+            link_text="View workflow run →"
+          else
+            header="❌ <b>Deploy failed</b>"
+            # True in both failure modes: a build error never swaps the
+            # container, and a runtime failure auto-rolls-back.
+            footer="🛡️ Previous version is still live (auto-rollback)."
+            link_text="View logs →"
+          fi
+
+          msg=$(printf '%s\n\n📁 <b>%s</b> · 🌿 %s\n🔖 <a href="%s">%s</a>  %s\n👤 %s\n\n%s\n<a href="%s">%s</a>' \
+            "$header" \
+            "$repo_name" "$branch" \
+            "$COMMIT_URL" "$short_sha" "$title" \
+            "$actor" \
+            "$footer" \
+            "$RUN_URL" "$link_text")
+
           curl -sS -X POST \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             -d message_thread_id="${TELEGRAM_THREAD_ID}" \
             -d parse_mode="HTML" \
+            -d disable_web_page_preview="true" \
             --data-urlencode text="$msg" || true
