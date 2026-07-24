@@ -11,6 +11,7 @@ import kh.edu.acleda.campuslink.modules.auth.repository.RefreshTokenRepository;
 import kh.edu.acleda.campuslink.modules.auth.repository.SecurityAuditLogRepository;
 import kh.edu.acleda.campuslink.modules.auth.security.AuthRateLimitService;
 import kh.edu.acleda.campuslink.modules.security.dto.request.ChangePasswordRequest;
+import kh.edu.acleda.campuslink.modules.security.dto.request.DeleteAccountRequest;
 import kh.edu.acleda.campuslink.modules.security.service.impl.AccountSecurityServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
@@ -195,6 +196,85 @@ class AccountSecurityServiceImplTest {
         assertThat(sessions).hasSize(1);
         assertThat(sessions.get(0).deviceInfo()).isEqualTo("Pixel 8");
         assertThat(sessions.toString()).doesNotContain("super-secret-hash");
+    }
+
+    @Test
+    void deleteCurrentAccountSoftDeletesAndCutsOffEveryCredential() {
+        when(passwordEncoder.matches("current", "$2a$hash")).thenReturn(true);
+
+        service.deleteCurrentAccount(new DeleteAccountRequest("current"));
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.DELETED);
+        assertThat(user.getDeletedAt()).isNotNull();
+        // The row stays readable, so the live access token has to be invalidated too.
+        assertThat(user.getTokenVersion()).isEqualTo(1);
+        verify(userRepository).save(user);
+        verify(refreshTokenRepository).revokeByUser(eq(user), any(Instant.class));
+        verify(securityAuditService).logSuccess(eq("ACCOUNT_DELETE"), eq(user), eq("user@example.com"));
+    }
+
+    @Test
+    void deleteCurrentAccountRejectsWrongPasswordAndRecordsTheAttempt() {
+        when(passwordEncoder.matches("wrong", "$2a$hash")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.deleteCurrentAccount(new DeleteAccountRequest("wrong")))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("Password is incorrect");
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
+        assertThat(user.getDeletedAt()).isNull();
+        verify(authRateLimitService).recordAccountDeleteFailure(eq("user@example.com"), nullable(String.class));
+        verify(securityAuditService).logFailure(eq("ACCOUNT_DELETE"), eq(user), eq("user@example.com"), nullable(String.class));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void deleteCurrentAccountRequiresAPasswordWhenTheAccountHasOne() {
+        assertThatThrownBy(() -> service.deleteCurrentAccount(new DeleteAccountRequest("  ")))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("Password is required");
+
+        assertThatThrownBy(() -> service.deleteCurrentAccount(null))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("Password is required");
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void deleteCurrentAccountAllowsSocialOnlyAccountsWithNoBody() {
+        // Nothing to confirm against, so possession of the access token has to be enough.
+        user.setPasswordHash(null);
+
+        service.deleteCurrentAccount(null);
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.DELETED);
+        assertThat(user.getDeletedAt()).isNotNull();
+        verify(passwordEncoder, never()).matches(any(), any());
+    }
+
+    @Test
+    void deleteCurrentAccountIsBlockedByTheRateLimiterBeforeTheHashIsEvenChecked() {
+        org.mockito.Mockito.doThrow(new ApiException("Too many account deletion attempts. Please try again later.",
+                "AUTH_TOO_MANY_ATTEMPTS"))
+            .when(authRateLimitService).checkAccountDeleteAllowed(nullable(String.class), nullable(String.class));
+
+        assertThatThrownBy(() -> service.deleteCurrentAccount(new DeleteAccountRequest("current")))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("Too many");
+
+        verify(passwordEncoder, never()).matches(any(), any());
+    }
+
+    @Test
+    void deleteCurrentAccountIsNotFoundForAnAlreadyDeletedAccount() {
+        user.setAccountStatus(AccountStatus.DELETED);
+        user.setDeletedAt(Instant.now().minusSeconds(60));
+
+        assertThatThrownBy(() -> service.deleteCurrentAccount(new DeleteAccountRequest("current")))
+            .isInstanceOf(NotFoundException.class);
+
+        verify(userRepository, never()).save(any(User.class));
     }
 
     private void doThrowOnRateLimit() {

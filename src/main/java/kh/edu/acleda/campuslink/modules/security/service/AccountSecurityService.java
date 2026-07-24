@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.security.service;
 
 import kh.edu.acleda.campuslink.modules.security.dto.request.ChangePasswordRequest;
+import kh.edu.acleda.campuslink.modules.security.dto.request.DeleteAccountRequest;
 import kh.edu.acleda.campuslink.modules.security.dto.response.SecurityActivityResponse;
 import kh.edu.acleda.campuslink.modules.security.dto.response.SessionResponse;
 
@@ -18,4 +19,10 @@ public interface AccountSecurityService {
     void revokeAllSessions();
 
     List<SecurityActivityResponse> getRecentActivity();
+
+    /**
+     * Soft-deletes the authenticated caller's own account and revokes every credential
+     * issued to it. Exposed over REST as {@code DELETE /api/v1/users/me}.
+     */
+    void deleteCurrentAccount(DeleteAccountRequest request);
 }

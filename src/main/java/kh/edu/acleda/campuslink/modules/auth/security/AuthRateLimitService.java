@@ -22,6 +22,7 @@ public class AuthRateLimitService {
 
     private static final String LOGIN = "LOGIN";
     private static final String PASSWORD_CHANGE = "PASSWORD_CHANGE";
+    private static final String ACCOUNT_DELETE = "ACCOUNT_DELETE";
 
     private final Map<String, AttemptState> attempts = new ConcurrentHashMap<>();
 
@@ -47,6 +48,18 @@ public class AuthRateLimitService {
 
     public void clearPasswordChangeFailures(String email, String clientIp) {
         clearFailures(PASSWORD_CHANGE, email, clientIp);
+    }
+
+    public void checkAccountDeleteAllowed(String email, String clientIp) {
+        checkAllowed(ACCOUNT_DELETE, email, clientIp, "Too many account deletion attempts. Please try again later.");
+    }
+
+    public void recordAccountDeleteFailure(String email, String clientIp) {
+        recordFailure(ACCOUNT_DELETE, email, clientIp);
+    }
+
+    public void clearAccountDeleteFailures(String email, String clientIp) {
+        clearFailures(ACCOUNT_DELETE, email, clientIp);
     }
 
     private void checkAllowed(String action, String email, String clientIp, String message) {

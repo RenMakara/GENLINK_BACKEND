@@ -11,10 +11,12 @@ import kh.edu.acleda.campuslink.modules.auth.repository.RefreshTokenRepository;
 import kh.edu.acleda.campuslink.modules.auth.repository.SecurityAuditLogRepository;
 import kh.edu.acleda.campuslink.modules.auth.security.AuthRateLimitService;
 import kh.edu.acleda.campuslink.modules.security.dto.request.ChangePasswordRequest;
+import kh.edu.acleda.campuslink.modules.security.dto.request.DeleteAccountRequest;
 import kh.edu.acleda.campuslink.modules.security.dto.response.SecurityActivityResponse;
 import kh.edu.acleda.campuslink.modules.security.dto.response.SessionResponse;
 import kh.edu.acleda.campuslink.modules.security.service.AccountSecurityService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
+import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
@@ -148,6 +150,52 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
             .stream()
             .map(this::toActivityResponse)
             .toList();
+    }
+
+    /**
+     * Soft delete per DB_STANDARDS: the row survives so that content the user authored
+     * keeps a resolvable author, but the account is closed and every credential is cut off.
+     * The email, username and phone stay reserved by their unique constraints, so the
+     * address cannot be re-registered - restoring an account is a deliberate admin action.
+     */
+    @Override
+    @Transactional
+    public void deleteCurrentAccount(DeleteAccountRequest request) {
+        User user = loadCurrentUser();
+
+        // A second DELETE must not re-stamp deletedAt or re-log the event.
+        if (user.getAccountStatus() == AccountStatus.DELETED || user.getDeletedAt() != null) {
+            throw new NotFoundException("User not found");
+        }
+
+        // Holding an access token should not be enough to destroy an account - an unlocked
+        // phone would be. Local accounts re-enter their password; social-only accounts have
+        // none to check, so the token is all there is.
+        if (user.getPasswordHash() != null) {
+            String clientIp = RequestMetadataUtil.getCurrentClientIp();
+            authRateLimitService.checkAccountDeleteAllowed(user.getEmail(), clientIp);
+
+            if (request == null || request.password() == null || request.password().isBlank()) {
+                throw new ApiException("Password is required to delete this account", "AUTH_PASSWORD_REQUIRED");
+            }
+            if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+                authRateLimitService.recordAccountDeleteFailure(user.getEmail(), clientIp);
+                securityAuditService.logFailure("ACCOUNT_DELETE", user, user.getEmail(), "Password mismatch");
+                throw new ApiException("Password is incorrect", "AUTH_INVALID_CREDENTIALS");
+            }
+            authRateLimitService.clearAccountDeleteFailures(user.getEmail(), clientIp);
+        }
+
+        user.setAccountStatus(AccountStatus.DELETED);
+        user.setDeletedAt(Instant.now());
+        // Same reasoning as changePassword: revoking refresh tokens alone leaves the
+        // stateless access token working until it expires, so the version must move too.
+        user.incrementTokenVersion();
+        userRepository.save(user);
+
+        refreshTokenRepository.revokeByUser(user, Instant.now());
+        securityAuditService.logSuccess("ACCOUNT_DELETE", user, user.getEmail());
+        log.info("Account soft-deleted and all sessions revoked for user {}", user.getId());
     }
 
     private User loadCurrentUser() {
