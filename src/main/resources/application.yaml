@@ -59,7 +59,7 @@ app:
     #
     # Falls back to MAIL_USERNAME, which is correct for Gmail where the
     # login and the sender address are the same thing.
-    from: ${MAIL_FROM:${MAIL_USERNAME:no-reply@genlinkkh.com}}
+    from: ${MAIL_FROM}
   jwt:
     issuer: ${JWT_ISSUER:genlink_kh}
     secret: ${JWT_SECRET}
