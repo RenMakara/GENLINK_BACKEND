@@ -82,6 +82,13 @@ services:
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
+      # The visible From address. Must be listed here, not just in .env:
+      # Compose reads .env to interpolate THIS file, but only the keys named
+      # in `environment:` are actually injected into the container.
+      # Falls back to the SMTP login, which is correct for Gmail. A bare
+      # ${MAIL_FROM} would inject an EMPTY string when unset — worse than
+      # absent, because Spring's own fallback chain would never fire.
+      MAIL_FROM: ${MAIL_FROM:-${MAIL_USERNAME}}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_PROJECT_ID: ${GOOGLE_PROJECT_ID:-genlinkkh}
       APP_DEFAULT_LANGUAGE: ${APP_DEFAULT_LANGUAGE:-ENGLISH}
