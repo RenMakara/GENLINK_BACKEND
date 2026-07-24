@@ -27,6 +27,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -149,22 +151,27 @@ public class AuthServiceImpl implements AuthService {
     public void register(RegisterRequest request) {
         log.info("Registering new user with email: {}", request.email());
         passwordPolicyValidator.validate(request.password());
-        if (userRepository.existsByEmail(request.email())) {
+
+        User existing = userRepository.findByEmail(request.email()).orElse(null);
+
+        // A soft-deleted account still owns its email through the UNIQUE constraint, so
+        // rejecting it here would strand the owner: unable to log in AND unable to sign
+        // up again. Inside the grace period the deletion is simply undone. Past it,
+        // AccountAnonymizationService has already released the address, so `existing` is
+        // null and this proceeds as an ordinary new registration.
+        if (existing != null && existing.getAccountStatus() == AccountStatus.DELETED) {
+            reactivateDeletedAccount(existing, request);
+            return;
+        }
+
+        if (existing != null) {
             log.warn("Registration failed: Email {} already exists", request.email());
             securityAuditService.logFailure("REGISTER_FAILED", request.email(), "DUPLICATE_EMAIL");
             throw new ApiException("Email already registered", "AUTH_EMAIL_ALREADY_REGISTERED");
         }
-        if (userRepository.existsByUsername(request.username())) {
-            log.warn("Registration failed: Username {} already exists", request.username());
-            securityAuditService.logFailure("REGISTER_FAILED", request.email(), "DUPLICATE_USERNAME");
-            throw new ApiException("Username already registered", "AUTH_USERNAME_ALREADY_REGISTERED");
-        }
-        if (request.phoneNumber() != null && !request.phoneNumber().isBlank()
-            && userRepository.existsByPhoneNumber(request.phoneNumber())) {
-            log.warn("Registration failed: Phone {} already exists", request.phoneNumber());
-            securityAuditService.logFailure("REGISTER_FAILED", request.email(), "DUPLICATE_PHONE");
-            throw new ApiException("Phone already registered", "AUTH_PHONE_ALREADY_REGISTERED");
-        }
+
+        requireUsernameAvailable(request, null);
+        requirePhoneAvailable(request, null);
 
         User user = new User();
         user.setEmail(request.email());
@@ -185,6 +192,75 @@ public class AuthServiceImpl implements AuthService {
         otpService.issue(user, OtpPurpose.REGISTER);
         securityAuditService.logSuccess("REGISTER_SUCCESS", user, request.email());
         log.info("User registered and OTP sent to {}", request.email());
+    }
+
+    /**
+     * Restores an account the user deleted, reusing the existing row.
+     *
+     * <p>This is a recovery, not a fresh signup: the same person is coming back inside
+     * the grace window, so XP, badges and their existing posts are kept. Only the
+     * details supplied on the form are overwritten. Once the grace period expires the
+     * row is anonymised and its email freed, so a stranger who later registers a
+     * recycled address never reaches this path — they get a brand new account.
+     *
+     * <p>The account returns as PENDING and unverified, which forces the OTP round trip:
+     * proof of mailbox control is what separates the real owner from someone who merely
+     * knows the address.
+     */
+    private void reactivateDeletedAccount(User user, RegisterRequest request) {
+        requireUsernameAvailable(request, user.getId());
+        requirePhoneAvailable(request, user.getId());
+
+        user.setUsername(request.username());
+        user.setPhoneNumber(request.phoneNumber());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setFullName(request.fullName());
+        user.setUniversityName(request.universityName());
+        user.setWorkStatus(request.workStatus() == null ? WorkStatus.STUDENT : request.workStatus());
+        user.setPreferredLanguage(request.preferredLanguage() == null ? Language.ENGLISH : request.preferredLanguage());
+        user.setAuthProvider(AuthProvider.LOCAL);
+        user.setAccountStatus(AccountStatus.PENDING);
+        user.setEmailVerified(false);
+        user.setDeletedAt(null);
+        // Tokens minted before the deletion must not spring back to life with the account.
+        user.incrementTokenVersion();
+
+        userRepository.save(user);
+        otpService.issue(user, OtpPurpose.REGISTER);
+        securityAuditService.logSuccess("REGISTER_REACTIVATED", user, request.email());
+        log.info("Reactivated previously deleted account and OTP sent to {}", request.email());
+    }
+
+    /**
+     * Rejects a username already held by a <em>different</em> account.
+     *
+     * @param selfId the account being reactivated, which is allowed to keep its own
+     *               username; null when registering a new user, where any match is a clash
+     */
+    private void requireUsernameAvailable(RegisterRequest request, UUID selfId) {
+        boolean takenByAnother = userRepository.findByUsername(request.username())
+            .map(owner -> !owner.getId().equals(selfId))
+            .orElse(false);
+        if (takenByAnother) {
+            log.warn("Registration failed: Username {} already exists", request.username());
+            securityAuditService.logFailure("REGISTER_FAILED", request.email(), "DUPLICATE_USERNAME");
+            throw new ApiException("Username already registered", "AUTH_USERNAME_ALREADY_REGISTERED");
+        }
+    }
+
+    /** Phone counterpart of {@link #requireUsernameAvailable}; the field is optional. */
+    private void requirePhoneAvailable(RegisterRequest request, UUID selfId) {
+        if (request.phoneNumber() == null || request.phoneNumber().isBlank()) {
+            return;
+        }
+        boolean takenByAnother = userRepository.findByPhoneNumber(request.phoneNumber())
+            .map(owner -> !owner.getId().equals(selfId))
+            .orElse(false);
+        if (takenByAnother) {
+            log.warn("Registration failed: Phone {} already exists", request.phoneNumber());
+            securityAuditService.logFailure("REGISTER_FAILED", request.email(), "DUPLICATE_PHONE");
+            throw new ApiException("Phone already registered", "AUTH_PHONE_ALREADY_REGISTERED");
+        }
     }
 
     @Override

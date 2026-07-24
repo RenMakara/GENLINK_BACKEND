@@ -26,8 +26,12 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -141,6 +145,106 @@ class AuthServiceImplTest {
             .isInstanceOf(ApiException.class)
             .extracting(ex -> ((ApiException) ex).getErrorCode())
             .isEqualTo(AuthErrorCode.AUTH_WEAK_PASSWORD);
+    }
+
+    @Test
+    void registerReactivatesSoftDeletedAccountInsteadOfRejectingTheEmail() {
+        RegisterRequest request = new RegisterRequest(
+            "Sophea Chan",
+            "sophea_returning",
+            "returning@example.com",
+            "012345681",
+            "password123",
+            "ACLEDA University",
+            null,
+            null
+        );
+        User deleted = deletedAccount(request.email(), "old_username");
+        deleted.setTotalXp(1500);
+
+        when(userRepository.findByEmail(request.email())).thenReturn(Optional.of(deleted));
+        when(passwordEncoder.encode(request.password())).thenReturn("hashed-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        authService.register(request);
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        User user = userCaptor.getValue();
+        // The same row is reused, which is what keeps existing posts attributed.
+        assertThat(user.getId()).isEqualTo(deleted.getId());
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING);
+        assertThat(user.getDeletedAt()).isNull();
+        assertThat(user.isEmailVerified()).isFalse();
+        assertThat(user.getUsername()).isEqualTo(request.username());
+        assertThat(user.getPasswordHash()).isEqualTo("hashed-password");
+        // A recovery, not a fresh signup: progress survives.
+        assertThat(user.getTotalXp()).isEqualTo(1500);
+        // Tokens issued before the deletion must not work again.
+        assertThat(user.getTokenVersion()).isEqualTo(1);
+        verify(otpService).issue(user, OtpPurpose.REGISTER);
+    }
+
+    @Test
+    void registerStillRejectsAnEmailHeldByALiveAccount() {
+        RegisterRequest request = new RegisterRequest(
+            "Sophea Chan",
+            "sophea_dup",
+            "taken@example.com",
+            "012345682",
+            "password123",
+            "ACLEDA University",
+            null,
+            null
+        );
+        User active = new User();
+        active.setEmail(request.email());
+        active.setAccountStatus(AccountStatus.ACTIVE);
+        when(userRepository.findByEmail(request.email())).thenReturn(Optional.of(active));
+
+        assertThatThrownBy(() -> authService.register(request))
+            .isInstanceOf(ApiException.class)
+            .extracting(ex -> ((ApiException) ex).getErrorCode())
+            .isEqualTo("AUTH_EMAIL_ALREADY_REGISTERED");
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void reactivationRejectsAUsernameOwnedByADifferentAccount() {
+        RegisterRequest request = new RegisterRequest(
+            "Sophea Chan",
+            "already_taken",
+            "returning2@example.com",
+            null,
+            "password123",
+            "ACLEDA University",
+            null,
+            null
+        );
+        User deleted = deletedAccount(request.email(), "old_username");
+        User someoneElse = new User();
+        ReflectionTestUtils.setField(someoneElse, "id", UUID.randomUUID());
+        someoneElse.setUsername(request.username());
+
+        when(userRepository.findByEmail(request.email())).thenReturn(Optional.of(deleted));
+        when(userRepository.findByUsername(request.username())).thenReturn(Optional.of(someoneElse));
+
+        assertThatThrownBy(() -> authService.register(request))
+            .isInstanceOf(ApiException.class)
+            .extracting(ex -> ((ApiException) ex).getErrorCode())
+            .isEqualTo("AUTH_USERNAME_ALREADY_REGISTERED");
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    /** A soft-deleted account with an id, so identity comparisons are meaningful. */
+    private User deletedAccount(String email, String username) {
+        User user = new User();
+        ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
+        user.setEmail(email);
+        user.setUsername(username);
+        user.setAccountStatus(AccountStatus.DELETED);
+        user.setDeletedAt(Instant.now().minus(2, ChronoUnit.DAYS));
+        return user;
     }
 
     @Test

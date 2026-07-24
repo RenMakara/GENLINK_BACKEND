@@ -13,4 +13,11 @@ import java.util.UUID;
 public interface SocialAccountRepository extends JpaRepository<SocialAccount, UUID> {
     Optional<SocialAccount> findByProviderAndProviderUserId(Provider provider, String providerUserId);
     boolean existsByUserAndProvider(User user, Provider provider);
+
+    /**
+     * Used by account anonymisation: these rows hold the provider's email and its
+     * stable user id, both of which identify a person, so scrubbing the user row
+     * alone would leave the identity recoverable.
+     */
+    void deleteByUser(User user);
 }
