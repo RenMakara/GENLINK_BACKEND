@@ -29,6 +29,15 @@ spring:
           starttls:
             enable: true
             required: true
+          # Without these, JavaMail inherits the OS default and a
+          # unreachable SMTP host blocks the calling thread for ~2 minutes.
+          # Because OTP delivery runs inside the HTTP request, that stalls
+          # registration far past the mobile client's 15s timeout: the
+          # account is created but the app reports failure. 5s fails fast
+          # instead; the OTP is still logged and stored either way.
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 management:
   health:
@@ -39,8 +48,20 @@ server:
   port: 8888
 
 app:
+  mail:
+    # The "From" address on outgoing mail.
+    #
+    # Kept separate from spring.mail.username because with a transactional
+    # provider (Brevo, SendGrid, Mailgun) the SMTP *login* is a generated
+    # credential like 8a1b2c001@smtp-brevo.com — not a mailbox you own. The
+    # provider rejects mail whose From is not a verified sender, so this
+    # must be the address you verified with them.
+    #
+    # Falls back to MAIL_USERNAME, which is correct for Gmail where the
+    # login and the sender address are the same thing.
+    from: ${MAIL_FROM:${MAIL_USERNAME:no-reply@genlinkkh.com}}
   jwt:
-    issuer: ${JWT_ISSUER:genlink-kh}
+    issuer: ${JWT_ISSUER:genlink_kh}
     secret: ${JWT_SECRET}
     # 15 minutes. Access tokens are stateless, so this bounds the window in which a
     # stolen token stays usable; the token-version claim handles explicit revocation.

@@ -11,7 +11,7 @@ service-account.json
 # `.env` and `.env.example` are both ignored here because this project keeps
 # real values in them. The `.env.<name>.example` templates are placeholders
 # only, so they stay tracked for the team to copy from.
-.env.example
+.env.dev.example
 .env
 .env.*
 !.env.*.example

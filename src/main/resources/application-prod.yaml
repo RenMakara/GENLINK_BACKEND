@@ -18,7 +18,7 @@ spring:
 
 app:
   jwt:
-    issuer: ${JWT_ISSUER:genlink-kh}
+    issuer: ${JWT_ISSUER:genlink_kh}
     secret: ${JWT_SECRET}
   google:
     client-id: ${GOOGLE_CLIENT_ID}
