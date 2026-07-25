@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="GenLink KH" width="140" />
+<img src="assets/logo.png" alt="GenLink KH" width="90" />
 
-# GenLink KH
+## GenLink KH
 
 **A Khmer-first Gen Z super-app — community, growth, and everyday life in one place.**
 
