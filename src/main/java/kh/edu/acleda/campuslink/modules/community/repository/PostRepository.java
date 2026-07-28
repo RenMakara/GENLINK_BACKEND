@@ -68,6 +68,14 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
         countQuery = "SELECT COUNT(p) FROM Post p WHERE p.deletedAt IS NULL AND p.community.id = :communityId")
     Page<Post> findByCommunity(@Param("communityId") UUID communityId, Pageable pageable);
 
+    /** A community moderator's queue: live posts in the community that carry reports, most-reported first. */
+    @Query(value = "SELECT p FROM Post p LEFT JOIN FETCH p.user "
+        + "WHERE p.deletedAt IS NULL AND p.community.id = :communityId AND p.reportCount > 0 "
+        + "ORDER BY p.reportCount DESC",
+        countQuery = "SELECT COUNT(p) FROM Post p "
+            + "WHERE p.deletedAt IS NULL AND p.community.id = :communityId AND p.reportCount > 0")
+    Page<Post> findReportedByCommunity(@Param("communityId") UUID communityId, Pageable pageable);
+
     /** Scoped by owner so another user's id reads as not found rather than forbidden. */
     Optional<Post> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
 
@@ -84,4 +92,13 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     @Modifying
     @Query("UPDATE Post p SET p.commentCount = p.commentCount + :delta WHERE p.id = :postId")
     void adjustCommentCount(@Param("postId") UUID postId, @Param("delta") int delta);
+
+    @Modifying
+    @Query("UPDATE Post p SET p.reportCount = p.reportCount + :delta WHERE p.id = :postId")
+    void adjustReportCount(@Param("postId") UUID postId, @Param("delta") int delta);
+
+    /** Used when a moderator dismisses a post's reports. */
+    @Modifying
+    @Query("UPDATE Post p SET p.reportCount = 0 WHERE p.id = :postId")
+    void clearReportCount(@Param("postId") UUID postId);
 }

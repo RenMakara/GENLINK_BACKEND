@@ -51,3 +51,5 @@ databaseChangeLog:
       file: db/changelog/changes/0025-seed-daily-challenges.sql
   - include:
       file: db/changelog/changes/0026-add-short-content-interactions.sql
+  - include:
+      file: db/changelog/changes/0027-add-post-reports.sql

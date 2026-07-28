@@ -69,6 +69,9 @@ public class Post extends BaseEntity {
     @Column(name = "save_count", nullable = false)
     private Integer saveCount;
 
+    @Column(name = "report_count", nullable = false)
+    private Integer reportCount;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 

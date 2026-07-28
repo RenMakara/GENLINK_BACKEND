@@ -10,11 +10,14 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Community;
 import kh.edu.acleda.campuslink.modules.community.entity.CommunityMember;
 import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.entity.PostReaction;
+import kh.edu.acleda.campuslink.modules.community.entity.PostReport;
 import kh.edu.acleda.campuslink.modules.community.enums.CommunityRole;
 import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.PostType;
@@ -23,6 +26,7 @@ import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepo
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostReactionRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.PostReportRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
 import kh.edu.acleda.campuslink.modules.community.service.PostService;
@@ -52,6 +56,7 @@ public class PostServiceImpl implements PostService {
 
     private final PostRepository postRepository;
     private final PostReactionRepository postReactionRepository;
+    private final PostReportRepository postReportRepository;
     private final SavedItemRepository savedItemRepository;
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository communityMemberRepository;
@@ -62,6 +67,7 @@ public class PostServiceImpl implements PostService {
 
     public PostServiceImpl(PostRepository postRepository,
                            PostReactionRepository postReactionRepository,
+                           PostReportRepository postReportRepository,
                            SavedItemRepository savedItemRepository,
                            CommunityRepository communityRepository,
                            CommunityMemberRepository communityMemberRepository,
@@ -71,6 +77,7 @@ public class PostServiceImpl implements PostService {
                            CurrentUserProvider currentUserProvider) {
         this.postRepository = postRepository;
         this.postReactionRepository = postReactionRepository;
+        this.postReportRepository = postReportRepository;
         this.savedItemRepository = savedItemRepository;
         this.communityRepository = communityRepository;
         this.communityMemberRepository = communityMemberRepository;
@@ -98,6 +105,7 @@ public class PostServiceImpl implements PostService {
             .commentCount(0)
             .shareCount(0)
             .saveCount(0)
+            .reportCount(0)
             .build();
 
         Post saved = postRepository.save(post);
@@ -201,19 +209,7 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
             .orElseThrow(() -> new NotFoundException("Post not found"));
         Community community = post.getCommunity();
-        // Moderation is a community-role power. A post that belongs to no community has no
-        // moderators, so there is nothing to authorise against - treat it as not found.
-        if (community == null) {
-            throw new NotFoundException("Post not found");
-        }
-        CommunityMember membership = communityMemberRepository
-            .findByCommunityIdAndUserId(community.getId(), currentUserProvider.getCurrentUserId())
-            .filter(member -> member.getStatus() == MemberStatus.ACTIVE)
-            .orElseThrow(() -> new NotFoundException("Post not found"));
-        // A plain member is not a moderator; not-found so the endpoint does not leak the post.
-        if (!MODERATOR_ROLES.contains(membership.getRole())) {
-            throw new NotFoundException("Post not found");
-        }
+        CommunityMember membership = requireModeratorOfPostCommunity(community);
 
         post.setDeletedAt(Instant.now());
         postRepository.save(post);
@@ -221,6 +217,93 @@ public class PostServiceImpl implements PostService {
         communityRepository.adjustPostCount(community.getId(), -1);
         log.info("Post {} removed by moderator {} ({}) in community {}",
             postId, currentUserProvider.getCurrentUserId(), membership.getRole(), community.getId());
+    }
+
+    @Override
+    @Transactional
+    public void report(UUID postId, PostReportRequest request) {
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+            .orElseThrow(() -> new NotFoundException("Post not found"));
+        UUID userId = currentUserProvider.getCurrentUserId();
+
+        // One report per user, so report_count means "distinct people flagged this" rather
+        // than "how many times someone tapped". The unique (post_id, user_id) backs this.
+        if (postReportRepository.existsByPostIdAndUserId(postId, userId)) {
+            return;
+        }
+        postReportRepository.save(PostReport.builder()
+            .post(post)
+            .user(loadCurrentUser())
+            .reason(request.reason())
+            .details(request.details())
+            .build());
+        postRepository.adjustReportCount(postId, 1);
+        log.info("Post reported: id={} reason={} by user={}", postId, request.reason(), userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<ReportedPostResponse> reportedPosts(UUID communityId, Pageable pageable) {
+        requireCommunityModerator(communityId);
+        return PageResponse.from(
+            postRepository.findReportedByCommunity(communityId, pageable),
+            this::toReportedResponse);
+    }
+
+    @Override
+    @Transactional
+    public void dismissReports(UUID postId) {
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+            .orElseThrow(() -> new NotFoundException("Post not found"));
+        requireModeratorOfPostCommunity(post.getCommunity());
+
+        // Keep the post, drop the flags: clear the rows and zero the cached count so it
+        // leaves the queue. A later report from someone new re-opens it.
+        postReportRepository.deleteByPostId(postId);
+        postRepository.clearReportCount(postId);
+        log.info("Reports dismissed on post {} by moderator {}", postId, currentUserProvider.getCurrentUserId());
+    }
+
+    /**
+     * A post outside any community has no moderators, so there is nothing to authorise
+     * against. Otherwise the caller must be an active OWNER/ADMIN/MODERATOR of it. Every
+     * refusal is not-found, never forbidden, so the endpoint does not leak the post.
+     */
+    private CommunityMember requireModeratorOfPostCommunity(Community community) {
+        if (community == null) {
+            throw new NotFoundException("Post not found");
+        }
+        CommunityMember membership = communityMemberRepository
+            .findByCommunityIdAndUserId(community.getId(), currentUserProvider.getCurrentUserId())
+            .filter(member -> member.getStatus() == MemberStatus.ACTIVE)
+            .orElseThrow(() -> new NotFoundException("Post not found"));
+        if (!MODERATOR_ROLES.contains(membership.getRole())) {
+            throw new NotFoundException("Post not found");
+        }
+        return membership;
+    }
+
+    /** Caller must be an active OWNER/ADMIN/MODERATOR of the community; not-found otherwise. */
+    private void requireCommunityModerator(UUID communityId) {
+        CommunityMember membership = communityMemberRepository
+            .findByCommunityIdAndUserId(communityId, currentUserProvider.getCurrentUserId())
+            .filter(member -> member.getStatus() == MemberStatus.ACTIVE)
+            .orElseThrow(() -> new NotFoundException("Community not found"));
+        if (!MODERATOR_ROLES.contains(membership.getRole())) {
+            throw new NotFoundException("Community not found");
+        }
+    }
+
+    private ReportedPostResponse toReportedResponse(Post post) {
+        User author = post.getUser();
+        return new ReportedPostResponse(
+            post.getId(),
+            author == null ? null : new PostResponse.AuthorSummary(
+                author.getId(), author.getFullName(), author.getUsername(), author.getAvatarUrl()),
+            post.getContentText(),
+            post.getImageUrl(),
+            post.getReportCount() == null ? 0 : post.getReportCount(),
+            post.getCreatedAt());
     }
 
     @Override

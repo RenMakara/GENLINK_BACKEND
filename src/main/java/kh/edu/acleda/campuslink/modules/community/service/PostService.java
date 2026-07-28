@@ -1,7 +1,9 @@
 package kh.edu.acleda.campuslink.modules.community.service;
 
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import org.springframework.data.domain.Pageable;
 
@@ -32,6 +34,15 @@ public interface PostService {
      * post's community; distinct from {@link #delete} which is author-only. Soft delete.
      */
     void removeAsModerator(UUID postId);
+
+    /** Flags a post for moderator review. Idempotent per user - one report per person. */
+    void report(UUID postId, PostReportRequest request);
+
+    /** A community moderator's queue of reported posts in that community, most-reported first. */
+    PageResponse<ReportedPostResponse> reportedPosts(UUID communityId, Pageable pageable);
+
+    /** Clears a post's reports without removing it. OWNER / ADMIN / MODERATOR of its community. */
+    void dismissReports(UUID postId);
 
     /** Idempotent: backs a UI toggle. @return the post's like count afterwards. */
     int like(UUID postId);
