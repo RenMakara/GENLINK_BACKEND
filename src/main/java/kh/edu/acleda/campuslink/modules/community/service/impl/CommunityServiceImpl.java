@@ -55,6 +55,8 @@ public class CommunityServiceImpl implements CommunityService {
     @Transactional
     public CommunityResponse create(CommunityCreateRequest request) {
         User creator = loadCurrentUser();
+        log.debug("Creating community: name='{}' privacy={} by user={}",
+            request.name(), request.privacy(), creator.getId());
         Community community = communityRepository.save(Community.builder()
             .name(request.name().strip())
             .slug(uniqueSlug(request.name()))
@@ -80,6 +82,8 @@ public class CommunityServiceImpl implements CommunityService {
         communityRepository.adjustMemberCount(community.getId(), 1);
         community.setMemberCount(1);
 
+        log.info("Community created: id={} slug={} privacy={} by owner={}",
+            community.getId(), community.getSlug(), community.getPrivacy(), creator.getId());
         return toResponse(community, CommunityRole.OWNER, false);
     }
 
@@ -87,6 +91,8 @@ public class CommunityServiceImpl implements CommunityService {
     @Transactional(readOnly = true)
     public PageResponse<CommunityResponse> discover(String category, Pageable pageable) {
         UUID userId = currentUserProvider.getCurrentUserId();
+        log.debug("Discovering communities: category={} page={} size={} for user={}",
+            category, pageable.getPageNumber(), pageable.getPageSize(), userId);
         // Private communities are not browsable: you reach them by direct link.
         return PageResponse.from(
             communityRepository.findDiscoverable(CommunityPrivacy.PUBLIC, category, pageable),
@@ -97,6 +103,7 @@ public class CommunityServiceImpl implements CommunityService {
     @Transactional(readOnly = true)
     public PageResponse<CommunityResponse> getMine(Pageable pageable) {
         UUID userId = currentUserProvider.getCurrentUserId();
+        log.debug("Listing communities for user {}", userId);
         return PageResponse.from(
             memberRepository.findMyCommunities(userId, MemberStatus.ACTIVE, pageable),
             member -> toResponse(member.getCommunity(), member.getRole(), false));
@@ -105,6 +112,7 @@ public class CommunityServiceImpl implements CommunityService {
     @Override
     @Transactional(readOnly = true)
     public CommunityResponse getBySlug(String slug) {
+        log.debug("Fetching community by slug: {}", slug);
         Community community = communityRepository.findBySlugAndDeletedAtIsNull(slug)
             .orElseThrow(() -> new NotFoundException("Community not found"));
         // A PRIVATE community is reachable by direct link, so the viewer may be a pending
@@ -125,6 +133,7 @@ public class CommunityServiceImpl implements CommunityService {
     @Transactional
     public CommunityResponse update(UUID communityId, CommunityCreateRequest request) {
         Community community = loadManageable(communityId);
+        log.debug("Updating community {} by user {}", communityId, currentUserProvider.getCurrentUserId());
         community.setName(request.name().strip());
         community.setDescription(request.description());
         community.setCategory(request.category());
@@ -135,13 +144,16 @@ public class CommunityServiceImpl implements CommunityService {
         }
         // The slug is deliberately not regenerated: it is a public URL, and silently
         // changing it would break every link already shared.
-        return toResponse(communityRepository.save(community), myRole(communityId), false);
+        CommunityResponse response = toResponse(communityRepository.save(community), myRole(communityId), false);
+        log.info("Community updated: id={} by user={}", communityId, currentUserProvider.getCurrentUserId());
+        return response;
     }
 
     @Override
     @Transactional
     public void delete(UUID communityId) {
         Community community = loadCommunity(communityId);
+        log.debug("Delete requested for community {} by user {}", communityId, currentUserProvider.getCurrentUserId());
         if (myRole(communityId) != CommunityRole.OWNER) {
             throw new NotFoundException("Community not found");
         }
@@ -166,16 +178,19 @@ public class CommunityServiceImpl implements CommunityService {
         // requested and an owner/admin approves it. Without this gate PRIVATE only hid the
         // community from discovery while letting anyone in through the direct link.
         boolean requiresApproval = community.getPrivacy() == CommunityPrivacy.PRIVATE;
+        log.debug("Join requested: community={} user={} requiresApproval={}", communityId, userId, requiresApproval);
 
         Optional<CommunityMember> existing = memberRepository.findByCommunityIdAndUserId(communityId, userId);
         if (existing.isPresent()) {
             CommunityMember member = existing.get();
             // Idempotent: Join backs a button and (community_id, user_id) is unique.
             if (member.getStatus() == MemberStatus.ACTIVE) {
+                log.debug("Join is a no-op, user {} already active in community {}", userId, communityId);
                 return toResponse(community, member.getRole(), false);
             }
             if (member.getStatus() == MemberStatus.PENDING) {
                 // The request already exists; do not duplicate it or count them as a member.
+                log.debug("Join is a no-op, request already pending: community={} user={}", communityId, userId);
                 return toResponse(community, null, true);
             }
             // Rejoining reuses the row - the unique constraint forbids a second one - but a
@@ -184,6 +199,7 @@ public class CommunityServiceImpl implements CommunityService {
             if (requiresApproval) {
                 member.setStatus(MemberStatus.PENDING);
                 memberRepository.save(member);
+                log.info("Join request re-opened (pending approval): community={} user={}", communityId, userId);
                 return toResponse(community, null, true);
             }
             member.setStatus(MemberStatus.ACTIVE);
@@ -191,6 +207,7 @@ public class CommunityServiceImpl implements CommunityService {
             memberRepository.save(member);
             communityRepository.adjustMemberCount(communityId, 1);
             community.setMemberCount(community.getMemberCount() + 1);
+            log.info("User {} rejoined community {}", userId, communityId);
             return toResponse(community, member.getRole(), false);
         }
 
@@ -204,10 +221,12 @@ public class CommunityServiceImpl implements CommunityService {
             .joinedAt(requiresApproval ? null : Instant.now())
             .build());
         if (requiresApproval) {
+            log.info("Join request created (pending approval): community={} user={}", communityId, userId);
             return toResponse(community, null, true);
         }
         communityRepository.adjustMemberCount(communityId, 1);
         community.setMemberCount(community.getMemberCount() + 1);
+        log.info("User {} joined community {}", userId, communityId);
         return toResponse(community, CommunityRole.MEMBER, false);
     }
 
@@ -215,10 +234,12 @@ public class CommunityServiceImpl implements CommunityService {
     @Transactional
     public void leave(UUID communityId) {
         UUID userId = currentUserProvider.getCurrentUserId();
+        log.debug("Leave requested: community={} user={}", communityId, userId);
         CommunityMember member = memberRepository.findByCommunityIdAndUserId(communityId, userId)
             .orElseThrow(() -> new NotFoundException("Membership not found"));
 
         if (member.getStatus() != MemberStatus.ACTIVE) {
+            log.debug("Leave is a no-op, user {} is not active in community {}", userId, communityId);
             return;
         }
         // Otherwise a community can be orphaned with nobody able to administer it.
@@ -230,12 +251,14 @@ public class CommunityServiceImpl implements CommunityService {
         member.setStatus(MemberStatus.LEFT);
         memberRepository.save(member);
         communityRepository.adjustMemberCount(communityId, -1);
+        log.info("User {} left community {}", userId, communityId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<CommunityMemberResponse> members(UUID communityId, Pageable pageable) {
         loadCommunity(communityId);
+        log.debug("Listing active members of community {}", communityId);
         return PageResponse.from(
             memberRepository.findMembers(communityId, MemberStatus.ACTIVE, pageable),
             this::toMemberResponse);
@@ -245,6 +268,8 @@ public class CommunityServiceImpl implements CommunityService {
     @Transactional(readOnly = true)
     public PageResponse<CommunityMemberResponse> joinRequests(UUID communityId, Pageable pageable) {
         loadManageable(communityId);
+        log.debug("Listing pending join requests for community {} by manager {}",
+            communityId, currentUserProvider.getCurrentUserId());
         return PageResponse.from(
             memberRepository.findMembers(communityId, MemberStatus.PENDING, pageable),
             this::toMemberResponse);
@@ -260,6 +285,8 @@ public class CommunityServiceImpl implements CommunityService {
         memberRepository.save(member);
         // The count moves only now: a pending request never incremented it.
         communityRepository.adjustMemberCount(communityId, 1);
+        log.info("Join request approved: community={} user={} by manager={}",
+            communityId, userId, currentUserProvider.getCurrentUserId());
         return toMemberResponse(member);
     }
 
@@ -273,6 +300,8 @@ public class CommunityServiceImpl implements CommunityService {
         // A later join re-opens it as PENDING through the rejoin path.
         member.setStatus(MemberStatus.REMOVED);
         memberRepository.save(member);
+        log.info("Join request rejected: community={} user={} by manager={}",
+            communityId, userId, currentUserProvider.getCurrentUserId());
     }
 
     private CommunityMember pendingRequest(UUID communityId, UUID userId) {
