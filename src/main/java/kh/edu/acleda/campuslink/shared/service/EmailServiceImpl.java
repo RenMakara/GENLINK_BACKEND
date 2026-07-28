@@ -27,7 +27,7 @@ public class EmailServiceImpl implements EmailService {
     private final String fromEmail;
 
     public EmailServiceImpl(JavaMailSender mailSender,
-                            @Value("${app.mail.from}") String fromEmail) {
+                            @Value("${spring.mail.username:no-reply@campuslinkkh.edu.kh}") String fromEmail) {
         this.mailSender = mailSender;
         this.fromEmail = fromEmail;
     }

@@ -353,9 +353,11 @@ timeline, not a social product.
   community. Needs a `PUT /communities/{id}/members/{userId}/role` endpoint.
 - **Role management is not exposed**: `CommunityRole` has ADMIN and MODERATOR but
   nothing can promote anyone. Only the creator is ever anything but MEMBER.
-- **Private community membership is open**: `CommunityPrivacy.PRIVATE` hides a
-  community from discovery, but `join` does not gate on it. Anyone with the id can
-  still join. Follows gained a PENDING path; communities did not.
+- ~~**Private community membership is open**~~ — **fixed 2026-07-28.** `join` now
+  gates on privacy: a PRIVATE community records a `MemberStatus.PENDING` request that
+  an owner/admin approves via `GET/POST/DELETE /communities/{id}/join-requests[...]`,
+  mirroring the Follow PENDING path. Pending users are not counted, not in the member
+  list, and not served COMMUNITY-visibility posts until approved.
 - `user_settings.allow_follow_request` is still unused — PENDING keys off
   `privacyProfile` instead.
 

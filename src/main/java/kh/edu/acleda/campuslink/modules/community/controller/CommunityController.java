@@ -73,7 +73,10 @@ public class CommunityController {
         return ResponseEntity.ok(ApiResponse.success("Community deleted", null));
     }
 
-    /** Idempotent - backs the Join button. */
+    /**
+     * Idempotent - backs the Join button. A PUBLIC community is joined at once; a PRIVATE
+     * one returns requestPending=true until an owner/admin approves the request.
+     */
     @PostMapping("/{communityId}/join")
     public ResponseEntity<ApiResponse<CommunityResponse>> join(@PathVariable UUID communityId) {
         return ResponseEntity.ok(ApiResponse.success("Community joined", communityService.join(communityId)));
@@ -91,5 +94,28 @@ public class CommunityController {
         @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success("Members retrieved",
             communityService.members(communityId, pageable)));
+    }
+
+    /** Pending join requests for a PRIVATE community. Owner/admin only; others get not-found. */
+    @GetMapping("/{communityId}/join-requests")
+    public ResponseEntity<ApiResponse<PageResponse<CommunityMemberResponse>>> joinRequests(
+        @PathVariable UUID communityId,
+        @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Join requests retrieved",
+            communityService.joinRequests(communityId, pageable)));
+    }
+
+    @PostMapping("/{communityId}/join-requests/{userId}/approve")
+    public ResponseEntity<ApiResponse<CommunityMemberResponse>> approveJoinRequest(
+        @PathVariable UUID communityId, @PathVariable UUID userId) {
+        return ResponseEntity.ok(ApiResponse.success("Join request approved",
+            communityService.approveJoinRequest(communityId, userId)));
+    }
+
+    @DeleteMapping("/{communityId}/join-requests/{userId}")
+    public ResponseEntity<ApiResponse<Void>> rejectJoinRequest(
+        @PathVariable UUID communityId, @PathVariable UUID userId) {
+        communityService.rejectJoinRequest(communityId, userId);
+        return ResponseEntity.ok(ApiResponse.success("Join request rejected", null));
     }
 }
