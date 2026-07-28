@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.modules.community.service.impl;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -11,8 +12,11 @@ import java.util.stream.Collectors;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Community;
+import kh.edu.acleda.campuslink.modules.community.entity.CommunityMember;
 import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.entity.PostReaction;
+import kh.edu.acleda.campuslink.modules.community.enums.CommunityRole;
+import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.PostType;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepository;
@@ -29,17 +33,22 @@ import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class PostServiceImpl implements PostService {
 
     private static final String DEFAULT_REACTION = "LIKE";
     /** Stands in for an empty IN list, which is invalid SQL. Matches nothing. */
     private static final UUID PLACEHOLDER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    /** Community roles allowed to remove another member's post. */
+    private static final Set<CommunityRole> MODERATOR_ROLES =
+        EnumSet.of(CommunityRole.OWNER, CommunityRole.ADMIN, CommunityRole.MODERATOR);
 
     private final PostRepository postRepository;
     private final PostReactionRepository postReactionRepository;
@@ -184,6 +193,34 @@ public class PostServiceImpl implements PostService {
         Post post = loadOwned(id);
         post.setDeletedAt(Instant.now());
         postRepository.save(post);
+    }
+
+    @Override
+    @Transactional
+    public void removeAsModerator(UUID postId) {
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+            .orElseThrow(() -> new NotFoundException("Post not found"));
+        Community community = post.getCommunity();
+        // Moderation is a community-role power. A post that belongs to no community has no
+        // moderators, so there is nothing to authorise against - treat it as not found.
+        if (community == null) {
+            throw new NotFoundException("Post not found");
+        }
+        CommunityMember membership = communityMemberRepository
+            .findByCommunityIdAndUserId(community.getId(), currentUserProvider.getCurrentUserId())
+            .filter(member -> member.getStatus() == MemberStatus.ACTIVE)
+            .orElseThrow(() -> new NotFoundException("Post not found"));
+        // A plain member is not a moderator; not-found so the endpoint does not leak the post.
+        if (!MODERATOR_ROLES.contains(membership.getRole())) {
+            throw new NotFoundException("Post not found");
+        }
+
+        post.setDeletedAt(Instant.now());
+        postRepository.save(post);
+        // create() incremented postCount, so a removal decrements it to keep the count honest.
+        communityRepository.adjustPostCount(community.getId(), -1);
+        log.info("Post {} removed by moderator {} ({}) in community {}",
+            postId, currentUserProvider.getCurrentUserId(), membership.getRole(), community.getId());
     }
 
     @Override

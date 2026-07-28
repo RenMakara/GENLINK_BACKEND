@@ -80,6 +80,16 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.success("Post deleted", null));
     }
 
+    /**
+     * Remove a post as a community moderator (OWNER/ADMIN/MODERATOR of the post's community).
+     * Distinct from DELETE /{id}, which is author-only. A non-moderator gets 404, not 403.
+     */
+    @DeleteMapping("/{id}/moderate")
+    public ResponseEntity<ApiResponse<Void>> removeAsModerator(@PathVariable UUID id) {
+        postService.removeAsModerator(id);
+        return ResponseEntity.ok(ApiResponse.success("Post removed by moderator", null));
+    }
+
     /** Idempotent - backs the like toggle. Returns the resulting count. */
     @PostMapping("/{id}/like")
     public ResponseEntity<ApiResponse<Map<String, Integer>>> like(@PathVariable UUID id) {

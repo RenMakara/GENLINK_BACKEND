@@ -310,6 +310,84 @@ public class CommunityServiceImpl implements CommunityService {
             .orElseThrow(() -> new NotFoundException("Join request not found"));
     }
 
+    @Override
+    @Transactional
+    public CommunityMemberResponse changeMemberRole(UUID communityId, UUID userId, CommunityRole newRole) {
+        loadCommunity(communityId);
+        UUID callerId = currentUserProvider.getCurrentUserId();
+        CommunityRole callerRole = roleIn(communityId, callerId);
+
+        // Managing roles is an owner/admin action; everyone else must not even learn the
+        // community exists through this endpoint.
+        if (!CAN_MANAGE.contains(callerRole)) {
+            throw new NotFoundException("Community not found");
+        }
+        // OWNER is granted only through transferOwnership, so it is never a valid target here.
+        if (newRole == null || newRole == CommunityRole.OWNER) {
+            throw new ApiException("Use transfer ownership to change the owner", "COMMUNITY_ROLE_INVALID");
+        }
+        if (callerId.equals(userId)) {
+            throw new ApiException("You cannot change your own role", "COMMUNITY_ROLE_SELF");
+        }
+
+        CommunityMember target = memberRepository.findByCommunityIdAndUserId(communityId, userId)
+            .filter(member -> member.getStatus() == MemberStatus.ACTIVE)
+            .orElseThrow(() -> new NotFoundException("Member not found"));
+
+        // The owner's role is immutable here; it only moves via transferOwnership.
+        if (target.getRole() == CommunityRole.OWNER) {
+            throw new ApiException("The owner's role cannot be changed here", "COMMUNITY_ROLE_OWNER_IMMUTABLE");
+        }
+        // An admin may only manage moderators and members - it must not mint a peer admin or
+        // demote another admin. Administering admins is reserved to the owner.
+        if (callerRole == CommunityRole.ADMIN
+            && (target.getRole() == CommunityRole.ADMIN || newRole == CommunityRole.ADMIN)) {
+            throw new ApiException("Only the owner can assign or change the admin role",
+                "COMMUNITY_ROLE_ADMIN_FORBIDDEN");
+        }
+
+        if (target.getRole() == newRole) {
+            // Idempotent: setting the role it already has is a no-op, not an error.
+            return toMemberResponse(target);
+        }
+        CommunityRole previous = target.getRole();
+        target.setRole(newRole);
+        memberRepository.save(target);
+        log.info("Community role changed: community={} user={} {}->{} by {}",
+            communityId, userId, previous, newRole, callerId);
+        return toMemberResponse(target);
+    }
+
+    @Override
+    @Transactional
+    public CommunityResponse transferOwnership(UUID communityId, UUID newOwnerUserId) {
+        Community community = loadCommunity(communityId);
+        UUID callerId = currentUserProvider.getCurrentUserId();
+
+        // Only the current owner can hand over ownership. Not-found for everyone else so the
+        // endpoint never confirms the community to a non-owner.
+        CommunityMember currentOwner = memberRepository.findByCommunityIdAndUserId(communityId, callerId)
+            .filter(member -> member.getStatus() == MemberStatus.ACTIVE && member.getRole() == CommunityRole.OWNER)
+            .orElseThrow(() -> new NotFoundException("Community not found"));
+
+        if (callerId.equals(newOwnerUserId)) {
+            throw new ApiException("You are already the owner", "COMMUNITY_ALREADY_OWNER");
+        }
+        CommunityMember newOwner = memberRepository.findByCommunityIdAndUserId(communityId, newOwnerUserId)
+            .filter(member -> member.getStatus() == MemberStatus.ACTIVE)
+            .orElseThrow(() -> new NotFoundException("Member not found"));
+
+        // The outgoing owner stays on as an ADMIN. Dropping them to MEMBER would lock them out
+        // of the community they built and could leave nobody able to help administer it.
+        currentOwner.setRole(CommunityRole.ADMIN);
+        newOwner.setRole(CommunityRole.OWNER);
+        memberRepository.save(currentOwner);
+        memberRepository.save(newOwner);
+        log.info("Community ownership transferred: community={} from={} to={}",
+            communityId, callerId, newOwnerUserId);
+        return toResponse(community, CommunityRole.ADMIN, false);
+    }
+
     private Community loadCommunity(UUID communityId) {
         return communityRepository.findByIdAndDeletedAtIsNull(communityId)
             .orElseThrow(() -> new NotFoundException("Community not found"));

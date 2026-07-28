@@ -27,6 +27,12 @@ public interface PostService {
 
     void delete(UUID id);
 
+    /**
+     * Removes a post as a community moderator. Allowed to OWNER / ADMIN / MODERATOR of the
+     * post's community; distinct from {@link #delete} which is author-only. Soft delete.
+     */
+    void removeAsModerator(UUID postId);
+
     /** Idempotent: backs a UI toggle. @return the post's like count afterwards. */
     int like(UUID postId);
 

@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.community.controller;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.community.dto.request.ChangeMemberRoleRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CommunityCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommunityMemberResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommunityResponse;
@@ -117,5 +118,25 @@ public class CommunityController {
         @PathVariable UUID communityId, @PathVariable UUID userId) {
         communityService.rejectJoinRequest(communityId, userId);
         return ResponseEntity.ok(ApiResponse.success("Join request rejected", null));
+    }
+
+    /**
+     * Promote/demote a member to ADMIN, MODERATOR or MEMBER. Owner or admin only; an admin
+     * may only manage moderators and members. Use transfer-ownership to change the owner.
+     */
+    @PutMapping("/{communityId}/members/{userId}/role")
+    public ResponseEntity<ApiResponse<CommunityMemberResponse>> changeMemberRole(
+        @PathVariable UUID communityId, @PathVariable UUID userId,
+        @Valid @RequestBody ChangeMemberRoleRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Member role updated",
+            communityService.changeMemberRole(communityId, userId, request.role())));
+    }
+
+    /** Transfer ownership to another active member. Current owner only; they become an ADMIN. */
+    @PostMapping("/{communityId}/transfer-ownership/{userId}")
+    public ResponseEntity<ApiResponse<CommunityResponse>> transferOwnership(
+        @PathVariable UUID communityId, @PathVariable UUID userId) {
+        return ResponseEntity.ok(ApiResponse.success("Ownership transferred",
+            communityService.transferOwnership(communityId, userId)));
     }
 }
