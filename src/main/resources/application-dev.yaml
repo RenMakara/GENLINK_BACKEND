@@ -17,6 +17,13 @@ spring:
     password: ${MAIL_PASSWORD}
 
 app:
+  # Development defaults to log-only email: the OTP is written to the console
+  # (EmailServiceImpl logs "EMAIL OTP FOR ...") and no SMTP connection is made.
+  # To exercise real delivery in dev, set MAIL_ENABLED=true and provide a working
+  # SMTP host/username/password plus a verified MAIL_FROM sender.
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:no-reply@campuslinkkh.edu.kh}
   jwt:
     # Default restored so dev boots without the env var; set JWT_ISSUER to override.
     issuer: ${JWT_ISSUER:genlink-kh}

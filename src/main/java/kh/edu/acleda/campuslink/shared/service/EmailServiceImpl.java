@@ -25,11 +25,22 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
     private final String fromEmail;
+    private final boolean mailEnabled;
 
     public EmailServiceImpl(JavaMailSender mailSender,
-                            @Value("${spring.mail.username:no-reply@campuslinkkh.edu.kh}") String fromEmail) {
+                            // The From is a verified sender address, deliberately separate from the SMTP
+                            // login. Some providers (e.g. Brevo) use a login that is not a valid From
+                            // header, so reusing spring.mail.username as the From made setFrom() throw
+                            // AddressException before anything was ever sent. Falls back to the login (and
+                            // then a safe default) so a Gmail setup, where From must equal the account,
+                            // keeps working without extra config.
+                            @Value("${app.mail.from:${spring.mail.username:no-reply@campuslinkkh.edu.kh}}") String fromEmail,
+                            // Log-only mode for development: when false the OTP is logged and no SMTP
+                            // connection is attempted. Lets dev run with no mail server at all.
+                            @Value("${app.mail.enabled:true}") boolean mailEnabled) {
         this.mailSender = mailSender;
         this.fromEmail = fromEmail;
+        this.mailEnabled = mailEnabled;
     }
 
     @Override
@@ -42,6 +53,13 @@ public class EmailServiceImpl implements EmailService {
         log.info("**************************************************");
         log.info("EMAIL OTP FOR {}: {}", to, otp);
         log.info("**************************************************");
+
+        // Development log-only mode: skip SMTP entirely and rely on the OTP logged above.
+        // No mail server, no verified sender, and no address-parsing crash to wade through.
+        if (!mailEnabled) {
+            log.info("Mail sending disabled (app.mail.enabled=false) - not sending to {}. Use the OTP logged above.", to);
+            return;
+        }
 
         try {
             MimeMessage message = mailSender.createMimeMessage();
