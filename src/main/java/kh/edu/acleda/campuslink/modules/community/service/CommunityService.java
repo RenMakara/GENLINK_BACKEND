@@ -23,10 +23,22 @@ public interface CommunityService {
 
     void delete(UUID communityId);
 
-    /** Idempotent: joining twice returns the current state. */
+    /**
+     * Idempotent. A PUBLIC community is joined immediately; a PRIVATE one records a
+     * PENDING request that an owner/admin must approve before membership takes effect.
+     */
     CommunityResponse join(UUID communityId);
 
     void leave(UUID communityId);
 
     PageResponse<CommunityMemberResponse> members(UUID communityId, Pageable pageable);
+
+    /** Pending join requests for a PRIVATE community. Owner/admin only. */
+    PageResponse<CommunityMemberResponse> joinRequests(UUID communityId, Pageable pageable);
+
+    /** Approves a pending request, making the user an active member. Owner/admin only. */
+    CommunityMemberResponse approveJoinRequest(UUID communityId, UUID userId);
+
+    /** Rejects a pending request. Owner/admin only. */
+    void rejectJoinRequest(UUID communityId, UUID userId);
 }

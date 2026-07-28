@@ -42,6 +42,7 @@ class CommunityServiceImplTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID COMMUNITY_ID = UUID.randomUUID();
+    private static final UUID REQUESTER_ID = UUID.randomUUID();
 
     @Mock private CommunityRepository communityRepository;
     @Mock private CommunityMemberRepository memberRepository;
@@ -154,8 +155,129 @@ class CommunityServiceImplTest {
     void joiningDecrementsNothingAndIncrementsTheCount() {
         when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.empty());
 
-        assertThat(service.join(COMMUNITY_ID).myRole()).isEqualTo(CommunityRole.MEMBER);
+        CommunityResponse response = service.join(COMMUNITY_ID);
+        assertThat(response.myRole()).isEqualTo(CommunityRole.MEMBER);
+        assertThat(response.requestPending()).isFalse();
         verify(communityRepository).adjustMemberCount(COMMUNITY_ID, 1);
+    }
+
+    /**
+     * The bug this closes: PRIVATE only hid the community from discovery. Anyone with the id
+     * could still join outright and read its feed. Joining must now create a pending request,
+     * not a membership.
+     */
+    @Test
+    void joiningAPrivateCommunityCreatesAPendingRequestNotAMembership() {
+        community.setPrivacy(CommunityPrivacy.PRIVATE);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.empty());
+
+        CommunityResponse response = service.join(COMMUNITY_ID);
+
+        ArgumentCaptor<CommunityMember> captor = ArgumentCaptor.forClass(CommunityMember.class);
+        verify(memberRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(MemberStatus.PENDING);
+        assertThat(response.requestPending()).isTrue();
+        assertThat(response.joined()).isFalse();
+        assertThat(response.myRole()).isNull();
+        // A pending request is not a membership: the count must not move until approval.
+        verify(communityRepository, never()).adjustMemberCount(any(), anyInt());
+    }
+
+    @Test
+    void requestingToJoinAPrivateCommunityTwiceDoesNotDuplicateTheRequest() {
+        community.setPrivacy(CommunityPrivacy.PRIVATE);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.MEMBER).status(MemberStatus.PENDING).build()));
+
+        CommunityResponse response = service.join(COMMUNITY_ID);
+
+        assertThat(response.requestPending()).isTrue();
+        assertThat(response.joined()).isFalse();
+        verify(memberRepository, never()).save(any(CommunityMember.class));
+        verify(communityRepository, never()).adjustMemberCount(any(), anyInt());
+    }
+
+    /** A previously-removed user re-requesting a PRIVATE community goes back through approval. */
+    @Test
+    void rejoiningAPrivateCommunityRoutesBackThroughApproval() {
+        community.setPrivacy(CommunityPrivacy.PRIVATE);
+        CommunityMember removed = CommunityMember.builder()
+            .role(CommunityRole.MEMBER).status(MemberStatus.REMOVED).build();
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.of(removed));
+
+        CommunityResponse response = service.join(COMMUNITY_ID);
+
+        assertThat(removed.getStatus()).isEqualTo(MemberStatus.PENDING);
+        assertThat(response.requestPending()).isTrue();
+        verify(communityRepository, never()).adjustMemberCount(any(), anyInt());
+    }
+
+    @Test
+    void approvingAPendingRequestActivatesTheMemberAndCountsThem() {
+        givenCurrentUserIsOwner();
+        CommunityMember pending = pendingRequestFrom(REQUESTER_ID);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID)).thenReturn(Optional.of(pending));
+
+        service.approveJoinRequest(COMMUNITY_ID, REQUESTER_ID);
+
+        assertThat(pending.getStatus()).isEqualTo(MemberStatus.ACTIVE);
+        assertThat(pending.getJoinedAt()).isNotNull();
+        // The count moves only now - the pending request never incremented it.
+        verify(communityRepository).adjustMemberCount(COMMUNITY_ID, 1);
+    }
+
+    @Test
+    void rejectingAPendingRequestMarksItRemovedWithoutCounting() {
+        givenCurrentUserIsOwner();
+        CommunityMember pending = pendingRequestFrom(REQUESTER_ID);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID)).thenReturn(Optional.of(pending));
+
+        service.rejectJoinRequest(COMMUNITY_ID, REQUESTER_ID);
+
+        assertThat(pending.getStatus()).isEqualTo(MemberStatus.REMOVED);
+        verify(communityRepository, never()).adjustMemberCount(any(), anyInt());
+    }
+
+    /** Approving something already active is not a pending request. */
+    @Test
+    void approvingANonPendingMembershipIsNotFound() {
+        givenCurrentUserIsOwner();
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.MEMBER).status(MemberStatus.ACTIVE).build()));
+
+        assertThatThrownBy(() -> service.approveJoinRequest(COMMUNITY_ID, REQUESTER_ID))
+            .isInstanceOf(NotFoundException.class);
+        verify(communityRepository, never()).adjustMemberCount(any(), anyInt());
+    }
+
+    /** Managing join requests is owner/admin only; a plain member is told not-found, not forbidden. */
+    @Test
+    void approvingAsANonManagerReadsAsNotFound() {
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.MEMBER).status(MemberStatus.ACTIVE).build()));
+
+        assertThatThrownBy(() -> service.approveJoinRequest(COMMUNITY_ID, REQUESTER_ID))
+            .isInstanceOf(NotFoundException.class);
+        verify(memberRepository, never()).save(any(CommunityMember.class));
+    }
+
+    private void givenCurrentUserIsOwner() {
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.OWNER).status(MemberStatus.ACTIVE).build()));
+    }
+
+    private CommunityMember pendingRequestFrom(UUID requesterId) {
+        User requester = new User();
+        requester.setFullName("Requester");
+        requester.setUsername("requester");
+        ReflectionTestUtils.setField(requester, "id", requesterId);
+        return CommunityMember.builder()
+            .community(community).user(requester)
+            .role(CommunityRole.MEMBER).status(MemberStatus.PENDING).build();
     }
 
     /** Otherwise the community is orphaned with nobody able to administer it. */

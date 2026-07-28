@@ -1779,7 +1779,7 @@
         },
         {
           "name": "Communities",
-          "description": "Create/discover/join/leave groups. Slug is server-generated; OWNER cannot leave.",
+          "description": "Create/discover/join/leave groups. Slug is server-generated; OWNER cannot leave. PRIVATE communities gate joining behind an owner/admin approval flow (see Join Requests).",
           "item": [
             {
               "name": "Create Community",
@@ -1925,7 +1925,7 @@
                     "join"
                   ]
                 },
-                "description": "Idempotent. Rejoining after leaving reuses the same membership row."
+                "description": "Idempotent. A PUBLIC community is joined immediately (joined=true). A PRIVATE community instead records a pending request and returns requestPending=true — an owner/admin must approve it before you become a member. Rejoining after leaving reuses the same membership row."
               }
             },
             {
@@ -1978,7 +1978,87 @@
                       "value": "20"
                     }
                   ]
-                }
+                },
+                "description": "Active members only. Pending join requests are not listed here — see Join Requests."
+              }
+            },
+            {
+              "name": "Join Requests (owner/admin)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities/{{communityId}}/join-requests?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities",
+                    "{{communityId}}",
+                    "join-requests"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Pending requests to join a PRIVATE community. Owner/admin only — a non-manager gets 404 (not-found, not forbidden, so the API does not confirm the community exists). Each entry's user.userId is what you pass to Approve/Reject."
+              }
+            },
+            {
+              "name": "Approve Join Request (owner/admin)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities/{{communityId}}/join-requests/{{targetUserId}}/approve",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities",
+                    "{{communityId}}",
+                    "join-requests",
+                    "{{targetUserId}}",
+                    "approve"
+                  ]
+                },
+                "description": "Activates the pending member and increments memberCount. 404 if there is no pending request for that user, or if the caller is not owner/admin."
+              }
+            },
+            {
+              "name": "Reject Join Request (owner/admin)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities/{{communityId}}/join-requests/{{targetUserId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities",
+                    "{{communityId}}",
+                    "join-requests",
+                    "{{targetUserId}}"
+                  ]
+                },
+                "description": "Marks the request REMOVED without counting the user. The person may request again later, which re-opens a PENDING request. Owner/admin only."
               }
             }
           ]
