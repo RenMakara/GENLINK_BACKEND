@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.community.service;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CommunityCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommunityMemberResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommunityResponse;
+import kh.edu.acleda.campuslink.modules.community.enums.CommunityRole;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import org.springframework.data.domain.Pageable;
 
@@ -41,4 +42,17 @@ public interface CommunityService {
 
     /** Rejects a pending request. Owner/admin only. */
     void rejectJoinRequest(UUID communityId, UUID userId);
+
+    /**
+     * Promotes or demotes a member to ADMIN / MODERATOR / MEMBER. Owner or admin only;
+     * an admin may only manage moderators and members, never other admins or the owner.
+     * OWNER is not a valid target - use {@link #transferOwnership}.
+     */
+    CommunityMemberResponse changeMemberRole(UUID communityId, UUID userId, CommunityRole newRole);
+
+    /**
+     * Hands ownership to another active member. Current owner only; the outgoing owner
+     * becomes an ADMIN in the same transaction, so the community keeps exactly one owner.
+     */
+    CommunityResponse transferOwnership(UUID communityId, UUID newOwnerUserId);
 }

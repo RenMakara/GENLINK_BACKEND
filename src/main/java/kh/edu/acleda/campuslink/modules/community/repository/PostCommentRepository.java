@@ -4,6 +4,7 @@ import kh.edu.acleda.campuslink.modules.community.entity.PostComment;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,4 +29,9 @@ public interface PostCommentRepository extends JpaRepository<PostComment, UUID> 
     Page<PostComment> findReplies(@Param("parentId") UUID parentId, Pageable pageable);
 
     Optional<PostComment> findByIdAndDeletedAtIsNull(UUID id);
+
+    /** Atomic, like every other counter here: concurrent likes must not collide. */
+    @Modifying
+    @Query("UPDATE PostComment c SET c.likeCount = c.likeCount + :delta WHERE c.id = :commentId")
+    void adjustLikeCount(@Param("commentId") UUID commentId, @Param("delta") int delta);
 }

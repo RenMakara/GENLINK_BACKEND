@@ -264,10 +264,158 @@ class CommunityServiceImplTest {
         verify(memberRepository, never()).save(any(CommunityMember.class));
     }
 
+    // ---- Role management ----
+
+    @Test
+    void ownerPromotesAMemberToAdmin() {
+        givenCurrentUserIsOwner();
+        CommunityMember target = activeMember(REQUESTER_ID, CommunityRole.MEMBER);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID)).thenReturn(Optional.of(target));
+
+        service.changeMemberRole(COMMUNITY_ID, REQUESTER_ID, CommunityRole.ADMIN);
+
+        assertThat(target.getRole()).isEqualTo(CommunityRole.ADMIN);
+        verify(memberRepository).save(target);
+    }
+
+    /** An admin must not be able to mint a peer admin - that is an owner-only action. */
+    @Test
+    void adminCannotAssignTheAdminRole() {
+        givenCurrentUserIsAdmin();
+        CommunityMember target = activeMember(REQUESTER_ID, CommunityRole.MEMBER);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID)).thenReturn(Optional.of(target));
+
+        assertThatThrownBy(() -> service.changeMemberRole(COMMUNITY_ID, REQUESTER_ID, CommunityRole.ADMIN))
+            .isInstanceOf(ApiException.class).hasMessageContaining("Only the owner");
+        assertThat(target.getRole()).isEqualTo(CommunityRole.MEMBER);
+    }
+
+    @Test
+    void adminCannotDemoteAnotherAdmin() {
+        givenCurrentUserIsAdmin();
+        CommunityMember target = activeMember(REQUESTER_ID, CommunityRole.ADMIN);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID)).thenReturn(Optional.of(target));
+
+        assertThatThrownBy(() -> service.changeMemberRole(COMMUNITY_ID, REQUESTER_ID, CommunityRole.MEMBER))
+            .isInstanceOf(ApiException.class);
+        assertThat(target.getRole()).isEqualTo(CommunityRole.ADMIN);
+    }
+
+    @Test
+    void adminCanPromoteAMemberToModerator() {
+        givenCurrentUserIsAdmin();
+        CommunityMember target = activeMember(REQUESTER_ID, CommunityRole.MEMBER);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID)).thenReturn(Optional.of(target));
+
+        service.changeMemberRole(COMMUNITY_ID, REQUESTER_ID, CommunityRole.MODERATOR);
+
+        assertThat(target.getRole()).isEqualTo(CommunityRole.MODERATOR);
+    }
+
+    @Test
+    void changingYourOwnRoleIsRejected() {
+        givenCurrentUserIsOwner();
+
+        assertThatThrownBy(() -> service.changeMemberRole(COMMUNITY_ID, USER_ID, CommunityRole.MEMBER))
+            .isInstanceOf(ApiException.class).hasMessageContaining("your own role");
+    }
+
+    @Test
+    void grantingOwnerThroughTheRoleEndpointIsRejected() {
+        givenCurrentUserIsOwner();
+
+        assertThatThrownBy(() -> service.changeMemberRole(COMMUNITY_ID, REQUESTER_ID, CommunityRole.OWNER))
+            .isInstanceOf(ApiException.class).hasMessageContaining("transfer ownership");
+    }
+
+    @Test
+    void theOwnersRoleIsImmutableViaTheRoleEndpoint() {
+        givenCurrentUserIsAdmin();
+        CommunityMember target = activeMember(REQUESTER_ID, CommunityRole.OWNER);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID)).thenReturn(Optional.of(target));
+
+        assertThatThrownBy(() -> service.changeMemberRole(COMMUNITY_ID, REQUESTER_ID, CommunityRole.MEMBER))
+            .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void aPlainMemberManagingRolesReadsAsNotFound() {
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.MEMBER).status(MemberStatus.ACTIVE).build()));
+
+        assertThatThrownBy(() -> service.changeMemberRole(COMMUNITY_ID, REQUESTER_ID, CommunityRole.MODERATOR))
+            .isInstanceOf(NotFoundException.class);
+    }
+
+    // ---- Ownership transfer ----
+
+    @Test
+    void ownerTransfersOwnershipAndBecomesAdmin() {
+        CommunityMember owner = CommunityMember.builder()
+            .role(CommunityRole.OWNER).status(MemberStatus.ACTIVE).build();
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.of(owner));
+        CommunityMember target = activeMember(REQUESTER_ID, CommunityRole.MEMBER);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID)).thenReturn(Optional.of(target));
+
+        service.transferOwnership(COMMUNITY_ID, REQUESTER_ID);
+
+        // Exactly one owner at all times: the outgoing owner steps down to ADMIN in the
+        // same transaction the new owner is promoted.
+        assertThat(owner.getRole()).isEqualTo(CommunityRole.ADMIN);
+        assertThat(target.getRole()).isEqualTo(CommunityRole.OWNER);
+        verify(memberRepository).save(owner);
+        verify(memberRepository).save(target);
+    }
+
+    @Test
+    void aNonOwnerCannotTransferOwnership() {
+        givenCurrentUserIsAdmin();
+
+        assertThatThrownBy(() -> service.transferOwnership(COMMUNITY_ID, REQUESTER_ID))
+            .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void transferringOwnershipToYourselfIsRejected() {
+        CommunityMember owner = CommunityMember.builder()
+            .role(CommunityRole.OWNER).status(MemberStatus.ACTIVE).build();
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.of(owner));
+
+        assertThatThrownBy(() -> service.transferOwnership(COMMUNITY_ID, USER_ID))
+            .isInstanceOf(ApiException.class).hasMessageContaining("already the owner");
+    }
+
+    @Test
+    void transferringOwnershipToANonMemberIsNotFound() {
+        CommunityMember owner = CommunityMember.builder()
+            .role(CommunityRole.OWNER).status(MemberStatus.ACTIVE).build();
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.of(owner));
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.transferOwnership(COMMUNITY_ID, REQUESTER_ID))
+            .isInstanceOf(NotFoundException.class);
+    }
+
     private void givenCurrentUserIsOwner() {
         when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID))
             .thenReturn(Optional.of(CommunityMember.builder()
                 .role(CommunityRole.OWNER).status(MemberStatus.ACTIVE).build()));
+    }
+
+    private void givenCurrentUserIsAdmin() {
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.ADMIN).status(MemberStatus.ACTIVE).build()));
+    }
+
+    private CommunityMember activeMember(UUID userId, CommunityRole role) {
+        User member = new User();
+        member.setFullName("Member");
+        member.setUsername("member");
+        ReflectionTestUtils.setField(member, "id", userId);
+        return CommunityMember.builder().community(community).user(member)
+            .role(role).status(MemberStatus.ACTIVE).build();
     }
 
     private CommunityMember pendingRequestFrom(UUID requesterId) {

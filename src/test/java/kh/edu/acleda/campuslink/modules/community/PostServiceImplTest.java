@@ -6,15 +6,23 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
+import kh.edu.acleda.campuslink.modules.community.entity.Community;
+import kh.edu.acleda.campuslink.modules.community.entity.CommunityMember;
 import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.entity.PostReaction;
+import kh.edu.acleda.campuslink.modules.community.entity.PostReport;
+import kh.edu.acleda.campuslink.modules.community.enums.CommunityRole;
+import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.PostType;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostReactionRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.PostReportRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
 import kh.edu.acleda.campuslink.modules.community.service.impl.PostServiceImpl;
@@ -56,6 +64,7 @@ class PostServiceImplTest {
 
     @Mock private PostRepository postRepository;
     @Mock private PostReactionRepository postReactionRepository;
+    @Mock private PostReportRepository postReportRepository;
     @Mock private SavedItemRepository savedItemRepository;
     @Mock private CommunityRepository communityRepository;
     @Mock private CommunityMemberRepository communityMemberRepository;
@@ -70,8 +79,8 @@ class PostServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new PostServiceImpl(postRepository, postReactionRepository, savedItemRepository,
-            communityRepository, communityMemberRepository, followRepository,
+        service = new PostServiceImpl(postRepository, postReactionRepository, postReportRepository,
+            savedItemRepository, communityRepository, communityMemberRepository, followRepository,
             hashtagService, userRepository, currentUserProvider);
 
         author = new User();
@@ -229,5 +238,144 @@ class PostServiceImplTest {
         assertThatThrownBy(() -> service.update(POST_ID,
             new PostCreateRequest("hack", null, null, null, null, null)))
             .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void moderatorCanRemoveACommunityPostAndTheCountDrops() {
+        Community community = communityWithId();
+        post.setCommunity(community);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(communityMemberRepository.findByCommunityIdAndUserId(community.getId(), USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.MODERATOR).status(MemberStatus.ACTIVE).build()));
+
+        service.removeAsModerator(POST_ID);
+
+        assertThat(post.getDeletedAt()).isNotNull();
+        verify(communityRepository).adjustPostCount(community.getId(), -1);
+    }
+
+    /** Moderation is a role power, so a plain member is refused - and as not-found, not 403. */
+    @Test
+    void aPlainMemberCannotRemoveAPostAndGetsNotFound() {
+        Community community = communityWithId();
+        post.setCommunity(community);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(communityMemberRepository.findByCommunityIdAndUserId(community.getId(), USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.MEMBER).status(MemberStatus.ACTIVE).build()));
+
+        assertThatThrownBy(() -> service.removeAsModerator(POST_ID)).isInstanceOf(NotFoundException.class);
+        assertThat(post.getDeletedAt()).isNull();
+        verify(communityRepository, never()).adjustPostCount(any(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void aNonMemberCannotModerateAndGetsNotFound() {
+        Community community = communityWithId();
+        post.setCommunity(community);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(communityMemberRepository.findByCommunityIdAndUserId(community.getId(), USER_ID))
+            .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.removeAsModerator(POST_ID)).isInstanceOf(NotFoundException.class);
+        assertThat(post.getDeletedAt()).isNull();
+    }
+
+    /** A post outside any community has no moderators, so there is nothing to authorise against. */
+    @Test
+    void moderatingAPostWithNoCommunityIsNotFound() {
+        post.setCommunity(null);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> service.removeAsModerator(POST_ID)).isInstanceOf(NotFoundException.class);
+    }
+
+    // ---- Reporting & moderation queue ----
+
+    @Test
+    void reportingAPostRecordsItAndBumpsTheCount() {
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(postReportRepository.existsByPostIdAndUserId(POST_ID, USER_ID)).thenReturn(false);
+
+        service.report(POST_ID, new PostReportRequest("SPAM", "buy now"));
+
+        verify(postReportRepository).save(any(PostReport.class));
+        verify(postRepository).adjustReportCount(POST_ID, 1);
+    }
+
+    /** One report per user, so the count means distinct reporters, not taps. */
+    @Test
+    void reportingTheSamePostTwiceByTheSameUserIsANoOp() {
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(postReportRepository.existsByPostIdAndUserId(POST_ID, USER_ID)).thenReturn(true);
+
+        service.report(POST_ID, new PostReportRequest("SPAM", null));
+
+        verify(postReportRepository, never()).save(any(PostReport.class));
+        verify(postRepository, never()).adjustReportCount(any(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void theReportedQueueIsModeratorOnly() {
+        UUID communityId = UUID.randomUUID();
+        when(communityMemberRepository.findByCommunityIdAndUserId(communityId, USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.MEMBER).status(MemberStatus.ACTIVE).build()));
+
+        assertThatThrownBy(() -> service.reportedPosts(communityId, PageRequest.of(0, 20)))
+            .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void theReportedQueueReturnsPostsWithTheirReportCountForAModerator() {
+        UUID communityId = UUID.randomUUID();
+        when(communityMemberRepository.findByCommunityIdAndUserId(communityId, USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.MODERATOR).status(MemberStatus.ACTIVE).build()));
+        post.setCommunity(communityWithId());
+        post.setReportCount(3);
+        when(postRepository.findReportedByCommunity(eq(communityId), any())).thenReturn(new PageImpl<>(List.of(post)));
+
+        PageResponse<ReportedPostResponse> queue = service.reportedPosts(communityId, PageRequest.of(0, 20));
+
+        assertThat(queue.content()).hasSize(1);
+        assertThat(queue.content().get(0).reportCount()).isEqualTo(3);
+        assertThat(queue.content().get(0).author().username()).isEqualTo("author");
+    }
+
+    @Test
+    void dismissingReportsClearsTheRowsAndZeroesTheCount() {
+        Community community = communityWithId();
+        post.setCommunity(community);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(communityMemberRepository.findByCommunityIdAndUserId(community.getId(), USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.ADMIN).status(MemberStatus.ACTIVE).build()));
+
+        service.dismissReports(POST_ID);
+
+        verify(postReportRepository).deleteByPostId(POST_ID);
+        verify(postRepository).clearReportCount(POST_ID);
+    }
+
+    @Test
+    void dismissingReportsIsModeratorOnly() {
+        Community community = communityWithId();
+        post.setCommunity(community);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(communityMemberRepository.findByCommunityIdAndUserId(community.getId(), USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.MEMBER).status(MemberStatus.ACTIVE).build()));
+
+        assertThatThrownBy(() -> service.dismissReports(POST_ID)).isInstanceOf(NotFoundException.class);
+        verify(postReportRepository, never()).deleteByPostId(any());
+    }
+
+    private Community communityWithId() {
+        Community community = Community.builder().name("Flutter KH").slug("flutter-kh")
+            .memberCount(1).postCount(3).build();
+        ReflectionTestUtils.setField(community, "id", UUID.randomUUID());
+        return community;
     }
 }

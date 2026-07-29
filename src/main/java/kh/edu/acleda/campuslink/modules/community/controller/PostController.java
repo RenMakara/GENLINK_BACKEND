@@ -5,7 +5,9 @@ import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
 import kh.edu.acleda.campuslink.modules.community.service.PostService;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
@@ -78,6 +80,43 @@ public class PostController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         postService.delete(id);
         return ResponseEntity.ok(ApiResponse.success("Post deleted", null));
+    }
+
+    /**
+     * Remove a post as a community moderator (OWNER/ADMIN/MODERATOR of the post's community).
+     * Distinct from DELETE /{id}, which is author-only. A non-moderator gets 404, not 403.
+     */
+    @DeleteMapping("/{id}/moderate")
+    public ResponseEntity<ApiResponse<Void>> removeAsModerator(@PathVariable UUID id) {
+        postService.removeAsModerator(id);
+        return ResponseEntity.ok(ApiResponse.success("Post removed by moderator", null));
+    }
+
+    /** Flag a post for moderator review. Idempotent: one report per user. */
+    @PostMapping("/{id}/report")
+    public ResponseEntity<ApiResponse<Void>> report(@PathVariable UUID id,
+                                                    @Valid @RequestBody PostReportRequest request) {
+        postService.report(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Post reported", null));
+    }
+
+    /**
+     * A community moderator's queue: reported posts in the community, most-reported first.
+     * OWNER/ADMIN/MODERATOR only; a non-moderator gets 404.
+     */
+    @GetMapping("/community/{communityId}/reported")
+    public ResponseEntity<ApiResponse<PageResponse<ReportedPostResponse>>> reportedPosts(
+        @PathVariable UUID communityId,
+        @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Reported posts retrieved",
+            postService.reportedPosts(communityId, pageable)));
+    }
+
+    /** Clear a post's reports without removing it. OWNER/ADMIN/MODERATOR of its community. */
+    @PostMapping("/{id}/dismiss-reports")
+    public ResponseEntity<ApiResponse<Void>> dismissReports(@PathVariable UUID id) {
+        postService.dismissReports(id);
+        return ResponseEntity.ok(ApiResponse.success("Reports dismissed", null));
     }
 
     /** Idempotent - backs the like toggle. Returns the resulting count. */

@@ -5,5 +5,11 @@ public enum TransactionType {
     EVENT_PAYMENT,
     DEPOSIT,
     /** Simulated learning-budget credit for passing a financial-literacy quiz. */
-    REWARD
+    REWARD,
+    /** A logged spend (Phase 2 wires expenses to emit one). */
+    EXPENSE,
+    /** Money in - allowance, part-time, scholarship (Phase 1). */
+    INCOME,
+    /** Money moved into a saving goal (Phase 2). */
+    SAVING
 }

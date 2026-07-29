@@ -52,4 +52,12 @@ databaseChangeLog:
   - include:
       file: db/changelog/changes/0026-add-short-content-interactions.sql
   - include:
-      file: db/changelog/changes/0027-index-deleted-accounts.sql
+      file: db/changelog/changes/0027-add-post-reports.sql
+  - include:
+      file: db/changelog/changes/0028-add-forum-comment-threading.sql
+  - include:
+      file: db/changelog/changes/0029-add-forum-comment-likes.sql
+  - include:
+      file: db/changelog/changes/0030-add-post-comment-likes.sql
+  - include:
+      file: db/changelog/changes/0031-generalize-finance-ledger.sql

@@ -14,11 +14,11 @@ import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.EventServiceImpl;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
-import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
+import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
-import kh.edu.acleda.campuslink.modules.finance.repository.DemoTransactionRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
+import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -53,7 +53,7 @@ class EventServiceImplTest {
     @Mock private EventRepository eventRepository;
     @Mock private EventRsvpRepository rsvpRepository;
     @Mock private DemoWalletRepository demoWalletRepository;
-    @Mock private DemoTransactionRepository demoTransactionRepository;
+    @Mock private LedgerService ledgerService;
     @Mock private RewardService rewardService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
@@ -65,7 +65,7 @@ class EventServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new EventServiceImpl(eventRepository, rsvpRepository, demoWalletRepository,
-            demoTransactionRepository, rewardService, userRepository, currentUserProvider);
+            ledgerService, rewardService, userRepository, currentUserProvider);
 
         user = new User();
         user.setEmail("user@example.com");
@@ -141,7 +141,7 @@ class EventServiceImplTest {
         assertThatThrownBy(() -> service.rsvp(EVENT_ID)).isInstanceOf(ApiException.class);
 
         verify(demoWalletRepository, never()).save(any(DemoWallet.class));
-        verify(demoTransactionRepository, never()).save(any(DemoTransaction.class));
+        verify(ledgerService, never()).record(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -158,9 +158,9 @@ class EventServiceImplTest {
         // The client must be able to label the screen as a simulation.
         assertThat(response.simulatedPayment()).isTrue();
 
-        ArgumentCaptor<DemoTransaction> captor = ArgumentCaptor.forClass(DemoTransaction.class);
-        verify(demoTransactionRepository).save(captor.capture());
-        assertThat(captor.getValue().getTransactionType()).isEqualTo(TransactionType.EVENT_PAYMENT);
+        // The ledger records a DEBIT of type EVENT_PAYMENT, linked back to the event.
+        verify(ledgerService).record(eq(wallet), eq(TransactionType.EVENT_PAYMENT),
+            eq(TransactionDirection.DEBIT), any(), any(), eq("EVENT"), any());
     }
 
     @Test
@@ -182,7 +182,7 @@ class EventServiceImplTest {
         service.rsvp(EVENT_ID);
 
         verify(demoWalletRepository, never()).findByUserId(any());
-        verify(demoTransactionRepository, never()).save(any(DemoTransaction.class));
+        verify(ledgerService, never()).record(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test

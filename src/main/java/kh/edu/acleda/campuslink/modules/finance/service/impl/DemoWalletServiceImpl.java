@@ -6,13 +6,13 @@ import kh.edu.acleda.campuslink.modules.finance.dto.request.WalletPaymentRequest
 import kh.edu.acleda.campuslink.modules.finance.dto.request.WalletTopUpRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.TransactionResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.WalletResponse;
-import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
-import kh.edu.acleda.campuslink.modules.finance.enums.TransactionStatus;
+import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoTransactionRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
+import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -36,15 +36,18 @@ public class DemoWalletServiceImpl implements DemoWalletService {
 
     private final DemoWalletRepository demoWalletRepository;
     private final DemoTransactionRepository demoTransactionRepository;
+    private final LedgerService ledgerService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public DemoWalletServiceImpl(DemoWalletRepository demoWalletRepository,
                                  DemoTransactionRepository demoTransactionRepository,
+                                 LedgerService ledgerService,
                                  UserRepository userRepository,
                                  CurrentUserProvider currentUserProvider) {
         this.demoWalletRepository = demoWalletRepository;
         this.demoTransactionRepository = demoTransactionRepository;
+        this.ledgerService = ledgerService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -62,7 +65,7 @@ public class DemoWalletServiceImpl implements DemoWalletService {
         wallet.setBalance(wallet.getBalance().add(request.amount()));
         demoWalletRepository.save(wallet);
 
-        record(wallet, TransactionType.DEPOSIT, request.amount(),
+        ledgerService.record(wallet, TransactionType.DEPOSIT, TransactionDirection.CREDIT, request.amount(),
             request.note() == null ? "Simulated top-up" : "Simulated top-up: " + request.note());
         log.info("SIMULATED wallet top-up: user={} amount={} balanceAfter={}",
             wallet.getUser().getId(), request.amount(), wallet.getBalance());
@@ -85,7 +88,8 @@ public class DemoWalletServiceImpl implements DemoWalletService {
         String merchant = request.merchant() == null ? "merchant" : request.merchant();
         String description = "Simulated KHQR payment to " + merchant
             + (request.note() == null ? "" : " (" + request.note() + ")");
-        record(wallet, TransactionType.MOCK_KHQR_PAYMENT, request.amount(), description);
+        ledgerService.record(wallet, TransactionType.MOCK_KHQR_PAYMENT, TransactionDirection.DEBIT,
+            request.amount(), description);
 
         log.info("SIMULATED wallet payment: user={} amount={} merchant={} balanceAfter={}",
             wallet.getUser().getId(), request.amount(), merchant, wallet.getBalance());
@@ -98,7 +102,7 @@ public class DemoWalletServiceImpl implements DemoWalletService {
         DemoWallet wallet = loadOrCreateWallet();
         wallet.setBalance(wallet.getBalance().add(amount));
         demoWalletRepository.save(wallet);
-        record(wallet, TransactionType.REWARD, amount, reason);
+        ledgerService.record(wallet, TransactionType.REWARD, TransactionDirection.CREDIT, amount, reason);
         log.info("SIMULATED wallet reward: user={} amount={} reason={} balanceAfter={}",
             wallet.getUser().getId(), amount, reason, wallet.getBalance());
         return toResponse(wallet);
@@ -115,18 +119,8 @@ public class DemoWalletServiceImpl implements DemoWalletService {
         }
         return PageResponse.from(
             demoTransactionRepository.findByWalletIdOrderByCreatedAtDesc(wallet.getId(), pageable),
-            t -> new TransactionResponse(t.getId(), t.getTransactionType(), t.getAmount(),
+            t -> new TransactionResponse(t.getId(), t.getTransactionType(), t.getDirection(), t.getAmount(),
                 t.getDescription(), t.getStatus(), t.getCreatedAt()));
-    }
-
-    private void record(DemoWallet wallet, TransactionType type, BigDecimal amount, String description) {
-        demoTransactionRepository.save(DemoTransaction.builder()
-            .wallet(wallet)
-            .transactionType(type)
-            .amount(amount)
-            .description(description)
-            .status(TransactionStatus.SUCCESS)
-            .build());
     }
 
     /**
