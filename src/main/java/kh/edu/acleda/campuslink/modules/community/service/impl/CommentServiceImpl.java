@@ -21,12 +21,14 @@ import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 public class CommentServiceImpl implements CommentService {
 
     private static final String DEFAULT_REACTION = "LIKE";
@@ -69,6 +71,9 @@ public class CommentServiceImpl implements CommentService {
 
         PostComment saved = commentRepository.save(comment);
         postRepository.adjustCommentCount(postId, 1);
+
+        log.info("Comment added: id={} by user={}", saved.getId(), author.getId());
+
         // A freshly posted comment is not liked by its author yet.
         return toResponse(saved, author.getId(), false);
     }
@@ -151,6 +156,7 @@ public class CommentServiceImpl implements CommentService {
 
         comment.setDeletedAt(Instant.now());
         commentRepository.save(comment);
+        log.info("Comment deleted: id={} by user={}", commentId, userId);
         postRepository.adjustCommentCount(comment.getPost().getId(), -1);
     }
 

@@ -82,6 +82,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             .commentCount(0)
             .reportCount(0)
             .build());
+        log.info("Discussion created by user {}: {}", author.getId(), request.title());
         return toResponse(discussion, false, author.getId());
     }
 
@@ -103,6 +104,9 @@ public class DiscussionServiceImpl implements DiscussionService {
         ForumDiscussion discussion = loadDiscussion(discussionId);
         UUID viewerId = currentUserProvider.getCurrentUserId();
         boolean reacted = reactionRepository.findByDiscussionIdAndUserId(discussionId, viewerId).isPresent();
+
+        log.info("Discussion viewed by user {}: {}", viewerId, discussion.getTitle());
+
         return toResponse(discussion, reacted, viewerId);
     }
 
@@ -119,6 +123,9 @@ public class DiscussionServiceImpl implements DiscussionService {
         if (request.language() != null) {
             discussion.setLanguage(request.language());
         }
+
+        log.info("Discussion updated by user {}: {}", currentUserProvider.getCurrentUserId(), request.title());
+
         return getById(discussionRepository.save(discussion).getId());
     }
 
@@ -127,6 +134,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     public void delete(UUID discussionId) {
         ForumDiscussion discussion = loadOwned(discussionId);
         discussion.setDeletedAt(Instant.now());
+        log.info("Discussion deleted by user {}: {}", currentUserProvider.getCurrentUserId(), discussion.getTitle());
         discussionRepository.save(discussion);
     }
 
@@ -147,6 +155,9 @@ public class DiscussionServiceImpl implements DiscussionService {
             .reactionType(DEFAULT_REACTION)
             .build());
         discussionRepository.adjustReactionCount(discussionId, 1);
+
+        log.info("Discussion reacted by user {}: {}", userId, discussion.getTitle());
+
         return discussion.getReactionCount() + 1;
     }
 
@@ -240,6 +251,9 @@ public class DiscussionServiceImpl implements DiscussionService {
             .reactionType(DEFAULT_REACTION)
             .build());
         commentRepository.adjustLikeCount(commentId, 1);
+
+        log.info("Comment reacted : react count = {} ", likeCount(comment));
+
         return likeCount(comment) + 1;
     }
 
@@ -253,9 +267,11 @@ public class DiscussionServiceImpl implements DiscussionService {
             .map(reaction -> {
                 commentReactionRepository.delete(reaction);
                 commentRepository.adjustLikeCount(commentId, -1);
+                log.info("Comment unliked : react count = {} ", likeCount(comment));
                 return likeCount(comment) - 1;
             })
             .orElseGet(() -> likeCount(comment));
+
     }
 
     /** Resolves likedByMe for the whole page in one query rather than per row. */
@@ -302,6 +318,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         }
         comment.setDeletedAt(Instant.now());
         commentRepository.save(comment);
+        log.info("Comment deleted by user {}: {}", userId, comment.getContent());
         discussionRepository.adjustCommentCount(comment.getDiscussion().getId(), -1);
     }
 
