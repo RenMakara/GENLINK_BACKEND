@@ -9,9 +9,11 @@ import kh.edu.acleda.campuslink.modules.finance.dto.request.WalletTopUpRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.WalletResponse;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
+import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoTransactionRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
+import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.finance.service.impl.DemoWalletServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -33,6 +35,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,6 +49,7 @@ class DemoWalletServiceImplTest {
 
     @Mock private DemoWalletRepository demoWalletRepository;
     @Mock private DemoTransactionRepository demoTransactionRepository;
+    @Mock private LedgerService ledgerService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -56,7 +60,7 @@ class DemoWalletServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new DemoWalletServiceImpl(demoWalletRepository, demoTransactionRepository,
-            userRepository, currentUserProvider);
+            ledgerService, userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
@@ -112,9 +116,8 @@ class DemoWalletServiceImplTest {
         WalletResponse r = service.topUp(new WalletTopUpRequest(new BigDecimal("25.00"), "pocket money"));
 
         assertThat(r.balance()).isEqualByComparingTo("75.00");
-        ArgumentCaptor<DemoTransaction> captor = ArgumentCaptor.forClass(DemoTransaction.class);
-        verify(demoTransactionRepository).save(captor.capture());
-        assertThat(captor.getValue().getTransactionType()).isEqualTo(TransactionType.DEPOSIT);
+        verify(ledgerService).record(eq(wallet), eq(TransactionType.DEPOSIT),
+            eq(TransactionDirection.CREDIT), any(), any());
     }
 
     @Test
@@ -124,9 +127,8 @@ class DemoWalletServiceImplTest {
         WalletResponse r = service.pay(new WalletPaymentRequest(new BigDecimal("20.00"), "Brown Coffee", null));
 
         assertThat(r.balance()).isEqualByComparingTo("30.00");
-        ArgumentCaptor<DemoTransaction> captor = ArgumentCaptor.forClass(DemoTransaction.class);
-        verify(demoTransactionRepository).save(captor.capture());
-        assertThat(captor.getValue().getTransactionType()).isEqualTo(TransactionType.MOCK_KHQR_PAYMENT);
+        verify(ledgerService).record(eq(wallet), eq(TransactionType.MOCK_KHQR_PAYMENT),
+            eq(TransactionDirection.DEBIT), any(), any());
     }
 
     @Test
@@ -140,7 +142,7 @@ class DemoWalletServiceImplTest {
 
         assertThat(wallet.getBalance()).isEqualByComparingTo("5.00");
         verify(demoWalletRepository, never()).save(any());
-        verify(demoTransactionRepository, never()).save(any());
+        verify(ledgerService, never()).record(any(), any(), any(), any(), any());
     }
 
     @Test

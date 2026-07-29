@@ -59,3 +59,5 @@ databaseChangeLog:
       file: db/changelog/changes/0029-add-forum-comment-likes.sql
   - include:
       file: db/changelog/changes/0030-add-post-comment-likes.sql
+  - include:
+      file: db/changelog/changes/0031-generalize-finance-ledger.sql

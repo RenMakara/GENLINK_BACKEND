@@ -22,12 +22,11 @@ import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
 import kh.edu.acleda.campuslink.modules.community.service.EventService;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
-import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
-import kh.edu.acleda.campuslink.modules.finance.enums.TransactionStatus;
+import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
-import kh.edu.acleda.campuslink.modules.finance.repository.DemoTransactionRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
+import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -50,7 +49,7 @@ public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final EventRsvpRepository rsvpRepository;
     private final DemoWalletRepository demoWalletRepository;
-    private final DemoTransactionRepository demoTransactionRepository;
+    private final LedgerService ledgerService;
     private final RewardService rewardService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
@@ -58,14 +57,14 @@ public class EventServiceImpl implements EventService {
     public EventServiceImpl(EventRepository eventRepository,
                             EventRsvpRepository rsvpRepository,
                             DemoWalletRepository demoWalletRepository,
-                            DemoTransactionRepository demoTransactionRepository,
+                            LedgerService ledgerService,
                             RewardService rewardService,
                             UserRepository userRepository,
                             CurrentUserProvider currentUserProvider) {
         this.eventRepository = eventRepository;
         this.rsvpRepository = rsvpRepository;
         this.demoWalletRepository = demoWalletRepository;
-        this.demoTransactionRepository = demoTransactionRepository;
+        this.ledgerService = ledgerService;
         this.rewardService = rewardService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
@@ -246,13 +245,8 @@ public class EventServiceImpl implements EventService {
 
         wallet.setBalance(wallet.getBalance().subtract(price));
         demoWalletRepository.save(wallet);
-        demoTransactionRepository.save(DemoTransaction.builder()
-            .wallet(wallet)
-            .transactionType(TransactionType.EVENT_PAYMENT)
-            .amount(price)
-            .description("Simulated payment for event: " + event.getTitle())
-            .status(TransactionStatus.SUCCESS)
-            .build());
+        ledgerService.record(wallet, TransactionType.EVENT_PAYMENT, TransactionDirection.DEBIT, price,
+            "Simulated payment for event: " + event.getTitle(), "EVENT", event.getId());
 
         // The only place a balance moves outside the finance module. It is simulated,
         // but "my wallet is wrong" is otherwise untraceable: the success path never
