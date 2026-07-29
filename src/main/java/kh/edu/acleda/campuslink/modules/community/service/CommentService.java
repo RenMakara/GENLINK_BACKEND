@@ -16,5 +16,10 @@ public interface CommentService {
 
     PageResponse<CommentResponse> replies(UUID parentCommentId, Pageable pageable);
 
+    /** Idempotent: backs a toggle. @return the comment's like count afterwards. */
+    int like(UUID commentId);
+
+    int unlike(UUID commentId);
+
     void delete(UUID commentId);
 }

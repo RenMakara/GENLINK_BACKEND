@@ -9,6 +9,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionCreateRe
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionReportRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedDiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.service.DiscussionService;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -57,6 +59,20 @@ public class DiscussionController {
     public ResponseEntity<ApiResponse<PageResponse<DiscussionResponse>>> getMine(
         @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success("My discussions retrieved", discussionService.getMine(pageable)));
+    }
+
+    /**
+     * Admin moderation queue: reported discussions, most-reported first. ROLE_ADMIN only -
+     * the forum is category-scoped, not community-scoped, so there is no community moderator
+     * to defer to. Also a literal path declared before /{discussionId} so it is not shadowed.
+     * The queue reveals the author even for anonymous discussions (moderation accountability).
+     */
+    @GetMapping("/reported")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<ReportedDiscussionResponse>>> reportedDiscussions(
+        @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Reported discussions retrieved",
+            discussionService.reportedDiscussions(pageable)));
     }
 
     @GetMapping("/{discussionId}")
@@ -105,7 +121,7 @@ public class DiscussionController {
             discussionService.addComment(discussionId, request)));
     }
 
-    /** Commenters are never anonymous - only the discussion author can be. */
+    /** Top-level comments only. Commenters are never anonymous - only the discussion author can be. */
     @GetMapping("/{discussionId}/comments")
     public ResponseEntity<ApiResponse<PageResponse<CommentResponse>>> comments(
         @PathVariable UUID discussionId,
@@ -114,9 +130,47 @@ public class DiscussionController {
             discussionService.comments(discussionId, pageable)));
     }
 
+    /** Replies to one comment. Threading is one level deep - a reply to a reply attaches here too. */
+    @GetMapping("/comments/{commentId}/replies")
+    public ResponseEntity<ApiResponse<PageResponse<CommentResponse>>> replies(
+        @PathVariable UUID commentId,
+        @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Replies retrieved",
+            discussionService.replies(commentId, pageable)));
+    }
+
+    /** Idempotent - backs the comment like toggle. Returns the resulting count. */
+    @PostMapping("/comments/{commentId}/like")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> likeComment(@PathVariable UUID commentId) {
+        return ResponseEntity.ok(ApiResponse.success("Comment liked",
+            Map.of("likeCount", discussionService.likeComment(commentId))));
+    }
+
+    @DeleteMapping("/comments/{commentId}/like")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> unlikeComment(@PathVariable UUID commentId) {
+        return ResponseEntity.ok(ApiResponse.success("Comment unliked",
+            Map.of("likeCount", discussionService.unlikeComment(commentId))));
+    }
+
     @DeleteMapping("/comments/{commentId}")
     public ResponseEntity<ApiResponse<Void>> deleteComment(@PathVariable UUID commentId) {
         discussionService.deleteComment(commentId);
         return ResponseEntity.ok(ApiResponse.success("Comment deleted", null));
+    }
+
+    /** Remove any reported discussion as an admin (soft delete). ROLE_ADMIN only. */
+    @DeleteMapping("/{discussionId}/moderate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> removeAsAdmin(@PathVariable UUID discussionId) {
+        discussionService.removeAsAdmin(discussionId);
+        return ResponseEntity.ok(ApiResponse.success("Discussion removed", null));
+    }
+
+    /** Reviewed and fine: clear the discussion's reports without removing it. ROLE_ADMIN only. */
+    @PostMapping("/{discussionId}/dismiss-reports")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> dismissReports(@PathVariable UUID discussionId) {
+        discussionService.dismissReports(discussionId);
+        return ResponseEntity.ok(ApiResponse.success("Reports dismissed", null));
     }
 }

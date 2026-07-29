@@ -12,11 +12,14 @@ import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionReportRe
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedDiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.DiscussionReport;
 import kh.edu.acleda.campuslink.modules.community.entity.ForumComment;
+import kh.edu.acleda.campuslink.modules.community.entity.ForumCommentReaction;
 import kh.edu.acleda.campuslink.modules.community.entity.ForumDiscussion;
 import kh.edu.acleda.campuslink.modules.community.entity.ForumReaction;
 import kh.edu.acleda.campuslink.modules.community.repository.DiscussionReportRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.ForumCommentReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumCommentRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumDiscussionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumReactionRepository;
@@ -41,6 +44,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     private final ForumDiscussionRepository discussionRepository;
     private final ForumCommentRepository commentRepository;
     private final ForumReactionRepository reactionRepository;
+    private final ForumCommentReactionRepository commentReactionRepository;
     private final DiscussionReportRepository reportRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
@@ -48,12 +52,14 @@ public class DiscussionServiceImpl implements DiscussionService {
     public DiscussionServiceImpl(ForumDiscussionRepository discussionRepository,
                                  ForumCommentRepository commentRepository,
                                  ForumReactionRepository reactionRepository,
+                                 ForumCommentReactionRepository commentReactionRepository,
                                  DiscussionReportRepository reportRepository,
                                  UserRepository userRepository,
                                  CurrentUserProvider currentUserProvider) {
         this.discussionRepository = discussionRepository;
         this.commentRepository = commentRepository;
         this.reactionRepository = reactionRepository;
+        this.commentReactionRepository = commentReactionRepository;
         this.reportRepository = reportRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
@@ -187,24 +193,102 @@ public class DiscussionServiceImpl implements DiscussionService {
     public CommentResponse addComment(UUID discussionId, CommentCreateRequest request) {
         ForumDiscussion discussion = loadDiscussion(discussionId);
         User author = loadCurrentUser();
+        ForumComment parent = resolveParent(request.parentCommentId(), discussionId);
         ForumComment comment = commentRepository.save(ForumComment.builder()
             .discussion(discussion)
             .user(author)
             .content(request.content())
+            .parentComment(parent)
             .language(request.language())
+            .likeCount(0)
             .build());
         discussionRepository.adjustCommentCount(discussionId, 1);
-        return toCommentResponse(comment, author.getId());
+        // A freshly posted comment is not liked by its author yet.
+        return toCommentResponse(comment, author.getId(), false);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<CommentResponse> comments(UUID discussionId, Pageable pageable) {
+        // Top-level only; replies come from the /replies route. Commenters are never
+        // anonymous - only the discussion author can be - so replying to an anonymous
+        // thread does not hide the replier.
+        return hydrateComments(commentRepository.findTopLevel(discussionId, pageable));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<CommentResponse> replies(UUID parentCommentId, Pageable pageable) {
+        return hydrateComments(commentRepository.findReplies(parentCommentId, pageable));
+    }
+
+    @Override
+    @Transactional
+    public int likeComment(UUID commentId) {
+        ForumComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
+            .orElseThrow(() -> new NotFoundException("Comment not found"));
+        UUID userId = currentUserProvider.getCurrentUserId();
+
+        // forum_comment_reactions has UNIQUE(comment_id, user_id): a double tap must no-op
+        // rather than 500, and the count must not drift.
+        if (commentReactionRepository.findByCommentIdAndUserId(commentId, userId).isPresent()) {
+            return likeCount(comment);
+        }
+        commentReactionRepository.save(ForumCommentReaction.builder()
+            .comment(comment)
+            .user(loadCurrentUser())
+            .reactionType(DEFAULT_REACTION)
+            .build());
+        commentRepository.adjustLikeCount(commentId, 1);
+        return likeCount(comment) + 1;
+    }
+
+    @Override
+    @Transactional
+    public int unlikeComment(UUID commentId) {
+        ForumComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
+            .orElseThrow(() -> new NotFoundException("Comment not found"));
+        return commentReactionRepository
+            .findByCommentIdAndUserId(commentId, currentUserProvider.getCurrentUserId())
+            .map(reaction -> {
+                commentReactionRepository.delete(reaction);
+                commentRepository.adjustLikeCount(commentId, -1);
+                return likeCount(comment) - 1;
+            })
+            .orElseGet(() -> likeCount(comment));
+    }
+
+    /** Resolves likedByMe for the whole page in one query rather than per row. */
+    private PageResponse<CommentResponse> hydrateComments(Page<ForumComment> page) {
         UUID viewerId = currentUserProvider.getCurrentUserId();
-        // Commenters are never anonymous - only the discussion author can be. Replying
-        // to an anonymous thread does not hide the replier.
-        return PageResponse.from(commentRepository.findByDiscussion(discussionId, pageable),
-            comment -> toCommentResponse(comment, viewerId));
+        List<ForumComment> comments = page.getContent();
+        if (comments.isEmpty()) {
+            return PageResponse.from(page, comment -> toCommentResponse(comment, viewerId, false));
+        }
+        Set<UUID> ids = comments.stream().map(ForumComment::getId).collect(Collectors.toSet());
+        Set<UUID> liked = new HashSet<>(commentReactionRepository.findReactedCommentIds(viewerId, ids));
+        return PageResponse.from(page, comment -> toCommentResponse(comment, viewerId, liked.contains(comment.getId())));
+    }
+
+    private int likeCount(ForumComment comment) {
+        return comment.getLikeCount() == null ? 0 : comment.getLikeCount();
+    }
+
+    /**
+     * Keeps threading one level deep: replying to a reply attaches to the same top-level
+     * parent, so the client never has to render arbitrary nesting. The parent must belong
+     * to this discussion, otherwise a comment could be grafted onto an unrelated thread.
+     */
+    private ForumComment resolveParent(UUID parentCommentId, UUID discussionId) {
+        if (parentCommentId == null) {
+            return null;
+        }
+        ForumComment parent = commentRepository.findByIdAndDeletedAtIsNull(parentCommentId)
+            .orElseThrow(() -> new NotFoundException("Parent comment not found"));
+        if (parent.getDiscussion() == null || !parent.getDiscussion().getId().equals(discussionId)) {
+            throw new NotFoundException("Parent comment not found");
+        }
+        return parent.getParentComment() == null ? parent : parent.getParentComment();
     }
 
     @Override
@@ -219,6 +303,49 @@ public class DiscussionServiceImpl implements DiscussionService {
         comment.setDeletedAt(Instant.now());
         commentRepository.save(comment);
         discussionRepository.adjustCommentCount(comment.getDiscussion().getId(), -1);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<ReportedDiscussionResponse> reportedDiscussions(Pageable pageable) {
+        return PageResponse.from(discussionRepository.findReportedForModeration(pageable), this::toReportedResponse);
+    }
+
+    @Override
+    @Transactional
+    public void removeAsAdmin(UUID discussionId) {
+        ForumDiscussion discussion = loadDiscussion(discussionId);
+        discussion.setDeletedAt(Instant.now());
+        discussionRepository.save(discussion);
+        log.info("Discussion {} removed by admin {}", discussionId, currentUserProvider.getCurrentUserId());
+    }
+
+    @Override
+    @Transactional
+    public void dismissReports(UUID discussionId) {
+        loadDiscussion(discussionId);
+        // Reviewed and fine: drop the report rows and zero the cached count so it leaves the
+        // queue, keeping the discussion. A later report from someone new re-opens it.
+        reportRepository.deleteByDiscussionId(discussionId);
+        discussionRepository.clearReportCount(discussionId);
+        log.info("Reports dismissed on discussion {} by admin {}", discussionId, currentUserProvider.getCurrentUserId());
+    }
+
+    /**
+     * The admin queue deliberately reveals the author even for anonymous discussions: the
+     * whole reason the author is stored is moderation accountability. postedAnonymously
+     * flags that it was anonymous to the public, without hiding who wrote it from the admin.
+     */
+    private ReportedDiscussionResponse toReportedResponse(ForumDiscussion discussion) {
+        return new ReportedDiscussionResponse(
+            discussion.getId(),
+            summary(discussion.getUser()),
+            Boolean.TRUE.equals(discussion.getIsAnonymous()),
+            discussion.getTitle(),
+            discussion.getContent(),
+            discussion.getCategory(),
+            discussion.getReportCount() == null ? 0 : discussion.getReportCount(),
+            discussion.getCreatedAt());
     }
 
     /** Resolves reactedByMe for the whole page in one query rather than per row. */
@@ -274,15 +401,16 @@ public class DiscussionServiceImpl implements DiscussionService {
         );
     }
 
-    private CommentResponse toCommentResponse(ForumComment comment, UUID viewerId) {
+    private CommentResponse toCommentResponse(ForumComment comment, UUID viewerId, boolean likedByMe) {
         User author = comment.getUser();
         return new CommentResponse(
             comment.getId(),
             summary(author),
             comment.getContent(),
-            null,
+            comment.getParentComment() == null ? null : comment.getParentComment().getId(),
             comment.getLanguage(),
-            0,
+            likeCount(comment),
+            likedByMe,
             author != null && author.getId().equals(viewerId),
             comment.getCreatedAt()
         );

@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.modules.community.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.Map;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CommentCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
@@ -50,6 +51,19 @@ public class CommentController {
         @PathVariable UUID commentId,
         @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success("Replies retrieved", commentService.replies(commentId, pageable)));
+    }
+
+    /** Idempotent - backs the comment like toggle. Returns the resulting count. */
+    @PostMapping("/comments/{commentId}/like")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> like(@PathVariable UUID commentId) {
+        return ResponseEntity.ok(ApiResponse.success("Comment liked",
+            Map.of("likeCount", commentService.like(commentId))));
+    }
+
+    @DeleteMapping("/comments/{commentId}/like")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> unlike(@PathVariable UUID commentId) {
+        return ResponseEntity.ok(ApiResponse.success("Comment unliked",
+            Map.of("likeCount", commentService.unlike(commentId))));
     }
 
     @DeleteMapping("/comments/{commentId}")

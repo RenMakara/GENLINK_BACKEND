@@ -3,13 +3,19 @@ package kh.edu.acleda.campuslink.modules.community;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.community.dto.request.CommentCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionReportRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedDiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.DiscussionReport;
+import kh.edu.acleda.campuslink.modules.community.entity.ForumComment;
+import kh.edu.acleda.campuslink.modules.community.entity.ForumCommentReaction;
 import kh.edu.acleda.campuslink.modules.community.entity.ForumDiscussion;
 import kh.edu.acleda.campuslink.modules.community.entity.ForumReaction;
 import kh.edu.acleda.campuslink.modules.community.repository.DiscussionReportRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.ForumCommentReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumCommentRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumDiscussionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumReactionRepository;
@@ -36,6 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,6 +58,7 @@ class DiscussionServiceImplTest {
     @Mock private ForumDiscussionRepository discussionRepository;
     @Mock private ForumCommentRepository commentRepository;
     @Mock private ForumReactionRepository reactionRepository;
+    @Mock private ForumCommentReactionRepository commentReactionRepository;
     @Mock private DiscussionReportRepository reportRepository;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
@@ -62,7 +70,7 @@ class DiscussionServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new DiscussionServiceImpl(discussionRepository, commentRepository, reactionRepository,
-            reportRepository, userRepository, currentUserProvider);
+            commentReactionRepository, reportRepository, userRepository, currentUserProvider);
 
         author = new User();
         author.setEmail("author@example.com");
@@ -88,6 +96,8 @@ class DiscussionServiceImplTest {
         });
         when(reactionRepository.findByDiscussionIdAndUserId(any(), any())).thenReturn(Optional.empty());
         when(reactionRepository.findReactedDiscussionIds(any(), anyCollection())).thenReturn(List.of());
+        when(commentRepository.save(any(ForumComment.class))).thenAnswer(i -> i.getArgument(0));
+        when(commentReactionRepository.findReactedCommentIds(any(), anyCollection())).thenReturn(List.of());
     }
 
     /** The stub echoed the request back with a null id and saved nothing. */
@@ -222,5 +232,190 @@ class DiscussionServiceImplTest {
             .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.delete(DISCUSSION_ID)).isInstanceOf(NotFoundException.class);
+    }
+
+    // ---- Admin moderation ----
+
+    /**
+     * The whole reason the author is stored on an anonymous row: the moderation queue must
+     * show the admin who wrote it, even though the public sees it as anonymous.
+     */
+    @Test
+    void theModerationQueueRevealsTheAuthorEvenForAnonymousDiscussions() {
+        discussion.setIsAnonymous(true);
+        discussion.setReportCount(3);
+        when(discussionRepository.findReportedForModeration(any())).thenReturn(new PageImpl<>(List.of(discussion)));
+
+        PageResponse<ReportedDiscussionResponse> queue = service.reportedDiscussions(PageRequest.of(0, 20));
+
+        ReportedDiscussionResponse row = queue.content().get(0);
+        assertThat(row.postedAnonymously()).isTrue();
+        assertThat(row.author().username()).isEqualTo("sokdara");
+        assertThat(row.reportCount()).isEqualTo(3);
+    }
+
+    @Test
+    void adminRemovalSoftDeletesAnyDiscussion() {
+        service.removeAsAdmin(DISCUSSION_ID);
+
+        assertThat(discussion.getDeletedAt()).isNotNull();
+        verify(discussionRepository).save(discussion);
+    }
+
+    @Test
+    void adminRemovalOfAMissingDiscussionIsNotFound() {
+        when(discussionRepository.findByIdAndDeletedAtIsNull(DISCUSSION_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.removeAsAdmin(DISCUSSION_ID)).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void dismissingReportsClearsTheRowsAndZeroesTheCount() {
+        service.dismissReports(DISCUSSION_ID);
+
+        verify(reportRepository).deleteByDiscussionId(DISCUSSION_ID);
+        verify(discussionRepository).clearReportCount(DISCUSSION_ID);
+    }
+
+    // ---- Comments & replies ----
+
+    @Test
+    void addingATopLevelCommentHasNoParentAndBumpsTheCount() {
+        service.addComment(DISCUSSION_ID, new CommentCreateRequest("Nice thread", null, Language.ENGLISH));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(ForumComment.class);
+        verify(commentRepository).save(captor.capture());
+        assertThat(captor.getValue().getParentComment()).isNull();
+        verify(discussionRepository).adjustCommentCount(DISCUSSION_ID, 1);
+    }
+
+    @Test
+    void replyingToACommentSetsItAsTheParent() {
+        UUID parentId = UUID.randomUUID();
+        ForumComment parent = ForumComment.builder().discussion(discussion).user(author).content("q").build();
+        ReflectionTestUtils.setField(parent, "id", parentId);
+        when(commentRepository.findByIdAndDeletedAtIsNull(parentId)).thenReturn(Optional.of(parent));
+
+        service.addComment(DISCUSSION_ID, new CommentCreateRequest("an answer", parentId, Language.ENGLISH));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(ForumComment.class);
+        verify(commentRepository).save(captor.capture());
+        assertThat(captor.getValue().getParentComment()).isEqualTo(parent);
+    }
+
+    /** Threading is capped at one level: a reply to a reply attaches to the top-level parent. */
+    @Test
+    void replyingToAReplyCollapsesToTheTopLevelParent() {
+        UUID topId = UUID.randomUUID();
+        UUID replyId = UUID.randomUUID();
+        ForumComment top = ForumComment.builder().discussion(discussion).user(author).content("top").build();
+        ReflectionTestUtils.setField(top, "id", topId);
+        ForumComment reply = ForumComment.builder().discussion(discussion).user(author)
+            .content("reply").parentComment(top).build();
+        ReflectionTestUtils.setField(reply, "id", replyId);
+        when(commentRepository.findByIdAndDeletedAtIsNull(replyId)).thenReturn(Optional.of(reply));
+
+        service.addComment(DISCUSSION_ID, new CommentCreateRequest("nested", replyId, Language.ENGLISH));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(ForumComment.class);
+        verify(commentRepository).save(captor.capture());
+        assertThat(captor.getValue().getParentComment()).isEqualTo(top);
+    }
+
+    /** A parent from another discussion must be rejected, or a reply could graft onto an unrelated thread. */
+    @Test
+    void replyingToACommentFromAnotherDiscussionIsNotFound() {
+        UUID parentId = UUID.randomUUID();
+        ForumDiscussion other = ForumDiscussion.builder().build();
+        ReflectionTestUtils.setField(other, "id", OTHER_ID);
+        ForumComment parent = ForumComment.builder().discussion(other).user(author).content("q").build();
+        ReflectionTestUtils.setField(parent, "id", parentId);
+        when(commentRepository.findByIdAndDeletedAtIsNull(parentId)).thenReturn(Optional.of(parent));
+
+        assertThatThrownBy(() -> service.addComment(DISCUSSION_ID,
+            new CommentCreateRequest("x", parentId, Language.ENGLISH)))
+            .isInstanceOf(NotFoundException.class);
+        verify(commentRepository, never()).save(any(ForumComment.class));
+    }
+
+    @Test
+    void theCommentListReturnsTopLevelOnly() {
+        ForumComment top = ForumComment.builder().discussion(discussion).user(author).content("top").build();
+        ReflectionTestUtils.setField(top, "id", UUID.randomUUID());
+        when(commentRepository.findTopLevel(eq(DISCUSSION_ID), any())).thenReturn(new PageImpl<>(List.of(top)));
+
+        PageResponse<CommentResponse> page = service.comments(DISCUSSION_ID, PageRequest.of(0, 20));
+
+        assertThat(page.content()).hasSize(1);
+        verify(commentRepository).findTopLevel(eq(DISCUSSION_ID), any());
+    }
+
+    @Test
+    void repliesReturnTheChildrenOfAComment() {
+        UUID parentId = UUID.randomUUID();
+        ForumComment reply = ForumComment.builder().discussion(discussion).user(author).content("r").build();
+        ReflectionTestUtils.setField(reply, "id", UUID.randomUUID());
+        when(commentRepository.findReplies(eq(parentId), any())).thenReturn(new PageImpl<>(List.of(reply)));
+
+        PageResponse<CommentResponse> page = service.replies(parentId, PageRequest.of(0, 20));
+
+        assertThat(page.content()).hasSize(1);
+        verify(commentRepository).findReplies(eq(parentId), any());
+    }
+
+    // ---- Comment likes ----
+
+    @Test
+    void likingACommentIsIdempotent() {
+        ForumComment comment = likableComment(2);
+        UUID commentId = comment.getId();
+        when(commentReactionRepository.findByCommentIdAndUserId(commentId, AUTHOR_ID))
+            .thenReturn(Optional.of(ForumCommentReaction.builder().build()));
+
+        assertThat(service.likeComment(commentId)).isEqualTo(2);
+        verify(commentReactionRepository, never()).save(any(ForumCommentReaction.class));
+        verify(commentRepository, never()).adjustLikeCount(any(), anyInt());
+    }
+
+    @Test
+    void likingACommentCreatesTheReactionAndIncrementsTheCount() {
+        ForumComment comment = likableComment(2);
+        UUID commentId = comment.getId();
+        when(commentReactionRepository.findByCommentIdAndUserId(commentId, AUTHOR_ID)).thenReturn(Optional.empty());
+
+        assertThat(service.likeComment(commentId)).isEqualTo(3);
+        verify(commentRepository).adjustLikeCount(commentId, 1);
+    }
+
+    @Test
+    void unlikingACommentNeverLikedIsANoOp() {
+        ForumComment comment = likableComment(2);
+        UUID commentId = comment.getId();
+        when(commentReactionRepository.findByCommentIdAndUserId(commentId, AUTHOR_ID)).thenReturn(Optional.empty());
+
+        assertThat(service.unlikeComment(commentId)).isEqualTo(2);
+        verify(commentRepository, never()).adjustLikeCount(any(), anyInt());
+    }
+
+    @Test
+    void theCommentListResolvesLikedByMeAndTheCount() {
+        ForumComment top = ForumComment.builder().discussion(discussion).user(author).content("top").likeCount(5).build();
+        UUID cid = UUID.randomUUID();
+        ReflectionTestUtils.setField(top, "id", cid);
+        when(commentRepository.findTopLevel(eq(DISCUSSION_ID), any())).thenReturn(new PageImpl<>(List.of(top)));
+        when(commentReactionRepository.findReactedCommentIds(eq(AUTHOR_ID), anyCollection())).thenReturn(List.of(cid));
+
+        CommentResponse row = service.comments(DISCUSSION_ID, PageRequest.of(0, 20)).content().get(0);
+
+        assertThat(row.likeCount()).isEqualTo(5);
+        assertThat(row.likedByMe()).isTrue();
+    }
+
+    private ForumComment likableComment(int likeCount) {
+        ForumComment comment = ForumComment.builder().discussion(discussion).user(author)
+            .content("c").likeCount(likeCount).build();
+        ReflectionTestUtils.setField(comment, "id", UUID.randomUUID());
+        when(commentRepository.findByIdAndDeletedAtIsNull(comment.getId())).thenReturn(Optional.of(comment));
+        return comment;
     }
 }

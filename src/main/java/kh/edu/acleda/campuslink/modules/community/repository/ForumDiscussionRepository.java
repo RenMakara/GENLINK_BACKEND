@@ -34,6 +34,15 @@ public interface ForumDiscussionRepository extends JpaRepository<ForumDiscussion
         countQuery = "SELECT COUNT(d) FROM ForumDiscussion d WHERE d.deletedAt IS NULL AND d.user.id = :userId")
     Page<ForumDiscussion> findByAuthor(@Param("userId") UUID userId, Pageable pageable);
 
+    /**
+     * The admin moderation queue: live discussions that carry reports, most-reported first.
+     * Author JOIN FETCHed - the queue reveals it for accountability, so it is loaded, not withheld.
+     */
+    @Query(value = "SELECT d FROM ForumDiscussion d LEFT JOIN FETCH d.user "
+        + "WHERE d.deletedAt IS NULL AND d.reportCount > 0 ORDER BY d.reportCount DESC",
+        countQuery = "SELECT COUNT(d) FROM ForumDiscussion d WHERE d.deletedAt IS NULL AND d.reportCount > 0")
+    Page<ForumDiscussion> findReportedForModeration(Pageable pageable);
+
     /** Atomic, like every other counter here: concurrent reactions must not collide. */
     @Modifying
     @Query("UPDATE ForumDiscussion d SET d.reactionCount = d.reactionCount + :delta WHERE d.id = :discussionId")
@@ -46,4 +55,9 @@ public interface ForumDiscussionRepository extends JpaRepository<ForumDiscussion
     @Modifying
     @Query("UPDATE ForumDiscussion d SET d.reportCount = d.reportCount + 1 WHERE d.id = :discussionId")
     void incrementReportCount(@Param("discussionId") UUID discussionId);
+
+    /** Used when an admin dismisses a discussion's reports. */
+    @Modifying
+    @Query("UPDATE ForumDiscussion d SET d.reportCount = 0 WHERE d.id = :discussionId")
+    void clearReportCount(@Param("discussionId") UUID discussionId);
 }

@@ -5,6 +5,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionCreateRe
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionReportRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedDiscussionResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import org.springframework.data.domain.Pageable;
 
@@ -34,9 +35,33 @@ public interface DiscussionService {
     /** One report per user per discussion, so the count means distinct people. */
     void report(UUID discussionId, DiscussionReportRequest request);
 
+    /** Adds a comment, or a reply when the request carries a parentCommentId (one level deep). */
     CommentResponse addComment(UUID discussionId, CommentCreateRequest request);
 
+    /** Top-level comments only; replies come from {@link #replies}. */
     PageResponse<CommentResponse> comments(UUID discussionId, Pageable pageable);
 
+    /** Replies to one comment. */
+    PageResponse<CommentResponse> replies(UUID parentCommentId, Pageable pageable);
+
+    /** Idempotent: backs a toggle. @return the comment's like count afterwards. */
+    int likeComment(UUID commentId);
+
+    int unlikeComment(UUID commentId);
+
     void deleteComment(UUID commentId);
+
+    // ---- Admin moderation (ROLE_ADMIN, enforced at the controller) ----
+
+    /**
+     * The moderation queue: reported discussions, most-reported first. Reveals the author
+     * even for anonymous discussions, because moderation needs accountability.
+     */
+    PageResponse<ReportedDiscussionResponse> reportedDiscussions(Pageable pageable);
+
+    /** Removes any discussion (soft delete), regardless of author. */
+    void removeAsAdmin(UUID discussionId);
+
+    /** Clears a discussion's reports without removing it. */
+    void dismissReports(UUID discussionId);
 }

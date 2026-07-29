@@ -11,6 +11,7 @@ public record CommentResponse(
     UUID parentCommentId,
     Language language,
     Integer likeCount,
+    boolean likedByMe,
     boolean mine,
     Instant createdAt
 ) {
