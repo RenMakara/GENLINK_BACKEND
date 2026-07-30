@@ -14,7 +14,7 @@ public class OpenApiConfig {
             .info(new Info()
                 .title("GenLink KH API")
                 .version("v1")
-                .description("GenLink KH modular monolith API"));
+                .description("GenLink KH API documentation"));
     }
 }
 

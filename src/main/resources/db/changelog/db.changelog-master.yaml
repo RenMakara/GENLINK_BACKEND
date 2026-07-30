@@ -61,3 +61,5 @@ databaseChangeLog:
       file: db/changelog/changes/0030-add-post-comment-likes.sql
   - include:
       file: db/changelog/changes/0031-generalize-finance-ledger.sql
+  - include:
+      file: db/changelog/changes/0032-create-incomes-table.sql
