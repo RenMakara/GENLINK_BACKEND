@@ -1,7 +1,9 @@
 package kh.edu.acleda.campuslink.modules.finance.enums;
 
 public enum TransactionType {
-    MOCK_KHQR_PAYMENT,
+    /** A KHQR payment. Provider-neutral: which network processed it lives in the ledger's
+     *  {@code provider}/{@code provider_ref} columns, not in this type. */
+    KHQR_PAYMENT,
     EVENT_PAYMENT,
     DEPOSIT,
     /** Simulated learning-budget credit for passing a financial-literacy quiz. */

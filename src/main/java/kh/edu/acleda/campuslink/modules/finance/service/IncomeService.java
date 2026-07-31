@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.finance.service;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.IncomeCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.CashFlowResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.IncomeResponse;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import org.springframework.data.domain.Pageable;
 
@@ -21,6 +22,6 @@ public interface IncomeService {
 
     void delete(UUID id);
 
-    /** A month's income vs expense, net, and savings rate - the cash-flow picture. */
-    CashFlowResponse cashFlow(int month, int year);
+    /** A month's income vs expense, net, and savings rate for one currency - the cash-flow picture. */
+    CashFlowResponse cashFlow(Currency currency, int month, int year);
 }

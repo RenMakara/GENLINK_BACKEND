@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.finance.dto.response;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.SavingGoalStatus;
 
 /**
@@ -19,6 +20,7 @@ public record SavingGoalResponse(
     BigDecimal remainingAmount,
     int progressPercent,
     LocalDate targetDate,
-    SavingGoalStatus status
+    SavingGoalStatus status,
+    Currency currency
 ) {
 }

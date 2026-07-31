@@ -60,8 +60,8 @@ class MobileFinanceBffServiceImplTest {
 
         // Empty-by-default world; each test overrides what it needs.
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
-        when(expenseRepository.sumForMonth(any(), any(), any())).thenReturn(null);
-        when(expenseRepository.sumByCategory(any(), any(), any())).thenReturn(List.of());
+        when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(null);
+        when(expenseRepository.sumByCategoryAndCurrency(any(), any(), any(), any())).thenReturn(List.of());
         when(expenseRepository.findByUser(any(), any(), any())).thenReturn(Page.empty());
         when(budgetRepository.findByUserIdAndMonthAndYearAndDeletedAtIsNull(any(), any(), any()))
             .thenReturn(Optional.empty());
@@ -90,7 +90,7 @@ class MobileFinanceBffServiceImplTest {
         Budget budget = Budget.builder().totalBudget(new BigDecimal("200.00")).build();
         when(budgetRepository.findByUserIdAndMonthAndYearAndDeletedAtIsNull(any(), any(), any()))
             .thenReturn(Optional.of(budget));
-        when(expenseRepository.sumForMonth(any(), any(), any())).thenReturn(new BigDecimal("180.00"));
+        when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(new BigDecimal("180.00"));
 
         MobileFinanceDashboardResponse.MonthOverview m = service.getFinanceDashboard(EMAIL).month();
 
@@ -104,14 +104,14 @@ class MobileFinanceBffServiceImplTest {
         Budget budget = Budget.builder().totalBudget(new BigDecimal("100.00")).build();
         when(budgetRepository.findByUserIdAndMonthAndYearAndDeletedAtIsNull(any(), any(), any()))
             .thenReturn(Optional.of(budget));
-        when(expenseRepository.sumForMonth(any(), any(), any())).thenReturn(new BigDecimal("100.00"));
+        when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(new BigDecimal("100.00"));
 
         assertThat(service.getFinanceDashboard(EMAIL).month().budgetStatus()).isEqualTo("LIMIT_REACHED");
     }
 
     @Test
     void topCategoriesAreCappedAtFiveAndNullBecomesUncategorized() {
-        when(expenseRepository.sumByCategory(any(), any(), any())).thenReturn(List.of(
+        when(expenseRepository.sumByCategoryAndCurrency(any(), any(), any(), any())).thenReturn(List.of(
             new Object[]{"FOOD", new BigDecimal("60")},
             new Object[]{null, new BigDecimal("40")},
             new Object[]{"TRANSPORT", new BigDecimal("30")},
@@ -156,14 +156,17 @@ class MobileFinanceBffServiceImplTest {
 
     @Test
     void walletSummaryIsPresentWhenTheWalletExists() {
-        DemoWallet wallet = DemoWallet.builder().balance(new BigDecimal("45.00")).currency("USD").build();
+        DemoWallet wallet = DemoWallet.builder()
+            .balanceUsd(new BigDecimal("45.00"))
+            .balanceKhr(new BigDecimal("120000.00"))
+            .build();
         when(demoWalletRepository.findByUserId(any())).thenReturn(Optional.of(wallet));
 
         MobileFinanceDashboardResponse.WalletSummary w = service.getFinanceDashboard(EMAIL).wallet();
 
         assertThat(w).isNotNull();
-        assertThat(w.balance()).isEqualByComparingTo("45.00");
-        assertThat(w.currency()).isEqualTo("USD");
+        assertThat(w.balanceUsd()).isEqualByComparingTo("45.00");
+        assertThat(w.balanceKhr()).isEqualByComparingTo("120000.00");
     }
 
     @Test

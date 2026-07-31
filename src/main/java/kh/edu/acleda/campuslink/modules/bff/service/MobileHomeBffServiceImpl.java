@@ -25,6 +25,7 @@ import kh.edu.acleda.campuslink.modules.finance.entity.Budget;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingGoal;
 import kh.edu.acleda.campuslink.modules.finance.enums.SavingGoalStatus;
 import kh.edu.acleda.campuslink.modules.finance.repository.BudgetRepository;
+import kh.edu.acleda.campuslink.modules.finance.repository.ExpenseRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.SavingGoalRepository;
 import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileHomeResponse;
 import kh.edu.acleda.campuslink.modules.productivity.entity.MotivationContent;
@@ -65,6 +66,7 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
     private final MotivationContentRepository motivationContentRepository;
     private final DailyChallengeRepository dailyChallengeRepository;
     private final BudgetRepository budgetRepository;
+    private final ExpenseRepository expenseRepository;
     private final SavingGoalRepository savingGoalRepository;
     private final EventRsvpRepository eventRsvpRepository;
     private final CommunityRepository communityRepository;
@@ -78,6 +80,7 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
                                     MotivationContentRepository motivationContentRepository,
                                     DailyChallengeRepository dailyChallengeRepository,
                                     BudgetRepository budgetRepository,
+                                    ExpenseRepository expenseRepository,
                                     SavingGoalRepository savingGoalRepository,
                                     EventRsvpRepository eventRsvpRepository,
                                     CommunityRepository communityRepository,
@@ -90,6 +93,7 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
         this.motivationContentRepository = motivationContentRepository;
         this.dailyChallengeRepository = dailyChallengeRepository;
         this.budgetRepository = budgetRepository;
+        this.expenseRepository = expenseRepository;
         this.savingGoalRepository = savingGoalRepository;
         this.eventRsvpRepository = eventRsvpRepository;
         this.communityRepository = communityRepository;
@@ -163,14 +167,36 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
             .map(SavingGoal::getCurrentAmount).filter(java.util.Objects::nonNull)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return new MobileHomeResponse.FinanceSnapshot(
-            budget == null ? null : budget.getTotalBudget(),
-            budget == null ? null : budget.getSpentAmount(),
-            budget == null ? null : budget.getRemainingAmount(),
-            budget == null || budget.getStatus() == null ? null : budget.getStatus().name(),
-            savingTarget,
-            savingCurrent
-        );
+        // Spend is computed live from expenses, NOT the stale budget.spentAmount counter (which
+        // nothing maintains, so it always read 0). Mirrors the finance-dashboard BFF.
+        BigDecimal total = budget == null ? null : budget.getTotalBudget();
+        BigDecimal spent = null;
+        BigDecimal remaining = null;
+        String status = null;
+        if (budget != null) {
+            LocalDate monthStart = LocalDate.of(today.getYear(), today.getMonthValue(), 1);
+            // Live spend for the budget's own currency (a USD budget never counts KHR expenses).
+            BigDecimal live = expenseRepository.sumForMonthByCurrency(
+                userId, budget.getCurrency(), monthStart, monthStart.plusMonths(1));
+            spent = live == null ? BigDecimal.ZERO : live;
+            remaining = total.subtract(spent);
+            status = budgetStatus(spent, total);
+        }
+
+        return new MobileHomeResponse.FinanceSnapshot(total, spent, remaining, status, savingTarget, savingCurrent);
+    }
+
+    /** SAFE / WARNING (>=80%) / LIMIT_REACHED (>=100%) from live spend, same thresholds as the budget module. */
+    private String budgetStatus(BigDecimal spent, BigDecimal total) {
+        if (total == null || total.signum() <= 0) {
+            return "SAFE";
+        }
+        BigDecimal ratio = spent.multiply(BigDecimal.valueOf(100))
+            .divide(total, 0, java.math.RoundingMode.DOWN);
+        if (ratio.compareTo(BigDecimal.valueOf(100)) >= 0) {
+            return "LIMIT_REACHED";
+        }
+        return ratio.compareTo(BigDecimal.valueOf(80)) >= 0 ? "WARNING" : "SAFE";
     }
 
     private MobileHomeResponse.UpcomingEvent upcomingEvent(UUID userId, LocalDateTime now) {

@@ -23,7 +23,7 @@ import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository
 import kh.edu.acleda.campuslink.modules.community.service.EventService;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
-import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
@@ -238,22 +238,17 @@ public class EventServiceImpl implements EventService {
                 "DEMO_WALLET_NOT_FOUND"));
 
         BigDecimal price = event.getPrice();
-        if (wallet.getBalance() == null || wallet.getBalance().compareTo(price) < 0) {
-            throw new ApiException("Demo wallet balance is too low for this event",
-                "DEMO_WALLET_INSUFFICIENT_BALANCE");
-        }
-
-        wallet.setBalance(wallet.getBalance().subtract(price));
-        demoWalletRepository.save(wallet);
-        ledgerService.record(wallet, TransactionType.EVENT_PAYMENT, TransactionDirection.DEBIT, price,
+        // debit enforces sufficient funds (throws DEMO_WALLET_INSUFFICIENT_BALANCE before any
+        // write), subtracts the balance, and records the DEBIT row linked back to the event.
+        ledgerService.debit(wallet, TransactionType.EVENT_PAYMENT, Currency.USD, price,
             "Simulated payment for event: " + event.getTitle(), "EVENT", event.getId());
 
         // The only place a balance moves outside the finance module. It is simulated,
         // but "my wallet is wrong" is otherwise untraceable: the success path never
         // reaches GlobalExceptionHandler, so nothing else would record it. Says
         // SIMULATED out loud so a log reader never mistakes it for a real payment.
-        log.info("SIMULATED wallet debit: user={} event={} amount={} balanceAfter={}",
-            userId, event.getId(), price, wallet.getBalance());
+        log.info("SIMULATED wallet debit: user={} event={} currency={} amount={} balanceAfter={}",
+            userId, event.getId(), Currency.USD, price, wallet.getBalanceUsd());
         return price;
     }
 

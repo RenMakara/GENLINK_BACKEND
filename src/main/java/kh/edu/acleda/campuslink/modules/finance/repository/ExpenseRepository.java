@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.finance.repository;
 
 import kh.edu.acleda.campuslink.modules.finance.entity.Expense;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -52,4 +53,24 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
         + "AND e.expenseDate >= :start AND e.expenseDate < :end")
     BigDecimal sumForMonth(@Param("userId") UUID userId,
                            @Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    /** Per-currency total spend for a month - so a budget/cash-flow never mixes KHR with USD. */
+    @Query("SELECT SUM(e.amount) FROM Expense e WHERE e.user.id = :userId AND e.deletedAt IS NULL "
+        + "AND e.currency = :currency AND e.expenseDate >= :start AND e.expenseDate < :end")
+    BigDecimal sumForMonthByCurrency(@Param("userId") UUID userId, @Param("currency") Currency currency,
+                                     @Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    /** Raw expense amounts for a month in one currency - backs round-up auto-save. */
+    @Query("SELECT e.amount FROM Expense e WHERE e.user.id = :userId AND e.deletedAt IS NULL "
+        + "AND e.currency = :currency AND e.expenseDate >= :start AND e.expenseDate < :end")
+    List<BigDecimal> findAmountsForMonthByCurrency(@Param("userId") UUID userId, @Param("currency") Currency currency,
+                                                   @Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    /** Per-currency, per-category totals for a month, biggest first. */
+    @Query("SELECT e.category, SUM(e.amount) FROM Expense e "
+        + "WHERE e.user.id = :userId AND e.deletedAt IS NULL AND e.currency = :currency "
+        + "AND e.expenseDate >= :start AND e.expenseDate < :end "
+        + "GROUP BY e.category ORDER BY SUM(e.amount) DESC")
+    List<Object[]> sumByCategoryAndCurrency(@Param("userId") UUID userId, @Param("currency") Currency currency,
+                                            @Param("start") LocalDate start, @Param("end") LocalDate end);
 }

@@ -76,8 +76,8 @@ class BudgetServiceImplTest {
         });
         when(budgetRepository.findByIdAndUserIdAndDeletedAtIsNull(BUDGET_ID, USER_ID))
             .thenReturn(Optional.of(budget));
-        when(expenseRepository.sumForMonth(any(), any(), any())).thenReturn(null);
-        when(expenseRepository.sumByCategory(any(), any(), any())).thenReturn(List.of());
+        when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(null);
+        when(expenseRepository.sumByCategoryAndCurrency(any(), any(), any(), any())).thenReturn(List.of());
         when(budgetCategoryRepository.findByBudgetId(BUDGET_ID)).thenReturn(List.of());
     }
 
@@ -85,7 +85,7 @@ class BudgetServiceImplTest {
     void createRejectsADuplicateBudgetForTheMonth() {
         when(budgetRepository.existsByUserIdAndMonthAndYearAndDeletedAtIsNull(USER_ID, 7, 2026)).thenReturn(true);
 
-        assertThatThrownBy(() -> service.create(new BudgetCreateRequest(7, 2026, new BigDecimal("300"), null)))
+        assertThatThrownBy(() -> service.create(new BudgetCreateRequest(7, 2026, new BigDecimal("300"), null, null)))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("already exists");
     }
@@ -93,7 +93,7 @@ class BudgetServiceImplTest {
     @Test
     void createPersistsBudgetAndCategories() {
         service.create(new BudgetCreateRequest(7, 2026, new BigDecimal("300.00"),
-            List.of(new BudgetCategoryRequest("FOOD", new BigDecimal("100.00")))));
+            List.of(new BudgetCategoryRequest("FOOD", new BigDecimal("100.00"))), null));
 
         verify(budgetRepository).save(any(Budget.class));
         verify(budgetCategoryRepository).save(any(BudgetCategory.class));
@@ -101,7 +101,7 @@ class BudgetServiceImplTest {
 
     @Test
     void createRejectsAnInvalidMonth() {
-        assertThatThrownBy(() -> service.create(new BudgetCreateRequest(0, 2026, new BigDecimal("300"), null)))
+        assertThatThrownBy(() -> service.create(new BudgetCreateRequest(0, 2026, new BigDecimal("300"), null, null)))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("between 1 and 12");
     }
@@ -109,7 +109,7 @@ class BudgetServiceImplTest {
     /** Spend comes from expenses, not the stored counter. */
     @Test
     void spendAndRemainingAreComputedLiveFromExpenses() {
-        when(expenseRepository.sumForMonth(eq(USER_ID), any(), any())).thenReturn(new BigDecimal("120.00"));
+        when(expenseRepository.sumForMonthByCurrency(eq(USER_ID), any(), any(), any())).thenReturn(new BigDecimal("120.00"));
 
         BudgetResponse response = service.getById(BUDGET_ID);
 
@@ -120,14 +120,14 @@ class BudgetServiceImplTest {
 
     @Test
     void statusIsWarningAtEightyPercent() {
-        when(expenseRepository.sumForMonth(any(), any(), any())).thenReturn(new BigDecimal("240.00"));
+        when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(new BigDecimal("240.00"));
 
         assertThat(service.getById(BUDGET_ID).status()).isEqualTo(BudgetStatus.WARNING);
     }
 
     @Test
     void statusIsLimitReachedAtOrOverTotal() {
-        when(expenseRepository.sumForMonth(any(), any(), any())).thenReturn(new BigDecimal("300.00"));
+        when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(new BigDecimal("300.00"));
 
         assertThat(service.getById(BUDGET_ID).status()).isEqualTo(BudgetStatus.LIMIT_REACHED);
     }
@@ -137,7 +137,7 @@ class BudgetServiceImplTest {
         when(budgetCategoryRepository.findByBudgetId(BUDGET_ID)).thenReturn(List.of(
             BudgetCategory.builder().budget(budget).category("FOOD")
                 .allocatedAmount(new BigDecimal("100.00")).build()));
-        when(expenseRepository.sumByCategory(eq(USER_ID), any(), any())).thenReturn(List.<Object[]>of(
+        when(expenseRepository.sumByCategoryAndCurrency(eq(USER_ID), any(), any(), any())).thenReturn(List.<Object[]>of(
             new Object[]{"FOOD", new BigDecimal("30.00")}));
 
         BudgetResponse.CategoryBudget cat = service.getById(BUDGET_ID).categories().get(0);
@@ -154,21 +154,21 @@ class BudgetServiceImplTest {
 
         service.getMine(org.springframework.data.domain.PageRequest.of(0, 20));
 
-        verify(expenseRepository, never()).sumByCategory(any(), any(), any());
+        verify(expenseRepository, never()).sumByCategoryAndCurrency(any(), any(), any(), any());
     }
 
     @Test
     void updatingSomeoneElsesBudgetReadsAsNotFound() {
         when(budgetRepository.findByIdAndUserIdAndDeletedAtIsNull(BUDGET_ID, USER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.update(BUDGET_ID, new BudgetCreateRequest(7, 2026, new BigDecimal("1"), null)))
+        assertThatThrownBy(() -> service.update(BUDGET_ID, new BudgetCreateRequest(7, 2026, new BigDecimal("1"), null, null)))
             .isInstanceOf(NotFoundException.class);
     }
 
     @Test
     void updateReplacesCategories() {
         service.update(BUDGET_ID, new BudgetCreateRequest(7, 2026, new BigDecimal("400.00"),
-            List.of(new BudgetCategoryRequest("TRANSPORT", new BigDecimal("50.00")))));
+            List.of(new BudgetCategoryRequest("TRANSPORT", new BigDecimal("50.00"))), null));
 
         verify(budgetCategoryRepository).deleteByBudgetId(BUDGET_ID);
         verify(budgetCategoryRepository).save(any(BudgetCategory.class));

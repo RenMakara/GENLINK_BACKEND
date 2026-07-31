@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.finance.repository;
 
 import kh.edu.acleda.campuslink.modules.finance.entity.Income;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -43,4 +44,10 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
         + "AND i.incomeDate >= :start AND i.incomeDate < :end")
     BigDecimal sumForMonth(@Param("userId") UUID userId,
                            @Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    /** Per-currency total income for a month - so cash-flow never mixes KHR with USD. */
+    @Query("SELECT SUM(i.amount) FROM Income i WHERE i.user.id = :userId AND i.deletedAt IS NULL "
+        + "AND i.currency = :currency AND i.incomeDate >= :start AND i.incomeDate < :end")
+    BigDecimal sumForMonthByCurrency(@Param("userId") UUID userId, @Param("currency") Currency currency,
+                                     @Param("start") LocalDate start, @Param("end") LocalDate end);
 }

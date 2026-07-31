@@ -9,9 +9,14 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.ExpenseCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.ExpenseResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.MonthlySummaryResponse;
+import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.entity.Expense;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
+import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.ExpenseRepository;
+import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
 import kh.edu.acleda.campuslink.modules.finance.service.ExpenseService;
+import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -28,13 +33,19 @@ public class ExpenseServiceImpl implements ExpenseService {
     private static final String UNCATEGORIZED = "UNCATEGORIZED";
 
     private final ExpenseRepository expenseRepository;
+    private final DemoWalletService demoWalletService;
+    private final LedgerService ledgerService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public ExpenseServiceImpl(ExpenseRepository expenseRepository,
+                              DemoWalletService demoWalletService,
+                              LedgerService ledgerService,
                               UserRepository userRepository,
                               CurrentUserProvider currentUserProvider) {
         this.expenseRepository = expenseRepository;
+        this.demoWalletService = demoWalletService;
+        this.ledgerService = ledgerService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -43,15 +54,26 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Transactional
     public ExpenseResponse create(ExpenseCreateRequest request) {
         User user = loadCurrentUser();
+        Currency currency = request.currency() == null ? Currency.USD : request.currency();
         Expense expense = expenseRepository.save(Expense.builder()
             .user(user)
             .title(request.title().strip())
             .amount(request.amount())
+            .currency(currency)
             .category(request.category())
             .description(request.description())
             .expenseDate(request.expenseDate())
             .paymentMethod(request.paymentMethod())
             .build());
+
+        // Opt-in: only "paid from wallet" expenses move the balance. A too-low balance rejects
+        // the whole thing (this @Transactional rolls the expense row back too), so the wallet
+        // and the recorded spend never disagree.
+        if (Boolean.TRUE.equals(request.paidFromWallet())) {
+            DemoWallet wallet = demoWalletService.getOrCreateWalletEntity();
+            ledgerService.debit(wallet, TransactionType.EXPENSE, currency, expense.getAmount(),
+                "Expense: " + expense.getTitle(), "EXPENSE", expense.getId());
+        }
         return toResponse(expense);
     }
 
@@ -141,6 +163,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             expense.getId(),
             expense.getTitle(),
             expense.getAmount(),
+            expense.getCurrency(),
             expense.getCategory(),
             expense.getDescription(),
             expense.getExpenseDate(),

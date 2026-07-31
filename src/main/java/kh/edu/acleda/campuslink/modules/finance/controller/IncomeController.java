@@ -7,6 +7,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.IncomeCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.CashFlowResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.IncomeResponse;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.service.IncomeService;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
@@ -57,12 +58,14 @@ public class IncomeController {
      */
     @GetMapping("/cash-flow")
     public ResponseEntity<ApiResponse<CashFlowResponse>> cashFlow(
+        @RequestParam(required = false) Currency currency,
         @RequestParam(required = false) Integer month,
         @RequestParam(required = false) Integer year) {
         LocalDate now = LocalDate.now();
+        Currency c = currency == null ? Currency.USD : currency;
         int m = month == null ? now.getMonthValue() : month;
         int y = year == null ? now.getYear() : year;
-        return ResponseEntity.ok(ApiResponse.success("Cash flow retrieved", incomeService.cashFlow(m, y)));
+        return ResponseEntity.ok(ApiResponse.success("Cash flow retrieved", incomeService.cashFlow(c, m, y)));
     }
 
     @GetMapping("/{id}")

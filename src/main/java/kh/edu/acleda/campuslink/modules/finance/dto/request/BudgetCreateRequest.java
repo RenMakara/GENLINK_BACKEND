@@ -5,15 +5,19 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.util.List;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
 /**
  * @param categories optional per-category allocations. Their sum is not required to
  *                   equal totalBudget - a user may budget only some categories.
+ * @param currency   USD or KHR; defaults to USD. A budget is per currency - its spend is
+ *                   computed only from expenses in the same currency.
  */
 public record BudgetCreateRequest(
     @NotNull Integer month,
     @NotNull Integer year,
     @NotNull @Positive BigDecimal totalBudget,
-    @Valid List<BudgetCategoryRequest> categories
+    @Valid List<BudgetCategoryRequest> categories,
+    Currency currency
 ) {
 }

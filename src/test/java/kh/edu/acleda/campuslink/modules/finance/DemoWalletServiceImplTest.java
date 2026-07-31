@@ -9,8 +9,11 @@ import kh.edu.acleda.campuslink.modules.finance.dto.request.WalletTopUpRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.WalletResponse;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
+import kh.edu.acleda.campuslink.modules.finance.payment.PaymentProvider;
+import kh.edu.acleda.campuslink.modules.finance.payment.PaymentResult;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoTransactionRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
@@ -50,6 +53,7 @@ class DemoWalletServiceImplTest {
     @Mock private DemoWalletRepository demoWalletRepository;
     @Mock private DemoTransactionRepository demoTransactionRepository;
     @Mock private LedgerService ledgerService;
+    @Mock private PaymentProvider paymentProvider;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -60,11 +64,14 @@ class DemoWalletServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new DemoWalletServiceImpl(demoWalletRepository, demoTransactionRepository,
-            ledgerService, userRepository, currentUserProvider);
+            ledgerService, paymentProvider, userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
-        wallet = DemoWallet.builder().user(user).balance(new BigDecimal("50.00")).currency("USD").build();
+        wallet = DemoWallet.builder().user(user)
+            .balanceUsd(new BigDecimal("50.00"))
+            .balanceKhr(new BigDecimal("0.00"))
+            .build();
         ReflectionTestUtils.setField(wallet, "id", WALLET_ID);
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
@@ -78,6 +85,8 @@ class DemoWalletServiceImplTest {
             return w;
         });
         when(demoTransactionRepository.save(any(DemoTransaction.class))).thenAnswer(i -> i.getArgument(0));
+        // Default: the payment provider approves, returning its (mock) identity + reference.
+        when(paymentProvider.charge(any())).thenReturn(PaymentResult.success("MOCK_KHQR", "MOCK-TEST1234"));
     }
 
     @Test
@@ -86,15 +95,15 @@ class DemoWalletServiceImplTest {
 
         WalletResponse r = service.getOrCreate();
 
-        assertThat(r.balance()).isEqualByComparingTo("0");
-        assertThat(r.currency()).isEqualTo("USD");
+        assertThat(r.balanceUsd()).isEqualByComparingTo("0");
+        assertThat(r.balanceKhr()).isEqualByComparingTo("0");
     }
 
     @Test
     void getOrCreateReturnsTheExistingWallet() {
         when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
 
-        assertThat(service.getOrCreate().balance()).isEqualByComparingTo("50.00");
+        assertThat(service.getOrCreate().balanceUsd()).isEqualByComparingTo("50.00");
         verify(demoWalletRepository, never()).saveAndFlush(any());
     }
 
@@ -109,40 +118,53 @@ class DemoWalletServiceImplTest {
         assertThat(service.getOrCreate().walletId()).isEqualTo(WALLET_ID);
     }
 
+    /** Balance movement lives in LedgerService now, so this asserts the delegation. */
     @Test
-    void topUpAddsToBalanceAndRecordsADepositTransaction() {
+    void topUpCreditsTheWalletThroughTheLedger() {
         when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
 
-        WalletResponse r = service.topUp(new WalletTopUpRequest(new BigDecimal("25.00"), "pocket money"));
+        service.topUp(new WalletTopUpRequest(new BigDecimal("25.00"), "pocket money", null));
 
-        assertThat(r.balance()).isEqualByComparingTo("75.00");
-        verify(ledgerService).record(eq(wallet), eq(TransactionType.DEPOSIT),
-            eq(TransactionDirection.CREDIT), any(), any());
+        verify(ledgerService).credit(eq(wallet), eq(TransactionType.DEPOSIT), eq(Currency.USD),
+            eq(new BigDecimal("25.00")), any());
     }
 
     @Test
-    void payDebitsBalanceAndRecordsAKhqrTransaction() {
+    void payChargesTheProviderThenDebitsWithProviderInfo() {
         when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
 
-        WalletResponse r = service.pay(new WalletPaymentRequest(new BigDecimal("20.00"), "Brown Coffee", null));
+        service.pay(new WalletPaymentRequest(new BigDecimal("20.00"), "Brown Coffee", null, Currency.KHR));
 
-        assertThat(r.balance()).isEqualByComparingTo("30.00");
-        verify(ledgerService).record(eq(wallet), eq(TransactionType.MOCK_KHQR_PAYMENT),
-            eq(TransactionDirection.DEBIT), any(), any());
+        // Provider-neutral type; the provider identity + reference ride along on the ledger row.
+        verify(ledgerService).debit(eq(wallet), eq(TransactionType.KHQR_PAYMENT), eq(Currency.KHR),
+            eq(new BigDecimal("20.00")), any(), any(), any(), eq("MOCK_KHQR"), eq("MOCK-TEST1234"));
     }
 
+    /** A provider decline is a business error; the ledger is never touched. */
     @Test
-    void payRejectsWhenBalanceIsTooLowAndMovesNothing() {
-        wallet.setBalance(new BigDecimal("5.00"));
+    void payThrowsWhenTheProviderDeclinesAndNeverDebits() {
         when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
+        when(paymentProvider.charge(any())).thenReturn(PaymentResult.failed("MOCK_KHQR", "card blocked"));
 
-        assertThatThrownBy(() -> service.pay(new WalletPaymentRequest(new BigDecimal("20.00"), "shop", null)))
+        assertThatThrownBy(() -> service.pay(
+            new WalletPaymentRequest(new BigDecimal("20.00"), "shop", null, Currency.USD)))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("declined");
+
+        verify(ledgerService, never()).debit(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    /** The insufficient-funds guard lives in the ledger now; the wallet service just propagates. */
+    @Test
+    void payPropagatesTheLedgersInsufficientFundsError() {
+        when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
+        org.mockito.Mockito.doThrow(new ApiException("Demo wallet balance is too low for this payment",
+                "DEMO_WALLET_INSUFFICIENT_BALANCE"))
+            .when(ledgerService).debit(any(), any(), any(), any(), any(), any(), any(), any(), any());
+
+        assertThatThrownBy(() -> service.pay(new WalletPaymentRequest(new BigDecimal("20.00"), "shop", null, null)))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("too low");
-
-        assertThat(wallet.getBalance()).isEqualByComparingTo("5.00");
-        verify(demoWalletRepository, never()).save(any());
-        verify(ledgerService, never()).record(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -158,6 +180,7 @@ class DemoWalletServiceImplTest {
         when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
         DemoTransaction t = DemoTransaction.builder().wallet(wallet)
             .transactionType(TransactionType.DEPOSIT).amount(new BigDecimal("25.00"))
+            .currency(Currency.USD)
             .description("Simulated top-up").status(kh.edu.acleda.campuslink.modules.finance.enums.TransactionStatus.SUCCESS)
             .build();
         ReflectionTestUtils.setField(t, "id", UUID.randomUUID());

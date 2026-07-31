@@ -8,10 +8,15 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.IncomeCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.CashFlowResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.IncomeResponse;
+import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.entity.Income;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
+import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.ExpenseRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.IncomeRepository;
+import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
 import kh.edu.acleda.campuslink.modules.finance.service.IncomeService;
+import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -27,15 +32,21 @@ public class IncomeServiceImpl implements IncomeService {
 
     private final IncomeRepository incomeRepository;
     private final ExpenseRepository expenseRepository;
+    private final DemoWalletService demoWalletService;
+    private final LedgerService ledgerService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public IncomeServiceImpl(IncomeRepository incomeRepository,
                              ExpenseRepository expenseRepository,
+                             DemoWalletService demoWalletService,
+                             LedgerService ledgerService,
                              UserRepository userRepository,
                              CurrentUserProvider currentUserProvider) {
         this.incomeRepository = incomeRepository;
         this.expenseRepository = expenseRepository;
+        this.demoWalletService = demoWalletService;
+        this.ledgerService = ledgerService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -44,14 +55,20 @@ public class IncomeServiceImpl implements IncomeService {
     @Transactional
     public IncomeResponse create(IncomeCreateRequest request) {
         User user = loadCurrentUser();
+        Currency currency = request.currency() == null ? Currency.USD : request.currency();
         Income income = incomeRepository.save(Income.builder()
             .user(user)
             .title(request.title().strip())
             .amount(request.amount())
+            .currency(currency)
             .source(request.source())
             .description(request.description())
             .incomeDate(request.incomeDate())
             .build());
+
+        DemoWallet wallet = demoWalletService.getOrCreateWalletEntity();
+        ledgerService.credit(wallet, TransactionType.INCOME, currency, income.getAmount(),
+            "Income: " + income.getTitle(), "INCOME", income.getId());
         return toResponse(income);
     }
 
@@ -99,14 +116,15 @@ public class IncomeServiceImpl implements IncomeService {
 
     @Override
     @Transactional(readOnly = true)
-    public CashFlowResponse cashFlow(int month, int year) {
+    public CashFlowResponse cashFlow(Currency currency, int month, int year) {
         validateMonth(month);
         UUID userId = currentUserProvider.getCurrentUserId();
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.plusMonths(1);
 
-        BigDecimal income = orZero(incomeRepository.sumForMonth(userId, start, end));
-        BigDecimal expense = orZero(expenseRepository.sumForMonth(userId, start, end));
+        // Per currency: mixing KHR and USD in one figure would be meaningless.
+        BigDecimal income = orZero(incomeRepository.sumForMonthByCurrency(userId, currency, start, end));
+        BigDecimal expense = orZero(expenseRepository.sumForMonthByCurrency(userId, currency, start, end));
         BigDecimal net = income.subtract(expense);
 
         // Savings rate = net / income, as a percent. Undefined with no income, so 0. It can go
@@ -115,7 +133,7 @@ public class IncomeServiceImpl implements IncomeService {
             ? BigDecimal.ZERO
             : net.multiply(BigDecimal.valueOf(100)).divide(income, 1, RoundingMode.HALF_UP);
 
-        return new CashFlowResponse(month, year, income, expense, net, savingsRate);
+        return new CashFlowResponse(currency, month, year, income, expense, net, savingsRate);
     }
 
     private BigDecimal orZero(BigDecimal value) {
@@ -145,6 +163,7 @@ public class IncomeServiceImpl implements IncomeService {
             income.getId(),
             income.getTitle(),
             income.getAmount(),
+            income.getCurrency(),
             income.getSource(),
             income.getDescription(),
             income.getIncomeDate(),

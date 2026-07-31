@@ -7,9 +7,14 @@ import java.util.Optional;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.IncomeCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.CashFlowResponse;
+import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.entity.Income;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
+import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.ExpenseRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.IncomeRepository;
+import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
+import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.finance.service.impl.IncomeServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -42,6 +47,8 @@ class IncomeServiceImplTest {
 
     @Mock private IncomeRepository incomeRepository;
     @Mock private ExpenseRepository expenseRepository;
+    @Mock private DemoWalletService demoWalletService;
+    @Mock private LedgerService ledgerService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -51,7 +58,8 @@ class IncomeServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new IncomeServiceImpl(incomeRepository, expenseRepository, userRepository, currentUserProvider);
+        service = new IncomeServiceImpl(incomeRepository, expenseRepository, demoWalletService,
+            ledgerService, userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
         income = Income.builder().user(user).title("Allowance").amount(new BigDecimal("100.00"))
@@ -70,13 +78,22 @@ class IncomeServiceImplTest {
     }
 
     @Test
-    void createPersistsTheIncome() {
+    void createPersistsTheIncomeAndCreditsTheWallet() {
+        DemoWallet wallet = DemoWallet.builder().user(user)
+            .balanceUsd(new BigDecimal("0.00"))
+            .balanceKhr(new BigDecimal("0.00"))
+            .build();
+        when(demoWalletService.getOrCreateWalletEntity()).thenReturn(wallet);
+
         var response = service.create(new IncomeCreateRequest(
-            "Allowance", new BigDecimal("100.00"), "ALLOWANCE", null, LocalDate.of(2026, 7, 1)));
+            "Allowance", new BigDecimal("100.00"), "ALLOWANCE", null, LocalDate.of(2026, 7, 1), null));
 
         verify(incomeRepository).save(any(Income.class));
         assertThat(response.amount()).isEqualByComparingTo("100.00");
         assertThat(response.source()).isEqualTo("ALLOWANCE");
+        // Income always credits the wallet.
+        verify(ledgerService).credit(eq(wallet), eq(TransactionType.INCOME), eq(Currency.USD),
+            eq(new BigDecimal("100.00")), any(), eq("INCOME"), any());
     }
 
     @Test
@@ -116,10 +133,10 @@ class IncomeServiceImplTest {
 
     @Test
     void cashFlowComputesNetAndSavingsRate() {
-        when(incomeRepository.sumForMonth(eq(USER_ID), any(), any())).thenReturn(new BigDecimal("100.00"));
-        when(expenseRepository.sumForMonth(eq(USER_ID), any(), any())).thenReturn(new BigDecimal("30.00"));
+        when(incomeRepository.sumForMonthByCurrency(eq(USER_ID), any(), any(), any())).thenReturn(new BigDecimal("100.00"));
+        when(expenseRepository.sumForMonthByCurrency(eq(USER_ID), any(), any(), any())).thenReturn(new BigDecimal("30.00"));
 
-        CashFlowResponse r = service.cashFlow(7, 2026);
+        CashFlowResponse r = service.cashFlow(Currency.USD, 7, 2026);
 
         assertThat(r.totalIncome()).isEqualByComparingTo("100.00");
         assertThat(r.totalExpense()).isEqualByComparingTo("30.00");
@@ -131,10 +148,10 @@ class IncomeServiceImplTest {
     /** No income means the ratio is undefined, so it is reported as 0 rather than dividing by zero. */
     @Test
     void cashFlowWithNoIncomeReportsAZeroSavingsRate() {
-        when(incomeRepository.sumForMonth(eq(USER_ID), any(), any())).thenReturn(null);
-        when(expenseRepository.sumForMonth(eq(USER_ID), any(), any())).thenReturn(new BigDecimal("20.00"));
+        when(incomeRepository.sumForMonthByCurrency(eq(USER_ID), any(), any(), any())).thenReturn(null);
+        when(expenseRepository.sumForMonthByCurrency(eq(USER_ID), any(), any(), any())).thenReturn(new BigDecimal("20.00"));
 
-        CashFlowResponse r = service.cashFlow(7, 2026);
+        CashFlowResponse r = service.cashFlow(Currency.USD, 7, 2026);
 
         assertThat(r.totalIncome()).isEqualByComparingTo("0");
         assertThat(r.net()).isEqualByComparingTo("-20.00");
@@ -144,10 +161,10 @@ class IncomeServiceImplTest {
     /** Overspending is a true, useful signal: net and savings rate both go negative. */
     @Test
     void cashFlowGoesNegativeWhenOverspent() {
-        when(incomeRepository.sumForMonth(eq(USER_ID), any(), any())).thenReturn(new BigDecimal("50.00"));
-        when(expenseRepository.sumForMonth(eq(USER_ID), any(), any())).thenReturn(new BigDecimal("80.00"));
+        when(incomeRepository.sumForMonthByCurrency(eq(USER_ID), any(), any(), any())).thenReturn(new BigDecimal("50.00"));
+        when(expenseRepository.sumForMonthByCurrency(eq(USER_ID), any(), any(), any())).thenReturn(new BigDecimal("80.00"));
 
-        CashFlowResponse r = service.cashFlow(7, 2026);
+        CashFlowResponse r = service.cashFlow(Currency.USD, 7, 2026);
 
         assertThat(r.net()).isEqualByComparingTo("-30.00");
         // -30 / 50 = -60.0%

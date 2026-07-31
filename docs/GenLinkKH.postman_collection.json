@@ -119,6 +119,42 @@
       "key": "expenseId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "incomeId",
+      "value": ""
+    },
+    {
+      "key": "budgetId",
+      "value": ""
+    },
+    {
+      "key": "savingGoalId",
+      "value": ""
+    },
+    {
+      "key": "walletId",
+      "value": ""
+    },
+    {
+      "key": "recurringId",
+      "value": ""
+    },
+    {
+      "key": "autoSaveRuleId",
+      "value": ""
+    },
+    {
+      "key": "fToday",
+      "value": ""
+    },
+    {
+      "key": "fMonth",
+      "value": ""
+    },
+    {
+      "key": "fYear",
+      "value": ""
     }
   ],
   "event": [
@@ -1481,7 +1517,116 @@
                     "posts",
                     "{{resourceId}}"
                   ]
-                }
+                },
+                "description": "Author-only delete. To remove someone else's post as a moderator, use Remove Post (moderator)."
+              }
+            },
+            {
+              "name": "Remove Post (moderator)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}/moderate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "{{resourceId}}",
+                    "moderate"
+                  ]
+                },
+                "description": "Remove a member's post as a community moderator — allowed to OWNER/ADMIN/MODERATOR of the post's community. Soft delete; decrements the community's postCount. A non-moderator, a non-member, or a post that belongs to no community all get 404 (not 403)."
+              }
+            },
+            {
+              "name": "Report Post",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}/report",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "{{resourceId}}",
+                    "report"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"SPAM\",\n  \"details\": \"Repeated promotional links\"\n}"
+                },
+                "description": "Flag a post for moderator review. Any authenticated user. Idempotent — one report per user, so report_count means distinct reporters. reason is free text (max 80)."
+              }
+            },
+            {
+              "name": "Reported Posts Queue (moderator)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/community/{{communityId}}/reported?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "community",
+                    "{{communityId}}",
+                    "reported"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "A moderator's queue: reported posts in the community, most-reported first, each with its reportCount. OWNER/ADMIN/MODERATOR only; a non-moderator gets 404."
+              }
+            },
+            {
+              "name": "Dismiss Reports (moderator)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/posts/{{resourceId}}/dismiss-reports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "posts",
+                    "{{resourceId}}",
+                    "dismiss-reports"
+                  ]
+                },
+                "description": "Reviewed and fine: clears the post's report rows and zeroes report_count so it leaves the queue, keeping the post. A later report from a new user re-opens it. OWNER/ADMIN/MODERATOR of the post's community only."
               }
             },
             {
@@ -1720,6 +1865,50 @@
                     }
                   ]
                 }
+              }
+            },
+            {
+              "name": "Like Comment",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/comments/{{commentId}}/like",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "comments",
+                    "{{commentId}}",
+                    "like"
+                  ]
+                },
+                "description": "Idempotent - backs the like toggle. Returns { likeCount }. One like per user (distinct people, not taps). Liking twice is a silent no-op. Distinct from the forum's /discussions/comments/{id}/like."
+              }
+            },
+            {
+              "name": "Unlike Comment",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/comments/{{commentId}}/like",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "comments",
+                    "{{commentId}}",
+                    "like"
+                  ]
+                },
+                "description": "Removes the like. Returns { likeCount }. Unliking something never liked is a no-op."
               }
             },
             {
@@ -2059,6 +2248,62 @@
                   ]
                 },
                 "description": "Marks the request REMOVED without counting the user. The person may request again later, which re-opens a PENDING request. Owner/admin only."
+              }
+            },
+            {
+              "name": "Change Member Role (owner/admin)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities/{{communityId}}/members/{{targetUserId}}/role",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities",
+                    "{{communityId}}",
+                    "members",
+                    "{{targetUserId}}",
+                    "role"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"MODERATOR\"\n}"
+                },
+                "description": "Promote/demote a member. role: ADMIN | MODERATOR | MEMBER (OWNER is rejected — use Transfer Ownership).\n\nOwner or admin only; an admin may only manage MODERATOR and MEMBER, never another admin or the owner. You cannot change your own role. Non-managers get 404."
+              }
+            },
+            {
+              "name": "Transfer Ownership (owner only)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/communities/{{communityId}}/transfer-ownership/{{targetUserId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "communities",
+                    "{{communityId}}",
+                    "transfer-ownership",
+                    "{{targetUserId}}"
+                  ]
+                },
+                "description": "Hand ownership to another active member. Current owner only. The outgoing owner becomes ADMIN in the same transaction, so there is always exactly one owner. This is also how an owner can then leave the community."
               }
             }
           ]
@@ -2667,7 +2912,82 @@
                   "mode": "raw",
                   "raw": "{\n  \"reason\": \"SPAM\",\n  \"details\": \"Buying followers\"\n}"
                 },
-                "description": "One report per user per discussion, so report_count means distinct people, not taps.\nReporting twice is a silent no-op.\n\nNOTE: nothing reviews the report queue yet - there is no moderation screen. Reports land in discussion_reports and a log line."
+                "description": "One report per user per discussion, so report_count means distinct people, not taps.\nReporting twice is a silent no-op. Admins review these via Reported Discussions Queue."
+              }
+            },
+            {
+              "name": "Reported Discussions Queue (admin)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/reported?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "reported"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "ROLE_ADMIN only (403 otherwise). Reported discussions, most-reported first, each with its reportCount. The forum is category-scoped (no community moderator), so moderation is app-admin. Reveals the author even for anonymous discussions — the one place anonymity is lifted, and only to admins. Needs a seeded ADMIN user (Role defaults to USER)."
+              }
+            },
+            {
+              "name": "Remove Discussion (admin)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/moderate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "{{discussionId}}",
+                    "moderate"
+                  ]
+                },
+                "description": "ROLE_ADMIN only. Soft-deletes any discussion regardless of author (unlike the author-only Delete Discussion). It drops out of the queue and the forum list."
+              }
+            },
+            {
+              "name": "Dismiss Discussion Reports (admin)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/dismiss-reports",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "{{discussionId}}",
+                    "dismiss-reports"
+                  ]
+                },
+                "description": "ROLE_ADMIN only. Reviewed and fine: clears the discussion's report rows and zeroes report_count so it leaves the queue, keeping the discussion. A later report from a new user re-opens it."
               }
             },
             {
@@ -2710,7 +3030,38 @@
                   "mode": "raw",
                   "raw": "{\n  \"content\": \"Try the Pomodoro timer.\",\n  \"parentCommentId\": null,\n  \"language\": \"ENGLISH\"\n}"
                 },
-                "description": "Forum comments are flat - parentCommentId is ignored here (forum_comments has no parent column). Threading exists on post comments only."
+                "description": "Add a top-level comment. To reply to a comment, set parentCommentId (see Reply to Discussion Comment). Threading is one level deep."
+              }
+            },
+            {
+              "name": "Reply to Discussion Comment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/{{discussionId}}/comments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "{{discussionId}}",
+                    "comments"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"content\": \"Agreed, Pomodoro helps.\",\n  \"parentCommentId\": \"{{forumCommentId}}\",\n  \"language\": \"ENGLISH\"\n}"
+                },
+                "description": "A reply. parentCommentId must belong to the same discussion, else 404. Replying to a reply attaches to the same top-level parent (one level deep). commentCount counts replies too."
               }
             },
             {
@@ -2742,7 +3093,86 @@
                     }
                   ]
                 },
-                "description": "Oldest first, so a thread reads top to bottom. Commenters are always identified."
+                "description": "Top-level comments only (replies come from the Replies route). Oldest first, so a thread reads top to bottom. Commenters are always identified."
+              }
+            },
+            {
+              "name": "Discussion Comment Replies",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/comments/{{forumCommentId}}/replies?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "comments",
+                    "{{forumCommentId}}",
+                    "replies"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Replies to one comment, oldest first."
+              }
+            },
+            {
+              "name": "Like Discussion Comment",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/comments/{{forumCommentId}}/like",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "comments",
+                    "{{forumCommentId}}",
+                    "like"
+                  ]
+                },
+                "description": "Idempotent - backs the like toggle. Returns { likeCount }. One like per user (distinct people, not taps). Liking twice is a silent no-op."
+              }
+            },
+            {
+              "name": "Unlike Discussion Comment",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/discussions/comments/{{forumCommentId}}/like",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "discussions",
+                    "comments",
+                    "{{forumCommentId}}",
+                    "like"
+                  ]
+                },
+                "description": "Removes the like. Returns { likeCount }. Unliking something never liked is a no-op."
               }
             },
             {
@@ -3714,6 +4144,237 @@
       "name": "Finance",
       "item": [
         {
+          "name": "Income",
+          "description": "Income tracking (allowance, part-time, scholarship) and the monthly cash-flow / savings-rate summary. Money-in twin of Expenses. Everything is implicitly USD until dual currency lands.",
+          "item": [
+            {
+              "name": "Create Income",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                      "var d = (pm.response.json() || {}).data || {};",
+                      "if (d.incomeId) { pm.collectionVariables.set('incomeId', d.incomeId); console.log('captured incomeId =', d.incomeId); }"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/incomes",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "incomes"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Monthly allowance\",\n  \"amount\": 200.00,\n  \"source\": \"ALLOWANCE\",\n  \"description\": \"From parents\",\n  \"incomeDate\": \"2026-07-01\",\n  \"currency\": \"USD\"\n}"
+                },
+                "description": "source is free text (ALLOWANCE, PART_TIME, SCHOLARSHIP, GIFT, OTHER). Captures incomeId for the other requests."
+              }
+            },
+            {
+              "name": "List Income",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/incomes?page=0&size=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "incomes"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20"
+                    },
+                    {
+                      "key": "source",
+                      "value": "ALLOWANCE",
+                      "disabled": true
+                    },
+                    {
+                      "key": "month",
+                      "value": "7",
+                      "disabled": true
+                    },
+                    {
+                      "key": "year",
+                      "value": "2026",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Newest first. Optional filters: ?source, and ?month + ?year together."
+              }
+            },
+            {
+              "name": "Cash Flow (income vs expense)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/incomes/cash-flow?currency=USD&month=7&year=2026",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "incomes",
+                    "cash-flow"
+                  ],
+                  "query": [
+                    {
+                      "key": "currency",
+                      "value": "USD"
+                    },
+                    {
+                      "key": "month",
+                      "value": "7"
+                    },
+                    {
+                      "key": "year",
+                      "value": "2026"
+                    }
+                  ]
+                },
+                "description": "Per currency (currency=USD|KHR, default USD): totalIncome, totalExpense, net (money left), and savingsRatePercent (net / income; 0 with no income; negative when overspent). Omit month/year for the current month."
+              }
+            },
+            {
+              "name": "Insights (nudges + matched lessons)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/insights?currency=USD&month=7&year=2026",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "insights"
+                  ],
+                  "query": [
+                    {
+                      "key": "currency",
+                      "value": "USD"
+                    },
+                    {
+                      "key": "month",
+                      "value": "7"
+                    },
+                    {
+                      "key": "year",
+                      "value": "2026"
+                    }
+                  ]
+                },
+                "description": "Up to 5 rule-based, per-currency nudges over income/expense/goals (default USD + current month): overspend (NEGATIVE_CASH_FLOW), LOW_SAVINGS_RATE, HEALTHY_SAVINGS, SPENDING_TREND_UP, CATEGORY_SPIKE, GOAL_BEHIND. Severity-sorted (CRITICAL -> WARNING -> GOOD). Each insight carries a matched literacy lesson (category spikes match financial_lessons.related_category, else a topic lesson). Read-only."
+              }
+            },
+            {
+              "name": "Get Income By Id",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/incomes/{{incomeId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "incomes",
+                    "{{incomeId}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Income",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/incomes/{{incomeId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "incomes",
+                    "{{incomeId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Monthly allowance\",\n  \"amount\": 220.00,\n  \"source\": \"ALLOWANCE\",\n  \"description\": \"Raised\",\n  \"incomeDate\": \"2026-07-01\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Delete Income",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/incomes/{{incomeId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "incomes",
+                    "{{incomeId}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
           "name": "Expenses",
           "description": "Expense tracker: CRUD, filters, and the monthly spending summary.",
           "item": [
@@ -3725,7 +4386,9 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "const j=pm.response.json(); if(j&&j.data&&j.data.expenseId){pm.collectionVariables.set('expenseId',j.data.expenseId);}"
+                      "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                      "var d = (pm.response.json() || {}).data || {};",
+                      "if (d.expenseId) { pm.collectionVariables.set('expenseId', d.expenseId); console.log('captured expenseId =', d.expenseId); }"
                     ]
                   }
                 }
@@ -3752,7 +4415,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"title\": \"Coffee\",\n  \"amount\": 2.50,\n  \"category\": \"FOOD\",\n  \"description\": \"Morning coffee\",\n  \"expenseDate\": \"2026-07-18\",\n  \"paymentMethod\": \"CASH\"\n}"
+                  "raw": "{\n  \"title\": \"Coffee\",\n  \"amount\": 2.50,\n  \"category\": \"FOOD\",\n  \"description\": \"Morning coffee\",\n  \"expenseDate\": \"2026-07-18\",\n  \"paymentMethod\": \"CASH\",\n  \"paidFromWallet\": false,\n  \"currency\": \"USD\"\n}"
                 },
                 "description": "amount must be positive. category is free text."
               }
@@ -3900,8 +4563,9 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "var d = pm.response.json().data;",
-                      "if (d && d.budgetId) { pm.collectionVariables.set('budgetId', d.budgetId); }"
+                      "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                      "var d = (pm.response.json() || {}).data || {};",
+                      "if (d.budgetId) { pm.collectionVariables.set('budgetId', d.budgetId); console.log('captured budgetId =', d.budgetId); }"
                     ]
                   }
                 }
@@ -4079,8 +4743,9 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "var d = pm.response.json().data;",
-                      "if (d && d.savingGoalId) { pm.collectionVariables.set('savingGoalId', d.savingGoalId); }"
+                      "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                      "var d = (pm.response.json() || {}).data || {};",
+                      "if (d.savingGoalId) { pm.collectionVariables.set('savingGoalId', d.savingGoalId); console.log('captured savingGoalId =', d.savingGoalId); }"
                     ]
                   }
                 }
@@ -4216,9 +4881,9 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"amount\": 50.00,\n  \"note\": \"weekly allowance\"\n}"
+                  "raw": "{\n  \"amount\": 50.00,\n  \"note\": \"weekly allowance\",\n  \"fromWallet\": false\n}"
                 },
-                "description": "Adds to the goal; auto-completes it when the target is reached. depositDate optional (defaults to today). Returns the updated goal."
+                "description": "Adds to the goal; auto-completes it when the target is reached. depositDate optional (defaults to today). fromWallet=true also debits the demo wallet (rejected if funds too low); default false grows the goal without touching the balance. Returns the updated goal."
               }
             },
             {
@@ -4286,8 +4951,21 @@
                     "wallet"
                   ]
                 },
-                "description": "Simulated wallet - no real money. Created with a 0 balance on first call."
-              }
+                "description": "Simulated wallet - no real money. Created with 0 balances on first call. Returns both `balanceUsd` and `balanceKhr` (dual-currency, Model A)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                      "var d = (pm.response.json() || {}).data || {};",
+                      "if (d.walletId) { pm.collectionVariables.set('walletId', d.walletId); console.log('captured walletId =', d.walletId); }"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Top Up (simulated)",
@@ -4314,13 +4992,13 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"amount\": 100.00,\n  \"note\": \"demo top-up\"\n}"
+                  "raw": "{\n  \"amount\": 100.00,\n  \"note\": \"demo top-up\",\n  \"currency\": \"USD\"\n}"
                 },
-                "description": "Simulated deposit. Top up before RSVPing to a paid event."
+                "description": "Simulated deposit into the demo wallet. `currency` is optional (USD or KHR; defaults to USD) and tops up the matching balance. Response returns both `balanceUsd` and `balanceKhr`."
               }
             },
             {
-              "name": "Pay (mock KHQR)",
+              "name": "Pay (KHQR, via payment provider)",
               "request": {
                 "method": "POST",
                 "header": [
@@ -4344,9 +5022,9 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"amount\": 15.00,\n  \"merchant\": \"Brown Coffee\",\n  \"note\": \"iced latte\"\n}"
+                  "raw": "{\n  \"amount\": 15.00,\n  \"merchant\": \"Brown Coffee\",\n  \"note\": \"iced latte\",\n  \"currency\": \"USD\"\n}"
                 },
-                "description": "Simulated KHQR payment. Client passes the scanned amount and merchant. Fails with DEMO_WALLET_INSUFFICIENT_BALANCE if the balance is too low."
+                "description": "Simulated KHQR payment. Routes through the PaymentProvider seam (MockKhqrProvider today), then the ledger debits the wallet - the transaction type is the provider-neutral KHQR_PAYMENT and the row carries provider=MOCK_KHQR + a provider_ref (visible in Transaction History). `currency` is optional (USD or KHR; defaults to USD) and pays from the matching balance. A provider decline returns PAYMENT_DECLINED; a low balance returns DEMO_WALLET_INSUFFICIENT_BALANCE. Still simulation-only - no real network/bank."
               }
             },
             {
@@ -4377,7 +5055,7 @@
                     }
                   ]
                 },
-                "description": "Paginated, most recent first."
+                "description": "Paginated, most recent first. Each row carries direction, currency, type, and - for payments - provider + providerRef (null for income/expense/saving/reward/recurring/auto-save)."
               }
             }
           ]
@@ -4537,9 +5215,1103 @@
               }
             }
           ]
+        },
+        {
+          "name": "Recurring & Auto-Save",
+          "item": [
+            {
+              "name": "Create Recurring Income",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/recurring",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "recurring"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"INCOME\",\n  \"title\": \"Monthly allowance\",\n  \"amount\": 300.00,\n  \"currency\": \"USD\",\n  \"category\": \"ALLOWANCE\",\n  \"frequency\": \"MONTHLY\",\n  \"startDate\": \"2026-08-01\"\n}"
+                },
+                "description": "Recurring income template. On each run date the scheduler creates a real Income row and credits the wallet. frequency = DAILY | WEEKLY | MONTHLY. First run = startDate."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                      "var d = (pm.response.json() || {}).data || {};",
+                      "if (d.id) { pm.collectionVariables.set('recurringId', d.id); console.log('captured recurringId =', d.id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Recurring Expense (from wallet)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/recurring",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "recurring"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"EXPENSE\",\n  \"title\": \"Rent\",\n  \"amount\": 150.00,\n  \"currency\": \"USD\",\n  \"category\": \"HOUSING\",\n  \"frequency\": \"MONTHLY\",\n  \"fromWallet\": true,\n  \"startDate\": \"2026-08-01\",\n  \"endDate\": \"2027-08-01\"\n}"
+                },
+                "description": "Recurring expense template. Creates an Expense row each run; fromWallet=true also debits the wallet when funded (a short balance still records the expense and skips the debit). endDate is optional/inclusive."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                      "var d = (pm.response.json() || {}).data || {};",
+                      "if (d.id) { pm.collectionVariables.set('recurringId', d.id); console.log('captured recurringId =', d.id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List My Recurring",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/recurring",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "recurring"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Recurring",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/recurring/{{recurringId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "recurring",
+                    "{{recurringId}}"
+                  ]
+                },
+                "description": "Soft-delete + deactivate a recurring template."
+              }
+            },
+            {
+              "name": "Create Auto-Save (percent of income)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/auto-save",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "auto-save"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"savingGoalId\": \"{{savingGoalId}}\",\n  \"type\": \"PERCENT_OF_INCOME\",\n  \"percent\": 10,\n  \"currency\": \"USD\"\n}"
+                },
+                "description": "Monthly rule: saves percent% of last month's income into the goal. currency must match the goal's currency. First run = 1st of next month."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                      "var d = (pm.response.json() || {}).data || {};",
+                      "if (d.id) { pm.collectionVariables.set('autoSaveRuleId', d.id); console.log('captured autoSaveRuleId =', d.id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Auto-Save (round-up)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/auto-save",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "auto-save"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"savingGoalId\": \"{{savingGoalId}}\",\n  \"type\": \"ROUND_UP\",\n  \"currency\": \"USD\"\n}"
+                },
+                "description": "Monthly rule: saves the spare change from rounding each of last month's expenses up to the next whole unit."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                      "var d = (pm.response.json() || {}).data || {};",
+                      "if (d.id) { pm.collectionVariables.set('autoSaveRuleId', d.id); console.log('captured autoSaveRuleId =', d.id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List My Auto-Save Rules",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/auto-save",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "auto-save"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Delete Auto-Save Rule",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/finance/auto-save/{{autoSaveRuleId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "finance",
+                    "auto-save",
+                    "{{autoSaveRuleId}}"
+                  ]
+                },
+                "description": "Soft-delete + deactivate an auto-save rule."
+              }
+            }
+          ],
+          "description": "Finance Phase 5 - automation over the ledger. Recurring templates post income/expenses on a schedule; auto-save rules sweep money into a goal monthly. A daily job (RecurringFinanceJob) runs them; these endpoints just manage the definitions."
         }
       ],
       "description": "Finance domain, by feature. All 6 phases done: Expenses, Budgets, Saving Goals, Demo Wallet, Financial Literacy + the mobile finance-dashboard BFF."
+    },
+    {
+      "name": "Finance Smoke Test",
+      "description": "Ordered end-to-end run for the frozen Finance module (Phases 0-6). Log in first (Auth > Login), then use Postman's Runner on THIS folder top-to-bottom. A folder pre-request stamps {{fToday}}/{{fMonth}}/{{fYear}}; each create captures its id into a collection variable so later steps chain automatically. Recurring/auto-save are created here but only post when the daily scheduler runs (see FINANCE_RECURRING_AUTOSAVE.md).",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var now = new Date();",
+              "pm.collectionVariables.set('fToday', now.toISOString().slice(0, 10));",
+              "pm.collectionVariables.set('fMonth', String(now.getMonth() + 1));",
+              "pm.collectionVariables.set('fYear', String(now.getFullYear()));"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "01 Get Wallet (creates it)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "var d=(pm.response.json()||{}).data||{}; if(d.walletId) pm.collectionVariables.set('walletId', d.walletId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "wallet"
+              ]
+            }
+          }
+        },
+        {
+          "name": "02 Top Up USD 100",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/wallet/top-up",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "wallet",
+                "top-up"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100.00,\n  \"note\": \"smoke seed USD\",\n  \"currency\": \"USD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "03 Top Up KHR 40000",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/wallet/top-up",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "wallet",
+                "top-up"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 40000,\n  \"note\": \"smoke seed KHR\",\n  \"currency\": \"KHR\"\n}"
+            }
+          }
+        },
+        {
+          "name": "04 Create Income USD 300 (credits wallet)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "var d = (pm.response.json() || {}).data || {};",
+                  "if (d.incomeId) { pm.collectionVariables.set('incomeId', d.incomeId); console.log('captured incomeId =', d.incomeId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/incomes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "incomes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Smoke allowance\",\n  \"amount\": 300.00,\n  \"currency\": \"USD\",\n  \"source\": \"ALLOWANCE\",\n  \"incomeDate\": \"{{fToday}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "05 Get Wallet (assert USD >= 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "pm.test('USD balance >= 400 after top-up + income', function () {",
+                  "  var d = pm.response.json().data;",
+                  "  pm.expect(Number(d.balanceUsd)).to.be.at.least(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "wallet"
+              ]
+            }
+          }
+        },
+        {
+          "name": "06 Create Expense USD 5 (paidFromWallet)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "var d = (pm.response.json() || {}).data || {};",
+                  "if (d.expenseId) { pm.collectionVariables.set('expenseId', d.expenseId); console.log('captured expenseId =', d.expenseId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "expenses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Smoke lunch\",\n  \"amount\": 5.00,\n  \"currency\": \"USD\",\n  \"category\": \"FOOD\",\n  \"expenseDate\": \"{{fToday}}\",\n  \"paidFromWallet\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "07 Create Expense USD 8 (tracking only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "expenses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Smoke snack\",\n  \"amount\": 8.00,\n  \"currency\": \"USD\",\n  \"category\": \"FOOD\",\n  \"expenseDate\": \"{{fToday}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "08 Monthly Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/expenses/summary?month={{fMonth}}&year={{fYear}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "expenses",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "{{fMonth}}"
+                },
+                {
+                  "key": "year",
+                  "value": "{{fYear}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "09 Create Budget USD 500",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "var d = (pm.response.json() || {}).data || {};",
+                  "if (d.budgetId) { pm.collectionVariables.set('budgetId', d.budgetId); console.log('captured budgetId =', d.budgetId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/budgets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "budgets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": {{fMonth}},\n  \"year\": {{fYear}},\n  \"totalBudget\": 500.00,\n  \"currency\": \"USD\",\n  \"categories\": [ { \"category\": \"FOOD\", \"allocatedAmount\": 100.00 } ]\n}"
+            }
+          }
+        },
+        {
+          "name": "10 Current Month Budget",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/budgets/current?month={{fMonth}}&year={{fYear}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "budgets",
+                "current"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "{{fMonth}}"
+                },
+                {
+                  "key": "year",
+                  "value": "{{fYear}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "11 Create Saving Goal USD 1000",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "var d = (pm.response.json() || {}).data || {};",
+                  "if (d.savingGoalId) { pm.collectionVariables.set('savingGoalId', d.savingGoalId); console.log('captured savingGoalId =', d.savingGoalId); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/savings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "savings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Smoke laptop\",\n  \"targetAmount\": 1000.00,\n  \"targetDate\": \"2027-12-31\",\n  \"currency\": \"USD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "12 Add Deposit USD 20 (fromWallet)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/savings/{{savingGoalId}}/deposits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "savings",
+                "{{savingGoalId}}",
+                "deposits"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 20.00,\n  \"note\": \"smoke deposit\",\n  \"depositDate\": \"{{fToday}}\",\n  \"fromWallet\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "13 Deposit History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/savings/{{savingGoalId}}/deposits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "savings",
+                "{{savingGoalId}}",
+                "deposits"
+              ]
+            }
+          }
+        },
+        {
+          "name": "14 Pay KHQR USD 15 (provider seam)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/wallet/pay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "wallet",
+                "pay"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 15.00,\n  \"merchant\": \"Brown Coffee\",\n  \"note\": \"smoke\",\n  \"currency\": \"USD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "15 Transaction History (assert KHQR_PAYMENT + MOCK_KHQR)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "var items = ((pm.response.json() || {}).data || {}).content || [];",
+                  "pm.test('a KHQR_PAYMENT via MOCK_KHQR exists', function () {",
+                  "  var hit = items.some(function (t) { return t.transactionType === 'KHQR_PAYMENT' && t.provider === 'MOCK_KHQR'; });",
+                  "  pm.expect(hit, 'expected a KHQR_PAYMENT row with provider MOCK_KHQR').to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/wallet/transactions?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "wallet",
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "16 Cash Flow",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/incomes/cash-flow?currency=USD&month={{fMonth}}&year={{fYear}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "incomes",
+                "cash-flow"
+              ],
+              "query": [
+                {
+                  "key": "currency",
+                  "value": "USD"
+                },
+                {
+                  "key": "month",
+                  "value": "{{fMonth}}"
+                },
+                {
+                  "key": "year",
+                  "value": "{{fYear}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "17 Insights",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/insights?currency=USD&month={{fMonth}}&year={{fYear}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "insights"
+              ],
+              "query": [
+                {
+                  "key": "currency",
+                  "value": "USD"
+                },
+                {
+                  "key": "month",
+                  "value": "{{fMonth}}"
+                },
+                {
+                  "key": "year",
+                  "value": "{{fYear}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "18 Create Recurring Income (MONTHLY)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "var d = (pm.response.json() || {}).data || {};",
+                  "if (d.id) { pm.collectionVariables.set('recurringId', d.id); console.log('captured recurringId =', d.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/recurring",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "recurring"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"INCOME\",\n  \"title\": \"Smoke monthly allowance\",\n  \"amount\": 300.00,\n  \"currency\": \"USD\",\n  \"category\": \"ALLOWANCE\",\n  \"frequency\": \"MONTHLY\",\n  \"startDate\": \"{{fToday}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "19 List My Recurring",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/recurring",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "recurring"
+              ]
+            }
+          }
+        },
+        {
+          "name": "20 Create Auto-Save (10% of income)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "var d = (pm.response.json() || {}).data || {};",
+                  "if (d.id) { pm.collectionVariables.set('autoSaveRuleId', d.id); console.log('captured autoSaveRuleId =', d.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/auto-save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "auto-save"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"savingGoalId\": \"{{savingGoalId}}\",\n  \"type\": \"PERCENT_OF_INCOME\",\n  \"percent\": 10,\n  \"currency\": \"USD\"\n}"
+            }
+          }
+        },
+        {
+          "name": "21 List My Auto-Save Rules",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/finance/auto-save",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "finance",
+                "auto-save"
+              ]
+            }
+          }
+        }
+      ]
     },
     {
       "name": "Entertainment",
