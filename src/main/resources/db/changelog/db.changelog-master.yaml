@@ -73,3 +73,7 @@ databaseChangeLog:
       file: db/changelog/changes/0036-create-recurring-and-autosave.sql
   - include:
       file: db/changelog/changes/0037-add-ledger-payment-provider.sql
+  - include:
+      file: db/changelog/changes/0038-create-media-files.sql
+  - include:
+      file: db/changelog/changes/0039-fix-media-checksum-type.sql

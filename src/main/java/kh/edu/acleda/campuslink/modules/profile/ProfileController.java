@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.profile;
 
 import jakarta.validation.Valid;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
 import kh.edu.acleda.campuslink.modules.profile.dto.ProfileResponse;
 import kh.edu.acleda.campuslink.modules.profile.dto.ProfileUpdateRequest;
 import kh.edu.acleda.campuslink.modules.profile.dto.PublicProfileResponse;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/profile")
@@ -28,10 +30,13 @@ public class ProfileController {
 
     private final ProfileService profileService;
     private final LanguageResolver languageResolver;
+    private final MediaService mediaService;
 
-    public ProfileController(ProfileService profileService, LanguageResolver languageResolver) {
+    public ProfileController(ProfileService profileService, LanguageResolver languageResolver,
+                             MediaService mediaService) {
         this.profileService = profileService;
         this.languageResolver = languageResolver;
+        this.mediaService = mediaService;
     }
 
     @GetMapping("/me")
@@ -48,11 +53,21 @@ public class ProfileController {
         return ResponseEntity.ok(ApiResponse.success("Profile updated", response));
     }
 
+    /**
+     * Set the avatar. Preferred: pass {@code avatarMediaId} of a confirmed media
+     * upload — the server resolves it to the object's CDN URL, guaranteeing the
+     * avatar points at a real, owned upload. {@code avatarUrl} is still accepted
+     * for a directly-supplied URL (e.g. a Google avatar from social login).
+     */
     @PostMapping("/avatar")
     public ResponseEntity<ApiResponse<ProfileResponse>> updateAvatar(
         @AuthenticationPrincipal UserDetails userDetails,
         @RequestBody Map<String, String> request) {
-        ProfileResponse response = profileService.updateAvatar(userDetails.getUsername(), request.get("avatarUrl"));
+        String mediaId = request.get("avatarMediaId");
+        String avatarUrl = mediaId != null && !mediaId.isBlank()
+            ? mediaService.resolveConfirmedUrl(UUID.fromString(mediaId))
+            : request.get("avatarUrl");
+        ProfileResponse response = profileService.updateAvatar(userDetails.getUsername(), avatarUrl);
         return ResponseEntity.ok(ApiResponse.success("Avatar updated", response));
     }
 

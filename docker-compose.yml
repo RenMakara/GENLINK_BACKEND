@@ -92,6 +92,15 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_PROJECT_ID: ${GOOGLE_PROJECT_ID:-genlinkkh}
       APP_DEFAULT_LANGUAGE: ${APP_DEFAULT_LANGUAGE:-ENGLISH}
+      # Object storage (DigitalOcean Spaces). Must be listed here, not only in
+      # .env: Compose reads .env to interpolate this file, but only the keys named
+      # in `environment:` are injected into the container.
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-https://sgp1.digitaloceanspaces.com}
+      STORAGE_REGION: ${STORAGE_REGION:-sgp1}
+      STORAGE_BUCKET: ${STORAGE_BUCKET}
+      STORAGE_CDN_BASE: ${STORAGE_CDN_BASE}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
       # Lets Spring trust Nginx's X-Forwarded-* headers (Step 4). This is
       # what makes http://IP -> https://domain a config-only migration.
       SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-framework}
