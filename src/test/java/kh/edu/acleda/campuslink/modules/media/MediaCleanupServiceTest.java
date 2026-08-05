@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -40,10 +41,15 @@ class MediaCleanupServiceTest {
     private MediaCleanupService service;
 
     private static final int GRACE_DAYS = 30;
+    private static final int BATCH_SIZE = 500;
 
     @BeforeEach
     void setUp() {
-        service = new MediaCleanupService(repository, storage, GRACE_DAYS);
+        MediaCleanupProperties properties = new MediaCleanupProperties();
+        properties.setOrphanAge(Duration.ofHours(24));
+        properties.setRetention(Duration.ofDays(GRACE_DAYS));
+        properties.setBatchSize(BATCH_SIZE);
+        service = new MediaCleanupService(repository, storage, properties);
     }
 
     // ── orphans ───────────────────────────────────────────────────────────
@@ -55,7 +61,7 @@ class MediaCleanupServiceTest {
             eq(MediaStatus.PENDING), any(Instant.class), any(Pageable.class)))
             .thenReturn(List.of(orphan));
 
-        assertThat(service.purgeOrphans()).isEqualTo(1);
+        assertThat(service.purgeOrphans().deleted()).isEqualTo(1);
 
         verify(storage).delete(orphan.getStorageKey());
         verify(repository).deleteAll(List.of(orphan));
@@ -82,7 +88,7 @@ class MediaCleanupServiceTest {
             eq(MediaStatus.PENDING), any(Instant.class), any(Pageable.class)))
             .thenReturn(List.of());
 
-        assertThat(service.purgeOrphans()).isZero();
+        assertThat(service.purgeOrphans().deleted()).isZero();
 
         verify(repository, never()).deleteAll(anyList());
         verify(storage, never()).delete(anyString());
@@ -97,7 +103,7 @@ class MediaCleanupServiceTest {
         when(repository.findByDeletedAtIsNotNullAndDeletedAtBeforeOrderByDeletedAtAsc(
             any(Instant.class), any(Pageable.class))).thenReturn(List.of(expired));
 
-        assertThat(service.purgeSoftDeleted()).isEqualTo(1);
+        assertThat(service.purgeSoftDeleted().deleted()).isEqualTo(1);
 
         verify(storage).delete(expired.getStorageKey());
         verify(repository).deleteAll(List.of(expired));
@@ -127,7 +133,7 @@ class MediaCleanupServiceTest {
             any(Instant.class), any(Pageable.class))).thenReturn(List.of(expired));
         doThrow(new RuntimeException("network")).when(storage).delete(expired.getStorageKey());
 
-        assertThat(service.purgeSoftDeleted()).isZero();
+        assertThat(service.purgeSoftDeleted().deleted()).isZero();
 
         verify(repository).deleteAll(List.of()); // nothing removed
     }
@@ -140,9 +146,71 @@ class MediaCleanupServiceTest {
             any(Instant.class), any(Pageable.class))).thenReturn(List.of(bad, good));
         doThrow(new RuntimeException("boom")).when(storage).delete(bad.getStorageKey());
 
-        assertThat(service.purgeSoftDeleted()).isEqualTo(1);
+        assertThat(service.purgeSoftDeleted().deleted()).isEqualTo(1);
 
         verify(repository).deleteAll(List.of(good));
+    }
+
+    // ── metrics ───────────────────────────────────────────────────────────
+
+    @Test
+    void resultReportsFailuresSeparatelyFromDeletions() {
+        MediaFile bad = media(MediaStatus.CONFIRMED);
+        MediaFile good = media(MediaStatus.CONFIRMED);
+        when(repository.findByDeletedAtIsNotNullAndDeletedAtBeforeOrderByDeletedAtAsc(
+            any(Instant.class), any(Pageable.class))).thenReturn(List.of(bad, good));
+        doThrow(new RuntimeException("boom")).when(storage).delete(bad.getStorageKey());
+
+        MediaCleanupService.CleanupResult result = service.purgeSoftDeleted();
+
+        assertThat(result.deleted()).isEqualTo(1);
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(result.examined()).isEqualTo(2);
+        assertThat(result.durationMs()).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    void resultFlagsWhenTheBatchCeilingWasHitSoMoreRemain() {
+        // A full batch means the backlog is larger than one run can clear; the
+        // job logs "+more" so a silent partial sweep is not mistaken for done.
+        List<MediaFile> full = java.util.stream.IntStream.range(0, BATCH_SIZE)
+            .mapToObj(i -> media(MediaStatus.PENDING)).toList();
+        when(repository.findByStatusAndCreatedAtBeforeAndDeletedAtIsNull(
+            eq(MediaStatus.PENDING), any(Instant.class), any(Pageable.class)))
+            .thenReturn(full);
+
+        assertThat(service.purgeOrphans().batchFull()).isTrue();
+    }
+
+    @Test
+    void batchSizeIsTakenFromConfiguration() {
+        when(repository.findByStatusAndCreatedAtBeforeAndDeletedAtIsNull(
+            eq(MediaStatus.PENDING), any(Instant.class), any(Pageable.class)))
+            .thenReturn(List.of());
+
+        service.purgeOrphans();
+
+        ArgumentCaptor<Pageable> page = ArgumentCaptor.forClass(Pageable.class);
+        verify(repository).findByStatusAndCreatedAtBeforeAndDeletedAtIsNull(
+            eq(MediaStatus.PENDING), any(Instant.class), page.capture());
+        assertThat(page.getValue().getPageSize()).isEqualTo(BATCH_SIZE);
+    }
+
+    @Test
+    void runningTwiceIsIndistinguishableFromRunningOnce() {
+        // Idempotency: the second pass selects nothing because the first removed
+        // the rows, and object deletes are no-ops on an already-missing key.
+        MediaFile orphan = media(MediaStatus.PENDING);
+        when(repository.findByStatusAndCreatedAtBeforeAndDeletedAtIsNull(
+            eq(MediaStatus.PENDING), any(Instant.class), any(Pageable.class)))
+            .thenReturn(List.of(orphan))
+            .thenReturn(List.of());
+
+        assertThat(service.purgeOrphans().deleted()).isEqualTo(1);
+        MediaCleanupService.CleanupResult second = service.purgeOrphans();
+
+        assertThat(second.deleted()).isZero();
+        assertThat(second.failed()).isZero();
     }
 
     // ── account deletion ──────────────────────────────────────────────────

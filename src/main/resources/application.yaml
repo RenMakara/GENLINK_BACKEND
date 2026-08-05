@@ -73,13 +73,22 @@ app:
   localization:
     default-language: ${APP_DEFAULT_LANGUAGE:ENGLISH}
   media:
-    # Daily sweep that reclaims storage: rows presigned but never confirmed, and
-    # objects whose soft delete has aged out. 03:45 sits fifteen minutes after the
-    # account sweep so a departed user's media is already soft-deleted by then.
-    cleanup-cron: ${MEDIA_CLEANUP_CRON:0 45 3 * * *}
-    # How long a soft-deleted object stays recoverable before its bytes are
-    # removed. Matches the account-deletion window.
-    soft-delete-grace-days: ${MEDIA_SOFT_DELETE_GRACE_DAYS:30}
+    cleanup:
+      # Daily sweep that reclaims storage: rows presigned but never confirmed, and
+      # objects whose soft delete has aged out. 03:45 sits fifteen minutes after
+      # the account sweep so a departed user's media is already soft-deleted by
+      # the time this runs.
+      cron: ${MEDIA_CLEANUP_CRON:0 45 3 * * *}
+      # How long a PENDING row may sit before it counts as abandoned. Keep well
+      # above app.storage.presign-expiry-seconds so a slow upload is never reaped
+      # while the client is still working.
+      orphan-age: ${MEDIA_ORPHAN_AGE:24h}
+      # How long a soft-deleted object stays recoverable before its bytes go.
+      # Matches the account-deletion window.
+      retention: ${MEDIA_RETENTION:30d}
+      # Rows per sweep per run — bounds memory and transaction size. A backlog
+      # larger than this continues on the next run (logged as "+more").
+      batch-size: ${MEDIA_CLEANUP_BATCH_SIZE:500}
   storage:
     # S3-compatible object storage. Provider is decided entirely by these env
     # vars — DigitalOcean Spaces in every environment today, but the code speaks

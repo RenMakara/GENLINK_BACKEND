@@ -18,7 +18,8 @@ import java.net.URI;
  * the provider is swappable without touching anything else.
  */
 @Configuration
-@EnableConfigurationProperties(StorageProperties.class)
+@EnableConfigurationProperties({StorageProperties.class,
+    kh.edu.acleda.campuslink.modules.media.MediaCleanupProperties.class})
 public class StorageConfig {
 
     private final StorageProperties properties;

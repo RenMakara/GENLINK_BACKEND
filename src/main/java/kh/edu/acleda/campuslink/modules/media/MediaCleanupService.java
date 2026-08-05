@@ -5,13 +5,12 @@ import kh.edu.acleda.campuslink.modules.media.entity.MediaStatus;
 import kh.edu.acleda.campuslink.modules.media.repository.MediaFileRepository;
 import kh.edu.acleda.campuslink.modules.media.storage.StorageService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,34 +22,48 @@ import java.util.UUID;
  * And a soft delete only stamps {@code deleted_at} — the bytes stay in the bucket,
  * costing money forever. Both are swept here.
  *
- * <p>Deleting the object before the row is deliberate: if the object delete fails
- * the row survives and the next run retries it. The reverse order would drop the
- * only pointer to the object and leak it permanently.
+ * <p><b>Ordering.</b> The object is deleted before the row. If the object delete
+ * fails the row survives and the next run retries it; the reverse order would drop
+ * the only pointer to the object and leak it permanently.
+ *
+ * <p><b>Idempotency.</b> Every operation converges on repeat runs. Object deletes
+ * are no-ops when the key is already gone, each sweep selects only rows still
+ * needing work ({@code status = PENDING}, {@code deleted_at IS NULL/< cutoff}), and
+ * a partially-applied run simply leaves work for the next one. Running twice back
+ * to back is indistinguishable from running once.
  */
 @Slf4j
 @Service
 public class MediaCleanupService {
 
-    /**
-     * How long a PENDING row may sit before it is considered abandoned. Comfortably
-     * longer than the presign expiry (5 min), so a slow upload is never reaped
-     * out from under a client that is still working.
-     */
-    private static final Duration ORPHAN_AGE = Duration.ofHours(24);
-
-    /** Bounds each run's memory and transaction size; a backlog finishes tomorrow. */
-    private static final int BATCH_LIMIT = 500;
-
     private final MediaFileRepository repository;
     private final StorageService storage;
-    private final int graceDays;
+    private final MediaCleanupProperties properties;
 
     public MediaCleanupService(MediaFileRepository repository,
                                StorageService storage,
-                               @Value("${app.media.soft-delete-grace-days:30}") int graceDays) {
+                               MediaCleanupProperties properties) {
         this.repository = repository;
         this.storage = storage;
-        this.graceDays = graceDays;
+        this.properties = properties;
+    }
+
+    /**
+     * Outcome of one sweep, for structured logging and future metrics.
+     *
+     * @param deleted   rows removed (object gone, row gone)
+     * @param failed    rows kept because the object delete failed; retried next run
+     * @param durationMs wall-clock time of the sweep
+     * @param batchFull true when the run hit the batch ceiling, so more remain
+     */
+    public record CleanupResult(int deleted, int failed, long durationMs, boolean batchFull) {
+        static CleanupResult empty(long durationMs) {
+            return new CleanupResult(0, 0, durationMs, false);
+        }
+
+        public int examined() {
+            return deleted + failed;
+        }
     }
 
     /**
@@ -59,55 +72,40 @@ public class MediaCleanupService {
      * <p>The object may or may not exist — the client may have abandoned the flow
      * before or after the PUT — so the delete is attempted either way and a missing
      * object is not an error.
-     *
-     * @return how many orphan rows were removed
      */
     @Transactional
-    public int purgeOrphans() {
-        Instant cutoff = Instant.now().minus(ORPHAN_AGE);
-        List<MediaFile> orphans = repository.findByStatusAndCreatedAtBeforeAndDeletedAtIsNull(
-            MediaStatus.PENDING, cutoff, PageRequest.of(0, BATCH_LIMIT));
+    public CleanupResult purgeOrphans() {
+        long startedAt = System.nanoTime();
+        Instant cutoff = Instant.now().minus(properties.getOrphanAge());
 
-        if (orphans.isEmpty()) {
-            return 0;
-        }
+        List<MediaFile> candidates = repository.findByStatusAndCreatedAtBeforeAndDeletedAtIsNull(
+            MediaStatus.PENDING, cutoff, PageRequest.of(0, properties.getBatchSize()));
 
-        List<MediaFile> removed = orphans.stream().filter(this::deleteObjectQuietly).toList();
-        repository.deleteAll(removed);
-
-        log.info("Removed {} orphaned media row(s) presigned before {}", removed.size(), cutoff);
-        warnIfBatchFull(orphans.size(), "orphan");
-        return removed.size();
+        return sweep(candidates, startedAt);
     }
 
     /**
-     * Delete the bytes of media that was soft-deleted longer ago than the grace
-     * period, then drop the row.
-     *
-     * @return how many objects were purged
+     * Delete the bytes of media soft-deleted longer ago than the retention window,
+     * then drop the row.
      */
     @Transactional
-    public int purgeSoftDeleted() {
-        Instant cutoff = Instant.now().minus(Duration.ofDays(graceDays));
-        List<MediaFile> expired = repository.findByDeletedAtIsNotNullAndDeletedAtBeforeOrderByDeletedAtAsc(
-            cutoff, PageRequest.of(0, BATCH_LIMIT));
+    public CleanupResult purgeSoftDeleted() {
+        long startedAt = System.nanoTime();
+        Instant cutoff = Instant.now().minus(properties.getRetention());
 
-        if (expired.isEmpty()) {
-            return 0;
-        }
+        List<MediaFile> candidates = repository.findByDeletedAtIsNotNullAndDeletedAtBeforeOrderByDeletedAtAsc(
+            cutoff, PageRequest.of(0, properties.getBatchSize()));
 
-        List<MediaFile> removed = expired.stream().filter(this::deleteObjectQuietly).toList();
-        repository.deleteAll(removed);
-
-        log.info("Purged {} media object(s) soft-deleted before {}", removed.size(), cutoff);
-        warnIfBatchFull(expired.size(), "purge");
-        return removed.size();
+        return sweep(candidates, startedAt);
     }
 
     /**
      * Soft-delete everything a user owns. Called when an account is anonymised, so
-     * their uploads follow the same 30-day path as the account itself rather than
-     * lingering in the bucket after the person is gone.
+     * their uploads follow the same retention path as the account itself rather
+     * than lingering in the bucket after the person is gone.
+     *
+     * <p>Idempotent: only rows with {@code deleted_at IS NULL} are selected, so a
+     * second call finds nothing and stamps nothing.
      *
      * @return how many media rows were soft-deleted
      */
@@ -126,6 +124,27 @@ public class MediaCleanupService {
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
+    /** Delete each candidate's object, then remove the rows that succeeded. */
+    private CleanupResult sweep(List<MediaFile> candidates, long startedAt) {
+        if (candidates.isEmpty()) {
+            return CleanupResult.empty(elapsedMs(startedAt));
+        }
+
+        List<MediaFile> removable = new ArrayList<>(candidates.size());
+        int failed = 0;
+        for (MediaFile media : candidates) {
+            if (deleteObjectQuietly(media)) {
+                removable.add(media);
+            } else {
+                failed++;
+            }
+        }
+        repository.deleteAll(removable);
+
+        return new CleanupResult(removable.size(), failed, elapsedMs(startedAt),
+            candidates.size() == properties.getBatchSize());
+    }
+
     /**
      * Delete one object, reporting whether the row may now be removed.
      *
@@ -143,10 +162,7 @@ public class MediaCleanupService {
         }
     }
 
-    private void warnIfBatchFull(int found, String sweep) {
-        if (found == BATCH_LIMIT) {
-            log.warn("Media {} sweep hit the {}-row batch limit; more remain for the next run",
-                sweep, BATCH_LIMIT);
-        }
+    private long elapsedMs(long startedAtNanos) {
+        return (System.nanoTime() - startedAtNanos) / 1_000_000;
     }
 }
