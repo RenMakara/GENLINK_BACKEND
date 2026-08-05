@@ -54,3 +54,8 @@ docs/
 # and friends) out of git, so they stay. This narrowly re-allows the API
 # collection that ships with the docs. Last matching rule wins.
 !docs/*.postman_collection.json
+
+# Database dumps written on the server by scripts/db-backup.sh (and its log).
+# They are large, contain production data, and are per-machine — never commit
+# them. Also keeps `git pull` during a deploy from tripping over local files.
+backups/
