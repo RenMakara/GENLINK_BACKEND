@@ -76,7 +76,7 @@ jobs:
             link_text="View logs →"
           fi
 
-          msg=$(printf '%s\n\n📁 <b>%s</b> · 🌿 %s\n🔖 <a href="%s">%s</a>  %s\n👤 %s\n\n%s\n<a href="%s">%s</a>' \
+          msg=$(printf '%s\n\n📁 <b>%s</b> \n🌿 %s\n🔖 <a href="%s">%s</a>  %s\n👤 %s\n\n%s\n<a href="%s">%s</a>' \
             "$header" \
             "$repo_name" "$branch" \
             "$COMMIT_URL" "$short_sha" "$title" \
