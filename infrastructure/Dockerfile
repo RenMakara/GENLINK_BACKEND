@@ -1,17 +1,17 @@
-FROM node:alpine AS builder
+# Build jar file
+FROM gradle:8.8.0-jdk21 AS builder
+
+# copy project file
+COPY . .
+
+RUN gradle clean build --no-demon
+
+# stack 2 run jar
+FROM eclipse-temurin:21-jre-jummy
 WORKDIR /app
-COPY package*.json ./
-RUN npm i
 
-# COPY  . . 
-COPY src ./src
-COPY public ./public 
-RUN npm run build 
+COPY --from=builder /app/build/libs/genlink_kh-1.0.jar app.jar
 
+EXPOSE 8080
 
-# Stage:2 production 
-FROM nginx:alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/build /usr/share/nginx/html
-EXPOSE 80
-ENTRYPOINT [ "nginx", "-g", "daemon off;" ]
+ENTRYPOINT ["java", "-jar", "app.jar"]

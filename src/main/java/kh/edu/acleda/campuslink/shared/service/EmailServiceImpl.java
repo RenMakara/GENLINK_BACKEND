@@ -5,6 +5,7 @@ import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -27,9 +28,20 @@ public class EmailServiceImpl implements EmailService {
     private final String fromEmail;
 
     public EmailServiceImpl(JavaMailSender mailSender,
-                            @Value("${app.mail.from}") String fromEmail) {
+                            @Value("${spring.mail.username:no-reply@campuslinkkh.edu.kh}") String fromEmail,
+                            @Value("${spring.mail.host:}") String mailHost,
+                            @Value("${spring.mail.port:}") String mailPort,
+                            @Value("${spring.mail.password:}") String mailPassword) {
         this.mailSender = mailSender;
         this.fromEmail = fromEmail;
+        log.info(
+            "Email SMTP config loaded: host={}, port={}, username={}, passwordConfigured={}, passwordLength={}",
+            mailHost,
+            mailPort,
+            fromEmail,
+            mailPassword != null && !mailPassword.isBlank(),
+            mailPassword == null ? 0 : mailPassword.length()
+        );
     }
 
     @Override
@@ -53,23 +65,27 @@ public class EmailServiceImpl implements EmailService {
             
             mailSender.send(message);
             log.info("Successfully sent OTP email to {}", to);
+        } catch (MailAuthenticationException e) {
+            log.error(
+                "Failed to authenticate SMTP account {} while sending OTP email to {}. " +
+                    "Verify MAIL_USERNAME and MAIL_PASSWORD; Gmail requires an app password. Root cause: {}",
+                fromEmail,
+                to,
+                rootCauseMessage(e),
+                e
+            );
         } catch (Exception e) {
             log.error("Failed to send email to {}: {}", to, rootCauseMessage(e), e);
             // We don't throw exception here to allow user to see OTP in console during dev
         }
     }
 
-    /**
-     * Spring wraps the SMTP failure, so getMessage() on the top-level exception is
-     * often just "Authentication failed". The provider's actual reply (for example
-     * Gmail's "535-5.7.8 Username and Password not accepted") is only on the cause.
-     */
     private String rootCauseMessage(Throwable throwable) {
-        Throwable root = throwable;
-        while (root.getCause() != null && root.getCause() != root) {
-            root = root.getCause();
+        Throwable rootCause = throwable;
+        while (rootCause.getCause() != null) {
+            rootCause = rootCause.getCause();
         }
-        return root.getMessage() != null ? root.getMessage() : root.toString();
+        return rootCause.getMessage() != null ? rootCause.getMessage() : rootCause.getClass().getSimpleName();
     }
 
     private String buildOtpHtml(String otp, Language language, OtpPurpose purpose) {
@@ -98,8 +114,8 @@ public class EmailServiceImpl implements EmailService {
         boolean forgotPassword = purpose == OtpPurpose.FORGOT_PASSWORD;
         if (language == Language.KHMER) {
             return forgotPassword
-                ? "GenLink KH - កំណត់ពាក្យសម្ងាត់ឡើងវិញ"
-                : "GenLink KH - ផ្ទៀងផ្ទាត់លេខកូដ";
+                ? "GenLink KH - លេខកូដកំណត់ពាក្យសម្ងាត់ឡើងវិញ"
+                : "GenLink KH - លេខកូដផ្ទៀងផ្ទាត់";
         }
         return forgotPassword
             ? "GenLink KH - Password Reset Code"
