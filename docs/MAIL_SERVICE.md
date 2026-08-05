@@ -100,3 +100,44 @@ Even with sending enabled, a send failure is caught and logged (`Failed to send 
 ...`) and **not** rethrown — the OTP was already persisted and logged, so the auth flow
 continues and the user/dev can still complete verification. `rootCauseMessage(...)` unwraps
 the provider's real reply (e.g. Gmail's `535-5.7.8`) instead of Spring's generic wrapper.
+
+---
+
+## 5. Template conventions
+
+Four templates, one per (language × purpose): `otp-register-{en,km}.html` and
+`forgot-password-{en,km}.html`. `EmailServiceImpl.buildOtpHtml(...)` does a single
+`{{otp}}` string replace — there is no template engine, so the placeholder must stay
+spelled exactly that way and no other `{{...}}` syntax is available.
+
+Shared layout: centred card on a `#eef2f8` page, round icon badge, headline, body copy,
+tinted code panel, expiry line, amber "never share this code" notice, footer band.
+Register uses the teal ramp (`#0f766e`), password reset the blue ramp (`#2563eb`).
+
+Constraints these templates are written against:
+
+- **Tables and inline CSS only.** No `<style>` block, no external stylesheet, no
+  web fonts — Gmail strips or ignores all three.
+- **No images.** The icon badges are HTML entities (`&#9993;` envelope,
+  `&#128274;` lock, `&#9888;` warning), so nothing breaks when a client blocks
+  remote content. Adding a real logo means CID-embedding via
+  `MimeMessageHelper.addInline(...)`, not an `<img src="https://...">`.
+- **No JavaScript**, so no copy-to-clipboard button on the code.
+- **Khmer text never takes `letter-spacing` or `text-transform`** — spacing breaks the
+  consonant/subscript clusters and uppercasing does nothing. The km templates use plain
+  bold labels where the en ones use spaced small caps, and taller `line-height`
+  (26–28px) to fit descenders. Only the OTP digits are letter-spaced, since they are Latin.
+- `border-radius` is ignored by Outlook desktop's Word engine: the round badge and rounded
+  card degrade to squares there. Accepted rather than worked around with VML.
+
+Each template also carries a hidden preheader `<div>` — the grey line clients show beside
+the subject in the inbox list. It is invisible in the body, so it has to restate the
+essentials on its own.
+
+To eyeball a change without sending, substitute the placeholder and open the file:
+
+```bash
+sed 's/{{otp}}/582941/g' src/main/resources/templates/email/otp-register-en.html > /tmp/preview.html
+```
+
+For a true client-rendered check, use the Mailpit route in §3B.
