@@ -1,4 +1,4 @@
-# Community Domain — Implementation Plan
+us# Community Domain — Implementation Plan
 
 Status: **Phases 0-5 done** (Phase 5 on 2026-07-18), except 4.4 (interest-based
 suggestions). Chat, Polls, Stories deferred.
@@ -290,8 +290,11 @@ than discovering a wrong pattern in Phase 4.
   communities become joinable and `Visibility.COMMUNITY` can mean something.
 - The feed serves `Visibility.PUBLIC` only. `FRIENDS` and `COMMUNITY` need the follow
   graph and memberships from Phase 4.
-- Comment likes: `post_comments.like_count` exists and is returned, but nothing
-  increments it yet.
+- ~~Comment likes: `post_comments.like_count` exists but nothing increments it~~ —
+  **fixed 2026-07-28** (migration 0030). Added a `post_comment_reactions` table;
+  `POST`/`DELETE /comments/{id}/like` toggle it idempotently and `CommentResponse` now
+  carries a real `likeCount` + `likedByMe` (batched per page). Mirrors forum comment likes
+  (0029). See `POST_COMMENT_LIKES.md`.
 
 ---
 
@@ -349,10 +352,22 @@ timeline, not a social product.
 
 ### Known gaps
 
-- **Ownership transfer does not exist**, so an owner can never leave their own
-  community. Needs a `PUT /communities/{id}/members/{userId}/role` endpoint.
-- **Role management is not exposed**: `CommunityRole` has ADMIN and MODERATOR but
-  nothing can promote anyone. Only the creator is ever anything but MEMBER.
+- ~~**Ownership transfer does not exist**~~ — **fixed 2026-07-28.**
+  `POST /communities/{id}/transfer-ownership/{userId}` (owner only) hands ownership over;
+  the outgoing owner becomes ADMIN in the same transaction. An owner can now leave by
+  transferring first.
+- ~~**Role management is not exposed**~~ — **fixed 2026-07-28.**
+  `PUT /communities/{id}/members/{userId}/role` promotes/demotes ADMIN / MODERATOR / MEMBER
+  (owner/admin only; admins cannot touch admins or the owner). MODERATOR/ADMIN/OWNER can
+  also remove community posts via `DELETE /community/posts/{id}/moderate`. See
+  `COMMUNITY_ROLES.md`.
+- **Post reporting + moderation queue** — **done 2026-07-28** (migration 0027). Members flag
+  posts (`POST /community/posts/{id}/report`); moderators review a per-community queue
+  (`GET /community/posts/community/{id}/reported`) and remove or dismiss. See
+  `POST_REPORTING.md`.
+- **Forum discussion moderation** — **done 2026-07-28** (ROLE_ADMIN queue). The forum is
+  category-scoped, so it is an app-admin concern rather than a community-role one. See
+  `FORUM_MODERATION.md`. Community moderation is now complete across posts and discussions.
 - ~~**Private community membership is open**~~ — **fixed 2026-07-28.** `join` now
   gates on privacy: a PRIVATE community records a `MemberStatus.PENDING` request that
   an owner/admin approves via `GET/POST/DELETE /communities/{id}/join-requests[...]`,
@@ -474,15 +489,24 @@ The interesting part of this phase, and the easiest to get wrong.
 
 ### Known gaps
 
-- **Nothing reviews the report queue.** Reports land in `discussion_reports` and a
-  log line. There is no moderation screen, no threshold, no auto-hide — so a
-  reported discussion stays up and visible. Reporting currently achieves nothing
-  beyond recording the report.
-- **Forum comments are flat.** `forum_comments` has no `parent_comment_id`, so
-  "Reply Comment" in the flow is not possible here. Threading exists on post
-  comments only. Would need a migration.
-- **`forum_comments.like_count` does not exist**, so comment reactions are not
-  possible; `CommentResponse.likeCount` is hard-coded to 0 for forum comments.
+- ~~**Nothing reviews the report queue.**~~ — **fixed 2026-07-28.** An admin moderation
+  queue now exists: `GET /discussions/reported` (ROLE_ADMIN, most-reported first, reveals
+  the author even for anonymous rows for accountability), plus `DELETE
+  /discussions/{id}/moderate` (remove) and `POST /discussions/{id}/dismiss-reports` (clear
+  flags, keep it). Gated by ROLE_ADMIN because the forum is category-scoped, not
+  community-scoped, so there is no community moderator to defer to. See `FORUM_MODERATION.md`.
+  (Still no threshold / auto-hide - review is manual.)
+- ~~**Forum comments are flat.**~~ — **fixed 2026-07-28** (migration 0028).
+  `forum_comments.parent_comment_id` added; `addComment` honours `parentCommentId`
+  (one level deep, reply-to-reply collapses to the top-level parent, cross-discussion
+  parent rejected) and `GET /discussions/comments/{id}/replies` lists replies — mirrors
+  post comments. See `FORUM_COMMENT_THREADING.md`.
+- ~~**`forum_comments.like_count` does not exist**~~ — **fixed 2026-07-28** (migration 0029).
+  Added `forum_comments.like_count` + a `forum_comment_reactions` table (UNIQUE per
+  comment+user). `POST`/`DELETE /discussions/comments/{id}/like` toggle it idempotently;
+  `CommentResponse` now carries a real `likeCount` and `likedByMe` (batched per page).
+  Mirrors `forum_reactions`. See `FORUM_COMMENT_LIKES.md`. (Post-comment likes are still
+  not wired - only forum comments.)
 - Anonymity is all-or-nothing: an author cannot un-anonymise later without the edit
   revealing them retroactively to anyone who saw the earlier version.
 
