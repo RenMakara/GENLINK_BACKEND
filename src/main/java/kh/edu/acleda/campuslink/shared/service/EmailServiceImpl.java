@@ -25,18 +25,25 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
     private final String fromEmail;
+    private final boolean mailEnabled;
 
     /**
-     * The From address comes from {@code app.mail.from}, never from
-     * {@code spring.mail.username}. With a transactional provider (Brevo,
-     * SendGrid, Mailgun) the SMTP username is a generated credential such as
-     * b31d5d001@smtp-brevo.com — not a mailbox anyone owns — and the provider
-     * rejects any message whose From is not one of its verified senders.
+     * @param fromEmail   the From address, from {@code app.mail.from} — never from
+     *                    {@code spring.mail.username}. With a transactional provider
+     *                    (Brevo, SendGrid, Mailgun) the SMTP username is a generated
+     *                    credential such as b31d5d001@smtp-brevo.com, not a mailbox
+     *                    anyone owns, and the provider rejects any message whose From
+     *                    is not one of its verified senders.
+     * @param mailEnabled when false, the OTP is logged and no SMTP connection is
+     *                    attempted. The dev profile defaults this off so local work
+     *                    needs no SMTP credentials; it defaults on everywhere else.
      */
     public EmailServiceImpl(JavaMailSender mailSender,
-                            @Value("${app.mail.from}") String fromEmail) {
+                            @Value("${app.mail.from}") String fromEmail,
+                            @Value("${app.mail.enabled:true}") boolean mailEnabled) {
         this.mailSender = mailSender;
         this.fromEmail = fromEmail;
+        this.mailEnabled = mailEnabled;
     }
 
     @Override
@@ -49,6 +56,14 @@ public class EmailServiceImpl implements EmailService {
         log.info("**************************************************");
         log.info("EMAIL OTP FOR {}: {}", to, otp);
         log.info("**************************************************");
+
+        if (!mailEnabled) {
+            // Log-only mode (dev default): the OTP above is the delivery channel.
+            // Returning here avoids an SMTP round trip that would otherwise fail
+            // with the local machine's absent or mismatched credentials.
+            log.info("Mail delivery is disabled (app.mail.enabled=false); OTP for {} logged only", to);
+            return;
+        }
 
         try {
             MimeMessage message = mailSender.createMimeMessage();
