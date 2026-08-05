@@ -33,6 +33,8 @@ class AccountAnonymizationServiceTest {
     private UserRepository userRepository;
     @Mock
     private SocialAccountRepository socialAccountRepository;
+    @Mock
+    private kh.edu.acleda.campuslink.modules.media.MediaCleanupService mediaCleanupService;
 
     @InjectMocks
     private AccountAnonymizationService accountAnonymizationService;
@@ -67,6 +69,9 @@ class AccountAnonymizationServiceTest {
         assertThat(user.getTokenVersion()).isEqualTo(1);
 
         verify(socialAccountRepository).deleteByUser(user);
+        // Uploads are personal data too: soft-deleting starts the media grace
+        // period so the bytes are purged rather than outliving the account.
+        verify(mediaCleanupService).softDeleteAllOwnedBy(user.getId());
         verify(userRepository).saveAll(anyList());
     }
 

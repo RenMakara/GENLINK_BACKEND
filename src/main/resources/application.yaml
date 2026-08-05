@@ -72,6 +72,14 @@ app:
     project-id: ${GOOGLE_PROJECT_ID:genlinkkh}
   localization:
     default-language: ${APP_DEFAULT_LANGUAGE:ENGLISH}
+  media:
+    # Daily sweep that reclaims storage: rows presigned but never confirmed, and
+    # objects whose soft delete has aged out. 03:45 sits fifteen minutes after the
+    # account sweep so a departed user's media is already soft-deleted by then.
+    cleanup-cron: ${MEDIA_CLEANUP_CRON:0 45 3 * * *}
+    # How long a soft-deleted object stays recoverable before its bytes are
+    # removed. Matches the account-deletion window.
+    soft-delete-grace-days: ${MEDIA_SOFT_DELETE_GRACE_DAYS:30}
   storage:
     # S3-compatible object storage. Provider is decided entirely by these env
     # vars — DigitalOcean Spaces in every environment today, but the code speaks

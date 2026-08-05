@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.user;
 
 import kh.edu.acleda.campuslink.modules.auth.repository.SocialAccountRepository;
+import kh.edu.acleda.campuslink.modules.media.MediaCleanupService;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.AuthProvider;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -57,6 +58,7 @@ public class AccountAnonymizationService {
 
     private final UserRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
+    private final MediaCleanupService mediaCleanupService;
 
     /**
      * Anonymises every account past its grace period, up to {@link #BATCH_LIMIT}.
@@ -122,6 +124,11 @@ public class AccountAnonymizationService {
         user.incrementTokenVersion();
 
         socialAccountRepository.deleteByUser(user);
+
+        // Their uploads are personal data too. Soft-deleting starts the media
+        // module's own grace period, so MediaCleanupJob purges the bytes rather
+        // than leaving them in the bucket after the person is gone.
+        mediaCleanupService.softDeleteAllOwnedBy(user.getId());
 
         log.debug("Anonymised account {}", user.getId());
     }
