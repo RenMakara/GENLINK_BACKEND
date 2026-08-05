@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feature(auth): implement user authentication and registration with JWT support">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-    </list>
+    <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feature(auth): implement user authentication and registration with JWT support" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -172,6 +170,11 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="dev" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
@@ -309,75 +312,75 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Docker.docker: Compose Deployment.executor": "Run",
-    "Gradle.Build Itp-eBanking.executor": "Run",
-    "Gradle.Build backend.executor": "Run",
-    "Gradle.Build campuslink_kh.executor": "Run",
-    "Gradle.Build event-driven-for-ebanking.executor": "Run",
-    "Gradle.Build genlink_kh.executor": "Run",
-    "Gradle.Download Sources.executor": "Run",
-    "Gradle.Itp-eBanking:microservices [build].executor": "Run",
-    "Gradle.Itp-eBanking:microservices:account-service [buildDependents].executor": "Run",
-    "Gradle.Itp-eBanking:microservices:account-service [build].executor": "Run",
-    "Gradle.Itp-eBanking:microservices:account-service [clean].executor": "Run",
-    "Gradle.Itp-eBanking:microservices:pipeline-service [build].executor": "Run",
-    "Gradle.Itp-eBanking:spring-cloud [build].executor": "Run",
-    "Gradle.Itp-eBanking:spring-cloud:admin-bff [build].executor": "Run",
-    "Gradle.Itp-eBanking:spring-cloud:front-bff [build].executor": "Run",
-    "Gradle.Itp-eBanking:spring-cloud:gateway-server [build].executor": "Run",
-    "Gradle.campuslink_kh [build].executor": "Run",
-    "Gradle.event-driven-for-ebanking:account-command-service [build].executor": "Run",
-    "Gradle.itp-ebanking [build].executor": "Run",
-    "Gradle.itp-ebanking [clean].executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RequestMappingsPanelOrder0": "0",
-    "RequestMappingsPanelOrder1": "1",
-    "RequestMappingsPanelWidth0": "75",
-    "RequestMappingsPanelWidth1": "75",
-    "RunOnceActivity.MCP Project settings loaded": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "Spring Boot.AccountQueryServiceApplication.executor": "Run",
-    "Spring Boot.AccountServiceApplication.executor": "Run",
-    "Spring Boot.CampuslinkKhApplication.executor": "Run",
-    "Spring Boot.CustomerServiceApplication.executor": "Run",
-    "Spring Boot.EurekaserverApplication.executor": "Run",
-    "Spring Boot.GenLinkKhApplication.executor": "Run",
-    "Spring Boot.GenlinkKhApplication.executor": "Run",
-    "Spring Boot.IamServiceApplication.executor": "Run",
-    "Spring Boot.ItpConfigserverApplication.executor": "Run",
-    "codeWithMe.voiceChat.enabledByDefault": "false",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "dart.analysis.tool.window.visible": "false",
-    "full.screen.before.presentation.mode": "false",
-    "git-widget-placeholder": "main",
-    "ignore.virus.scanning.warn.message": "true",
-    "junie.onboarding.icon.badge.shown": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/RenMakara/Documents/genlink_kh_fullstack/genlink_kh",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.2",
-    "run.configurations.included.in.services": "true",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Docker.docker: Compose Deployment.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build Itp-eBanking.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build backend.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build campuslink_kh.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build event-driven-for-ebanking.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Build genlink_kh.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Download Sources.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:account-service [buildDependents].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:account-service [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:account-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:microservices:pipeline-service [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud:admin-bff [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud:front-bff [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Itp-eBanking:spring-cloud:gateway-server [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.campuslink_kh [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.event-driven-for-ebanking:account-command-service [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.itp-ebanking [build].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.itp-ebanking [clean].executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
+    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
+    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
+    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;Spring Boot.AccountQueryServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.AccountServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.CampuslinkKhApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.CustomerServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.EurekaserverApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.GenLinkKhApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.GenlinkKhApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.IamServiceApplication.executor&quot;: &quot;Run&quot;,
+    &quot;Spring Boot.ItpConfigserverApplication.executor&quot;: &quot;Run&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
+    &quot;full.screen.before.presentation.mode&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/RenMakara/Documents/genlink_kh_fullstack/genlink_kh&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
-  "keyToStringList": {
-    "DatabaseDriversLRU": [
-      "postgresql"
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;postgresql&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CreateClassDialog.RecentsKey">
       <recent name="co.istad.makara.account.rest" />
@@ -411,7 +414,6 @@
         <entry key="SpringBootApplicationConfigurationType">
           <value>
             <map>
-              <entry key="GenLinkKhApplication" value="FAILED" />
               <entry key="GenlinkKhApplication" value="STOPPED" />
             </map>
           </value>
