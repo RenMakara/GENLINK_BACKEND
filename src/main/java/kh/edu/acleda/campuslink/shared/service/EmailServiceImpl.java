@@ -26,8 +26,15 @@ public class EmailServiceImpl implements EmailService {
     private final JavaMailSender mailSender;
     private final String fromEmail;
 
+    /**
+     * The From address comes from {@code app.mail.from}, never from
+     * {@code spring.mail.username}. With a transactional provider (Brevo,
+     * SendGrid, Mailgun) the SMTP username is a generated credential such as
+     * b31d5d001@smtp-brevo.com — not a mailbox anyone owns — and the provider
+     * rejects any message whose From is not one of its verified senders.
+     */
     public EmailServiceImpl(JavaMailSender mailSender,
-                            @Value("${spring.mail.username:no-reply@genlinkkh.official.com}") String fromEmail) {
+                            @Value("${app.mail.from}") String fromEmail) {
         this.mailSender = mailSender;
         this.fromEmail = fromEmail;
     }
