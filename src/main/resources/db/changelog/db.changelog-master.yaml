@@ -77,3 +77,5 @@ databaseChangeLog:
       file: db/changelog/changes/0038-create-media-files.sql
   - include:
       file: db/changelog/changes/0039-fix-media-checksum-type.sql
+  - include:
+      file: db/changelog/changes/0040-index-deleted-accounts.sql

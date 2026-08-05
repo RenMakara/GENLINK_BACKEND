@@ -1,6 +1,6 @@
 --liquibase formatted sql
 
---changeset genlink:0027-index-deleted-accounts
+--changeset genlink:0040-index-deleted-accounts
 -- Supports the daily anonymisation sweep, which asks for accounts whose deletion
 -- grace period has expired: WHERE account_status = 'DELETED' AND deleted_at < ?.
 -- Without this it is a full scan of users, run unattended every night and getting
