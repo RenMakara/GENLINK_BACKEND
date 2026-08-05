@@ -155,6 +155,31 @@
     {
       "key": "fYear",
       "value": ""
+    },
+    {
+      "key": "mediaId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mediaUploadUrl",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mediaStorageKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mediaChecksum",
+      "value": "0000000000000000000000000000000000000000000000000000000000000000",
+      "type": "string"
+    },
+    {
+      "key": "mediaSizeBytes",
+      "value": "1024",
+      "type": "string"
     }
   ],
   "event": [
@@ -702,8 +727,9 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"avatarUrl\": \"https://cdn.example.com/avatar.png\"\n}"
-                }
+                  "raw": "{\n  \"avatarMediaId\": \"{{mediaId}}\"\n}"
+                },
+                "description": "Preferred: pass avatarMediaId of a confirmed upload - the server resolves it to the object's CDN url, so the avatar can only point at a real upload the caller owns.\n\n{ \"avatarUrl\": \"https://...\" } is still accepted for a directly supplied url (for example the picture returned by Google sign-in)."
               }
             },
             {
@@ -1239,6 +1265,255 @@
         }
       ],
       "description": "Profile domain: own profile, settings, interests, portfolio, social links, saved items."
+    },
+    {
+      "name": "Media",
+      "description": "Presigned direct upload to S3-compatible object storage (DigitalOcean Spaces).\n\nThe backend never handles the bytes: it signs, validates and records. Run the requests in order 1 -> 2 -> 3.\n\nSTEP 1 needs the file's SHA-256 and byte size. On Windows PowerShell:\n  (Get-FileHash -Algorithm SHA256 'C:\\path\\test.jpg').Hash.ToLower()\n  (Get-Item 'C:\\path\\test.jpg').Length\nPut those into the mediaChecksum and mediaSizeBytes collection variables.\n\nSTEP 2 goes to DigitalOcean, NOT to this API. It is pre-authorised by the signed URL, so Authorization must be off and the Content-Type header must match exactly what was presigned.",
+      "item": [
+        {
+          "name": "1. Presign Upload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "var d = (pm.response.json() || {}).data || {};",
+                  "if (d.mediaId) {",
+                  "  pm.collectionVariables.set('mediaId', d.mediaId);",
+                  "  pm.collectionVariables.set('mediaUploadUrl', d.uploadUrl);",
+                  "  pm.collectionVariables.set('mediaStorageKey', d.storageKey);",
+                  "  console.log('captured mediaId =', d.mediaId);",
+                  "  console.log('uploadUrl captured - run step 2 next');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/presign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "media",
+                "presign"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentType\": \"image/jpeg\",\n  \"sizeBytes\": {{mediaSizeBytes}},\n  \"purpose\": \"POST\",\n  \"checksumSha256\": \"{{mediaChecksum}}\"\n}"
+            },
+            "description": "Validates mime + size for the purpose, reserves an object key, writes a PENDING row and returns a presigned PUT URL (valid 5 min).\n\npurpose: AVATAR | POST | STORY | SHORT | EVENT_COVER | COMMUNITY_COVER | PORTFOLIO\nVideo is only allowed for STORY and SHORT.\nCaps: 5 MB image, 50 MB video - re-enforced at confirm against the real size.\nchecksumSha256 must be 64 lowercase hex characters."
+          }
+        },
+        {
+          "name": "2. Upload File to Storage (direct PUT)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "image/jpeg"
+              }
+            ],
+            "url": {
+              "raw": "{{mediaUploadUrl}}"
+            },
+            "body": {
+              "mode": "file",
+              "file": {
+                "src": ""
+              }
+            },
+            "description": "Goes straight to DigitalOcean Spaces - NOT to this API.\n\nBEFORE SENDING: open the Body tab, choose 'binary', and Select File. Postman cannot script the file choice, so an unselected body uploads 0 bytes and confirm then rejects it with MEDIA_EMPTY.\n\nAuthorization is off on purpose: the presigned URL carries its own. Leaving a Bearer token on it breaks the signature.\n\nContent-Type must equal the contentType sent to presign, with no charset suffix, or Spaces answers 403 SignatureDoesNotMatch.\n\nExpect 200 with an empty body."
+          }
+        },
+        {
+          "name": "3. Confirm Upload",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 2xx', function () { pm.expect(pm.response.code).to.be.within(200, 299); });",
+                  "var d = (pm.response.json() || {}).data || {};",
+                  "pm.test('object is not empty', function () { pm.expect(d.sizeBytes).to.be.above(0); });",
+                  "if (d.url) { console.log('CDN url =', d.url); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "media",
+                "confirm"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mediaId\": \"{{mediaId}}\",\n  \"width\": 1080,\n  \"height\": 1350,\n  \"durationMs\": null\n}"
+            },
+            "description": "HEADs the object to confirm it exists and to read its real size and LastModified, stores the dimensions you pass, grants public-read, and returns the CDN url.\n\nwidth/height/durationMs come from the client's local file - the backend never reads the bytes. Send null for whatever does not apply.\n\nErrors: MEDIA_NOT_UPLOADED (no object), MEDIA_EMPTY (0 bytes - the file was not attached in step 2), MEDIA_ALREADY_CONFIRMED, MEDIA_TOO_LARGE."
+          }
+        },
+        {
+          "name": "Get Media URL",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/{{mediaId}}/url",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "media",
+                "{{mediaId}}",
+                "url"
+              ]
+            },
+            "description": "Public media returns its stable CDN url; private media returns a short-lived presigned GET. Only the owner may mint a private url."
+          }
+        },
+        {
+          "name": "Delete Media (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/{{mediaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "media",
+                "{{mediaId}}"
+              ]
+            },
+            "description": "Soft delete: stamps deleted_at and hides the media. The bytes stay in the bucket until MediaCleanupJob purges them after the 30-day retention window, so a mistaken delete is recoverable until then. Owner only."
+          }
+        },
+        {
+          "name": "Negative: oversize image is rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected with 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('errorCode is MEDIA_TOO_LARGE', function () {",
+                  "  pm.expect((pm.response.json() || {}).errorCode).to.eql('MEDIA_TOO_LARGE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/presign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "media",
+                "presign"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentType\": \"image/jpeg\",\n  \"sizeBytes\": 99999999,\n  \"purpose\": \"POST\",\n  \"checksumSha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n}"
+            },
+            "description": "Proves the server enforces the size cap regardless of any client-side compression."
+          }
+        },
+        {
+          "name": "Negative: video rejected for a POST",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected with 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('errorCode is MEDIA_VIDEO_NOT_ALLOWED', function () {",
+                  "  pm.expect((pm.response.json() || {}).errorCode).to.eql('MEDIA_VIDEO_NOT_ALLOWED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/presign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "media",
+                "presign"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentType\": \"video/mp4\",\n  \"sizeBytes\": 1048576,\n  \"purpose\": \"POST\",\n  \"checksumSha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n}"
+            },
+            "description": "Only STORY and SHORT accept video; every other purpose is images only."
+          }
+        }
+      ]
     },
     {
       "name": "Account Security",
