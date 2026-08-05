@@ -9,7 +9,7 @@ import java.util.UUID;
  * The Finance screen in one call (BFF-lite). Every section degrades independently: a
  * user with no budget/wallet/goals still gets a well-formed body with nulls and empty
  * lists, so the client can render empty states without a second round-trip.
- *
+ * @author RenMakara
  * @param month          this month's spend and budget standing (budget fields null if unset)
  * @param topCategories  biggest spending categories this month, largest first
  * @param saving         aggregate progress across active goals
@@ -54,5 +54,5 @@ public record MobileFinanceDashboardResponse(
         LocalDate expenseDate
     ) {}
 
-    public record WalletSummary(BigDecimal balance, String currency) {}
+    public record WalletSummary(BigDecimal balanceUsd, BigDecimal balanceKhr) {}
 }

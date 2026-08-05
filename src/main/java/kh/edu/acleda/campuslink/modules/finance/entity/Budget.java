@@ -13,6 +13,7 @@ import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.Instant;
 import kh.edu.acleda.campuslink.modules.finance.enums.BudgetStatus;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import lombok.AllArgsConstructor;
@@ -43,6 +44,10 @@ public class Budget extends BaseEntity {
 
     @Column(name = "total_budget", nullable = false, precision = 19, scale = 2)
     private BigDecimal totalBudget;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "currency", nullable = false, length = 3)
+    private Currency currency;
 
     @Column(name = "spent_amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal spentAmount;

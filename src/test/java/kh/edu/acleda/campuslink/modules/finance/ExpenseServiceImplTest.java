@@ -7,9 +7,14 @@ import java.util.Optional;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.ExpenseCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.MonthlySummaryResponse;
+import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.entity.Expense;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.repository.ExpenseRepository;
+import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
+import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.finance.service.impl.ExpenseServiceImpl;
+import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -43,6 +48,8 @@ class ExpenseServiceImplTest {
     private static final UUID EXPENSE_ID = UUID.randomUUID();
 
     @Mock private ExpenseRepository expenseRepository;
+    @Mock private DemoWalletService demoWalletService;
+    @Mock private LedgerService ledgerService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -52,7 +59,8 @@ class ExpenseServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new ExpenseServiceImpl(expenseRepository, userRepository, currentUserProvider);
+        service = new ExpenseServiceImpl(expenseRepository, demoWalletService, ledgerService,
+            userRepository, currentUserProvider);
         user = new User();
         user.setEmail("user@example.com");
         ReflectionTestUtils.setField(user, "id", USER_ID);
@@ -75,11 +83,28 @@ class ExpenseServiceImplTest {
     @Test
     void createPersistsTheExpense() {
         var response = service.create(new ExpenseCreateRequest(
-            "Coffee", new BigDecimal("2.50"), "FOOD", "Morning", LocalDate.now(), "CASH"));
+            "Coffee", new BigDecimal("2.50"), "FOOD", "Morning", LocalDate.now(), "CASH", null, null));
 
         verify(expenseRepository).save(any(Expense.class));
         assertThat(response.title()).isEqualTo("Coffee");
         assertThat(response.amount()).isEqualByComparingTo("2.50");
+        // Default (not paid from wallet) - the balance is never touched.
+        verify(ledgerService, never()).debit(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void payingFromWalletDebitsTheLedger() {
+        DemoWallet wallet = DemoWallet.builder().user(user)
+            .balanceUsd(new BigDecimal("50.00"))
+            .balanceKhr(new BigDecimal("0.00"))
+            .build();
+        when(demoWalletService.getOrCreateWalletEntity()).thenReturn(wallet);
+
+        service.create(new ExpenseCreateRequest(
+            "Lunch", new BigDecimal("4.00"), "FOOD", null, LocalDate.now(), "WALLET", true, null));
+
+        verify(ledgerService).debit(eq(wallet), eq(TransactionType.EXPENSE), eq(Currency.USD),
+            eq(new BigDecimal("4.00")), any(), eq("EXPENSE"), any());
     }
 
     /** month + year together route to the date-range query. */
@@ -153,7 +178,7 @@ class ExpenseServiceImplTest {
             .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.update(EXPENSE_ID, new ExpenseCreateRequest(
-            "Hack", new BigDecimal("1.00"), null, null, LocalDate.now(), null)))
+            "Hack", new BigDecimal("1.00"), null, null, LocalDate.now(), null, null, null)))
             .isInstanceOf(NotFoundException.class);
     }
 }

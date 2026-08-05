@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.entity.Budget;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.entity.Expense;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingGoal;
@@ -88,11 +89,17 @@ public class MobileFinanceBffServiceImpl implements MobileFinanceBffService {
         LocalDate monthStart = today.withDayOfMonth(1);
         LocalDate monthEnd = monthStart.plusMonths(1);
 
-        BigDecimal spent = orZero(expenseRepository.sumForMonth(userId, monthStart, monthEnd));
+        // Spend is per the budget's currency (default USD when no budget). Mixing KHR and USD
+        // in one "spent" figure would be meaningless.
+        Budget budget = budgetRepository
+            .findByUserIdAndMonthAndYearAndDeletedAtIsNull(userId, today.getMonthValue(), today.getYear())
+            .orElse(null);
+        Currency currency = budget == null ? Currency.USD : budget.getCurrency();
+        BigDecimal spent = orZero(expenseRepository.sumForMonthByCurrency(userId, currency, monthStart, monthEnd));
 
         return new MobileFinanceDashboardResponse(
-            monthOverview(userId, today, spent),
-            topCategories(userId, monthStart, monthEnd),
+            monthOverview(today, budget, spent),
+            topCategories(userId, currency, monthStart, monthEnd),
             savingProgress(userId),
             recentExpenses(userId),
             walletSummary(userId),
@@ -101,10 +108,7 @@ public class MobileFinanceBffServiceImpl implements MobileFinanceBffService {
         );
     }
 
-    private MonthOverview monthOverview(UUID userId, LocalDate today, BigDecimal spent) {
-        Budget budget = budgetRepository
-            .findByUserIdAndMonthAndYearAndDeletedAtIsNull(userId, today.getMonthValue(), today.getYear())
-            .orElse(null);
+    private MonthOverview monthOverview(LocalDate today, Budget budget, BigDecimal spent) {
         if (budget == null) {
             return new MonthOverview(today.getMonthValue(), today.getYear(), spent, null, null, null);
         }
@@ -113,8 +117,8 @@ public class MobileFinanceBffServiceImpl implements MobileFinanceBffService {
             total, total.subtract(spent), statusFor(spent, total));
     }
 
-    private List<CategorySpend> topCategories(UUID userId, LocalDate start, LocalDate end) {
-        return expenseRepository.sumByCategory(userId, start, end).stream()
+    private List<CategorySpend> topCategories(UUID userId, Currency currency, LocalDate start, LocalDate end) {
+        return expenseRepository.sumByCategoryAndCurrency(userId, currency, start, end).stream()
             .limit(TOP_CATEGORIES)
             .map(row -> new CategorySpend(
                 row[0] == null ? UNCATEGORIZED : (String) row[0], (BigDecimal) row[1]))
@@ -144,7 +148,7 @@ public class MobileFinanceBffServiceImpl implements MobileFinanceBffService {
 
     private WalletSummary walletSummary(UUID userId) {
         DemoWallet wallet = demoWalletRepository.findByUserId(userId).orElse(null);
-        return wallet == null ? null : new WalletSummary(wallet.getBalance(), wallet.getCurrency());
+        return wallet == null ? null : new WalletSummary(wallet.getBalanceUsd(), wallet.getBalanceKhr());
     }
 
     private String statusFor(BigDecimal spent, BigDecimal total) {

@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionStatus;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
@@ -59,6 +60,10 @@ public class DemoTransaction extends BaseEntity {
     @Column(name = "related_id")
     private UUID relatedId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "currency", nullable = false, length = 3)
+    private Currency currency;
+
     @Column(name = "amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;
 
@@ -68,5 +73,17 @@ public class DemoTransaction extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
     private TransactionStatus status;
+
+    /**
+     * The payment provider that processed this row, or null for non-payment rows (income, expense,
+     * saving, reward, recurring, auto-save). An opaque string - the ledger stores it, it never
+     * branches on it. Examples: MOCK_KHQR, and later ACLEDA / ABA / WING.
+     */
+    @Column(name = "provider", length = 40)
+    private String provider;
+
+    /** The provider's own reference for reconciliation (e.g. MOCK-1A2B3C4D), or null. */
+    @Column(name = "provider_ref", length = 80)
+    private String providerRef;
 
 }

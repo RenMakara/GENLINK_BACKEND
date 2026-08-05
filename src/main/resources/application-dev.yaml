@@ -38,5 +38,10 @@ logging:
   level:
     root: info
     kh.edu.acleda.campuslink: debug
-#    org.hibernate.SQL: debug
+    # SQL logging is OFF by default so the console stays readable. To see queries
+    # (and their bind parameters) for debugging: SQL_LOG_LEVEL=debug
+    org.hibernate.SQL: ${SQL_LOG_LEVEL:warn}
+    org.hibernate.orm.jdbc.bind: ${SQL_LOG_LEVEL:warn}
     org.liquibase: info
+  pattern:
+    console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(%-5level) %clr(%-26.26logger{0}){cyan} %clr(:){faint} %msg%n%wEx"

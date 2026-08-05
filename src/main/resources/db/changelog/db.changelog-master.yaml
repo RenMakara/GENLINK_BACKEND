@@ -61,3 +61,19 @@ databaseChangeLog:
       file: db/changelog/changes/0030-add-post-comment-likes.sql
   - include:
       file: db/changelog/changes/0031-generalize-finance-ledger.sql
+  - include:
+      file: db/changelog/changes/0032-create-incomes-table.sql
+  - include:
+      file: db/changelog/changes/0033-add-finance-currency.sql
+  - include:
+      file: db/changelog/changes/0034-dual-currency-wallet.sql
+  - include:
+      file: db/changelog/changes/0035-add-lesson-related-category.sql
+  - include:
+      file: db/changelog/changes/0036-create-recurring-and-autosave.sql
+  - include:
+      file: db/changelog/changes/0037-add-ledger-payment-provider.sql
+  - include:
+      file: db/changelog/changes/0038-create-media-files.sql
+  - include:
+      file: db/changelog/changes/0039-fix-media-checksum-type.sql

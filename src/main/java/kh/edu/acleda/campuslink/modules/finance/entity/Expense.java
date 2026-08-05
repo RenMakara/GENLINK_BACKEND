@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import lombok.AllArgsConstructor;
@@ -39,6 +40,10 @@ public class Expense extends BaseEntity {
 
     @Column(name = "amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "currency", nullable = false, length = 3)
+    private Currency currency;
 
     @Column(name = "category", length = 80)
     private String category;

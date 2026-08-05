@@ -48,6 +48,7 @@ out/
 .vscode/
 
 *.json
+docs/
 
 # The blanket *.json rules above exist to keep credentials (service-account.json
 # and friends) out of git, so they stay. This narrowly re-allows the API

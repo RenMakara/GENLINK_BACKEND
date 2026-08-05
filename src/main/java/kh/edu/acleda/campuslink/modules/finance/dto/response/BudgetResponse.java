@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.enums.BudgetStatus;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
 /**
  * spentAmount, remainingAmount and status are computed live from expenses, not read
@@ -20,6 +21,7 @@ public record BudgetResponse(
     BigDecimal spentAmount,
     BigDecimal remainingAmount,
     BudgetStatus status,
+    Currency currency,
     List<CategoryBudget> categories
 ) {
 

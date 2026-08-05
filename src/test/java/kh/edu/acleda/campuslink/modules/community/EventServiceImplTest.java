@@ -15,6 +15,7 @@ import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository
 import kh.edu.acleda.campuslink.modules.community.service.impl.EventServiceImpl;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
@@ -141,34 +142,42 @@ class EventServiceImplTest {
         assertThatThrownBy(() -> service.rsvp(EVENT_ID)).isInstanceOf(ApiException.class);
 
         verify(demoWalletRepository, never()).save(any(DemoWallet.class));
-        verify(ledgerService, never()).record(any(), any(), any(), any(), any(), any(), any());
+        verify(ledgerService, never()).debit(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
-    void paidRsvpDeductsTheDemoWalletAndRecordsASimulatedTransaction() {
+    void paidRsvpDebitsTheDemoWalletThroughTheLedger() {
         event.setIsPaid(true);
         event.setPrice(new BigDecimal("5.00"));
-        DemoWallet wallet = DemoWallet.builder().user(user).balance(new BigDecimal("20.00")).build();
+        DemoWallet wallet = DemoWallet.builder().user(user)
+            .balanceUsd(new BigDecimal("20.00"))
+            .balanceKhr(new BigDecimal("0.00"))
+            .build();
         when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
 
         RsvpResponse response = service.rsvp(EVENT_ID);
 
-        assertThat(wallet.getBalance()).isEqualByComparingTo("15.00");
         assertThat(response.amountPaid()).isEqualByComparingTo("5.00");
         // The client must be able to label the screen as a simulation.
         assertThat(response.simulatedPayment()).isTrue();
 
-        // The ledger records a DEBIT of type EVENT_PAYMENT, linked back to the event.
-        verify(ledgerService).record(eq(wallet), eq(TransactionType.EVENT_PAYMENT),
-            eq(TransactionDirection.DEBIT), any(), any(), eq("EVENT"), any());
+        // Balance movement lives in the ledger now: a DEBIT of type EVENT_PAYMENT, linked to the event.
+        verify(ledgerService).debit(eq(wallet), eq(TransactionType.EVENT_PAYMENT), eq(Currency.USD),
+            eq(new BigDecimal("5.00")), any(), eq("EVENT"), any());
     }
 
     @Test
-    void paidRsvpIsRejectedWhenTheDemoBalanceIsTooLow() {
+    void paidRsvpPropagatesTheLedgersInsufficientFundsError() {
         event.setIsPaid(true);
         event.setPrice(new BigDecimal("50.00"));
         when(demoWalletRepository.findByUserId(USER_ID))
-            .thenReturn(Optional.of(DemoWallet.builder().balance(new BigDecimal("5.00")).build()));
+            .thenReturn(Optional.of(DemoWallet.builder()
+                .balanceUsd(new BigDecimal("5.00"))
+                .balanceKhr(new BigDecimal("0.00"))
+                .build()));
+        org.mockito.Mockito.doThrow(new ApiException("Demo wallet balance is too low for this payment",
+                "DEMO_WALLET_INSUFFICIENT_BALANCE"))
+            .when(ledgerService).debit(any(), any(), any(), any(), any(), any(), any());
 
         assertThatThrownBy(() -> service.rsvp(EVENT_ID))
             .isInstanceOf(ApiException.class)
@@ -182,7 +191,7 @@ class EventServiceImplTest {
         service.rsvp(EVENT_ID);
 
         verify(demoWalletRepository, never()).findByUserId(any());
-        verify(ledgerService, never()).record(any(), any(), any(), any(), any(), any(), any());
+        verify(ledgerService, never()).debit(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test

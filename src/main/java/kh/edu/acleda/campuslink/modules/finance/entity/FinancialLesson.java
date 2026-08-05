@@ -42,6 +42,11 @@ public class FinancialLesson extends BaseEntity {
     @Column(name = "topic", length = 80)
     private String topic;
 
+    /** Optional spending category this lesson speaks to, so an insight about that category can
+     *  link straight to it (free-form, matches Expense.category). Null = topic-matched only. */
+    @Column(name = "related_category", length = 80)
+    private String relatedCategory;
+
     @Column(name = "content_type", length = 50)
     private String contentType;
 

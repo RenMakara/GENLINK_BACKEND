@@ -7,11 +7,16 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.SavingDepositRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.SavingGoalCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.SavingGoalResponse;
+import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingDeposit;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingGoal;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.SavingGoalStatus;
+import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.SavingDepositRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.SavingGoalRepository;
+import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
+import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.finance.service.impl.SavingGoalServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -42,6 +47,8 @@ class SavingGoalServiceImplTest {
 
     @Mock private SavingGoalRepository savingGoalRepository;
     @Mock private SavingDepositRepository savingDepositRepository;
+    @Mock private DemoWalletService demoWalletService;
+    @Mock private LedgerService ledgerService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -52,11 +59,11 @@ class SavingGoalServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new SavingGoalServiceImpl(savingGoalRepository, savingDepositRepository,
-            userRepository, currentUserProvider);
+            demoWalletService, ledgerService, userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
-        goal = SavingGoal.builder().user(user).title("Laptop")
+        goal = SavingGoal.builder().user(user).title("Laptop").currency(Currency.USD)
             .targetAmount(new BigDecimal("100.00")).currentAmount(BigDecimal.ZERO)
             .status(SavingGoalStatus.IN_PROGRESS).build();
         ReflectionTestUtils.setField(goal, "id", GOAL_ID);
@@ -72,7 +79,7 @@ class SavingGoalServiceImplTest {
     @Test
     void createStartsInProgressWithZeroSaved() {
         SavingGoalResponse r = service.create(
-            new SavingGoalCreateRequest("Laptop", new BigDecimal("100.00"), null));
+            new SavingGoalCreateRequest("Laptop", new BigDecimal("100.00"), null, null));
 
         assertThat(r.status()).isEqualTo(SavingGoalStatus.IN_PROGRESS);
         assertThat(r.currentAmount()).isEqualByComparingTo("0");
@@ -83,18 +90,39 @@ class SavingGoalServiceImplTest {
     @Test
     void depositAddsToCurrentAndRecordsHistoryRow() {
         SavingGoalResponse r = service.deposit(GOAL_ID,
-            new SavingDepositRequest(new BigDecimal("40.00"), "allowance", null));
+            new SavingDepositRequest(new BigDecimal("40.00"), "allowance", null, null));
 
         verify(savingDepositRepository).save(any(SavingDeposit.class));
         assertThat(r.currentAmount()).isEqualByComparingTo("40.00");
         assertThat(r.progressPercent()).isEqualTo(40);
         assertThat(r.status()).isEqualTo(SavingGoalStatus.IN_PROGRESS);
+        // Default deposit (not from wallet) never touches the balance.
+        verify(ledgerService, org.mockito.Mockito.never()).debit(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void depositingFromWalletDebitsTheLedgerThenGrowsTheGoal() {
+        DemoWallet wallet = DemoWallet.builder().user(user)
+            .balanceUsd(new BigDecimal("50.00"))
+            .balanceKhr(new BigDecimal("0.00"))
+            .build();
+        when(demoWalletService.getOrCreateWalletEntity()).thenReturn(wallet);
+
+        SavingGoalResponse r = service.deposit(GOAL_ID,
+            new SavingDepositRequest(new BigDecimal("40.00"), null, null, true));
+
+        verify(ledgerService).debit(org.mockito.ArgumentMatchers.eq(wallet),
+            org.mockito.ArgumentMatchers.eq(TransactionType.SAVING),
+            org.mockito.ArgumentMatchers.eq(Currency.USD),
+            org.mockito.ArgumentMatchers.eq(new BigDecimal("40.00")), any(),
+            org.mockito.ArgumentMatchers.eq("SAVING_GOAL"), any());
+        assertThat(r.currentAmount()).isEqualByComparingTo("40.00");
     }
 
     @Test
     void depositCompletesTheGoalWhenTargetReached() {
         SavingGoalResponse r = service.deposit(GOAL_ID,
-            new SavingDepositRequest(new BigDecimal("100.00"), null, null));
+            new SavingDepositRequest(new BigDecimal("100.00"), null, null, null));
 
         assertThat(r.status()).isEqualTo(SavingGoalStatus.COMPLETED);
         assertThat(r.remainingAmount()).isEqualByComparingTo("0");
@@ -104,7 +132,7 @@ class SavingGoalServiceImplTest {
     @Test
     void overfundingCapsProgressAtHundredAndRemainingAtZero() {
         SavingGoalResponse r = service.deposit(GOAL_ID,
-            new SavingDepositRequest(new BigDecimal("150.00"), null, null));
+            new SavingDepositRequest(new BigDecimal("150.00"), null, null, null));
 
         assertThat(r.progressPercent()).isEqualTo(100);
         assertThat(r.remainingAmount()).isEqualByComparingTo("0");
@@ -116,7 +144,7 @@ class SavingGoalServiceImplTest {
         goal.setStatus(SavingGoalStatus.CANCELLED);
 
         assertThatThrownBy(() -> service.deposit(GOAL_ID,
-            new SavingDepositRequest(new BigDecimal("10.00"), null, null)))
+            new SavingDepositRequest(new BigDecimal("10.00"), null, null, null)))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("cancelled");
     }
@@ -126,7 +154,7 @@ class SavingGoalServiceImplTest {
         goal.setCurrentAmount(new BigDecimal("60.00"));
 
         SavingGoalResponse r = service.update(GOAL_ID,
-            new SavingGoalCreateRequest("Laptop", new BigDecimal("50.00"), null));
+            new SavingGoalCreateRequest("Laptop", new BigDecimal("50.00"), null, null));
 
         assertThat(r.status()).isEqualTo(SavingGoalStatus.COMPLETED);
     }
@@ -137,7 +165,7 @@ class SavingGoalServiceImplTest {
             .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.update(GOAL_ID,
-            new SavingGoalCreateRequest("x", new BigDecimal("1"), null)))
+            new SavingGoalCreateRequest("x", new BigDecimal("1"), null, null)))
             .isInstanceOf(NotFoundException.class);
     }
 

@@ -10,11 +10,16 @@ import kh.edu.acleda.campuslink.modules.finance.dto.request.SavingDepositRequest
 import kh.edu.acleda.campuslink.modules.finance.dto.request.SavingGoalCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.SavingDepositResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.SavingGoalResponse;
+import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingDeposit;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingGoal;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.SavingGoalStatus;
+import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.SavingDepositRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.SavingGoalRepository;
+import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
+import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.finance.service.SavingGoalService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -29,15 +34,21 @@ public class SavingGoalServiceImpl implements SavingGoalService {
 
     private final SavingGoalRepository savingGoalRepository;
     private final SavingDepositRepository savingDepositRepository;
+    private final DemoWalletService demoWalletService;
+    private final LedgerService ledgerService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public SavingGoalServiceImpl(SavingGoalRepository savingGoalRepository,
                                  SavingDepositRepository savingDepositRepository,
+                                 DemoWalletService demoWalletService,
+                                 LedgerService ledgerService,
                                  UserRepository userRepository,
                                  CurrentUserProvider currentUserProvider) {
         this.savingGoalRepository = savingGoalRepository;
         this.savingDepositRepository = savingDepositRepository;
+        this.demoWalletService = demoWalletService;
+        this.ledgerService = ledgerService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -49,6 +60,7 @@ public class SavingGoalServiceImpl implements SavingGoalService {
         SavingGoal goal = savingGoalRepository.save(SavingGoal.builder()
             .user(user)
             .title(request.title())
+            .currency(request.currency() == null ? Currency.USD : request.currency())
             .targetAmount(request.targetAmount())
             .currentAmount(BigDecimal.ZERO)
             .targetDate(request.targetDate())
@@ -105,6 +117,15 @@ public class SavingGoalServiceImpl implements SavingGoalService {
             throw new ApiException("Cannot deposit into a cancelled goal", "GOAL_CANCELLED");
         }
 
+        // Opt-in: a "from wallet" deposit actually moves money out of the wallet into the goal.
+        // Debit first so a too-low balance rejects before any deposit/goal change (rolled back
+        // together by this @Transactional). Default keeps the old behaviour - goal grows only.
+        if (Boolean.TRUE.equals(request.fromWallet())) {
+            DemoWallet wallet = demoWalletService.getOrCreateWalletEntity();
+            ledgerService.debit(wallet, TransactionType.SAVING, goal.getCurrency(), request.amount(),
+                "Saving deposit: " + goal.getTitle(), "SAVING_GOAL", goal.getId());
+        }
+
         savingDepositRepository.save(SavingDeposit.builder()
             .savingGoal(goal)
             .amount(request.amount())
@@ -149,7 +170,7 @@ public class SavingGoalServiceImpl implements SavingGoalService {
                 .intValue();
         }
         return new SavingGoalResponse(goal.getId(), goal.getTitle(), target, current, remaining,
-            percent, goal.getTargetDate(), goal.getStatus());
+            percent, goal.getTargetDate(), goal.getStatus(), goal.getCurrency());
     }
 
     private SavingGoal loadOwned(UUID id) {
