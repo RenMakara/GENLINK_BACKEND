@@ -6,11 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="57d9cd75-d56e-4c50-96fa-2c994cb9b129" name="Changes" comment="feature(auth): implement user authentication and registration with JWT support">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/infrastructure/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/infrastructure/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/CampuslinkKhApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/GenLinkKhApplication.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/service/EmailServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/kh/edu/acleda/campuslink/shared/service/EmailServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/application.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -189,6 +184,31 @@
     &quot;assignee&quot;: &quot;RenMakara&quot;
   }
 }</component>
+  <component name="GitToolBoxStore">
+    <option name="recentBranches">
+      <RecentBranches>
+        <option name="branchesForRepo">
+          <list>
+            <RecentBranchesForRepo>
+              <option name="branches">
+                <list>
+                  <RecentBranch>
+                    <option name="branchName" value="main" />
+                    <option name="lastUsedInstant" value="1785907717" />
+                  </RecentBranch>
+                  <RecentBranch>
+                    <option name="branchName" value="dev" />
+                    <option name="lastUsedInstant" value="1785907595" />
+                  </RecentBranch>
+                </list>
+              </option>
+              <option name="repositoryRootUrl" value="file://$PROJECT_DIR$" />
+            </RecentBranchesForRepo>
+          </list>
+        </option>
+      </RecentBranches>
+    </option>
+  </component>
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
     &quot;url&quot;: &quot;https://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@github.com/RenMakara/campuslink_kh.git&quot;,
@@ -208,61 +228,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0000721983555851" />
-      <entry key="MS500" value="1.22888891030873" />
-      <entry key="S2" value="5.09519853934472" />
-      <entry key="S5" value="13.664826509580623" />
-      <entry key="S10" value="22.074399045719403" />
-      <entry key="S30" value="32.34885564467507" />
-      <entry key="S60" value="35.90575267235829" />
-      <entry key="M2" value="37.880147033564114" />
-      <entry key="M5" value="39.13383464902562" />
-      <entry key="M10" value="39.563813309585626" />
-      <entry key="M15" value="39.70851406061676" />
-      <entry key="M30" value="39.85422501065386" />
-      <entry key="H1" value="40.19778829968535" />
-      <entry key="H2" value="47.90326426798382" />
-      <entry key="H4" value="82.98597744765999" />
-      <entry key="D1" value="215.80485766345097" />
-      <entry key="W1" value="263.8107258465813" />
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="1.0003155374549872E-244" />
+      <entry key="S2" value="1.0000788750313503E-61" />
+      <entry key="S5" value="3.9811973054252462E-25" />
+      <entry key="S10" value="6.309672975222445E-13" />
+      <entry key="S30" value="8.577004084784963E-5" />
+      <entry key="S60" value="0.009261270699939267" />
+      <entry key="M2" value="0.09777162511269605" />
+      <entry key="M5" value="1.0772052835806476" />
+      <entry key="M10" value="5.861157616530327" />
+      <entry key="M15" value="11.042806069757678" />
+      <entry key="M30" value="21.164162252717695" />
+      <entry key="H1" value="29.619892308873556" />
+      <entry key="H2" value="41.43486811768448" />
+      <entry key="H4" value="77.25978283396337" />
+      <entry key="D1" value="213.79172444574147" />
+      <entry key="W1" value="264.2814582045705" />
     </decayedCancelled>
     <decayedSelected>
-      <entry key="MS100" value="0.0" />
-      <entry key="MS500" value="0.0" />
-      <entry key="S2" value="1.643282399797894E-131" />
-      <entry key="S5" value="4.856069363534306E-53" />
-      <entry key="S10" value="6.968550325235727E-27" />
-      <entry key="S30" value="1.91006206912824E-9" />
-      <entry key="S60" value="4.3704256876513076E-5" />
-      <entry key="M2" value="0.006610919518229894" />
-      <entry key="M5" value="0.13430888633458996" />
-      <entry key="M10" value="0.3664817680793823" />
-      <entry key="M15" value="0.5121158876179777" />
-      <entry key="M30" value="0.7156443561643006" />
-      <entry key="H1" value="0.8633244273463699" />
-      <entry key="H2" value="1.4128602398976438" />
-      <entry key="H4" value="3.5862712431050165" />
-      <entry key="D1" value="11.586031376920989" />
-      <entry key="W1" value="14.452232170910642" />
+      <entry key="MS100" value="1.0" />
+      <entry key="MS500" value="1.0" />
+      <entry key="S2" value="1.0" />
+      <entry key="S5" value="1.0" />
+      <entry key="S10" value="1.0" />
+      <entry key="S30" value="1.0" />
+      <entry key="S60" value="1.000000000000072" />
+      <entry key="M2" value="1.0000002681418982" />
+      <entry key="M5" value="1.0023515048123346" />
+      <entry key="M10" value="1.0484923170444007" />
+      <entry key="M15" value="1.1329786615247157" />
+      <entry key="M30" value="1.3646734154712257" />
+      <entry key="H1" value="1.6162791235008904" />
+      <entry key="H2" value="2.193715730868062" />
+      <entry key="H4" value="4.296431006757159" />
+      <entry key="D1" value="12.424437947096221" />
+      <entry key="W1" value="15.42326296331392" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9660055847024442" />
-      <entry key="MS500" value="1.2199480832104084" />
-      <entry key="S2" value="5.069545010867108" />
-      <entry key="S5" value="13.5989421999981" />
-      <entry key="S10" value="22.008085341815974" />
-      <entry key="S30" value="32.313126776229566" />
-      <entry key="S60" value="35.88562264827696" />
-      <entry key="M2" value="37.87598964219646" />
-      <entry key="M5" value="39.26330808058137" />
-      <entry key="M10" value="39.927515080996905" />
-      <entry key="M15" value="40.21863037578646" />
-      <entry key="M30" value="40.56876855791839" />
-      <entry key="H1" value="41.060518813525846" />
-      <entry key="H2" value="49.31565869556921" />
-      <entry key="H4" value="86.57164987479781" />
-      <entry key="D1" value="227.39056026306497" />
-      <entry key="W1" value="278.2628992538846" />
+      <entry key="MS100" value="4.2760368243254265E-24" />
+      <entry key="MS500" value="2.119377343391585E-5" />
+      <entry key="S2" value="0.06785034680651515" />
+      <entry key="S5" value="0.34089515492531064" />
+      <entry key="S10" value="0.583862273936281" />
+      <entry key="S30" value="0.8358877988900382" />
+      <entry key="S60" value="0.9234781721876442" />
+      <entry key="M2" value="1.0538938668295825" />
+      <entry key="M5" value="2.061651306263608" />
+      <entry key="M10" value="6.90031857086887" />
+      <entry key="M15" value="12.169276950303754" />
+      <entry key="M30" value="22.525273656773283" />
+      <entry key="H1" value="31.234245166033073" />
+      <entry key="H2" value="43.627438682007686" />
+      <entry key="H4" value="81.55528750372234" />
+      <entry key="D1" value="226.21577553223221" />
+      <entry key="W1" value="279.7046535689821" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -289,73 +309,75 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Docker.docker: Compose Deployment.executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Build Itp-eBanking.executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Build campuslink_kh.executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Build event-driven-for-ebanking.executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Build genlink_kh.executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Download Sources.executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Itp-eBanking:microservices [build].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Itp-eBanking:microservices:account-service [buildDependents].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Itp-eBanking:microservices:account-service [build].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Itp-eBanking:microservices:account-service [clean].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Itp-eBanking:microservices:pipeline-service [build].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Itp-eBanking:spring-cloud [build].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Itp-eBanking:spring-cloud:admin-bff [build].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Itp-eBanking:spring-cloud:front-bff [build].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Itp-eBanking:spring-cloud:gateway-server [build].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.campuslink_kh [build].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.event-driven-for-ebanking:account-command-service [build].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.itp-ebanking [build].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.itp-ebanking [clean].executor&quot;: &quot;Run&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
-    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
-    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
-    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
-    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;Spring Boot.AccountQueryServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.AccountServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.CampuslinkKhApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.CustomerServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.EurekaserverApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.GenLinkKhApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.IamServiceApplication.executor&quot;: &quot;Run&quot;,
-    &quot;Spring Boot.ItpConfigserverApplication.executor&quot;: &quot;Run&quot;,
-    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
-    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
-    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
-    &quot;full.screen.before.presentation.mode&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/RenMakara/Documents/genlink_kh_fullstack/genlink_kh&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
-    &quot;run.configurations.included.in.services&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Docker.docker: Compose Deployment.executor": "Run",
+    "Gradle.Build Itp-eBanking.executor": "Run",
+    "Gradle.Build backend.executor": "Run",
+    "Gradle.Build campuslink_kh.executor": "Run",
+    "Gradle.Build event-driven-for-ebanking.executor": "Run",
+    "Gradle.Build genlink_kh.executor": "Run",
+    "Gradle.Download Sources.executor": "Run",
+    "Gradle.Itp-eBanking:microservices [build].executor": "Run",
+    "Gradle.Itp-eBanking:microservices:account-service [buildDependents].executor": "Run",
+    "Gradle.Itp-eBanking:microservices:account-service [build].executor": "Run",
+    "Gradle.Itp-eBanking:microservices:account-service [clean].executor": "Run",
+    "Gradle.Itp-eBanking:microservices:pipeline-service [build].executor": "Run",
+    "Gradle.Itp-eBanking:spring-cloud [build].executor": "Run",
+    "Gradle.Itp-eBanking:spring-cloud:admin-bff [build].executor": "Run",
+    "Gradle.Itp-eBanking:spring-cloud:front-bff [build].executor": "Run",
+    "Gradle.Itp-eBanking:spring-cloud:gateway-server [build].executor": "Run",
+    "Gradle.campuslink_kh [build].executor": "Run",
+    "Gradle.event-driven-for-ebanking:account-command-service [build].executor": "Run",
+    "Gradle.itp-ebanking [build].executor": "Run",
+    "Gradle.itp-ebanking [clean].executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "Spring Boot.AccountQueryServiceApplication.executor": "Run",
+    "Spring Boot.AccountServiceApplication.executor": "Run",
+    "Spring Boot.CampuslinkKhApplication.executor": "Run",
+    "Spring Boot.CustomerServiceApplication.executor": "Run",
+    "Spring Boot.EurekaserverApplication.executor": "Run",
+    "Spring Boot.GenLinkKhApplication.executor": "Run",
+    "Spring Boot.GenlinkKhApplication.executor": "Run",
+    "Spring Boot.IamServiceApplication.executor": "Run",
+    "Spring Boot.ItpConfigserverApplication.executor": "Run",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "dart.analysis.tool.window.visible": "false",
+    "full.screen.before.presentation.mode": "false",
+    "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
+    "junie.onboarding.icon.badge.shown": "true",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/RenMakara/Documents/genlink_kh_fullstack/genlink_kh",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.2",
+    "run.configurations.included.in.services": "true",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
   },
-  &quot;keyToStringList&quot;: {
-    &quot;DatabaseDriversLRU&quot;: [
-      &quot;postgresql&quot;
+  "keyToStringList": {
+    "DatabaseDriversLRU": [
+      "postgresql"
     ]
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CreateClassDialog.RecentsKey">
       <recent name="co.istad.makara.account.rest" />
@@ -389,43 +411,19 @@
         <entry key="SpringBootApplicationConfigurationType">
           <value>
             <map>
-              <entry key="GenLinkKhApplication" value="STOPPED" />
+              <entry key="GenLinkKhApplication" value="FAILED" />
+              <entry key="GenlinkKhApplication" value="STOPPED" />
             </map>
           </value>
         </entry>
       </map>
     </option>
   </component>
-  <component name="RunManager" selected="Spring Boot.GenLinkKhApplication">
+  <component name="RunManager" selected="Spring Boot.GenlinkKhApplication">
     <configuration name="Itp-eBanking:spring-cloud:admin-bff [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
         <option name="externalProjectPath" value="$PROJECT_DIR$/spring-cloud/admin-bff" />
-        <option name="externalSystemIdString" value="GRADLE" />
-        <option name="scriptParameters" />
-        <option name="taskDescriptions">
-          <list />
-        </option>
-        <option name="taskNames">
-          <list>
-            <option value="build" />
-          </list>
-        </option>
-        <option name="vmOptions" />
-      </ExternalSystemSettings>
-      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
-      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
-      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
-      <DebugAllEnabled>false</DebugAllEnabled>
-      <RunAsTest>false</RunAsTest>
-      <GradleProfilingDisabled>false</GradleProfilingDisabled>
-      <GradleCoverageDisabled>false</GradleCoverageDisabled>
-      <method v="2" />
-    </configuration>
-    <configuration name="Itp-eBanking:spring-cloud:front-bff [build]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
-      <ExternalSystemSettings>
-        <option name="executionName" />
-        <option name="externalProjectPath" value="$PROJECT_DIR$/spring-cloud/front-bff" />
         <option name="externalSystemIdString" value="GRADLE" />
         <option name="scriptParameters" />
         <option name="taskDescriptions">
@@ -515,6 +513,42 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="GenlinkKhApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" temporary="true" nameIsGenerated="true">
+      <option name="ACTIVE_PROFILES" value="dev" />
+      <envs>
+        <env name="STORAGE_ENDPOINT" value="https://sgp1.digitaloceanspaces.com" />
+        <env name="STORAGE_REGION" value="sgp1" />
+        <env name="STORAGE_BUCKET" value="genlink-media-dev" />
+        <env name="STORAGE_CDN_BASE" value="https://genlink-media-dev.sgp1.cdn.digitaloceanspaces.com" />
+        <env name="STORAGE_ACCESS_KEY" value="DO8013LTZDMENPU4XG9N" />
+        <env name="STORAGE_SECRET_KEY" value="TuYlELTQDGaGza6GVK0o3gTzWnXjf70I8AeSuE/7LH4" />
+        <env name="GOOGLE_CLIENT_ID" value="456895735825-0jfa3vilbnhsv4hs780822s993f35k0h.apps.googleusercontent.com" />
+        <env name="GOOGLE_PROJECT_ID" value="genlinkkh" />
+        <env name="MAIL_HOST" value="smtp-relay.brevo.com" />
+        <env name="MAIL_PORT" value="2525" />
+        <env name="MAIL_USERNAME" value="b31d5d001@smtp-brevo.com" />
+        <env name="MAIL_PASSWORD" value="xsmtpsibed4bb3d30dd10e6e7363c9cf4abbafd4354129df4b905aab7a7171d9840f8d14Og0u1FyCxd1nClr2" />
+        <env name="MAIL_FROM" value="genlink.kh.official@gmail.com" />
+        <env name="JWT_SECRET" value="SQ6bdBK2J3Uwifr0hBBsGL2Wo07JHviEsRZ/60QH9+VBfwax0+deuhIXLEHCSUc4rWQxQITj9L1jGb+YzXNWkA" />
+        <env name="JWT_ISSUER" value="genlink_kh" />
+      </envs>
+      <option name="envFilePaths">
+        <option value="$PROJECT_DIR$/../../YT/.env" />
+        <option value="$PROJECT_DIR$/../../YT/.env" />
+      </option>
+      <module name="genlink_kh.main" />
+      <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="kh.edu.acleda.campuslink.GenlinkKhApplication" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="kh.edu.acleda.campuslink.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <configuration default="true" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
       <option name="SHORTEN_COMMAND_LINE" value="ARGS_FILE" />
       <method v="2">
@@ -538,18 +572,18 @@
     <list>
       <item itemvalue="Docker.infrastructure: Compose Deployment" />
       <item itemvalue="Gradle.Itp-eBanking:spring-cloud:admin-bff [build]" />
-      <item itemvalue="Gradle.Itp-eBanking:spring-cloud:front-bff [build]" />
       <item itemvalue="Gradle.campuslink_kh [build]" />
       <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
       <item itemvalue="Spring Boot.GenLinkKhApplication" />
+      <item itemvalue="Spring Boot.GenlinkKhApplication" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Spring Boot.GenlinkKhApplication" />
         <item itemvalue="Gradle.campuslink_kh [build]" />
         <item itemvalue="Docker.infrastructure: Compose Deployment" />
         <item itemvalue="Gradle.event-driven-for-ebanking:account-command-service [build]" />
         <item itemvalue="Gradle.Itp-eBanking:spring-cloud:admin-bff [build]" />
-        <item itemvalue="Gradle.Itp-eBanking:spring-cloud:front-bff [build]" />
       </list>
     </recent_temporary>
   </component>
@@ -560,6 +594,9 @@
         <option value="bundled-js-predefined-d6986cc7102b-31caf2ab9e3c-JavaScript-IU-261.25134.95" />
       </set>
     </attachedChunks>
+  </component>
+  <component name="StructureViewState">
+    <option name="selectedTab" value="Logical" />
   </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
