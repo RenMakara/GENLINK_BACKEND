@@ -53,14 +53,18 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendOtpEmail(String to, String otp, Language language, OtpPurpose purpose) {
-        log.info("**************************************************");
-        log.info("EMAIL OTP FOR {}: {}", to, otp);
-        log.info("**************************************************");
-
         if (!mailEnabled) {
-            // Log-only mode (dev default): the OTP above is the delivery channel.
-            // Returning here avoids an SMTP round trip that would otherwise fail
-            // with the local machine's absent or mismatched credentials.
+            // Log-only mode (dev default): the log *is* the delivery channel, so the code is
+            // printed here - and ONLY here. Returning also avoids an SMTP round trip that would
+            // otherwise fail with the local machine's absent or mismatched credentials.
+            //
+            // The OTP is deliberately never logged once real delivery is enabled (staging/prod):
+            // it is a short-lived auth secret, prod runs at root=info, and a failed deploy pipes
+            // `docker compose logs` into CI output - an INFO line here would put live codes in the
+            // server logs and in build history.
+            log.info("**************************************************");
+            log.info("EMAIL OTP FOR {}: {}", to, otp);
+            log.info("**************************************************");
             log.info("Mail delivery is disabled (app.mail.enabled=false); OTP for {} logged only", to);
             return;
         }
