@@ -180,6 +180,34 @@
       "key": "mediaSizeBytes",
       "value": "1024",
       "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@genlink.kh"
+    },
+    {
+      "key": "adminPassword",
+      "value": ""
+    },
+    {
+      "key": "adminChallengeToken",
+      "value": ""
+    },
+    {
+      "key": "adminTotpSecret",
+      "value": ""
+    },
+    {
+      "key": "adminAccessToken",
+      "value": ""
+    },
+    {
+      "key": "adminRefreshToken",
+      "value": ""
+    },
+    {
+      "key": "adminTotpCode",
+      "value": ""
     }
   ],
   "event": [
@@ -1667,6 +1695,678 @@
           }
         }
       ]
+    },
+    {
+      "name": "Admin Auth",
+      "item": [
+        {
+          "name": "Admin Login (password step)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.challengeToken) {",
+                  "  pm.collectionVariables.set('adminChallengeToken', json.data.challengeToken);",
+                  "  console.log('Challenge captured; expires in ' + json.data.expiresInSeconds + 's');",
+                  "}",
+                  "// 401 IS the success case here: the password step issues a challenge, not a session.",
+                  "pm.test('MFA challenge issued', () => pm.response.to.have.status(401));",
+                  "pm.test('errorCode is ADMIN_MFA_REQUIRED', () =>",
+                  "  pm.expect(pm.response.json().errorCode).to.eql('ADMIN_MFA_REQUIRED'));",
+                  "pm.test('no access token is ever returned', () => {",
+                  "  const body = pm.response.text();",
+                  "  pm.expect(body).to.not.include('accessToken');",
+                  "  pm.expect(body).to.not.include('refreshToken');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "description": "Password step of admin sign-in (ADM-021, SSOT 8.1).\n\nAnswers 401 + ADMIN_MFA_REQUIRED on SUCCESS, carrying a 5-minute challenge token in `data`. The caller is not authenticated yet, so 401 is correct; the errorCode is what distinguishes 'finish signing in' from 'wrong credentials'.\n\nThe challenge token authenticates nothing - its `typ` claim matches no route. Only /admin/auth/mfa/verify accepts it (ADM-023).\n\nEvery rejection - wrong password, unknown email, a user who is not an admin, a revoked admin - returns an identical 401 UNAUTHORIZED body, deliberately: anything else would reveal which accounts are administrators.\n\nRate limited on a dedicated ADMIN_LOGIN bucket: 5 failures / 15 min, then a 15-minute block returning 429 RATE_LIMITED."
+          }
+        },
+        {
+          "name": "Admin Login - rejection is indistinguishable",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('rejected with 401', () => pm.response.to.have.status(401));",
+                  "pm.test('generic UNAUTHORIZED code', () =>",
+                  "  pm.expect(pm.response.json().errorCode).to.eql('UNAUTHORIZED'));",
+                  "pm.test('body reveals nothing about admin status', () => {",
+                  "  const body = pm.response.text().toLowerCase();",
+                  "  pm.expect(body).to.not.include('admin');",
+                  "  pm.expect(body).to.not.include('challenge');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"definitely-not-the-password\"\n}"
+            },
+            "description": "Run with a wrong password, then an email that does not exist, then an ordinary non-admin user's CORRECT credentials. All three must return byte-identical bodies and the same 401. A difference is an account-enumeration hole (ADM-021 AC#2)."
+          }
+        },
+        {
+          "name": "MFA Enrol (QR + secret)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.secret) {",
+                  "  pm.collectionVariables.set('adminTotpSecret', json.data.secret);",
+                  "  console.log('otpauth URI: ' + json.data.otpauthUri);",
+                  "}",
+                  "pm.test('enrolment started', () => pm.response.to.have.status(200));",
+                  "pm.test('returns a scannable URI', () =>",
+                  "  pm.expect(pm.response.json().data.otpauthUri).to.include('otpauth://totp/'));",
+                  "pm.test('URI pins algorithm, digits and period', () => {",
+                  "  const uri = pm.response.json().data.otpauthUri;",
+                  "  pm.expect(uri).to.include('algorithm=SHA1');",
+                  "  pm.expect(uri).to.include('digits=6');",
+                  "  pm.expect(uri).to.include('period=30');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminChallengeToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/auth/mfa/enrol",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "auth",
+                "mfa",
+                "enrol"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "description": "Begins TOTP enrolment (ADM-022). Send the challenge token from /login as the bearer token - an unenrolled admin has no admin token, and could never get one without this.\n\nReturns a Base32 secret and an otpauth:// URI. Paste the URI into a QR generator, or type the secret into your authenticator manually.\n\nRe-callable while unconfirmed; each call REPLACES the secret. Nothing is switched on until /mfa/confirm succeeds."
+          }
+        },
+        {
+          "name": "MFA Confirm (returns recovery codes)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Computes the current TOTP code from the secret captured by 'MFA Enrol', so the",
+                  "// login -> MFA -> /me flow runs end to end with no copy-paste (ADM-033 AC#1).",
+                  "//",
+                  "// RFC 6238: 30-second step, 6 digits, HMAC-SHA1. Verified against the Appendix B",
+                  "// test vectors before being committed - an OTP implementation that agrees only with",
+                  "// itself agrees with no server.",
+                  "//",
+                  "// Only possible because /mfa/enrol returns the secret once. An admin who enrolled",
+                  "// elsewhere has no secret here, so the code must come from their authenticator -",
+                  "// which is the correct behaviour, not a limitation.",
+                  "const secret = pm.collectionVariables.get('adminTotpSecret');",
+                  "if (!secret) {",
+                  "    console.log('No adminTotpSecret - run \"MFA Enrol\" first, or type a code from your app.');",
+                  "} else {",
+                  "    const CryptoJS = require('crypto-js');",
+                  "    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';",
+                  "    let bits = '';",
+                  "    for (const ch of secret.replace(/=+$/, '').toUpperCase()) {",
+                  "        const v = ALPHABET.indexOf(ch);",
+                  "        if (v >= 0) { bits += v.toString(2).padStart(5, '0'); }",
+                  "    }",
+                  "    let hex = '';",
+                  "    for (let i = 0; i + 8 <= bits.length; i += 8) {",
+                  "        hex += parseInt(bits.substr(i, 8), 2).toString(16).padStart(2, '0');",
+                  "    }",
+                  "    const counter = Math.floor(Date.now() / 1000 / 30).toString(16).padStart(16, '0');",
+                  "    const mac = CryptoJS.HmacSHA1(CryptoJS.enc.Hex.parse(counter), CryptoJS.enc.Hex.parse(hex))",
+                  "        .toString(CryptoJS.enc.Hex);",
+                  "    // RFC 4226 dynamic truncation: the low nibble of the last byte picks the offset.",
+                  "    const offset = parseInt(mac.substr(mac.length - 1), 16) * 2;",
+                  "    const code = (parseInt(mac.substr(offset, 8), 16) & 0x7fffffff) % 1000000;",
+                  "    pm.collectionVariables.set('adminTotpCode', String(code).padStart(6, '0'));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('enrolment confirmed', () => pm.response.to.have.status(200));",
+                  "pm.test('returns exactly 10 recovery codes', () =>",
+                  "  pm.expect(pm.response.json().data.recoveryCodes).to.have.lengthOf(10));",
+                  "pm.test('codes avoid confusable characters', () => {",
+                  "  const codes = pm.response.json().data.recoveryCodes.join('');",
+                  "  ['I','L','O','U'].forEach(c => pm.expect(codes).to.not.include(c));",
+                  "});",
+                  "console.log('SAVE THESE: ' + pm.response.json().data.recoveryCodes.join(' '));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminChallengeToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/auth/mfa/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "auth",
+                "mfa",
+                "confirm"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{adminTotpCode}}\"\n}"
+            },
+            "description": "AUTO-GENERATED CODE: the pre-request script computes it from {{adminTotpSecret}}, captured by 'MFA Enrol'. No copy-paste needed.\n\nIf you enrolled outside this collection there is no secret here - replace {{adminTotpCode}} with a code from your authenticator.\n\nConfirms enrolment with the first code from your authenticator (ADM-022).\n\nReplace the code with the live 6 digits before sending - it is time-based and there is no way to script it here.\n\nRETURNS THE 10 RECOVERY CODES, ONCE. They are stored BCrypt-hashed, so this response is the only place the plaintext ever exists. Save them now; a second call is refused with ADMIN_MFA_ALREADY_ENROLLED."
+          }
+        },
+        {
+          "name": "MFA Verify (issues admin tokens)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Computes the current TOTP code from the secret captured by 'MFA Enrol', so the",
+                  "// login -> MFA -> /me flow runs end to end with no copy-paste (ADM-033 AC#1).",
+                  "//",
+                  "// RFC 6238: 30-second step, 6 digits, HMAC-SHA1. Verified against the Appendix B",
+                  "// test vectors before being committed - an OTP implementation that agrees only with",
+                  "// itself agrees with no server.",
+                  "//",
+                  "// Only possible because /mfa/enrol returns the secret once. An admin who enrolled",
+                  "// elsewhere has no secret here, so the code must come from their authenticator -",
+                  "// which is the correct behaviour, not a limitation.",
+                  "const secret = pm.collectionVariables.get('adminTotpSecret');",
+                  "if (!secret) {",
+                  "    console.log('No adminTotpSecret - run \"MFA Enrol\" first, or type a code from your app.');",
+                  "} else {",
+                  "    const CryptoJS = require('crypto-js');",
+                  "    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';",
+                  "    let bits = '';",
+                  "    for (const ch of secret.replace(/=+$/, '').toUpperCase()) {",
+                  "        const v = ALPHABET.indexOf(ch);",
+                  "        if (v >= 0) { bits += v.toString(2).padStart(5, '0'); }",
+                  "    }",
+                  "    let hex = '';",
+                  "    for (let i = 0; i + 8 <= bits.length; i += 8) {",
+                  "        hex += parseInt(bits.substr(i, 8), 2).toString(16).padStart(2, '0');",
+                  "    }",
+                  "    const counter = Math.floor(Date.now() / 1000 / 30).toString(16).padStart(16, '0');",
+                  "    const mac = CryptoJS.HmacSHA1(CryptoJS.enc.Hex.parse(counter), CryptoJS.enc.Hex.parse(hex))",
+                  "        .toString(CryptoJS.enc.Hex);",
+                  "    // RFC 4226 dynamic truncation: the low nibble of the last byte picks the offset.",
+                  "    const offset = parseInt(mac.substr(mac.length - 1), 16) * 2;",
+                  "    const code = (parseInt(mac.substr(offset, 8), 16) & 0x7fffffff) % 1000000;",
+                  "    pm.collectionVariables.set('adminTotpCode', String(code).padStart(6, '0'));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('adminAccessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('adminRefreshToken', json.data.refreshToken);",
+                  "}",
+                  "pm.test('signed in', () => pm.response.to.have.status(200));",
+                  "pm.test('access token has a 10-minute life', () =>",
+                  "  pm.expect(pm.response.json().data.expiresInSeconds).to.eql(600));",
+                  "pm.test('token type is Bearer', () =>",
+                  "  pm.expect(pm.response.json().data.tokenType).to.eql('Bearer'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminChallengeToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/auth/mfa/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "auth",
+                "mfa",
+                "verify"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{adminTotpCode}}\"\n}"
+            },
+            "description": "AUTO-GENERATED CODE: the pre-request script computes it from {{adminTotpSecret}}, captured by 'MFA Enrol'. No copy-paste needed.\n\nIf you enrolled outside this collection there is no secret here - replace {{adminTotpCode}} with a code from your authenticator.\n\nSecond factor (ADM-023). Send the challenge token from /login as the bearer token and either a live 6-digit TOTP code or one of your recovery codes in the body.\n\nReturns a typ=ADMIN access token (10 min) and a refresh token (8 h). The access token is accepted ONLY on /api/v1/admin/** - presenting it to a mobile route is refused with ADMIN_TOKEN_TYPE_INVALID.\n\nThe challenge is single-use: a successful verify retires it, and five wrong codes void it. Either way you need a fresh /login afterwards.\n\nIf you use a recovery code, recoveryCodesRemaining tells you how many are left. It is null when you signed in with TOTP."
+          }
+        },
+        {
+          "name": "Me (identity + permissions)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('carries a role and permissions', () => {",
+                  "  pm.expect(d.roleCode).to.be.a('string');",
+                  "  pm.expect(d.permissions).to.be.an('array');",
+                  "});",
+                  "pm.test('permission codes have no PERM_ prefix', () =>",
+                  "  d.permissions.forEach(p => pm.expect(p).to.not.match(/^PERM_/)));",
+                  "pm.test('no ROLE_* leaked in', () =>",
+                  "  d.permissions.forEach(p => pm.expect(p).to.not.match(/^ROLE_/)));",
+                  "console.log(d.roleCode + ' -> ' + d.permissions.length + ' permissions');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "The single call the portal's permission model rests on (SSOT 8.1): sidebar, usePermission and every disabled control read from it.\n\nPermissions come from the caller's OWN granted authorities - the same collection @PreAuthorize evaluates - so this response cannot drift from what authorization enforces.\n\nThe PERM_ prefix is stripped; ROLE_* is excluded."
+          }
+        },
+        {
+          "name": "Refresh (rotates)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('returns a NEW refresh token', () =>",
+                  "  pm.expect(d.refreshToken).to.not.eql(pm.collectionVariables.get('adminRefreshToken')));",
+                  "pm.test('access token lives 10 minutes', () => pm.expect(d.expiresInSeconds).to.eql(600));",
+                  "pm.collectionVariables.set('adminAccessToken', d.accessToken);",
+                  "pm.collectionVariables.set('adminRefreshToken', d.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Public: the access token has expired, which is why you are here. The refresh token in the body is the credential.\n\nROTATES - you get a NEW refresh token and the one you sent is revoked as it is spent. Presenting the old one again is treated as theft and revokes every token on the account, so do not re-run this request with a stale variable.\n\nRe-checks that the account is still an active, enrolled admin: staff access can be revoked while a session is live.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{adminRefreshToken}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout (this session only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('signed out', () => pm.expect(pm.response.json().success).to.be.true);",
+                  "console.log('Access token is now dead - re-run Me to confirm a 401.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Revokes the refresh token AND registers the access token's session id, so the access token stops working immediately rather than when it expires - the difference that matters on a shared machine.\n\nOnly THIS session. token_version is untouched, so the mobile app on the same account keeps working.\n\nThe body is optional: logout must still succeed if the portal already dropped the cookie.\n\nAfter this, re-run 'Me' - it should return 401.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{adminRefreshToken}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Sudo (open the 5-min window)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Computes the current TOTP code from the secret captured by 'MFA Enrol', so the",
+                  "// login -> MFA -> /me flow runs end to end with no copy-paste (ADM-033 AC#1).",
+                  "//",
+                  "// RFC 6238: 30-second step, 6 digits, HMAC-SHA1. Verified against the Appendix B",
+                  "// test vectors before being committed - an OTP implementation that agrees only with",
+                  "// itself agrees with no server.",
+                  "//",
+                  "// Only possible because /mfa/enrol returns the secret once. An admin who enrolled",
+                  "// elsewhere has no secret here, so the code must come from their authenticator -",
+                  "// which is the correct behaviour, not a limitation.",
+                  "const secret = pm.collectionVariables.get('adminTotpSecret');",
+                  "if (!secret) {",
+                  "    console.log('No adminTotpSecret - run \"MFA Enrol\" first, or type a code from your app.');",
+                  "} else {",
+                  "    const CryptoJS = require('crypto-js');",
+                  "    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';",
+                  "    let bits = '';",
+                  "    for (const ch of secret.replace(/=+$/, '').toUpperCase()) {",
+                  "        const v = ALPHABET.indexOf(ch);",
+                  "        if (v >= 0) { bits += v.toString(2).padStart(5, '0'); }",
+                  "    }",
+                  "    let hex = '';",
+                  "    for (let i = 0; i + 8 <= bits.length; i += 8) {",
+                  "        hex += parseInt(bits.substr(i, 8), 2).toString(16).padStart(2, '0');",
+                  "    }",
+                  "    const counter = Math.floor(Date.now() / 1000 / 30).toString(16).padStart(16, '0');",
+                  "    const mac = CryptoJS.HmacSHA1(CryptoJS.enc.Hex.parse(counter), CryptoJS.enc.Hex.parse(hex))",
+                  "        .toString(CryptoJS.enc.Hex);",
+                  "    // RFC 4226 dynamic truncation: the low nibble of the last byte picks the offset.",
+                  "    const offset = parseInt(mac.substr(mac.length - 1), 16) * 2;",
+                  "    const code = (parseInt(mac.substr(offset, 8), 16) & 0x7fffffff) % 1000000;",
+                  "    pm.collectionVariables.set('adminTotpCode', String(code).padStart(6, '0'));",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('window is 5 minutes', () => pm.expect(d.expiresInSeconds).to.eql(300));",
+                  "console.log('Sudo open until ' + d.expiresAt);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/auth/sudo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "auth",
+                "sudo"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{adminTotpCode}}\"\n}"
+            },
+            "description": "AUTO-GENERATED CODE: the pre-request script computes it from {{adminTotpSecret}}, captured by 'MFA Enrol'. No copy-paste needed.\n\nIf you enrolled outside this collection there is no secret here - replace {{adminTotpCode}} with a code from your authenticator.\n\nStep-up re-authentication (SSOT 10.7). Opens a 5-minute window that high-tier actions require: delete user, bulk ban, CSV export, role change.\n\nSend EITHER a live 6-digit TOTP code (replace the placeholder) OR {\"password\": \"...\"}. A code is stronger here - a password can be pulled from a manager on the very machine this control defends against.\n\nPER SESSION, not per user: re-authenticating here does not arm a browser you left open somewhere else. Logging out closes it.\n\nNothing enforces it yet - the first @RequiresSudo endpoints arrive with the user-management work in Phase 2."
+          }
+        },
+        {
+          "name": "Regenerate recovery codes (needs sudo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 403) {",
+                  "  pm.test('refused without sudo', () =>",
+                  "    pm.expect(pm.response.json().errorCode).to.eql('ADMIN_SUDO_REQUIRED'));",
+                  "  console.log('Run Sudo first, then re-send this.');",
+                  "} else {",
+                  "  pm.test('200', () => pm.response.to.have.status(200));",
+                  "  const codes = pm.response.json().data.recoveryCodes;",
+                  "  pm.test('ten new codes', () => pm.expect(codes).to.have.lengthOf(10));",
+                  "  console.log('SAVE THESE - your old codes no longer work: ' + codes.join(' '));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/auth/mfa/recovery-codes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "auth",
+                "mfa",
+                "recovery-codes"
+              ]
+            },
+            "description": "Reissues the ten recovery codes and INVALIDATES EVERY PREVIOUS ONE - spent or not. An admin still holding old codes on paper must discard them.\n\nRequires an open sudo window: send 'Sudo' first, or this answers 403 ADMIN_SUDO_REQUIRED. A fresh set is a permanent bypass of the second factor, so a live session alone is not enough to mint one.\n\nThis is the path back for an admin who has spent all ten codes - without it the only remedy is an MFA reset by someone with rbac:manage, which for a lone SUPER_ADMIN means database access.\n\nShown once. Stored BCrypt-hashed."
+          }
+        }
+      ],
+      "description": "Admin portal authentication (SSOT 8.1). Runs end to end with no copy-paste.\n\nSET FIRST: {{adminEmail}}, {{adminPassword}}.\n\nFIRST-TIME ADMIN (never enrolled) - run in order:\n  1. Admin Login            -> captures {{adminChallengeToken}}\n  2. MFA Enrol              -> captures {{adminTotpSecret}}, prints the otpauth:// URI\n  3. MFA Confirm            -> code auto-generated; returns 10 recovery codes. SAVE THEM.\n  4. MFA Verify             -> captures {{adminAccessToken}} + {{adminRefreshToken}}\n  5. Me                     -> identity + resolved permissions\nThe challenge lives 5 minutes. If steps 2-4 take longer, re-run Admin Login.\n\nALREADY-ENROLLED ADMIN - the normal case:\n  1. Admin Login   2. MFA Verify   3. Me\nMFA Enrol will refuse with ADMIN_MFA_ALREADY_ENROLLED, which is correct.\n\n  For the code to be auto-generated you need {{adminTotpSecret}} set. It is\n  returned exactly once, at enrolment, so if you enrolled elsewhere paste it in\n  by hand ONCE - that is setup, not per-request copy-paste. Otherwise replace\n  {{adminTotpCode}} in the body with a code from your authenticator.\n\nHOW THE CODE IS GENERATED\n  A pre-request script on Confirm / Verify / Sudo computes RFC 6238 TOTP from\n  {{adminTotpSecret}} using crypto-js. It was verified against the RFC 6238\n  Appendix B vectors before being committed.\n\nSUDO-GATED REQUESTS\n  'Regenerate recovery codes' answers 403 ADMIN_SUDO_REQUIRED until you run\n  'Sudo'. That 403 is worth seeing once - it is the control that bounds what an\n  unattended, unlocked laptop can do (SSOT 10.7).\n\nWHAT THE STATUS CODES MEAN HERE\n  Admin Login answers 401 ADMIN_MFA_REQUIRED on SUCCESS. The caller is not\n  authenticated yet - they hold a challenge, which grants nothing on its own."
     },
     {
       "name": "Community",

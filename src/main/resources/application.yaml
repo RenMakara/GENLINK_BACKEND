@@ -60,12 +60,50 @@ app:
     # Falls back to MAIL_USERNAME, which is correct for Gmail where the
     # login and the sender address are the same thing.
     from: ${MAIL_FROM}
+  admin:
+    # ONE-OFF. Promotes an existing, email-verified user to SUPER_ADMIN on startup
+    # (SSOT 13.3). Blank in every environment except the moment you use it.
+    #
+    # Procedure: set it -> start -> confirm "ADMIN BOOTSTRAP: <email> promoted to
+    # SUPER_ADMIN" at WARN -> sign in and complete TOTP enrolment -> REMOVE IT.
+    #
+    # It is a no-op while any active SUPER_ADMIN exists, so leaving it set is not
+    # an open door today. It is still a loaded gun pointed at the day someone
+    # deactivates the last SUPER_ADMIN, so remove it.
+    bootstrap-email: ${ADMIN_BOOTSTRAP_EMAIL:}
+
+  cors:
+    # Origins allowed to call /api/v1/admin/** from a browser (SSOT 10.9).
+    # Comma-separated full origins: https://admin.genlink.kh,http://localhost:3000
+    #
+    # EMPTY BY DEFAULT, and that is correct for the MVP: the portal and the API
+    # share one nginx origin under path-based routing, so admin requests are
+    # same-origin and CORS never applies. This exists for the eventual subdomain
+    # split. Empty means every cross-origin admin request is refused.
+    #
+    # No wildcard, in any environment.
+    admin-origins: ${ADMIN_CORS_ORIGINS:}
+
+  crypto:
+    # Encrypts credential columns at rest - today admin_users.totp_secret (SSOT §9.2).
+    #
+    # Base64, exactly 32 bytes: `openssl rand -base64 32`. Defaulted to empty rather than
+    # left unset so a missing value fails inside FieldEncryptor with an actionable message,
+    # instead of as a placeholder-resolution error before the app has a chance to explain.
+    #
+    # LOSING THIS IS NOT RECOVERABLE: every enrolled admin has to set up TOTP again. Back it
+    # up alongside JWT_SECRET.
+    secret-key: ${ADMIN_CRYPTO_KEY}
+
   jwt:
     issuer: ${JWT_ISSUER:genlink_kh}
     secret: ${JWT_SECRET}
     # 15 minutes. Access tokens are stateless, so this bounds the window in which a
     # stolen token stays usable; the token-version claim handles explicit revocation.
     access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}
+    # 10 minutes for the admin portal. Shorter than the mobile token on purpose: a stolen
+    # mobile token reaches one person's data, a stolen admin token reaches everyone's.
+    admin-access-token-expiration-ms: ${JWT_ADMIN_ACCESS_EXPIRATION_MS:600000}
     refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
   google:
     client-id: ${GOOGLE_CLIENT_ID}
@@ -124,3 +162,10 @@ springdoc:
 logging:
   level:
     org.liquibase: info
+  pattern:
+    # Appends the correlation id (RequestIdFilter) to every log line, so a line can be tied
+    # to a request and to its admin_audit_logs row. Overriding `level` rather than `console`
+    # is deliberate: Spring Boot's default console AND file patterns both interpolate this,
+    # so one setting covers both without restating the whole pattern.
+    # Empty outside a request - scheduled jobs and async work have nothing to correlate to.
+    level: "%5p [%X{requestId:-}]"

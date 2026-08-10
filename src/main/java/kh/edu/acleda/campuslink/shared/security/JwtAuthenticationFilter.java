@@ -19,6 +19,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    /**
+     * Set when a request is refused for a specific, reportable reason. Read by
+     * {@link JwtAuthenticationEntryPoint} so the caller gets that error code instead of a
+     * bare {@code UNAUTHORIZED}.
+     */
+    public static final String AUTH_ERROR_CODE_ATTRIBUTE = "kh.genlink.authErrorCode";
+
+    /** Error code for a token presented to an API it was not issued for. */
+    public static final String TOKEN_TYPE_INVALID = "ADMIN_TOKEN_TYPE_INVALID";
+
+    private static final String ADMIN_PATH = "/api/v1/admin";
+
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
 
@@ -41,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
-            if (jwtService.validateToken(token)) {
+            if (jwtService.validateToken(token) && isTokenTypeAllowed(request, token)) {
                 String username = jwtService.getUsername(token);
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                 if (isUsable(token, userDetails)) {
@@ -53,6 +65,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * A token is only accepted on the API it was issued for: {@link TokenType#ADMIN} on
+     * {@code /api/v1/admin/**}, {@link TokenType#MOBILE} everywhere else.
+     *
+     * <p>Without this, any user whose {@code users.role} happened to be {@code ADMIN} could
+     * drive the entire admin surface from the phone, with the token the app already holds.
+     * The check lives here rather than on each controller so it cannot be forgotten on a new
+     * endpoint, and so it applies before any authorization rule runs.
+     *
+     * <p>The rule is symmetric on purpose. Rejecting an admin token on mobile routes keeps
+     * the two sessions from being interchangeable, so a leaked admin token cannot be quietly
+     * reused against the ordinary API.
+     */
+    private boolean isTokenTypeAllowed(HttpServletRequest request, String token) {
+        TokenType required = requiredTokenType(request);
+        // Defensive: the provider never returns null, defaulting a missing claim to MOBILE.
+        TokenType actual = jwtService.getTokenType(token);
+        if (actual == null) {
+            actual = TokenType.MOBILE;
+        }
+        if (actual != required) {
+            // Warn, not debug: a valid signed token arriving at the wrong API is either a
+            // misconfigured client or someone probing the admin surface. Neither is routine.
+            log.warn("Rejected {} token on a {} route: {}", actual, required, request.getRequestURI());
+            request.setAttribute(AUTH_ERROR_CODE_ATTRIBUTE, TOKEN_TYPE_INVALID);
+            return false;
+        }
+        return true;
+    }
+
+    private static TokenType requiredTokenType(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        boolean adminRoute = path != null && (path.equals(ADMIN_PATH) || path.startsWith(ADMIN_PATH + "/"));
+        return adminRoute ? TokenType.ADMIN : TokenType.MOBILE;
     }
 
     /**

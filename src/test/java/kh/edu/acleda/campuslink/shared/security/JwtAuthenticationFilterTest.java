@@ -17,6 +17,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -115,6 +116,135 @@ class JwtAuthenticationFilterTest {
         verify(filterChain).doFilter(any(), any());
     }
 
+    // ---------------------------------------------------------------------------------
+    // Token type must match the API being called (SSOT §10.1).
+    //
+    // Regression test S1 of the five pinned in testing-plan.md. Without this check, any
+    // user whose users.role happened to be ADMIN could drive the whole admin surface from
+    // the phone, with the token the app already holds.
+    // ---------------------------------------------------------------------------------
+
+    /** The one that matters: a phone's token must not reach the admin API. */
+    @Test
+    void rejectsMobileTokenOnAdminRoute() throws Exception {
+        when(jwtService.validateToken(TOKEN)).thenReturn(true);
+        when(jwtService.getTokenType(TOKEN)).thenReturn(TokenType.MOBILE);
+        MockHttpServletRequest request = requestWithBearer("/api/v1/admin/users");
+
+        filter.doFilterInternal(request, new MockHttpServletResponse(), filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(request.getAttribute(JwtAuthenticationFilter.AUTH_ERROR_CODE_ATTRIBUTE))
+            .isEqualTo(JwtAuthenticationFilter.TOKEN_TYPE_INVALID);
+        // The user is never even loaded - the type check short-circuits first.
+        verify(userDetailsService, never()).loadUserByUsername(any());
+        verify(filterChain).doFilter(any(), any());
+    }
+
+    /** Symmetric: the two sessions are not interchangeable in either direction. */
+    @Test
+    void rejectsAdminTokenOnMobileRoute() throws Exception {
+        when(jwtService.validateToken(TOKEN)).thenReturn(true);
+        when(jwtService.getTokenType(TOKEN)).thenReturn(TokenType.ADMIN);
+        MockHttpServletRequest request = requestWithBearer("/api/v1/profile/me");
+
+        filter.doFilterInternal(request, new MockHttpServletResponse(), filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(request.getAttribute(JwtAuthenticationFilter.AUTH_ERROR_CODE_ATTRIBUTE))
+            .isEqualTo(JwtAuthenticationFilter.TOKEN_TYPE_INVALID);
+    }
+
+    @Test
+    void acceptsAdminTokenOnAdminRoute() throws Exception {
+        stubToken(3);
+        when(jwtService.getTokenType(TOKEN)).thenReturn(TokenType.ADMIN);
+        when(userDetailsService.loadUserByUsername("user@example.com")).thenReturn(authenticatedUser(true, 3));
+
+        filter.doFilterInternal(requestWithBearer("/api/v1/admin/users"), new MockHttpServletResponse(), filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+    }
+
+    // ---------------------------------------------------------------------------------
+    // The MFA challenge token grants nothing (ADM-021 AC#3).
+    //
+    // It is handed out after the password step, before TOTP. If it authenticated anything,
+    // the second factor would be advisory: a stolen password alone would reach the API.
+    //
+    // Nothing in the filter mentions it. Both tests pass because a route only ever requires
+    // MOBILE or ADMIN, so a third type matches nothing - which is the property worth pinning,
+    // since it is what makes a *future* route safe by default too.
+    // ---------------------------------------------------------------------------------
+
+    @Test
+    void rejectsMfaChallengeTokenOnAdminRoute() throws Exception {
+        when(jwtService.validateToken(TOKEN)).thenReturn(true);
+        when(jwtService.getTokenType(TOKEN)).thenReturn(TokenType.ADMIN_MFA_CHALLENGE);
+        MockHttpServletRequest request = requestWithBearer("/api/v1/admin/users");
+
+        filter.doFilterInternal(request, new MockHttpServletResponse(), filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(request.getAttribute(JwtAuthenticationFilter.AUTH_ERROR_CODE_ATTRIBUTE))
+            .isEqualTo(JwtAuthenticationFilter.TOKEN_TYPE_INVALID);
+        verify(userDetailsService, never()).loadUserByUsername(any());
+    }
+
+    /** Nor is it a way into the mobile API, which is the softer target of the two. */
+    @Test
+    void rejectsMfaChallengeTokenOnMobileRoute() throws Exception {
+        when(jwtService.validateToken(TOKEN)).thenReturn(true);
+        when(jwtService.getTokenType(TOKEN)).thenReturn(TokenType.ADMIN_MFA_CHALLENGE);
+        MockHttpServletRequest request = requestWithBearer("/api/v1/profile/me");
+
+        filter.doFilterInternal(request, new MockHttpServletResponse(), filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        verify(userDetailsService, never()).loadUserByUsername(any());
+    }
+
+    /**
+     * Backwards compatibility: tokens issued before the {@code typ} claim existed carry no
+     * type. They must keep working on mobile routes - deploying this should not sign every
+     * existing user out - while still being refused by the admin API.
+     */
+    @Test
+    void legacyTokenWithoutTypeClaimStillWorksOnMobileRoutes() throws Exception {
+        stubToken(3);
+        when(jwtService.getTokenType(TOKEN)).thenReturn(TokenType.MOBILE);
+        when(userDetailsService.loadUserByUsername("user@example.com")).thenReturn(authenticatedUser(true, 3));
+
+        filter.doFilterInternal(requestWithBearer("/api/v1/profile/me"), new MockHttpServletResponse(), filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+    }
+
+    /** {@code /api/v1/admin} with no trailing slash is still the admin API. */
+    @Test
+    void treatsAdminPathWithoutTrailingSlashAsAdminRoute() throws Exception {
+        when(jwtService.validateToken(TOKEN)).thenReturn(true);
+        when(jwtService.getTokenType(TOKEN)).thenReturn(TokenType.MOBILE);
+        MockHttpServletRequest request = requestWithBearer("/api/v1/admin");
+
+        filter.doFilterInternal(request, new MockHttpServletResponse(), filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    /** A path that merely starts with the same letters is not the admin API. */
+    @Test
+    void doesNotTreatSimilarlyNamedPathAsAdminRoute() throws Exception {
+        stubToken(3);
+        when(jwtService.getTokenType(TOKEN)).thenReturn(TokenType.MOBILE);
+        when(userDetailsService.loadUserByUsername("user@example.com")).thenReturn(authenticatedUser(true, 3));
+
+        filter.doFilterInternal(requestWithBearer("/api/v1/administration-guides"),
+            new MockHttpServletResponse(), filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+    }
+
     private void stubToken(int tokenVersion) {
         when(jwtService.validateToken(TOKEN)).thenReturn(true);
         when(jwtService.getUsername(TOKEN)).thenReturn("user@example.com");
@@ -127,7 +257,12 @@ class JwtAuthenticationFilterTest {
     }
 
     private MockHttpServletRequest requestWithBearer() {
+        return requestWithBearer("/api/v1/profile/me");
+    }
+
+    private MockHttpServletRequest requestWithBearer(String uri) {
         MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI(uri);
         request.addHeader("Authorization", "Bearer " + TOKEN);
         return request;
     }

@@ -28,8 +28,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
-        ApiResponse<Void> apiResponse = ApiResponse.failure(
-            "Unauthorized: " + authException.getMessage(), "UNAUTHORIZED");
+        ApiResponse<Void> apiResponse = buildBody(request, authException);
 
         ObjectMapper objectMapper = objectMapperProvider.getIfAvailable();
         if (objectMapper == null) {
@@ -38,5 +37,24 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         }
 
         response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
+    }
+
+    /**
+     * Uses the specific error code the filter recorded, when it recorded one.
+     *
+     * <p>Everything that fails authentication arrives here as the same generic 401, which is
+     * fine for a bad or expired token but unhelpful for a token that is perfectly valid and
+     * simply belongs to the other API. The frontend maps {@code errorCode}, never the message
+     * text, so a distinguishable code is what lets the admin portal say "this session is for
+     * the mobile app" instead of "unauthorized".
+     */
+    private ApiResponse<Void> buildBody(HttpServletRequest request, AuthenticationException authException) {
+        Object recordedCode = request.getAttribute(JwtAuthenticationFilter.AUTH_ERROR_CODE_ATTRIBUTE);
+        if (JwtAuthenticationFilter.TOKEN_TYPE_INVALID.equals(recordedCode)) {
+            return ApiResponse.failure(
+                "This access token was not issued for this API.",
+                JwtAuthenticationFilter.TOKEN_TYPE_INVALID);
+        }
+        return ApiResponse.failure("Unauthorized: " + authException.getMessage(), "UNAUTHORIZED");
     }
 }

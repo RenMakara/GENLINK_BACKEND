@@ -79,3 +79,5 @@ databaseChangeLog:
       file: db/changelog/changes/0039-fix-media-checksum-type.sql
   - include:
       file: db/changelog/changes/0040-index-deleted-accounts.sql
+  - include:
+      file: db/changelog/changes/0041-create-admin-tables.sql

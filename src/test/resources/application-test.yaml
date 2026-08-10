@@ -16,6 +16,11 @@ spring:
     password: test-password
 
 app:
+  crypto:
+    # Fixed so tests are deterministic. Under a test profile FieldEncryptor would otherwise
+    # generate an ephemeral key, which is fine for a local run but makes any assertion about
+    # a stored ciphertext depend on JVM startup. Not a secret and not used anywhere real.
+    secret-key: dGVzdC1vbmx5LWtleS0zMi1ieXRlcy1leGFjdGx5ISE=
   jwt:
     issuer: campuslink-kh-test
     secret: test-secret-test-secret-test-secret-test
@@ -23,3 +28,29 @@ app:
     refresh-token-expiration-ms: 604800000
   google:
     client-id: test-google-client-id
+
+  mail:
+    # REQUIRED for the context to start. EmailServiceImpl injects
+    # @Value("${app.mail.from}") and application.yaml declares it as a bare
+    # ${MAIL_FROM} with no default, so without a value here every @SpringBootTest
+    # fails with "Could not resolve placeholder 'MAIL_FROM'".
+    #
+    # The comment in application.yaml describes a fallback to MAIL_USERNAME, but
+    # that fallback lives in docker-compose, not in the application.
+    #
+    # Deliberately not fixed by adding a default in application.yaml: a default
+    # sender would let production boot misconfigured and fail at the first email
+    # instead of at startup.
+    from: test-sender@genlink.local
+    # Log-only. No SMTP server exists in tests, and a real send attempt would
+    # block on connect timeouts.
+    enabled: false
+
+  # NOTE on app.storage.*: application.yaml declares ${STORAGE_BUCKET},
+  # ${STORAGE_CDN_BASE}, ${STORAGE_ACCESS_KEY} and ${STORAGE_SECRET_KEY} without
+  # defaults too, but they are bound via @ConfigurationProperties rather than
+  # @Value. Spring's Binder leaves an unresolvable placeholder as its literal
+  # text instead of throwing, so the context still starts - verified, not assumed.
+  # StorageProperties therefore holds the string "${STORAGE_BUCKET}" in tests.
+  # Harmless today because nothing here makes a storage call; set real test values
+  # here if that ever changes.

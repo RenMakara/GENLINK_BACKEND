@@ -48,11 +48,17 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Override
     @Transactional
     public String create(User user, String deviceInfo, String ipAddress, String userAgent) {
+        return create(user, deviceInfo, ipAddress, userAgent, jwtProperties.getRefreshTokenExpirationMs());
+    }
+
+    @Override
+    @Transactional
+    public String create(User user, String deviceInfo, String ipAddress, String userAgent, long ttlMs) {
         String token = jwtService.generateRefreshToken(user.getEmail());
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUser(user);
         refreshToken.setTokenHash(hash(token));
-        refreshToken.setExpiresAt(Instant.now().plus(jwtProperties.getRefreshTokenExpirationMs(), ChronoUnit.MILLIS));
+        refreshToken.setExpiresAt(Instant.now().plus(ttlMs, ChronoUnit.MILLIS));
         refreshToken.setDeviceInfo(deviceInfo);
         refreshToken.setIpAddress(ipAddress);
         refreshToken.setUserAgent(userAgent);
@@ -75,6 +81,21 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Override
     @Transactional
     public RefreshTokenRotation rotate(String token, String deviceInfo, String ipAddress, String userAgent) {
+        return rotate(token, deviceInfo, ipAddress, userAgent, jwtProperties.getRefreshTokenExpirationMs());
+    }
+
+    /**
+     * Rotation with an explicit lifetime for the replacement token.
+     *
+     * <p>Added for the admin portal, whose refresh tokens live 8 hours rather than the mobile
+     * app's. Without it the first rotation would quietly hand an admin session the mobile
+     * lifetime - the session would not misbehave, it would just outlive its policy by days,
+     * and nothing would show it.
+     */
+    @Override
+    @Transactional
+    public RefreshTokenRotation rotate(String token, String deviceInfo, String ipAddress,
+                                       String userAgent, long ttlMs) {
         if (!jwtService.validateToken(token)) {
             throw new ApiException("Invalid refresh token", AuthErrorCode.TOKEN_INVALID);
         }
@@ -106,7 +127,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         RefreshToken newRefreshToken = new RefreshToken();
         newRefreshToken.setUser(user);
         newRefreshToken.setTokenHash(hash(newRawToken));
-        newRefreshToken.setExpiresAt(Instant.now().plus(jwtProperties.getRefreshTokenExpirationMs(), ChronoUnit.MILLIS));
+        newRefreshToken.setExpiresAt(Instant.now().plus(ttlMs, ChronoUnit.MILLIS));
         newRefreshToken.setDeviceInfo(deviceInfo);
         newRefreshToken.setIpAddress(ipAddress);
         newRefreshToken.setUserAgent(userAgent);

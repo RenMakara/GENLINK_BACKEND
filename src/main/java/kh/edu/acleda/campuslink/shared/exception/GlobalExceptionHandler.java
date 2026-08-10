@@ -25,7 +25,30 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorized(UnauthorizedException ex) {
         log.warn("Unauthorized access: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.failure(ex.getMessage(), "UNAUTHORIZED"));
+        // The code comes off the exception now rather than being fixed here. The one-argument
+        // constructor still defaults it to UNAUTHORIZED, so every existing caller is unchanged.
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse.failure(ex.getMessage(), ex.getErrorCode()));
+    }
+
+    /** Like the rate-limit handler below, this must out-specific {@link #handleApiException}. */
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiResponse<Void>> handleForbidden(ForbiddenException ex) {
+        log.warn("Forbidden: {} ({})", ex.getMessage(), ex.getErrorCode());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ApiResponse.failure(ex.getMessage(), ex.getErrorCode()));
+    }
+
+    /**
+     * Must be declared before {@link #handleApiException}: {@code RateLimitedException} extends
+     * {@code ApiException}, and Spring picks the most specific handler, so this is what keeps a
+     * 429 from being flattened into the generic 400 below.
+     */
+    @ExceptionHandler(RateLimitedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRateLimited(RateLimitedException ex) {
+        log.warn("Rate limited: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .body(ApiResponse.failure(ex.getMessage(), ex.getErrorCode()));
     }
 
     @ExceptionHandler(ApiException.class)

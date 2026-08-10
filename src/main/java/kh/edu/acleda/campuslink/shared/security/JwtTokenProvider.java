@@ -74,13 +74,50 @@ public class JwtTokenProvider implements JwtService {
 
     @Override
     public String generateAccessToken(String username, int tokenVersion) {
+        return generateAccessToken(username, tokenVersion, TokenType.MOBILE);
+    }
+
+    @Override
+    public String generateAccessToken(String username, int tokenVersion, TokenType tokenType) {
         Instant now = Instant.now();
-        Instant expiry = now.plus(Duration.ofMillis(properties.getAccessTokenExpirationMs()));
+        Instant expiry = now.plus(Duration.ofMillis(accessTokenTtlMs(tokenType)));
 
         return Jwts.builder()
             .issuer(properties.getIssuer())
             .subject(username)
             .claim(TOKEN_VERSION_CLAIM, tokenVersion)
+            .claim(TokenType.CLAIM, tokenType.name())
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(expiry))
+            .signWith(secretKey)
+            .compact();
+    }
+
+    /**
+     * Admin tokens are deliberately shorter-lived than mobile ones. A stolen mobile token
+     * reaches one person's data; a stolen admin token reaches everyone's.
+     */
+    private long accessTokenTtlMs(TokenType tokenType) {
+        return tokenType == TokenType.ADMIN
+            ? properties.getAdminAccessTokenExpirationMs()
+            : properties.getAccessTokenExpirationMs();
+    }
+
+    /**
+     * Deliberately carries no {@code tv} claim. The token version is what makes an access token
+     * revocable, and this token authenticates nothing, so including one would only suggest it
+     * did.
+     */
+    @Override
+    public String generateAdminMfaChallengeToken(String username, String challengeId) {
+        Instant now = Instant.now();
+        Instant expiry = now.plus(Duration.ofMillis(properties.getAdminMfaChallengeExpirationMs()));
+
+        return Jwts.builder()
+            .issuer(properties.getIssuer())
+            .subject(username)
+            .id(challengeId)
+            .claim(TokenType.CLAIM, TokenType.ADMIN_MFA_CHALLENGE.name())
             .issuedAt(Date.from(now))
             .expiration(Date.from(expiry))
             .signWith(secretKey)
@@ -88,9 +125,36 @@ public class JwtTokenProvider implements JwtService {
     }
 
     @Override
+    public String generateAdminAccessToken(String username, int tokenVersion, String sessionId) {
+        Instant now = Instant.now();
+        Instant expiry = now.plus(Duration.ofMillis(accessTokenTtlMs(TokenType.ADMIN)));
+
+        return Jwts.builder()
+            .issuer(properties.getIssuer())
+            .subject(username)
+            .id(sessionId)
+            .claim(TOKEN_VERSION_CLAIM, tokenVersion)
+            .claim(TokenType.CLAIM, TokenType.ADMIN.name())
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(expiry))
+            .signWith(secretKey)
+            .compact();
+    }
+
+    @Override
+    public String getTokenId(String token) {
+        return parseClaims(token).getId();
+    }
+
+    @Override
     public Integer getTokenVersion(String token) {
         Object claim = parseClaims(token).get(TOKEN_VERSION_CLAIM);
         return claim instanceof Number number ? number.intValue() : null;
+    }
+
+    @Override
+    public TokenType getTokenType(String token) {
+        return TokenType.fromClaim(parseClaims(token).get(TokenType.CLAIM));
     }
 
     @Override

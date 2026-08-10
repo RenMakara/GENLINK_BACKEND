@@ -66,6 +66,41 @@ services:
       context: .
       dockerfile: Dockerfile
     image: genlink-api:latest
+
+    # ── LOAD-BEARING. Do not remove without reading this. ────────────────
+    # A fixed container_name means Docker refuses to start a second copy of
+    # this service: `docker compose up --scale app=2` fails outright instead
+    # of silently running two. That is not naming tidiness — four security
+    # controls are only correct because exactly one instance exists:
+    #
+    #   1. Login/password rate limiting (AuthRateLimitService) is an in-memory
+    #      ConcurrentHashMap. On two replicas an attacker simply spreads
+    #      attempts across them and the limiter stops limiting.
+    #   2. Per-IP request throttling on /api/v1/auth/** (RateLimitFilter ->
+    #      RateLimitService) holds its bucket4j buckets in another in-memory
+    #      ConcurrentHashMap. Same failure, and it is easy to miss because it
+    #      is a servlet filter rather than a call in the service layer: two
+    #      replicas simply double the effective limit.
+    #   3. Admin permission caching (AdminPermissionCache) has no TTL — it
+    #      relies on evict-on-write, which only reaches the node that handled
+    #      the write. On two replicas a revoked admin permission would stay
+    #      live on the other one. That is a security bug, not staleness.
+    #   4. MFA challenge state (AdminMfaChallengeStore) is a third in-memory
+    #      ConcurrentHashMap. It enforces "5 TOTP attempts per challenge" and
+    #      "a challenge is single-use". On two replicas an attacker gets five
+    #      guesses PER REPLICA, and a spent challenge stays replayable on the
+    #      node that did not see it spent — a second admin session for free.
+    #
+    # BEFORE REMOVING THIS LINE to scale horizontally, all four must move to
+    # Redis. Redis is already declared below behind the `cache` profile, but
+    # the app has no spring-boot-starter-data-redis dependency yet, so it
+    # cannot talk to it — adding that dependency is the first step.
+    #
+    # Migrating only some of them is the dangerous outcome: the interlock then
+    # looks removable while a per-instance control is still in place.
+    #
+    # See docs/admin-dashboard.md §14.6.
+    # ─────────────────────────────────────────────────────────────────────
     container_name: genlink-api
     restart: unless-stopped
 

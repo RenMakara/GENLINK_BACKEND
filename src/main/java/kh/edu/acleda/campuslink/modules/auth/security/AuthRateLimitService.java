@@ -4,6 +4,7 @@ import kh.edu.acleda.campuslink.modules.auth.AuthErrorCode;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
@@ -23,8 +24,30 @@ public class AuthRateLimitService {
     private static final String LOGIN = "LOGIN";
     private static final String PASSWORD_CHANGE = "PASSWORD_CHANGE";
     private static final String ACCOUNT_DELETE = "ACCOUNT_DELETE";
+    /**
+     * Admin login counts separately from mobile login (SSOT §10.6).
+     *
+     * <p>Sharing the bucket would let anyone lock an administrator out of the portal by failing
+     * five mobile logins against their email - a denial-of-service against the people who
+     * respond to incidents, from an unauthenticated endpoint.
+     */
+    private static final String ADMIN_LOGIN = "ADMIN_LOGIN";
 
     private final Map<String, AttemptState> attempts = new ConcurrentHashMap<>();
+
+    /**
+     * Injectable so the 15-minute window and the 15-minute block can be tested by moving time
+     * rather than by sleeping for half an hour. Production uses the system clock.
+     */
+    private final Clock clock;
+
+    public AuthRateLimitService() {
+        this(Clock.systemUTC());
+    }
+
+    AuthRateLimitService(Clock clock) {
+        this.clock = clock;
+    }
 
     public void checkLoginAllowed(String email, String clientIp) {
         checkAllowed(LOGIN, email, clientIp, "Too many login attempts. Please try again later.");
@@ -36,6 +59,23 @@ public class AuthRateLimitService {
 
     public void clearLoginFailures(String email, String clientIp) {
         clearFailures(LOGIN, email, clientIp);
+    }
+
+    /**
+     * Reports the block instead of throwing, so the admin endpoint can raise its own 429 and
+     * write an audit row first. The mobile paths keep the throwing form above.
+     */
+    public boolean isAdminLoginBlocked(String email, String clientIp) {
+        AttemptState state = attempts.get(key(ADMIN_LOGIN, email, clientIp));
+        return state != null && state.blockedUntil != null && state.blockedUntil.isAfter(clock.instant());
+    }
+
+    public void recordAdminLoginFailure(String email, String clientIp) {
+        recordFailure(ADMIN_LOGIN, email, clientIp);
+    }
+
+    public void clearAdminLoginFailures(String email, String clientIp) {
+        clearFailures(ADMIN_LOGIN, email, clientIp);
     }
 
     public void checkPasswordChangeAllowed(String email, String clientIp) {
@@ -64,14 +104,14 @@ public class AuthRateLimitService {
 
     private void checkAllowed(String action, String email, String clientIp, String message) {
         AttemptState state = attempts.get(key(action, email, clientIp));
-        if (state != null && state.blockedUntil != null && state.blockedUntil.isAfter(Instant.now())) {
+        if (state != null && state.blockedUntil != null && state.blockedUntil.isAfter(clock.instant())) {
             throw new ApiException(message, AuthErrorCode.AUTH_TOO_MANY_ATTEMPTS);
         }
     }
 
     private void recordFailure(String action, String email, String clientIp) {
         String key = key(action, email, clientIp);
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         attempts.compute(key, (ignored, state) -> {
             if (state == null || state.windowStartedAt.plus(WINDOW_MINUTES, ChronoUnit.MINUTES).isBefore(now)) {
                 return new AttemptState(now, 1, null);

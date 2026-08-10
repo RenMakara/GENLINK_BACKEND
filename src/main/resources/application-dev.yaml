@@ -44,4 +44,7 @@ logging:
     org.hibernate.orm.jdbc.bind: ${SQL_LOG_LEVEL:warn}
     org.liquibase: info
   pattern:
-    console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(%-5level) %clr(%-26.26logger{0}){cyan} %clr(:){faint} %msg%n%wEx"
+    # This profile replaces the console pattern wholesale, so the `logging.pattern.level`
+    # correlation id set in application.yaml does not reach it - it has to be spelled out
+    # here too. Rendered faint so it recedes; empty outside a request (jobs, startup).
+    console: "%clr(%d{HH:mm:ss.SSS}){faint} %clr(%-5level) %clr([%X{requestId:-}]){faint} %clr(%-26.26logger{0}){cyan} %clr(:){faint} %msg%n%wEx"
