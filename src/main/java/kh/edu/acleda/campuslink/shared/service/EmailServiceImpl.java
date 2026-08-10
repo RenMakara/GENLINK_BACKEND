@@ -1,5 +1,6 @@
 package kh.edu.acleda.campuslink.shared.service;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.mail.internet.MimeMessage;
 import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -23,9 +24,21 @@ public class EmailServiceImpl implements EmailService {
     private static final String FORGOT_PASSWORD_EN_TEMPLATE_PATH = "templates/email/forgot-password-en.html";
     private static final String FORGOT_PASSWORD_KM_TEMPLATE_PATH = "templates/email/forgot-password-km.html";
 
+    /**
+     * Counter name for real OTP-email delivery outcomes, tagged {@code outcome=success|failure}
+     * and {@code purpose}. Makes a swallowed SMTP failure observable in production instead of
+     * only visible in the provider's dashboard - the gap flagged in the mail review. Recorded
+     * only on the real-send path; log-only/dev mode is not a delivery and is not counted.
+     *
+     * <p>No recipient tag: an email address is PII and unbounded cardinality. The failure's root
+     * cause stays in the {@code log.error} below.
+     */
+    private static final String DELIVERY_METRIC = "email.otp.send";
+
     private final JavaMailSender mailSender;
     private final String fromEmail;
     private final boolean mailEnabled;
+    private final MeterRegistry meterRegistry;
 
     /**
      * @param fromEmail   the From address, from {@code app.mail.from} — never from
@@ -40,10 +53,12 @@ public class EmailServiceImpl implements EmailService {
      */
     public EmailServiceImpl(JavaMailSender mailSender,
                             @Value("${app.mail.from}") String fromEmail,
-                            @Value("${app.mail.enabled:true}") boolean mailEnabled) {
+                            @Value("${app.mail.enabled:true}") boolean mailEnabled,
+                            MeterRegistry meterRegistry) {
         this.mailSender = mailSender;
         this.fromEmail = fromEmail;
         this.mailEnabled = mailEnabled;
+        this.meterRegistry = meterRegistry;
     }
 
     @Override
@@ -79,9 +94,13 @@ public class EmailServiceImpl implements EmailService {
             
             mailSender.send(message);
             log.info("Successfully sent OTP email to {}", to);
+            meterRegistry.counter(DELIVERY_METRIC, "outcome", "success", "purpose", purpose.name()).increment();
         } catch (Exception e) {
             log.error("Failed to send email to {}: {}", to, rootCauseMessage(e), e);
-            // We don't throw exception here to allow user to see OTP in console during dev
+            // The failure is swallowed by design (a dead SMTP host must not break registration),
+            // so this counter is what keeps it from being invisible: it is the only durable,
+            // queryable record that delivery failed.
+            meterRegistry.counter(DELIVERY_METRIC, "outcome", "failure", "purpose", purpose.name()).increment();
         }
     }
 

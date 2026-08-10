@@ -4,6 +4,8 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.mail.internet.MimeMessage;
 import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -33,8 +35,10 @@ class EmailServiceImplTest {
     @Mock
     private MimeMessage mimeMessage;
 
+    private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     private EmailServiceImpl service(boolean mailEnabled) {
-        return new EmailServiceImpl(mailSender, "no-reply@genlinkkh.com", mailEnabled);
+        return new EmailServiceImpl(mailSender, "no-reply@genlinkkh.com", mailEnabled, meterRegistry);
     }
 
     private ListAppender<ILoggingEvent> logs;
@@ -134,5 +138,60 @@ class EmailServiceImplTest {
         assertThat(otpAppearsInLogs("482913"))
             .as("log-only mode must keep printing the code; it is the dev delivery channel")
             .isTrue();
+    }
+
+    /**
+     * A successful send is recorded as a metric, so delivery is observable beyond a log line.
+     * The swallowed-failure design means logs are the only other trace; a counter is queryable
+     * and alertable.
+     */
+    @Test
+    void successfulDeliveryIsRecordedAsAMetric() {
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+
+        service(true).sendOtpEmail("someone@example.com", "123456",
+            Language.ENGLISH, OtpPurpose.REGISTER);
+
+        assertThat(meterRegistry.get("email.otp.send")
+            .tags("outcome", "success", "purpose", "REGISTER").counter().count())
+            .as("a successful OTP send must increment the success counter")
+            .isEqualTo(1.0);
+    }
+
+    /**
+     * The one that matters: a send failure is swallowed so registration is not blocked, so the
+     * failure counter is the durable, queryable record that delivery failed. Fails if the failure
+     * branch stops recording the metric.
+     */
+    @Test
+    void failedDeliveryIsRecordedAsAMetric() {
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+        doThrow(new MailAuthenticationException("535 Authentication failed"))
+            .when(mailSender).send(any(MimeMessage.class));
+
+        service(true).sendOtpEmail("someone@example.com", "123456",
+            Language.ENGLISH, OtpPurpose.FORGOT_PASSWORD);
+
+        assertThat(meterRegistry.get("email.otp.send")
+            .tags("outcome", "failure", "purpose", "FORGOT_PASSWORD").counter().count())
+            .as("a swallowed send failure must still increment the failure counter")
+            .isEqualTo(1.0);
+        assertThat(meterRegistry.find("email.otp.send").tags("outcome", "success").counter())
+            .as("a failed send must not be recorded as a success")
+            .isNull();
+    }
+
+    /**
+     * Regression guard: log-only/dev mode is not a real delivery, so it must not pollute the
+     * delivery metric. Fails if the counter is ever moved outside the real-send path.
+     */
+    @Test
+    void logOnlyModeRecordsNoDeliveryMetric() {
+        service(false).sendOtpEmail("someone@example.com", "123456",
+            Language.ENGLISH, OtpPurpose.REGISTER);
+
+        assertThat(meterRegistry.find("email.otp.send").counter())
+            .as("log-only mode performs no delivery, so it records no delivery metric")
+            .isNull();
     }
 }
