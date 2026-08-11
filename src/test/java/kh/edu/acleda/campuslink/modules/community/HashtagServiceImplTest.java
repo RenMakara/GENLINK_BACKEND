@@ -114,6 +114,19 @@ class HashtagServiceImplTest {
         assertThat(existing.getUsageCount()).isEqualTo(5);
     }
 
+    /** Deleting a post decrements its tags and removes the links, so trending stops counting them. */
+    @Test
+    void clearForPostDecrementsUsageAndRemovesLinks() {
+        Hashtag tag = Hashtag.builder().tag("flutter").usageCount(3).build();
+        PostHashtag link = PostHashtag.builder().post(post).hashtag(tag).build();
+        when(postHashtagRepository.findByPostId(post.getId())).thenReturn(List.of(link));
+
+        service.clearForPost(post);
+
+        assertThat(tag.getUsageCount()).isEqualTo(2);
+        verify(postHashtagRepository).deleteByPostId(post.getId());
+    }
+
     /** -1 for the old link then +1 for the new one nets to zero: no edit inflation. */
     @Test
     void reSyncingAnUnchangedTagDoesNotInflateItsCount() {

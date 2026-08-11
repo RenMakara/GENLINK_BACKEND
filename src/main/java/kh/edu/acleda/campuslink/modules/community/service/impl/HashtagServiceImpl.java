@@ -48,18 +48,11 @@ public class HashtagServiceImpl implements HashtagService {
     public void syncForPost(Post post, String contentText) {
         Set<String> tags = extract(contentText);
 
-        // Editing a post rebuilds its links, so decrement the usage count of every tag
-        // it was previously linked to first. Without this, re-syncing an edited post
-        // re-incremented all its current tags on top of the old count, inflating
-        // trending on every edit. Net effect for an unchanged tag is -1 then +1 = 0.
-        for (PostHashtag oldLink : postHashtagRepository.findByPostId(post.getId())) {
-            Hashtag hashtag = oldLink.getHashtag();
-            int current = hashtag.getUsageCount() == null ? 0 : hashtag.getUsageCount();
-            hashtag.setUsageCount(Math.max(0, current - 1));
-            hashtagRepository.save(hashtag);
-        }
-        postHashtagRepository.deleteByPostId(post.getId());
-        postHashtagRepository.flush();
+        // Editing a post rebuilds its links, so drop the old ones (decrementing their usage
+        // counts) first. Without this, re-syncing an edited post re-incremented all its current
+        // tags on top of the old count, inflating trending on every edit. Net effect for an
+        // unchanged tag is -1 then +1 = 0.
+        clearForPost(post);
         if (tags.isEmpty()) {
             return;
         }
@@ -78,6 +71,21 @@ public class HashtagServiceImpl implements HashtagService {
             links.add(PostHashtag.builder().post(post).hashtag(hashtag).build());
         }
         postHashtagRepository.saveAll(links);
+    }
+
+    @Override
+    @Transactional
+    public void clearForPost(Post post) {
+        // Decrement the usage count of every tag this post was linked to, then remove the links.
+        // Without this a deleted post left its tags inflating trending indefinitely.
+        for (PostHashtag oldLink : postHashtagRepository.findByPostId(post.getId())) {
+            Hashtag hashtag = oldLink.getHashtag();
+            int current = hashtag.getUsageCount() == null ? 0 : hashtag.getUsageCount();
+            hashtag.setUsageCount(Math.max(0, current - 1));
+            hashtagRepository.save(hashtag);
+        }
+        postHashtagRepository.deleteByPostId(post.getId());
+        postHashtagRepository.flush();
     }
 
     @Override

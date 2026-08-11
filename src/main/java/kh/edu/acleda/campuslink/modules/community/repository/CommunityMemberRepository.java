@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,6 +17,14 @@ public interface CommunityMemberRepository extends JpaRepository<CommunityMember
     Optional<CommunityMember> findByCommunityIdAndUserId(UUID communityId, UUID userId);
 
     List<CommunityMember> findByUserId(UUID userId);
+
+    /**
+     * One viewer's memberships across a page of communities, in a single query — so a listing
+     * can resolve every row's role without a per-row lookup (the discover N+1).
+     */
+    List<CommunityMember> findByUserIdAndCommunityIdInAndStatus(UUID userId,
+                                                               Collection<UUID> communityIds,
+                                                               MemberStatus status);
 
     boolean existsByCommunityIdAndUserId(UUID communityId, UUID userId);
 

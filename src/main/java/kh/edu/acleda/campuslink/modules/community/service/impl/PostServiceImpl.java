@@ -201,6 +201,9 @@ public class PostServiceImpl implements PostService {
         Post post = loadOwned(id);
         post.setDeletedAt(Instant.now());
         postRepository.save(post);
+        // Release the post's hashtags too, or their usage counts keep trending pointing at
+        // content nobody can see.
+        hashtagService.clearForPost(post);
     }
 
     @Override
@@ -215,6 +218,8 @@ public class PostServiceImpl implements PostService {
         postRepository.save(post);
         // create() incremented postCount, so a removal decrements it to keep the count honest.
         communityRepository.adjustPostCount(community.getId(), -1);
+        // Same reason as the author-delete path: stop the removed post's tags counting in trending.
+        hashtagService.clearForPost(post);
         log.info("Post {} removed by moderator {} ({}) in community {}",
             postId, currentUserProvider.getCurrentUserId(), membership.getRole(), community.getId());
     }

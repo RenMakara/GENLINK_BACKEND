@@ -1,5 +1,6 @@
 package kh.edu.acleda.campuslink.modules.community;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CommunityCreateRequest;
@@ -16,6 +17,7 @@ import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
+import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,13 +27,18 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,6 +85,37 @@ class CommunityServiceImplTest {
             }
             return c;
         });
+    }
+
+    /**
+     * Discovery resolves every row's role in ONE batched query, never one lookup per community
+     * (the N+1 this fixed). The per-row findByCommunityIdAndUserId must not be touched here.
+     */
+    @Test
+    void discoverResolvesRolesInOneBatchQuery() {
+        Community other = Community.builder().name("Dart KH").slug("dart-kh")
+            .privacy(CommunityPrivacy.PUBLIC).memberCount(1).postCount(0).build();
+        ReflectionTestUtils.setField(other, "id", UUID.randomUUID());
+
+        when(communityRepository.findDiscoverable(eq(CommunityPrivacy.PUBLIC), any(), any(Pageable.class)))
+            .thenReturn(new PageImpl<>(List.of(community, other)));
+        CommunityMember membership = CommunityMember.builder()
+            .community(community).role(CommunityRole.MEMBER).status(MemberStatus.ACTIVE).build();
+        when(memberRepository.findByUserIdAndCommunityIdInAndStatus(
+            eq(USER_ID), anyCollection(), eq(MemberStatus.ACTIVE))).thenReturn(List.of(membership));
+
+        PageResponse<CommunityResponse> result = service.discover(null, PageRequest.of(0, 20));
+
+        // One batched query, and never the per-row lookup that caused the N+1.
+        verify(memberRepository).findByUserIdAndCommunityIdInAndStatus(
+            eq(USER_ID), anyCollection(), eq(MemberStatus.ACTIVE));
+        verify(memberRepository, never()).findByCommunityIdAndUserId(any(), any());
+        // Role mapped from the batch: MEMBER of the joined community, null in the other.
+        assertThat(result.content()).hasSize(2);
+        assertThat(result.content().get(0).myRole()).isEqualTo(CommunityRole.MEMBER);
+        assertThat(result.content().get(0).joined()).isTrue();
+        assertThat(result.content().get(1).myRole()).isNull();
+        assertThat(result.content().get(1).joined()).isFalse();
     }
 
     /** Otherwise a community starts with an owner who is not in it. */

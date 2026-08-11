@@ -221,6 +221,8 @@ class PostServiceImplTest {
         service.delete(POST_ID);
 
         assertThat(post.getDeletedAt()).isNotNull();
+        // Soft delete must release the post's hashtags, or trending overcounts deleted content.
+        verify(hashtagService).clearForPost(post);
     }
 
     /** Someone else's post reads as not found, so the API does not confirm it exists. */
@@ -253,6 +255,7 @@ class PostServiceImplTest {
 
         assertThat(post.getDeletedAt()).isNotNull();
         verify(communityRepository).adjustPostCount(community.getId(), -1);
+        verify(hashtagService).clearForPost(post);
     }
 
     /** Moderation is a role power, so a plain member is refused - and as not-found, not 403. */

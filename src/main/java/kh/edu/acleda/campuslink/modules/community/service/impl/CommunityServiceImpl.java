@@ -3,10 +3,14 @@ package kh.edu.acleda.campuslink.modules.community.service.impl;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CommunityCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommunityMemberResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommunityResponse;
@@ -26,6 +30,7 @@ import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,9 +99,27 @@ public class CommunityServiceImpl implements CommunityService {
         log.debug("Discovering communities: category={} page={} size={} for user={}",
             category, pageable.getPageNumber(), pageable.getPageSize(), userId);
         // Private communities are not browsable: you reach them by direct link.
-        return PageResponse.from(
-            communityRepository.findDiscoverable(CommunityPrivacy.PUBLIC, category, pageable),
-            community -> toResponse(community, roleIn(community.getId(), userId), false));
+        Page<Community> page = communityRepository.findDiscoverable(CommunityPrivacy.PUBLIC, category, pageable);
+        // Resolve every row's role in one query rather than one lookup per community (the N+1
+        // discovery had), matching the batched pattern used by the feed and saved items.
+        Map<UUID, CommunityRole> myRoles = activeRolesFor(userId, page.getContent());
+        return PageResponse.from(page,
+            community -> toResponse(community, myRoles.get(community.getId()), false));
+    }
+
+    /** The viewer's ACTIVE role in each of the given communities, batched into one query. */
+    private Map<UUID, CommunityRole> activeRolesFor(UUID userId, List<Community> communities) {
+        if (communities.isEmpty()) {
+            return Map.of();
+        }
+        Set<UUID> communityIds = communities.stream().map(Community::getId).collect(Collectors.toSet());
+        Map<UUID, CommunityRole> roles = new HashMap<>();
+        // getCommunity().getId() reads the FK off the lazy proxy without a load, so this stays one query.
+        for (CommunityMember member :
+            memberRepository.findByUserIdAndCommunityIdInAndStatus(userId, communityIds, MemberStatus.ACTIVE)) {
+            roles.put(member.getCommunity().getId(), member.getRole());
+        }
+        return roles;
     }
 
     @Override
