@@ -4,17 +4,23 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.community.dto.request.AddMembersRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.ChangeChatRoleRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CreateGroupRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.RenameGroupRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.SendMessageRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ChatMemberResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatMessageResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatRoomResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.ChatMessage;
 import kh.edu.acleda.campuslink.modules.community.entity.ChatRoom;
 import kh.edu.acleda.campuslink.modules.community.entity.ChatRoomMember;
 import kh.edu.acleda.campuslink.modules.community.entity.MessageRead;
+import kh.edu.acleda.campuslink.modules.community.enums.ChatRole;
 import kh.edu.acleda.campuslink.modules.community.enums.ChatType;
 import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.MessageType;
+import kh.edu.acleda.campuslink.shared.exception.ForbiddenException;
 import kh.edu.acleda.campuslink.modules.community.repository.ChatMessageRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ChatRoomMemberRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ChatRoomRepository;
@@ -49,6 +55,7 @@ class ChatServiceImplTest {
     private static final UUID ME_ID = UUID.randomUUID();
     private static final UUID OTHER_ID = UUID.randomUUID();
     private static final UUID ROOM_ID = UUID.randomUUID();
+    private static final UUID GROUP_ID = UUID.randomUUID();
     private static final UUID MSG_ID = UUID.randomUUID();
 
     @Mock private ChatRoomRepository roomRepository;
@@ -62,6 +69,7 @@ class ChatServiceImplTest {
     private User me;
     private User other;
     private ChatRoom room;
+    private ChatRoom groupRoom;
 
     @BeforeEach
     void setUp() {
@@ -72,6 +80,8 @@ class ChatServiceImplTest {
         other = userWithId(OTHER_ID, "other");
         room = ChatRoom.builder().chatType(ChatType.PRIVATE).createdByUser(me).build();
         ReflectionTestUtils.setField(room, "id", ROOM_ID);
+        groupRoom = ChatRoom.builder().chatType(ChatType.GROUP).name("Study group").createdByUser(me).build();
+        ReflectionTestUtils.setField(groupRoom, "id", GROUP_ID);
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(ME_ID);
         when(userRepository.findById(ME_ID)).thenReturn(Optional.of(me));
@@ -86,6 +96,8 @@ class ChatServiceImplTest {
         when(memberRepository.save(any(ChatRoomMember.class))).thenAnswer(i -> i.getArgument(0));
         when(memberRepository.findByChatRoomIdAndStatus(ROOM_ID, MemberStatus.ACTIVE))
             .thenReturn(List.of(activeMember(me), activeMember(other)));
+        when(memberRepository.findByChatRoomIdAndStatus(GROUP_ID, MemberStatus.ACTIVE))
+            .thenReturn(List.of(member(groupRoom, me, ChatRole.OWNER), member(groupRoom, other, ChatRole.MEMBER)));
     }
 
     private User userWithId(UUID id, String name) {
@@ -97,7 +109,17 @@ class ChatServiceImplTest {
     }
 
     private ChatRoomMember activeMember(User user) {
-        return ChatRoomMember.builder().chatRoom(room).user(user).status(MemberStatus.ACTIVE).build();
+        return member(room, user, ChatRole.MEMBER);
+    }
+
+    private ChatRoomMember member(ChatRoom inRoom, User user, ChatRole role) {
+        return ChatRoomMember.builder().chatRoom(inRoom).user(user).status(MemberStatus.ACTIVE).role(role).build();
+    }
+
+    /** Stub the caller as an ACTIVE group member with the given role. */
+    private void groupRole(ChatRole role) {
+        when(memberRepository.findByChatRoomIdAndUserId(GROUP_ID, ME_ID))
+            .thenReturn(Optional.of(member(groupRoom, me, role)));
     }
 
     // ---------------------------------------------------------- private chat
@@ -271,6 +293,115 @@ class ChatServiceImplTest {
         when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getRoom(ROOM_ID)).isInstanceOf(NotFoundException.class);
+    }
+
+    // ------------------------------------------------ Phase 2: group management
+
+    @Test
+    void renamingAGroupRequiresAnAdminRole() {
+        groupRole(ChatRole.MEMBER);
+        assertThatThrownBy(() -> service.renameGroup(GROUP_ID, new RenameGroupRequest("New name")))
+            .isInstanceOf(ForbiddenException.class)
+            .hasFieldOrPropertyWithValue("errorCode", "CHAT_ADMIN_ONLY");
+    }
+
+    @Test
+    void ownerCanRenameAGroup() {
+        groupRole(ChatRole.OWNER);
+        ChatRoomResponse response = service.renameGroup(GROUP_ID, new RenameGroupRequest("Flutter KH devs"));
+        assertThat(response.name()).isEqualTo("Flutter KH devs");
+        assertThat(groupRoom.getName()).isEqualTo("Flutter KH devs");
+    }
+
+    @Test
+    void groupManagementOnAPrivateRoomIsRejected() {
+        activeMembership(); // caller is a MEMBER of the PRIVATE room
+        assertThatThrownBy(() -> service.renameGroup(ROOM_ID, new RenameGroupRequest("x")))
+            .isInstanceOf(kh.edu.acleda.campuslink.shared.exception.ApiException.class)
+            .hasFieldOrPropertyWithValue("errorCode", "CHAT_NOT_GROUP");
+    }
+
+    @Test
+    void theOwnerCannotBeRemoved() {
+        groupRole(ChatRole.OWNER);
+        when(memberRepository.findByChatRoomIdAndUserId(GROUP_ID, OTHER_ID))
+            .thenReturn(Optional.of(member(groupRoom, other, ChatRole.OWNER)));
+        assertThatThrownBy(() -> service.removeMember(GROUP_ID, OTHER_ID))
+            .hasFieldOrPropertyWithValue("errorCode", "CHAT_REMOVE_OWNER");
+    }
+
+    @Test
+    void youCannotRemoveYourselfViaRemoveMember() {
+        groupRole(ChatRole.OWNER);
+        assertThatThrownBy(() -> service.removeMember(GROUP_ID, ME_ID))
+            .hasFieldOrPropertyWithValue("errorCode", "CHAT_REMOVE_SELF");
+    }
+
+    @Test
+    void anAdminCannotRemoveAnotherAdmin() {
+        groupRole(ChatRole.ADMIN);
+        when(memberRepository.findByChatRoomIdAndUserId(GROUP_ID, OTHER_ID))
+            .thenReturn(Optional.of(member(groupRoom, other, ChatRole.ADMIN)));
+        assertThatThrownBy(() -> service.removeMember(GROUP_ID, OTHER_ID))
+            .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void changingRolesIsOwnerOnly() {
+        groupRole(ChatRole.ADMIN);
+        assertThatThrownBy(() -> service.changeMemberRole(GROUP_ID, OTHER_ID, new ChangeChatRoleRequest(ChatRole.ADMIN)))
+            .isInstanceOf(ForbiddenException.class)
+            .hasFieldOrPropertyWithValue("errorCode", "CHAT_OWNER_ONLY");
+    }
+
+    @Test
+    void ownershipCannotBeAssignedThroughRoleChange() {
+        groupRole(ChatRole.OWNER);
+        assertThatThrownBy(() -> service.changeMemberRole(GROUP_ID, OTHER_ID, new ChangeChatRoleRequest(ChatRole.OWNER)))
+            .hasFieldOrPropertyWithValue("errorCode", "CHAT_ROLE_INVALID");
+    }
+
+    @Test
+    void ownerCanPromoteAMemberToAdmin() {
+        groupRole(ChatRole.OWNER);
+        when(memberRepository.findByChatRoomIdAndUserId(GROUP_ID, OTHER_ID))
+            .thenReturn(Optional.of(member(groupRoom, other, ChatRole.MEMBER)));
+
+        ChatMemberResponse response = service.changeMemberRole(
+            GROUP_ID, OTHER_ID, new ChangeChatRoleRequest(ChatRole.ADMIN));
+
+        assertThat(response.role()).isEqualTo(ChatRole.ADMIN);
+        assertThat(response.user().userId()).isEqualTo(OTHER_ID);
+    }
+
+    @Test
+    void pinningRequiresAnAdminRole() {
+        groupRole(ChatRole.MEMBER);
+        assertThatThrownBy(() -> service.pinMessage(GROUP_ID, MSG_ID))
+            .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void ownerCanPinAMessageThatIsInTheRoom() {
+        groupRole(ChatRole.OWNER);
+        ChatMessage msg = ChatMessage.builder().chatRoom(groupRoom).sender(other)
+            .messageType(MessageType.TEXT).content("pin me").build();
+        ReflectionTestUtils.setField(msg, "id", MSG_ID);
+        ReflectionTestUtils.setField(msg, "createdAt", Instant.now());
+        when(messageRepository.findByIdAndChatRoomIdAndDeletedAtIsNull(MSG_ID, GROUP_ID))
+            .thenReturn(Optional.of(msg));
+
+        service.pinMessage(GROUP_ID, MSG_ID);
+
+        assertThat(groupRoom.getPinnedMessage()).isSameAs(msg);
+    }
+
+    @Test
+    void cannotPinAMessageThatIsNotInTheRoom() {
+        groupRole(ChatRole.OWNER);
+        when(messageRepository.findByIdAndChatRoomIdAndDeletedAtIsNull(MSG_ID, GROUP_ID))
+            .thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.pinMessage(GROUP_ID, MSG_ID)).isInstanceOf(NotFoundException.class);
     }
 
     /** Stub the caller as an ACTIVE member of the room. */

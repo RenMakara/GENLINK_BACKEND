@@ -1,8 +1,12 @@
 package kh.edu.acleda.campuslink.modules.community.service;
 
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.community.dto.request.AddMembersRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.ChangeChatRoleRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CreateGroupRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.RenameGroupRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.SendMessageRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ChatMemberResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatMessageResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatRoomResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatRoomSummaryResponse;
@@ -44,4 +48,24 @@ public interface ChatService {
 
     /** Total unread messages across all the caller's rooms — for a badge. */
     long totalUnread();
+
+    // ------------------------------------------------------- Phase 2: groups
+
+    /** Rename a group. Admin/owner only. */
+    ChatRoomResponse renameGroup(UUID roomId, RenameGroupRequest request);
+
+    /** Add people to a group. Admin/owner only. */
+    ChatRoomResponse addMembers(UUID roomId, AddMembersRequest request);
+
+    /** Remove someone from a group. Admin/owner only; the owner cannot be removed. */
+    void removeMember(UUID roomId, UUID userId);
+
+    /** Promote/demote a member (ADMIN or MEMBER). Owner only. */
+    ChatMemberResponse changeMemberRole(UUID roomId, UUID userId, ChangeChatRoleRequest request);
+
+    /** Pin a message in the room. Admin/owner only. */
+    ChatRoomResponse pinMessage(UUID roomId, UUID messageId);
+
+    /** Clear the room's pinned message. Admin/owner only. */
+    ChatRoomResponse unpinMessage(UUID roomId);
 }

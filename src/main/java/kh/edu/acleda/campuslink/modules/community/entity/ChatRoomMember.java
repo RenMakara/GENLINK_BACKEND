@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import kh.edu.acleda.campuslink.modules.community.entity.ChatRoom;
+import kh.edu.acleda.campuslink.modules.community.enums.ChatRole;
 import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
@@ -42,6 +43,10 @@ public class ChatRoomMember extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
     private MemberStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 50)
+    private ChatRole role;
 
     @Column(name = "muted_until")
     private LocalDateTime mutedUntil;

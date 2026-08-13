@@ -39,4 +39,9 @@ public class ChatRoom extends BaseEntity {
     @JoinColumn(name = "created_by_user_id", nullable = true)
     private User createdByUser;
 
+    /** The room's single pinned message (Phase 2), or null. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pinned_message_id", nullable = true)
+    private ChatMessage pinnedMessage;
+
 }

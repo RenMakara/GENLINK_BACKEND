@@ -6,8 +6,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.community.dto.request.AddMembersRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.ChangeChatRoleRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CreateGroupRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.RenameGroupRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.SendMessageRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ChatMemberResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatMessageResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatParticipant;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatRoomResponse;
@@ -16,6 +20,7 @@ import kh.edu.acleda.campuslink.modules.community.entity.ChatMessage;
 import kh.edu.acleda.campuslink.modules.community.entity.ChatRoom;
 import kh.edu.acleda.campuslink.modules.community.entity.ChatRoomMember;
 import kh.edu.acleda.campuslink.modules.community.entity.MessageRead;
+import kh.edu.acleda.campuslink.modules.community.enums.ChatRole;
 import kh.edu.acleda.campuslink.modules.community.enums.ChatType;
 import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.MessageType;
@@ -27,6 +32,7 @@ import kh.edu.acleda.campuslink.modules.community.service.ChatService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
+import kh.edu.acleda.campuslink.shared.exception.ForbiddenException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
@@ -76,20 +82,21 @@ public class ChatServiceImpl implements ChatService {
 
         ChatRoom room = roomRepository.findPrivateRoomBetween(ChatType.PRIVATE, meId, otherUserId)
             .map(existing -> {
-                // Reuse the thread; if either side had left, re-activate them.
-                ensureActive(existing, me);
-                ensureActive(existing, other);
+                // Reuse the thread; if either side had left, re-activate them (private = MEMBER).
+                ensureActive(existing, me, ChatRole.MEMBER);
+                ensureActive(existing, other, ChatRole.MEMBER);
                 return existing;
             })
             .orElseGet(() -> {
                 ChatRoom created = roomRepository.save(ChatRoom.builder()
                     .chatType(ChatType.PRIVATE).createdByUser(me).build());
-                memberRepository.save(activeMember(created, me));
-                memberRepository.save(activeMember(created, other));
+                // Private rooms have no hierarchy — both sides are plain members.
+                memberRepository.save(activeMember(created, me, ChatRole.MEMBER));
+                memberRepository.save(activeMember(created, other, ChatRole.MEMBER));
                 log.info("Private chat opened: room={} between {} and {}", created.getId(), meId, otherUserId);
                 return created;
             });
-        return toRoomResponse(room);
+        return toRoomResponse(room, meId);
     }
 
     @Override
@@ -108,13 +115,13 @@ public class ChatServiceImpl implements ChatService {
 
         ChatRoom room = roomRepository.save(ChatRoom.builder()
             .chatType(ChatType.GROUP).name(request.name().strip()).createdByUser(me).build());
-        memberRepository.save(activeMember(room, me));
+        memberRepository.save(activeMember(room, me, ChatRole.OWNER));
         for (User other : others) {
-            memberRepository.save(activeMember(room, other));
+            memberRepository.save(activeMember(room, other, ChatRole.MEMBER));
         }
         log.info("Group chat created: room={} name='{}' by {} with {} members",
             room.getId(), room.getName(), meId, others.size() + 1);
-        return toRoomResponse(room);
+        return toRoomResponse(room, meId);
     }
 
     @Override
@@ -129,8 +136,9 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional(readOnly = true)
     public ChatRoomResponse getRoom(UUID roomId) {
-        requireActiveMember(roomId, currentUserProvider.getCurrentUserId());
-        return toRoomResponse(loadRoom(roomId));
+        UUID meId = currentUserProvider.getCurrentUserId();
+        requireActiveMember(roomId, meId);
+        return toRoomResponse(loadRoom(roomId), meId);
     }
 
     @Override
@@ -221,6 +229,99 @@ public class ChatServiceImpl implements ChatService {
         return total;
     }
 
+    // --------------------------------------------------------- group management
+
+    @Override
+    @Transactional
+    public ChatRoomResponse renameGroup(UUID roomId, RenameGroupRequest request) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        ChatRoom room = requireGroupManager(roomId, meId, false).getChatRoom();
+        room.setName(request.name().strip());
+        roomRepository.save(room);
+        log.info("Group {} renamed by {}", roomId, meId);
+        return toRoomResponse(room, meId);
+    }
+
+    @Override
+    @Transactional
+    public ChatRoomResponse addMembers(UUID roomId, AddMembersRequest request) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        ChatRoom room = requireGroupManager(roomId, meId, false).getChatRoom();
+        for (UUID userId : new LinkedHashSet<>(request.userIds())) {
+            userRepository.findById(userId).ifPresent(user -> ensureActive(room, user, ChatRole.MEMBER));
+        }
+        log.info("Members added to group {} by {}", roomId, meId);
+        return toRoomResponse(room, meId);
+    }
+
+    @Override
+    @Transactional
+    public void removeMember(UUID roomId, UUID userId) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        ChatRoomMember manager = requireGroupManager(roomId, meId, false);
+        if (userId.equals(meId)) {
+            throw new ApiException("Use leave to remove yourself", "CHAT_REMOVE_SELF");
+        }
+        ChatRoomMember target = memberRepository.findByChatRoomIdAndUserId(roomId, userId)
+            .filter(member -> member.getStatus() == MemberStatus.ACTIVE)
+            .orElseThrow(() -> new NotFoundException("Member not found"));
+        if (target.getRole() == ChatRole.OWNER) {
+            throw new ApiException("The group owner cannot be removed", "CHAT_REMOVE_OWNER");
+        }
+        // An admin may not remove another admin; that is reserved to the owner.
+        if (target.getRole() == ChatRole.ADMIN && manager.getRole() != ChatRole.OWNER) {
+            throw new ForbiddenException("Only the owner can remove an admin", "CHAT_ADMIN_ONLY");
+        }
+        target.setStatus(MemberStatus.REMOVED);
+        target.setLeftAt(LocalDateTime.now());
+        memberRepository.save(target);
+        log.info("Member {} removed from group {} by {}", userId, roomId, meId);
+    }
+
+    @Override
+    @Transactional
+    public ChatMemberResponse changeMemberRole(UUID roomId, UUID userId, ChangeChatRoleRequest request) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        requireGroupManager(roomId, meId, true); // owner only
+        ChatRole newRole = request.role();
+        if (newRole == ChatRole.OWNER) {
+            throw new ApiException("Ownership transfer is not supported", "CHAT_ROLE_INVALID");
+        }
+        if (userId.equals(meId)) {
+            throw new ApiException("You cannot change your own role", "CHAT_ROLE_SELF");
+        }
+        ChatRoomMember target = memberRepository.findByChatRoomIdAndUserId(roomId, userId)
+            .filter(member -> member.getStatus() == MemberStatus.ACTIVE)
+            .orElseThrow(() -> new NotFoundException("Member not found"));
+        target.setRole(newRole);
+        memberRepository.save(target);
+        log.info("Member {} role changed to {} in group {} by {}", userId, newRole, roomId, meId);
+        return new ChatMemberResponse(toParticipant(target.getUser()), target.getRole());
+    }
+
+    @Override
+    @Transactional
+    public ChatRoomResponse pinMessage(UUID roomId, UUID messageId) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        ChatRoom room = requireGroupManager(roomId, meId, false).getChatRoom();
+        ChatMessage message = messageRepository.findByIdAndChatRoomIdAndDeletedAtIsNull(messageId, roomId)
+            .orElseThrow(() -> new NotFoundException("Message not found"));
+        room.setPinnedMessage(message);
+        roomRepository.save(room);
+        log.info("Message {} pinned in group {} by {}", messageId, roomId, meId);
+        return toRoomResponse(room, meId);
+    }
+
+    @Override
+    @Transactional
+    public ChatRoomResponse unpinMessage(UUID roomId) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        ChatRoom room = requireGroupManager(roomId, meId, false).getChatRoom();
+        room.setPinnedMessage(null);
+        roomRepository.save(room);
+        return toRoomResponse(room, meId);
+    }
+
     // --------------------------------------------------------------- helpers
 
     private MessageType validatePayload(SendMessageRequest request) {
@@ -235,6 +336,9 @@ public class ChatServiceImpl implements ChatService {
             && (request.mediaUrl() == null || request.mediaUrl().isBlank())) {
             throw new ApiException("An image or voice message needs a mediaUrl", "VALIDATION_ERROR");
         }
+        // TODO (chat phase 2 / hardening): mediaUrl is trusted as-is today. Validate it against the
+        // media module — a real, CONFIRMED upload owned by the sender (media presign/confirm flow) —
+        // so a client cannot attach an arbitrary or someone else's URL. Add VIDEO to this branch too.
         return type;
     }
 
@@ -263,20 +367,44 @@ public class ChatServiceImpl implements ChatService {
             .orElseThrow(() -> new NotFoundException("Chat not found"));
     }
 
-    private void ensureActive(ChatRoom room, User user) {
+    /**
+     * Gate a group-management action. The caller must be an ACTIVE member of a GROUP room and hold
+     * the required role. A member who simply lacks the role gets 403 (they already know the room
+     * exists), whereas a non-member gets 404 from {@link #requireActiveMember}.
+     */
+    private ChatRoomMember requireGroupManager(UUID roomId, UUID userId, boolean ownerOnly) {
+        ChatRoomMember member = requireActiveMember(roomId, userId);
+        if (member.getChatRoom().getChatType() != ChatType.GROUP) {
+            throw new ApiException("This action only applies to group chats", "CHAT_NOT_GROUP");
+        }
+        boolean allowed = ownerOnly
+            ? member.getRole() == ChatRole.OWNER
+            : member.getRole() == ChatRole.OWNER || member.getRole() == ChatRole.ADMIN;
+        if (!allowed) {
+            throw new ForbiddenException(
+                ownerOnly ? "Only the group owner can do this" : "You must be a group admin",
+                ownerOnly ? "CHAT_OWNER_ONLY" : "CHAT_ADMIN_ONLY");
+        }
+        return member;
+    }
+
+    /** Re-add a user to a room as an ACTIVE member with the given role, reusing their row if any. */
+    private ChatRoomMember ensureActive(ChatRoom room, User user, ChatRole role) {
         ChatRoomMember member = memberRepository.findByChatRoomIdAndUserId(room.getId(), user.getId())
-            .orElseGet(() -> activeMember(room, user));
+            .orElseGet(() -> activeMember(room, user, role));
         if (member.getStatus() != MemberStatus.ACTIVE) {
             member.setStatus(MemberStatus.ACTIVE);
+            member.setRole(role);
             member.setJoinedAt(LocalDateTime.now());
             member.setLeftAt(null);
         }
-        memberRepository.save(member);
+        return memberRepository.save(member);
     }
 
-    private ChatRoomMember activeMember(ChatRoom room, User user) {
+    private ChatRoomMember activeMember(ChatRoom room, User user, ChatRole role) {
         return ChatRoomMember.builder()
-            .chatRoom(room).user(user).status(MemberStatus.ACTIVE).joinedAt(LocalDateTime.now()).build();
+            .chatRoom(room).user(user).status(MemberStatus.ACTIVE).role(role)
+            .joinedAt(LocalDateTime.now()).build();
     }
 
     private ChatRoom loadRoom(UUID roomId) {
@@ -289,12 +417,15 @@ public class ChatServiceImpl implements ChatService {
             .orElseThrow(() -> new NotFoundException("User not found"));
     }
 
-    private ChatRoomResponse toRoomResponse(ChatRoom room) {
-        List<ChatParticipant> members = memberRepository
+    private ChatRoomResponse toRoomResponse(ChatRoom room, UUID meId) {
+        List<ChatMemberResponse> members = memberRepository
             .findByChatRoomIdAndStatus(room.getId(), MemberStatus.ACTIVE).stream()
-            .map(member -> toParticipant(member.getUser()))
+            .map(member -> new ChatMemberResponse(toParticipant(member.getUser()), member.getRole()))
             .toList();
-        return new ChatRoomResponse(room.getId(), room.getChatType(), room.getName(), members, room.getCreatedAt());
+        ChatMessageResponse pinned = room.getPinnedMessage() == null ? null
+            : toMessageResponse(room.getPinnedMessage(), meId);
+        return new ChatRoomResponse(room.getId(), room.getChatType(), room.getName(),
+            members, pinned, room.getCreatedAt());
     }
 
     private ChatRoomSummaryResponse toSummary(ChatRoom room, UUID meId) {

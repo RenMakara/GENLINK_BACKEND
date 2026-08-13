@@ -4,8 +4,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.community.dto.request.AddMembersRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.ChangeChatRoleRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CreateGroupRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.RenameGroupRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.SendMessageRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.response.ChatMemberResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatMessageResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatRoomResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatRoomSummaryResponse;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -97,5 +102,51 @@ public class ChatController {
     public ResponseEntity<ApiResponse<Map<String, Long>>> unreadCount() {
         return ResponseEntity.ok(ApiResponse.success("Unread count retrieved",
             Map.of("unreadCount", chatService.totalUnread())));
+    }
+
+    // ---------------------------------------------- group management (Phase 2)
+
+    /** Rename a group. Admin/owner only. */
+    @PutMapping("/{roomId}")
+    public ResponseEntity<ApiResponse<ChatRoomResponse>> rename(@PathVariable UUID roomId,
+                                                                @Valid @RequestBody RenameGroupRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Group renamed", chatService.renameGroup(roomId, request)));
+    }
+
+    /** Add members to a group. Admin/owner only. */
+    @PostMapping("/{roomId}/members")
+    public ResponseEntity<ApiResponse<ChatRoomResponse>> addMembers(@PathVariable UUID roomId,
+                                                                    @Valid @RequestBody AddMembersRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Members added", chatService.addMembers(roomId, request)));
+    }
+
+    /** Remove a member from a group. Admin/owner only; owner cannot be removed. */
+    @DeleteMapping("/{roomId}/members/{userId}")
+    public ResponseEntity<ApiResponse<Void>> removeMember(@PathVariable UUID roomId,
+                                                          @PathVariable UUID userId) {
+        chatService.removeMember(roomId, userId);
+        return ResponseEntity.ok(ApiResponse.success("Member removed", null));
+    }
+
+    /** Promote/demote a member (ADMIN or MEMBER). Owner only. */
+    @PutMapping("/{roomId}/members/{userId}/role")
+    public ResponseEntity<ApiResponse<ChatMemberResponse>> changeRole(@PathVariable UUID roomId,
+                                                                      @PathVariable UUID userId,
+                                                                      @Valid @RequestBody ChangeChatRoleRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Role updated",
+            chatService.changeMemberRole(roomId, userId, request)));
+    }
+
+    /** Pin a message. Admin/owner only. */
+    @PostMapping("/{roomId}/pin/{messageId}")
+    public ResponseEntity<ApiResponse<ChatRoomResponse>> pin(@PathVariable UUID roomId,
+                                                             @PathVariable UUID messageId) {
+        return ResponseEntity.ok(ApiResponse.success("Message pinned", chatService.pinMessage(roomId, messageId)));
+    }
+
+    /** Clear the pinned message. Admin/owner only. */
+    @DeleteMapping("/{roomId}/pin")
+    public ResponseEntity<ApiResponse<ChatRoomResponse>> unpin(@PathVariable UUID roomId) {
+        return ResponseEntity.ok(ApiResponse.success("Message unpinned", chatService.unpinMessage(roomId)));
     }
 }
