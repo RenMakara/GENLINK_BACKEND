@@ -26,6 +26,15 @@ import kh.edu.acleda.campuslink.modules.community.repository.PostReportRepositor
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
 import kh.edu.acleda.campuslink.modules.community.service.impl.PostServiceImpl;
+import kh.edu.acleda.campuslink.modules.community.dto.request.PollCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.PollVoteRequest;
+import kh.edu.acleda.campuslink.modules.community.entity.Poll;
+import kh.edu.acleda.campuslink.modules.community.entity.PollOption;
+import kh.edu.acleda.campuslink.modules.community.entity.PollVote;
+import kh.edu.acleda.campuslink.modules.community.repository.PollRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.PollOptionRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.PollVoteRepository;
+import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
 import kh.edu.acleda.campuslink.modules.profile.repository.SavedItemRepository;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
@@ -72,6 +81,9 @@ class PostServiceImplTest {
     @Mock private HashtagService hashtagService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private PollRepository pollRepository;
+    @Mock private PollOptionRepository pollOptionRepository;
+    @Mock private PollVoteRepository pollVoteRepository;
 
     private PostServiceImpl service;
     private User author;
@@ -81,7 +93,8 @@ class PostServiceImplTest {
     void setUp() {
         service = new PostServiceImpl(postRepository, postReactionRepository, postReportRepository,
             savedItemRepository, communityRepository, communityMemberRepository, followRepository,
-            hashtagService, userRepository, currentUserProvider);
+            hashtagService, userRepository, currentUserProvider,
+            pollRepository, pollOptionRepository, pollVoteRepository);
 
         author = new User();
         author.setEmail("author@example.com");
@@ -110,6 +123,8 @@ class PostServiceImplTest {
         when(savedItemRepository.findSavedItemIds(any(), any(), anyCollection())).thenReturn(List.of());
         when(followRepository.findFriendIds(any())).thenReturn(List.of());
         when(communityMemberRepository.findActiveCommunityIds(any())).thenReturn(List.of());
+        // Most posts are not polls, so poll enrichment resolves to nothing by default.
+        when(pollRepository.findByPostIdIn(any())).thenReturn(List.of());
     }
 
     /** The stub used to echo the request back with a null id and save nothing. */
@@ -374,6 +389,100 @@ class PostServiceImplTest {
         assertThatThrownBy(() -> service.dismissReports(POST_ID)).isInstanceOf(NotFoundException.class);
         verify(postReportRepository, never()).deleteByPostId(any());
     }
+
+    // ---- Polls ----
+
+    @Test
+    void createPollPostPersistsThePollAndItsOptions() {
+        when(pollRepository.save(any(Poll.class))).thenAnswer(invocation -> {
+            Poll saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
+            }
+            return saved;
+        });
+
+        PostResponse response = service.createPollPost(new PollCreateRequest(
+            "Pick one", "Best language?", List.of("Java", "Kotlin", "Dart"),
+            Visibility.PUBLIC, Language.ENGLISH, null));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Post.class);
+        verify(postRepository).save(captor.capture());
+        assertThat(captor.getValue().getPostType()).isEqualTo(PostType.POLL);
+        verify(pollRepository).save(any(Poll.class));
+        verify(pollOptionRepository, times(3)).save(any(PollOption.class));
+        assertThat(response.postType()).isEqualTo(PostType.POLL);
+    }
+
+    @Test
+    void votingOnANonPollPostIsRejected() {
+        post.setPostType(PostType.TEXT);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+
+        assertThatThrownBy(() -> service.vote(POST_ID, new PollVoteRequest(UUID.randomUUID())))
+            .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void firstVoteIsRecordedAndTheTallyGoesUp() {
+        PollFixture fixture = pollFixture();
+        when(pollVoteRepository.findByPollIdAndUserId(fixture.pollId(), USER_ID)).thenReturn(Optional.empty());
+
+        service.vote(POST_ID, new PollVoteRequest(fixture.optionAId()));
+
+        verify(pollVoteRepository).save(any(PollVote.class));
+        verify(pollOptionRepository).adjustVoteCount(fixture.optionAId(), 1);
+    }
+
+    @Test
+    void changingVoteMovesTheTallyBetweenOptions() {
+        PollFixture fixture = pollFixture();
+        PollVote existing = PollVote.builder().poll(fixture.poll()).option(fixture.optionB()).user(author).build();
+        when(pollVoteRepository.findByPollIdAndUserId(fixture.pollId(), USER_ID)).thenReturn(Optional.of(existing));
+
+        service.vote(POST_ID, new PollVoteRequest(fixture.optionAId()));
+
+        verify(pollOptionRepository).adjustVoteCount(fixture.optionBId(), -1);
+        verify(pollOptionRepository).adjustVoteCount(fixture.optionAId(), 1);
+        verify(pollVoteRepository).save(existing);
+    }
+
+    @Test
+    void reVotingTheSameOptionIsANoOp() {
+        PollFixture fixture = pollFixture();
+        PollVote existing = PollVote.builder().poll(fixture.poll()).option(fixture.optionA()).user(author).build();
+        when(pollVoteRepository.findByPollIdAndUserId(fixture.pollId(), USER_ID)).thenReturn(Optional.of(existing));
+
+        service.vote(POST_ID, new PollVoteRequest(fixture.optionAId()));
+
+        verify(pollVoteRepository, never()).save(any(PollVote.class));
+        verify(pollOptionRepository, never()).adjustVoteCount(any(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    /** Wires up a POLL post with a poll and two options (A, B), all stubbed for voting. */
+    private PollFixture pollFixture() {
+        post.setPostType(PostType.POLL);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+
+        UUID pollId = UUID.randomUUID();
+        Poll poll = Poll.builder().post(post).question("Best language?").build();
+        ReflectionTestUtils.setField(poll, "id", pollId);
+        when(pollRepository.findByPostId(POST_ID)).thenReturn(Optional.of(poll));
+
+        UUID optionAId = UUID.randomUUID();
+        UUID optionBId = UUID.randomUUID();
+        PollOption optionA = PollOption.builder().poll(poll).optionText("A").voteCount(0).build();
+        ReflectionTestUtils.setField(optionA, "id", optionAId);
+        PollOption optionB = PollOption.builder().poll(poll).optionText("B").voteCount(0).build();
+        ReflectionTestUtils.setField(optionB, "id", optionBId);
+        when(pollOptionRepository.findByIdAndPollId(optionAId, pollId)).thenReturn(Optional.of(optionA));
+        when(pollOptionRepository.findByIdAndPollId(optionBId, pollId)).thenReturn(Optional.of(optionB));
+
+        return new PollFixture(pollId, poll, optionAId, optionA, optionBId, optionB);
+    }
+
+    private record PollFixture(UUID pollId, Poll poll, UUID optionAId, PollOption optionA,
+                               UUID optionBId, PollOption optionB) {}
 
     private Community communityWithId() {
         Community community = Community.builder().name("Flutter KH").slug("flutter-kh")

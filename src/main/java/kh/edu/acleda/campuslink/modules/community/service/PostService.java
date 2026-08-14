@@ -1,7 +1,10 @@
 package kh.edu.acleda.campuslink.modules.community.service;
 
+import kh.edu.acleda.campuslink.modules.community.dto.request.PollCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.PollVoteRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.response.PollResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
@@ -12,6 +15,15 @@ import java.util.UUID;
 public interface PostService {
 
     PostResponse create(PostCreateRequest request);
+
+    /** Creates a POLL post: a post carrying a question and its options. */
+    PostResponse createPollPost(PollCreateRequest request);
+
+    /**
+     * Casts or moves the caller's single vote. Re-voting a different option moves the vote
+     * (adjusting both tallies); re-voting the same option is a no-op. @return the poll afterwards.
+     */
+    PollResponse vote(UUID postId, PollVoteRequest request);
 
     /**
      * The personalised feed, newest first: public posts, the viewer's own, friends-only

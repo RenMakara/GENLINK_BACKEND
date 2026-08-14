@@ -42,6 +42,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import kh.edu.acleda.campuslink.modules.community.dto.request.PollCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.PollVoteRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.response.PollResponse;
+import kh.edu.acleda.campuslink.modules.community.entity.Poll;
+import kh.edu.acleda.campuslink.modules.community.entity.PollOption;
+import kh.edu.acleda.campuslink.modules.community.entity.PollVote;
+import kh.edu.acleda.campuslink.modules.community.repository.PollRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.PollOptionRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.PollVoteRepository;
+import kh.edu.acleda.campuslink.shared.exception.ApiException;
 
 @Slf4j
 @Service
@@ -64,6 +76,9 @@ public class PostServiceImpl implements PostService {
     private final HashtagService hashtagService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final PollRepository pollRepository;
+    private final PollOptionRepository pollOptionRepository;
+    private final PollVoteRepository pollVoteRepository;
 
     public PostServiceImpl(PostRepository postRepository,
                            PostReactionRepository postReactionRepository,
@@ -74,7 +89,10 @@ public class PostServiceImpl implements PostService {
                            FollowRepository followRepository,
                            HashtagService hashtagService,
                            UserRepository userRepository,
-                           CurrentUserProvider currentUserProvider) {
+                           CurrentUserProvider currentUserProvider,
+                           PollRepository pollRepository,
+                           PollOptionRepository pollOptionRepository,
+                           PollVoteRepository pollVoteRepository) {
         this.postRepository = postRepository;
         this.postReactionRepository = postReactionRepository;
         this.postReportRepository = postReportRepository;
@@ -85,6 +103,9 @@ public class PostServiceImpl implements PostService {
         this.hashtagService = hashtagService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
+        this.pollRepository = pollRepository;
+        this.pollOptionRepository = pollOptionRepository;
+        this.pollVoteRepository = pollVoteRepository;
     }
 
     @Override
@@ -114,6 +135,84 @@ public class PostServiceImpl implements PostService {
         }
         hashtagService.syncForPost(saved, saved.getContentText());
         return toResponse(saved, false, false, hashtagsFor(saved.getId()));
+    }
+
+    @Override
+    @Transactional
+    public PostResponse createPollPost(PollCreateRequest request) {
+        User author = loadCurrentUser();
+        Community community = resolveCommunity(request.communityId());
+
+        Post post = Post.builder()
+            .user(author)
+            .community(community)
+            .contentText(request.caption())
+            .postType(PostType.POLL)
+            .visibility(request.visibility() == null ? Visibility.PUBLIC : request.visibility())
+            .language(request.language())
+            .likeCount(0)
+            .commentCount(0)
+            .shareCount(0)
+            .saveCount(0)
+            .reportCount(0)
+            .build();
+        Post saved = postRepository.save(post);
+        if (community != null) {
+            communityRepository.adjustPostCount(community.getId(), 1);
+        }
+        // The caption is optional, so only sync tags when there is text to scan.
+        if (saved.getContentText() != null && !saved.getContentText().isBlank()) {
+            hashtagService.syncForPost(saved, saved.getContentText());
+        }
+
+        Poll poll = pollRepository.save(Poll.builder().post(saved).question(request.question()).build());
+        for (String optionText : request.options()) {
+            pollOptionRepository.save(PollOption.builder()
+                .poll(poll)
+                .optionText(optionText)
+                .voteCount(0)
+                .build());
+        }
+        log.info("Poll post created: post={} options={} by user={}",
+            saved.getId(), request.options().size(), author.getId());
+        return toResponse(saved, false, false, hashtagsFor(saved.getId()),
+            pollsForPosts(Set.of(saved.getId()), author.getId()).get(saved.getId()));
+    }
+
+    @Override
+    @Transactional
+    public PollResponse vote(UUID postId, PollVoteRequest request) {
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+            .orElseThrow(() -> new NotFoundException("Post not found"));
+        if (post.getPostType() != PostType.POLL) {
+            throw new ApiException("This post is not a poll", "NOT_A_POLL");
+        }
+        Poll poll = pollRepository.findByPostId(postId)
+            .orElseThrow(() -> new NotFoundException("Poll not found"));
+        PollOption option = pollOptionRepository.findByIdAndPollId(request.optionId(), poll.getId())
+            .orElseThrow(() -> new NotFoundException("Poll option not found"));
+        UUID userId = currentUserProvider.getCurrentUserId();
+
+        PollVote existing = pollVoteRepository.findByPollIdAndUserId(poll.getId(), userId).orElse(null);
+        if (existing == null) {
+            pollVoteRepository.save(PollVote.builder()
+                .poll(poll)
+                .option(option)
+                .user(loadCurrentUser())
+                .votedAt(LocalDateTime.now())
+                .build());
+            pollOptionRepository.adjustVoteCount(option.getId(), 1);
+        } else if (!existing.getOption().getId().equals(option.getId())) {
+            // Move the vote: drop the old tally, point the row at the new option, add the new tally.
+            UUID previousOptionId = existing.getOption().getId();
+            existing.setOption(option);
+            existing.setVotedAt(LocalDateTime.now());
+            pollVoteRepository.save(existing);
+            pollOptionRepository.adjustVoteCount(previousOptionId, -1);
+            pollOptionRepository.adjustVoteCount(option.getId(), 1);
+        }
+        // Re-voting the same option is a deliberate no-op.
+        return pollsForPosts(Set.of(postId), userId).get(postId);
     }
 
     @Override
@@ -167,10 +266,13 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new NotFoundException("Post not found"));
         UUID viewerId = currentUserProvider.getCurrentUserId();
+        PollResponse poll = post.getPostType() == PostType.POLL
+            ? pollsForPosts(Set.of(id), viewerId).get(id) : null;
         return toResponse(post,
             postReactionRepository.findByPostIdAndUserId(id, viewerId).isPresent(),
             savedItemRepository.existsByUserIdAndItemTypeAndItemId(viewerId, SavedItemType.POST, id),
-            hashtagsFor(id));
+            hashtagsFor(id),
+            poll);
     }
 
     @Override
@@ -365,12 +467,14 @@ public class PostServiceImpl implements PostService {
         Set<UUID> saved = new HashSet<>(
             savedItemRepository.findSavedItemIds(viewerId, SavedItemType.POST, postIds));
         Map<UUID, List<String>> tags = hashtagService.tagsForPosts(postIds);
+        Map<UUID, PollResponse> polls = pollsForPosts(postIds, viewerId);
 
         return PageResponse.from(page, post -> toResponse(
             post,
             liked.contains(post.getId()),
             saved.contains(post.getId()),
-            tags.getOrDefault(post.getId(), List.of())));
+            tags.getOrDefault(post.getId(), List.of()),
+            polls.get(post.getId())));
     }
 
     private List<String> hashtagsFor(UUID postId) {
@@ -389,6 +493,11 @@ public class PostServiceImpl implements PostService {
     }
 
     private PostResponse toResponse(Post post, boolean likedByMe, boolean savedByMe, List<String> hashtags) {
+        return toResponse(post, likedByMe, savedByMe, hashtags, null);
+    }
+
+    private PostResponse toResponse(Post post, boolean likedByMe, boolean savedByMe,
+                                    List<String> hashtags, PollResponse poll) {
         User author = post.getUser();
         return new PostResponse(
             post.getId(),
@@ -404,7 +513,46 @@ public class PostServiceImpl implements PostService {
             likedByMe,
             savedByMe,
             hashtags,
+            poll,
             post.getCreatedAt()
         );
+    }
+
+    /**
+     * Resolves poll data for a set of posts in three queries (polls, options, the viewer's
+     * votes), keyed by post id. Non-poll posts simply have no entry. Keeping it batched is
+     * what stops the feed from firing a poll lookup per row.
+     */
+    private Map<UUID, PollResponse> pollsForPosts(Set<UUID> postIds, UUID viewerId) {
+        if (postIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Poll> polls = pollRepository.findByPostIdIn(postIds);
+        if (polls.isEmpty()) {
+            return Map.of();
+        }
+        Set<UUID> pollIds = polls.stream().map(Poll::getId).collect(Collectors.toSet());
+        Map<UUID, List<PollOption>> optionsByPoll = pollOptionRepository
+            .findByPollIdInOrderByCreatedAtAsc(pollIds).stream()
+            .collect(Collectors.groupingBy(option -> option.getPoll().getId()));
+        Map<UUID, UUID> myOptionByPoll = pollVoteRepository.findByPollIdInAndUserId(pollIds, viewerId).stream()
+            .collect(Collectors.toMap(vote -> vote.getPoll().getId(), vote -> vote.getOption().getId()));
+
+        Map<UUID, PollResponse> byPost = new HashMap<>();
+        for (Poll poll : polls) {
+            List<PollOption> options = optionsByPoll.getOrDefault(poll.getId(), List.of());
+            int totalVotes = options.stream().mapToInt(this::voteCountOf).sum();
+            UUID myOption = myOptionByPoll.get(poll.getId());
+            List<PollResponse.Option> optionDtos = options.stream()
+                .map(option -> new PollResponse.Option(option.getId(), option.getOptionText(), voteCountOf(option)))
+                .toList();
+            byPost.put(poll.getPost().getId(), new PollResponse(
+                poll.getId(), poll.getQuestion(), totalVotes, myOption != null, myOption, optionDtos));
+        }
+        return byPost;
+    }
+
+    private int voteCountOf(PollOption option) {
+        return option.getVoteCount() == null ? 0 : option.getVoteCount();
     }
 }

@@ -27,6 +27,7 @@ public record PostResponse(
     boolean likedByMe,
     boolean savedByMe,
     List<String> hashtags,
+    PollResponse poll,
     Instant createdAt
 ) {
 

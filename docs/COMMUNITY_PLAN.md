@@ -2,7 +2,8 @@ us# Community Domain — Implementation Plan
 
 Status: **Phases 0-5 done** (Phase 5 on 2026-07-18), except 4.4 (interest-based
 suggestions). **Chat delivered** (REST Phases 1-2, realtime Phase 3 on 2026-08-14) —
-see CHAT_REALTIME.md and COMMUNITY_ROLES.md. Polls, Stories deferred.
+see CHAT_REALTIME.md and COMMUNITY_ROLES.md. **Polls delivered** (2026-08-14) — see
+POLLS.md. Stories deferred.
 Created: 2026-07-17
 Owner: Enat (Community domain, per Team Assignment v5)
 Scope: backend only
@@ -186,7 +187,7 @@ values and only `PUBLIC` meant anything, because nothing could resolve "friends"
 | Feature | Why |
 |---|---|
 | ~~**Chat**~~ | **No longer cut — delivered.** Rooms, members, messages, read state, roles + pin (REST Phases 1-2) and realtime new-message push over WebSocket/STOMP (Phase 3, 2026-08-14). See CHAT_REALTIME.md. Still deferred within chat: presence, typing, read receipts and delete/membership events over WS. |
-| **Polls** | `polls`, `poll_options`, `poll_votes` exist. `PostType.POLL` can wait. |
+| ~~**Polls**~~ | **No longer cut — delivered** (2026-08-14). Single-choice, changeable vote; poll embedded in `PostResponse` for `POLL` posts. Tables predated it (0009), so no migration. See POLLS.md. |
 | **Stories** | No table, no entity. Would need a migration first. |
 | **Skill showcase / Mentor matching** | No `skills`, no `mentors` table. Skill Showcase overlaps Portfolio, which is already built. |
 

@@ -4,8 +4,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.community.dto.request.PollCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.PollVoteRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.response.PollResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
 import kh.edu.acleda.campuslink.modules.community.service.PostService;
@@ -38,6 +41,22 @@ public class PostController {
     @PostMapping
     public ResponseEntity<ApiResponse<PostResponse>> create(@Valid @RequestBody PostCreateRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Post created", postService.create(request)));
+    }
+
+    /** Create a poll: a POLL post carrying a question and 2-6 options. */
+    @PostMapping("/poll")
+    public ResponseEntity<ApiResponse<PostResponse>> createPoll(@Valid @RequestBody PollCreateRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Poll created", postService.createPollPost(request)));
+    }
+
+    /**
+     * Cast or move your single vote on a poll. Re-voting a different option moves it;
+     * re-voting the same option is a no-op. Returns the poll with fresh tallies.
+     */
+    @PostMapping("/{id}/poll/vote")
+    public ResponseEntity<ApiResponse<PollResponse>> vote(@PathVariable UUID id,
+                                                          @Valid @RequestBody PollVoteRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Vote recorded", postService.vote(id, request)));
     }
 
     /**
