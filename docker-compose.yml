@@ -113,6 +113,11 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ISSUER: ${JWT_ISSUER:-genlink_kh}
+      # Field encryption for credential columns (admin_users.totp_secret). Required in prod:
+      # FieldEncryptor refuses to start without a valid Base64 32-byte key. Must be listed here
+      # or Compose never injects it into the container. Generate with `openssl rand -base64 32`.
+      # LOSING IT is not recoverable — every enrolled admin must re-enrol. Back it up with JWT_SECRET.
+      ADMIN_CRYPTO_KEY: ${ADMIN_CRYPTO_KEY}
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME}
