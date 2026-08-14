@@ -19,6 +19,9 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
 
     List<ChatRoomMember> findByUserIdAndStatus(UUID userId, MemberStatus status);
 
+    @Query("SELECT m.user.id AS userId, m.user.email AS email FROM ChatRoomMember m WHERE m.chatRoom.id = :chatRoomId AND m.status = :status")
+    List<ChatRoomMemberIdentity> findActiveMemberIdentities(@Param("chatRoomId") UUID chatRoomId, @Param("status") MemberStatus status);
+
     /** The viewer's chat list: rooms they are still in, most-recently-active first. */
     @Query(value = "SELECT m FROM ChatRoomMember m JOIN m.chatRoom r "
         + "WHERE m.user.id = :userId AND m.status = :status ORDER BY r.updatedAt DESC",

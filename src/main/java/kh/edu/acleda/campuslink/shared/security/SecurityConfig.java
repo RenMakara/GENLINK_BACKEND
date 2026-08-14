@@ -93,7 +93,8 @@ public class SecurityConfig {
                     "/api/v1/admin/auth/mfa/verify",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
-                    "/actuator/health")
+                    "/actuator/health",
+                    "/ws/**")
                 .permitAll()
                 .requestMatchers("/api/v1/**").authenticated()
                 .anyRequest().authenticated())

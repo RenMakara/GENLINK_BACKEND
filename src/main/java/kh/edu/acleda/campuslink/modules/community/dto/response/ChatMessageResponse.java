@@ -21,6 +21,9 @@ public record ChatMessageResponse(
     boolean mine,
     Instant createdAt
 ) {
+    public ChatMessageResponse withMine(boolean newMine) {
+        return new ChatMessageResponse(messageId, sender, type, content, mediaUrl, replyToMessageId, replyTo, newMine, createdAt);
+    }
 
     /** Just enough of the replied-to message to render a quote line. */
     public record ReplyPreview(

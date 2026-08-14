@@ -40,6 +40,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
+import kh.edu.acleda.campuslink.modules.community.event.ChatMessageSavedEvent;
 
 @Slf4j
 @Service
@@ -53,19 +55,22 @@ public class ChatServiceImpl implements ChatService {
     private final MessageReadRepository messageReadRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ChatServiceImpl(ChatRoomRepository roomRepository,
                            ChatRoomMemberRepository memberRepository,
                            ChatMessageRepository messageRepository,
                            MessageReadRepository messageReadRepository,
                            UserRepository userRepository,
-                           CurrentUserProvider currentUserProvider) {
+                           CurrentUserProvider currentUserProvider,
+                           ApplicationEventPublisher eventPublisher) {
         this.roomRepository = roomRepository;
         this.memberRepository = memberRepository;
         this.messageRepository = messageRepository;
         this.messageReadRepository = messageReadRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
+        this.eventPublisher = eventPublisher;
     }
 
     // ----------------------------------------------------------------- rooms
@@ -175,7 +180,11 @@ public class ChatServiceImpl implements ChatService {
             .build());
         // Bump last-activity so this room rises in every member's chat list.
         roomRepository.touch(roomId, Instant.now());
-        return toMessageResponse(message, meId);
+        
+        ChatMessageResponse response = toMessageResponse(message, meId);
+        eventPublisher.publishEvent(new ChatMessageSavedEvent(roomId, meId, response));
+        
+        return response;
     }
 
     @Override

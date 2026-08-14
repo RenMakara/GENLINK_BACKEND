@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -64,6 +65,7 @@ class ChatServiceImplTest {
     @Mock private MessageReadRepository messageReadRepository;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     private ChatServiceImpl service;
     private User me;
@@ -74,7 +76,7 @@ class ChatServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new ChatServiceImpl(roomRepository, memberRepository, messageRepository,
-            messageReadRepository, userRepository, currentUserProvider);
+            messageReadRepository, userRepository, currentUserProvider, eventPublisher);
 
         me = userWithId(ME_ID, "me");
         other = userWithId(OTHER_ID, "other");

@@ -28,6 +28,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-cache'
+    // Real-time chat: STOMP over WebSocket. In-memory simple broker (single instance).
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
     // Third party support
     implementation 'com.bucket4j:bucket4j-core:8.10.1'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
