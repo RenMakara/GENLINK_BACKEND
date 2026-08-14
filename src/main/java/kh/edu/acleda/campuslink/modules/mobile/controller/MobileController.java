@@ -12,6 +12,7 @@ import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileHomeResponse;
 import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileNotificationsResponse;
 import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileProductivityDashboardResponse;
 import kh.edu.acleda.campuslink.shared.enums.Language;
+import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.localization.LanguageResolver;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import org.springframework.http.HttpHeaders;
@@ -82,13 +83,11 @@ public class MobileController {
 
     @GetMapping("/events/{id}")
     public ResponseEntity<ApiResponse<MobileEventDetailResponse>> eventDetail(@PathVariable UUID id) {
-        // TODO: Aggregate mobile event detail from event/community services.
-        return ResponseEntity.ok(ApiResponse.success("Mobile event detail retrieved", new MobileEventDetailResponse(id, "TODO: event detail aggregation")));
+        throw new ApiException("Mobile event detail aggregation is currently not available.", "NOT_IMPLEMENTED");
     }
 
     @GetMapping("/notifications")
     public ResponseEntity<ApiResponse<MobileNotificationsResponse>> notifications() {
-        // TODO: Aggregate mobile notifications from notification service.
-        return ResponseEntity.ok(ApiResponse.success("Mobile notifications retrieved", new MobileNotificationsResponse("TODO: notifications aggregation")));
+        throw new ApiException("Mobile notifications aggregation is currently not available.", "NOT_IMPLEMENTED");
     }
 }
