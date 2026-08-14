@@ -83,3 +83,5 @@ databaseChangeLog:
       file: db/changelog/changes/0041-create-admin-tables.sql
   - include:
       file: db/changelog/changes/0042-add-chat-roles-and-pin.sql
+  - include:
+      file: db/changelog/changes/0043-create-stories-tables.sql

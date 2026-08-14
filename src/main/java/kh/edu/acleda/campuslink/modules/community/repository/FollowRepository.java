@@ -50,4 +50,13 @@ public interface FollowRepository extends JpaRepository<Follow, UUID> {
         + "AND f.following.id IN (SELECT g.follower.id FROM Follow g WHERE g.following.id = :userId "
         + "AND g.status = kh.edu.acleda.campuslink.modules.community.enums.FollowStatus.ACCEPTED)")
     List<UUID> findFriendIds(@Param("userId") UUID userId);
+
+    /**
+     * Ids of everyone the user follows (accepted only). Used to assemble the story bar:
+     * you see the active stories of people you follow.
+     */
+    @Query("SELECT f.following.id FROM Follow f "
+        + "WHERE f.follower.id = :userId "
+        + "AND f.status = kh.edu.acleda.campuslink.modules.community.enums.FollowStatus.ACCEPTED")
+    List<UUID> findFollowingIds(@Param("userId") UUID userId);
 }
