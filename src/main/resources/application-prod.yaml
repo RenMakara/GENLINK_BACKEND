@@ -19,10 +19,10 @@ spring:
 app:
   jwt:
     issuer: ${JWT_ISSUER:genlink_kh}
-    secret: ${JWT_SECRET}
+    secret: ${JWT_SECRET:}
   google:
-    client-id: ${GOOGLE_CLIENT_ID}
-    project-id: ${GOOGLE_PROJECT_ID}
+    client-id: ${GOOGLE_CLIENT_ID:}
+    project-id: ${GOOGLE_PROJECT_ID:}
 
 springdoc:
   swagger-ui:

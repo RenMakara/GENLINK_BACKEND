@@ -93,11 +93,11 @@ app:
     #
     # LOSING THIS IS NOT RECOVERABLE: every enrolled admin has to set up TOTP again. Back it
     # up alongside JWT_SECRET.
-    secret-key: ${ADMIN_CRYPTO_KEY}
+    secret-key: ${ADMIN_CRYPTO_KEY:}
 
   jwt:
     issuer: ${JWT_ISSUER:genlink_kh}
-    secret: ${JWT_SECRET}
+    secret: ${JWT_SECRET:}
     # 15 minutes. Access tokens are stateless, so this bounds the window in which a
     # stolen token stays usable; the token-version claim handles explicit revocation.
     access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}
@@ -106,7 +106,7 @@ app:
     admin-access-token-expiration-ms: ${JWT_ADMIN_ACCESS_EXPIRATION_MS:600000}
     refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
   google:
-    client-id: ${GOOGLE_CLIENT_ID}
+    client-id: ${GOOGLE_CLIENT_ID:}
     project-id: ${GOOGLE_PROJECT_ID:genlinkkh}
   localization:
     default-language: ${APP_DEFAULT_LANGUAGE:ENGLISH}
@@ -133,12 +133,12 @@ app:
     # plain S3 so R2/S3/MinIO would only change these values.
     endpoint: ${STORAGE_ENDPOINT:https://sgp1.digitaloceanspaces.com}
     region: ${STORAGE_REGION:sgp1}
-    bucket: ${STORAGE_BUCKET}
+    bucket: ${STORAGE_BUCKET:}
     # CDN base used to build public URLs, e.g.
     # https://genlink-media-dev.sgp1.cdn.digitaloceanspaces.com
-    cdn-base: ${STORAGE_CDN_BASE}
-    access-key: ${STORAGE_ACCESS_KEY}
-    secret-key: ${STORAGE_SECRET_KEY}
+    cdn-base: ${STORAGE_CDN_BASE:}
+    access-key: ${STORAGE_ACCESS_KEY:}
+    secret-key: ${STORAGE_SECRET_KEY:}
     # How long a presigned upload/download URL stays valid.
     presign-expiry-seconds: ${STORAGE_PRESIGN_EXPIRY:300}
     # Per-purpose size ceilings, enforced server-side regardless of any
