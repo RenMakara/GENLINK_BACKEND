@@ -148,7 +148,7 @@ Everyday campus and community utilities.
 | **Docker Compose** | Container orchestration (app + database) |
 | **Nginx** | Reverse proxy and single public entry point |
 | **DigitalOcean** | Cloud hosting (Ubuntu droplet) |
-| **GitHub Actions** | CI/CD auto-deploy on push, with rollback |
+| **GitHub Actions** | Java 21 build/test gate, reports and artifacts, then auto-deploy with rollback |
 
 ### Security
 
@@ -333,6 +333,30 @@ lib/
 | **design_system** | Design tokens and reusable widgets for a consistent UI |
 | **features** | Screen-level modules mirroring the backend domains |
 | **shared** | Widgets shared across features |
+
+---
+
+## 🚀 CI/CD
+
+The backend pipeline is defined in `.github/workflows/deploy.yml`:
+
+1. Pull requests into `main` run a clean Java 21 Gradle build and all tests.
+2. Pushes to `main` run the same CI gate.
+3. Only a successful `main` build may open the production SSH deployment.
+4. The droplet runs `scripts/deploy.sh`, builds the Docker image, replaces only
+   the application container, waits for `/actuator/health`, and restores the
+   previous image if health verification fails.
+5. Test, JaCoCo and Gradle reports plus the verified JAR are retained as GitHub
+   Actions artifacts for 14 days.
+6. Telegram reports CI blocks, deployment success, or deployment failure.
+
+The CI job uses H2 and the test-profile in-memory object store, so it requires no
+database, SMTP, Google, S3 or DigitalOcean credentials. Production deployment
+still requires `SSH_HOST`, `SSH_USER`, and `SSH_KEY` repository secrets and the
+server-side `/opt/GENLINK_BACKEND/.env` file.
+
+Database migrations are not reversed by an image rollback. Keep migrations
+backward-compatible with the previous application image whenever possible.
 
 ---
 

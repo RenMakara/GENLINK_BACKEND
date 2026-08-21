@@ -93,7 +93,7 @@ app:
     #
     # LOSING THIS IS NOT RECOVERABLE: every enrolled admin has to set up TOTP again. Back it
     # up alongside JWT_SECRET.
-    secret-key: ${ADMIN_CRYPTO_KEY}
+    secret-key: ${ADMIN_CRYPTO_KEY:}
 
   jwt:
     issuer: ${JWT_ISSUER:genlink_kh}
