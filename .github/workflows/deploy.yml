@@ -1,26 +1,85 @@
-name: Deploy to production
+name: Backend CI/CD
 
-# Auto-deploy when main advances. Other branches (dev, feature work) never
-# touch the server — only a merge/push to main ships.
+# Pull requests must pass CI before merge. A push (or manual run) on main runs
+# the same gate and deploys only after it succeeds.
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
 
-# Never run two deploys at once. If a second push lands mid-deploy it waits
-# for the first to finish rather than racing it. cancel-in-progress is false
-# on purpose: a half-finished deploy must be allowed to complete (or roll
-# back) cleanly.
+permissions:
+  contents: read
+
+# Production deploys never overlap. Superseded pull-request checks may be
+# cancelled because they cannot affect the server.
 concurrency:
-  group: production-deploy
-  cancel-in-progress: false
+  group: backend-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  deploy:
+  ci:
+    name: Build and test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      # Connects to the droplet with a dedicated deploy key and runs the
-      # version-controlled deploy script. No build happens in the runner —
-      # the script builds on the droplet (see scripts/deploy.sh).
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+          cache-dependency-path: |
+            build.gradle
+            settings.gradle
+            gradle/wrapper/gradle-wrapper.properties
+
+      - name: Build and run all tests
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon clean build
+
+      # Always retain reports: successful runs provide coverage evidence and a
+      # failed run remains diagnosable after the runner has gone away.
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports-${{ github.run_id }}
+          path: |
+            build/test-results/test/
+            build/reports/tests/test/
+            build/reports/jacoco/test/
+            build/reports/problems/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload verified application artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar-${{ github.sha }}
+          path: |
+            build/libs/*.jar
+            !build/libs/*-plain.jar
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy:
+    name: Deploy to DigitalOcean
+    needs: ci
+    # Pull requests are CI-only. Production changes only from main after CI.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -28,55 +87,64 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: 22
-          # Abort the SSH session on the first failing command, so a failed
-          # deploy shows up as a red X here instead of a false green.
           script_stop: true
-          # 15 min: a cold Gradle build that downloads dependencies is slow.
           command_timeout: 15m
           script: |
             cd /opt/GENLINK_BACKEND
             ./scripts/deploy.sh
 
-      # Announce the result to Telegram (reuses your existing secrets).
-      # Runs on both success and failure so a silent failure is impossible.
+  notify:
+    name: Notify production result
+    needs: [ci, deploy]
+    # `always()` lets CI failures report that deployment was blocked. PR checks
+    # stay quiet; their status is already visible on the pull request.
+    if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
       - name: Notify Telegram
-        if: always() && env.TELEGRAM_BOT_TOKEN != ''
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
-          STATUS: ${{ job.status }}
+          CI_STATUS: ${{ needs.ci.result }}
+          DEPLOY_STATUS: ${{ needs.deploy.result }}
           REPO: ${{ github.repository }}
           BRANCH: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
           SHA: ${{ github.sha }}
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-          COMMIT_URL: ${{ github.event.head_commit.url }}
+          COMMIT_MSG: ${{ github.event.head_commit.message || 'Manual workflow dispatch' }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          # HTML-escape user-controlled text. Telegram's HTML parse_mode
-          # would otherwise break on a commit message containing < > or &.
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram secrets are not configured; skipping notification."
+            exit 0
+          fi
+
           esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
 
           short_sha="${SHA:0:7}"
-          repo_name="${REPO#*/}"                              # drop "owner/"
+          repo_name="${REPO#*/}"
           title="$(esc "$(printf '%s' "$COMMIT_MSG" | head -n1)")"
           actor="$(esc "$ACTOR")"
           branch="$(esc "$BRANCH")"
 
-          if [ "$STATUS" = "success" ]; then
-            header="✅ <b>Deploy succeeded</b>"
+          if [ "$CI_STATUS" != "success" ]; then
+            header="❌ <b>CI failed — deploy blocked</b>"
+            footer="🛡️ Production was not changed."
+            link_text="View test logs →"
+          elif [ "$DEPLOY_STATUS" = "success" ]; then
+            header="✅ <b>CI/CD succeeded</b>"
             footer="🟢 Live · http://165.22.101.156"
             link_text="View workflow run →"
           else
             header="❌ <b>Deploy failed</b>"
-            # True in both failure modes: a build error never swaps the
-            # container, and a runtime failure auto-rolls-back.
-            footer="🛡️ Previous version is still live (auto-rollback)."
-            link_text="View logs →"
+            footer="🛡️ Previous image restored when available; verify migrations and health."
+            link_text="View deploy logs →"
           fi
 
-          msg=$(printf '%s\n\n📁 <b>%s</b> \n🌿 %s\n🔖 <a href="%s">%s</a>  %s\n👤 %s\n\n%s\n<a href="%s">%s</a>' \
+          msg=$(printf '%s\n\n📁 <b>%s</b>\n🌿 %s\n🔖 <a href="%s">%s</a>  %s\n👤 %s\n\n%s\n<a href="%s">%s</a>' \
             "$header" \
             "$repo_name" "$branch" \
             "$COMMIT_URL" "$short_sha" "$title" \
