@@ -28,7 +28,8 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "budgets", uniqueConstraints = {@UniqueConstraint(name = "uk_budgets_user_month_year", columnNames = {"user_id", "month", "year"})})
+@Table(name = "budgets", uniqueConstraints = {@UniqueConstraint(
+    name = "uk_budgets_user_month_year_currency", columnNames = {"user_id", "month", "year", "currency"})})
 @AttributeOverride(name = "id", column = @Column(name = "budget_id", nullable = false, updatable = false))
 public class Budget extends BaseEntity {
 

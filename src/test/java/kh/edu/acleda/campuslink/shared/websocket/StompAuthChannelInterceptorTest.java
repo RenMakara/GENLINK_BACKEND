@@ -18,6 +18,12 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import java.security.Principal;
+import java.util.Optional;
+import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizMatchRepository;
+import kh.edu.acleda.campuslink.modules.user.UserRepository;
+import kh.edu.acleda.campuslink.modules.user.entity.User;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,6 +37,8 @@ class StompAuthChannelInterceptorTest {
     @Mock private JwtService jwtService;
     @Mock private UserDetailsService userDetailsService;
     @Mock private MessageChannel channel;
+    @Mock private UserRepository userRepository;
+    @Mock private QuizMatchRepository quizMatchRepository;
 
     @InjectMocks
     private StompAuthChannelInterceptor interceptor;
@@ -139,6 +147,54 @@ class StompAuthChannelInterceptorTest {
 
         Message<?> result = interceptor.preSend(message, channel);
         assertThat(result).isSameAs(message);
+    }
+
+    @Test
+    void authenticatedSubscribeToPrivateMatchQueueIsAccepted() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/user/queue/match");
+        accessor.setUser(mock(Principal.class));
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        assertThat(interceptor.preSend(message, channel)).isSameAs(message);
+    }
+
+    @Test
+    void participantCanSubscribeToTheirMatchTopic() {
+        UUID userId = UUID.randomUUID();
+        UUID matchId = UUID.randomUUID();
+        User user = new User();
+        ReflectionTestUtils.setField(user, "id", userId);
+        Principal principal = mock(Principal.class);
+        when(principal.getName()).thenReturn("user@example.com");
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
+        when(quizMatchRepository.isParticipant(matchId, userId)).thenReturn(true);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/topic/quiz/match/" + matchId);
+        accessor.setUser(principal);
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        assertThat(interceptor.preSend(message, channel)).isSameAs(message);
+    }
+
+    @Test
+    void outsiderCannotSubscribeToMatchTopic() {
+        UUID userId = UUID.randomUUID();
+        UUID matchId = UUID.randomUUID();
+        User user = new User();
+        ReflectionTestUtils.setField(user, "id", userId);
+        Principal principal = mock(Principal.class);
+        when(principal.getName()).thenReturn("outsider@example.com");
+        when(userRepository.findByEmail("outsider@example.com")).thenReturn(Optional.of(user));
+        when(quizMatchRepository.isParticipant(matchId, userId)).thenReturn(false);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/topic/quiz/match/" + matchId);
+        accessor.setUser(principal);
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        assertThatThrownBy(() -> interceptor.preSend(message, channel))
+            .isInstanceOf(AccessDeniedException.class)
+            .hasMessageContaining("Subscription to destination not allowed");
     }
 
     @Test

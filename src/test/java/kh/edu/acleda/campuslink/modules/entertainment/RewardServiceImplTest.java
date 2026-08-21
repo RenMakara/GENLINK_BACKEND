@@ -18,7 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class RewardServiceImplTest {
@@ -37,6 +39,7 @@ class RewardServiceImplTest {
         ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
         ReflectionTestUtils.setField(user, "totalXp", 0);
         ReflectionTestUtils.setField(user, "level", 1);
+        lenient().when(userRepository.findByIdForUpdate(user.getId())).thenReturn(java.util.Optional.of(user));
     }
 
     @Test
@@ -69,5 +72,19 @@ class RewardServiceImplTest {
         verify(userRepository, never()).save(any());
         verify(xpHistoryRepository, never()).save(any());
         verify(badgeAwarder, never()).evaluate(any(), eq("TASK"));
+    }
+
+    @Test
+    void duplicateLogicalSourceDoesNotAwardXpAgain() {
+        UUID source = UUID.randomUUID();
+        when(xpHistoryRepository.existsByUserIdAndSourceTypeAndSourceId(user.getId(), "TASK", source))
+            .thenReturn(true);
+
+        service.award(user, "TASK", source, 10);
+
+        assertThat(user.getTotalXp()).isZero();
+        verify(userRepository, never()).save(any());
+        verify(xpHistoryRepository, never()).save(any());
+        verify(badgeAwarder, never()).evaluate(any(), any());
     }
 }

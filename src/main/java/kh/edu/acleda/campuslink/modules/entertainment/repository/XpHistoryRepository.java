@@ -11,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface XpHistoryRepository extends JpaRepository<XpHistory, UUID> {
 
+    boolean existsByUserIdAndSourceTypeAndSourceId(UUID userId, String sourceType, UUID sourceId);
+
     /** How many times the user earned XP from a given source - backs badge thresholds. */
     long countByUserIdAndSourceType(UUID userId, String sourceType);
 

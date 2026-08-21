@@ -10,6 +10,7 @@ import kh.edu.acleda.campuslink.modules.finance.dto.response.BudgetResponse;
 import kh.edu.acleda.campuslink.modules.finance.entity.Budget;
 import kh.edu.acleda.campuslink.modules.finance.entity.BudgetCategory;
 import kh.edu.acleda.campuslink.modules.finance.enums.BudgetStatus;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.repository.BudgetCategoryRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.BudgetRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.ExpenseRepository;
@@ -62,7 +63,8 @@ class BudgetServiceImplTest {
 
         budget = Budget.builder().user(user).month(7).year(2026)
             .totalBudget(new BigDecimal("300.00")).spentAmount(BigDecimal.ZERO)
-            .remainingAmount(new BigDecimal("300.00")).status(BudgetStatus.SAFE).build();
+            .remainingAmount(new BigDecimal("300.00")).status(BudgetStatus.SAFE)
+            .currency(kh.edu.acleda.campuslink.modules.finance.enums.Currency.USD).build();
         ReflectionTestUtils.setField(budget, "id", BUDGET_ID);
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
@@ -83,7 +85,8 @@ class BudgetServiceImplTest {
 
     @Test
     void createRejectsADuplicateBudgetForTheMonth() {
-        when(budgetRepository.existsByUserIdAndMonthAndYearAndDeletedAtIsNull(USER_ID, 7, 2026)).thenReturn(true);
+        when(budgetRepository.existsByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
+            USER_ID, 7, 2026, kh.edu.acleda.campuslink.modules.finance.enums.Currency.USD)).thenReturn(true);
 
         assertThatThrownBy(() -> service.create(new BudgetCreateRequest(7, 2026, new BigDecimal("300"), null, null)))
             .isInstanceOf(ApiException.class)
@@ -97,6 +100,28 @@ class BudgetServiceImplTest {
 
         verify(budgetRepository).save(any(Budget.class));
         verify(budgetCategoryRepository).save(any(BudgetCategory.class));
+    }
+
+    @Test
+    void usdAndKhrBudgetsCanExistForTheSameMonth() {
+        service.create(new BudgetCreateRequest(7, 2026, new BigDecimal("300.00"), null, Currency.USD));
+        service.create(new BudgetCreateRequest(7, 2026, new BigDecimal("1200000"), null, Currency.KHR));
+
+        verify(budgetRepository).existsByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
+            USER_ID, 7, 2026, Currency.USD);
+        verify(budgetRepository).existsByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
+            USER_ID, 7, 2026, Currency.KHR);
+        verify(budgetRepository, org.mockito.Mockito.times(2)).save(any(Budget.class));
+    }
+
+    @Test
+    void currentBudgetLookupIncludesCurrency() {
+        when(budgetRepository.findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
+            USER_ID, 7, 2026, Currency.USD)).thenReturn(Optional.of(budget));
+
+        assertThat(service.getForMonth(7, 2026, Currency.USD).currency()).isEqualTo(Currency.USD);
+        verify(budgetRepository).findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
+            USER_ID, 7, 2026, Currency.USD);
     }
 
     @Test

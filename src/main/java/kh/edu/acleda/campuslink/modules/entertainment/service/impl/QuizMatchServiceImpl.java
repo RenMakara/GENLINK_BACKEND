@@ -7,10 +7,12 @@ import kh.edu.acleda.campuslink.modules.entertainment.entity.Quiz;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.QuizMatch;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.QuizMatchAnswer;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.QuizOption;
+import kh.edu.acleda.campuslink.modules.entertainment.entity.QuizQuestion;
 import kh.edu.acleda.campuslink.modules.entertainment.enums.QuizMatchStatus;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizMatchRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizMatchAnswerRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizOptionRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizQuestionRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.service.QuizMatchService;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
@@ -29,59 +31,56 @@ public class QuizMatchServiceImpl implements QuizMatchService {
     private final QuizMatchAnswerRepository quizMatchAnswerRepository;
     private final QuizRepository quizRepository;
     private final QuizOptionRepository quizOptionRepository;
+    private final QuizQuestionRepository quizQuestionRepository;
     private final UserRepository userRepository;
     private final RewardService rewardService;
 
-    // In-memory matchmaking queue: quizId -> waitingUserId
-    private final ConcurrentHashMap<UUID, UUID> waitingQueue = new ConcurrentHashMap<>();
+    // Single-instance matchmaking queue: quizId -> the persisted WAITING match. The
+    // project deliberately runs one application instance while using the simple broker.
+    private final ConcurrentHashMap<UUID, UUID> waitingMatchIds = new ConcurrentHashMap<>();
 
     @Override
     @Transactional
     public MatchEvent matchmake(UUID quizId, UUID userId) {
-        // Check if someone is already waiting for this quiz (and not the same user)
-        UUID waitingUserId = waitingQueue.remove(quizId);
-        
-        if (waitingUserId != null && !waitingUserId.equals(userId)) {
-            // Found a match
-            Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new ApiException("Quiz not found"));
-            User p1 = userRepository.findById(waitingUserId).orElseThrow();
-            User p2 = userRepository.findById(userId).orElseThrow();
+        Quiz quiz = quizRepository.findById(quizId)
+            .orElseThrow(() -> new ApiException("Quiz not found", "QUIZ_NOT_FOUND"));
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ApiException("User not found", "USER_NOT_FOUND"));
 
-            QuizMatch match = new QuizMatch();
-            match.setQuiz(quiz);
-            match.setPlayer1(p1);
-            match.setPlayer2(p2);
-            match.setStatus(QuizMatchStatus.IN_PROGRESS);
-            match = quizMatchRepository.save(match);
+        synchronized (waitingMatchIds) {
+            UUID waitingMatchId = waitingMatchIds.get(quizId);
+            if (waitingMatchId != null) {
+                QuizMatch waiting = quizMatchRepository.findByIdForUpdate(waitingMatchId).orElse(null);
+                if (waiting != null && waiting.getStatus() == QuizMatchStatus.WAITING) {
+                    if (waiting.getPlayer1().getId().equals(userId)) {
+                        return buildEvent(waiting);
+                    }
+                    waiting.setPlayer2(user);
+                    waiting.setStatus(QuizMatchStatus.IN_PROGRESS);
+                    waitingMatchIds.remove(quizId, waitingMatchId);
+                    return buildEvent(quizMatchRepository.save(waiting));
+                }
+                waitingMatchIds.remove(quizId, waitingMatchId);
+            }
 
-            return buildEvent(match);
-        } else {
-            // Nobody waiting, put self in queue
-            waitingQueue.put(quizId, userId);
-            
-            Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new ApiException("Quiz not found"));
-            User p1 = userRepository.findById(userId).orElseThrow();
-            
-            QuizMatch match = new QuizMatch();
-            match.setQuiz(quiz);
-            match.setPlayer1(p1);
-            match.setStatus(QuizMatchStatus.WAITING);
-            match = quizMatchRepository.save(match);
-
-            return buildEvent(match);
+            QuizMatch waiting = new QuizMatch();
+            waiting.setQuiz(quiz);
+            waiting.setPlayer1(user);
+            waiting.setStatus(QuizMatchStatus.WAITING);
+            waiting = quizMatchRepository.save(waiting);
+            waitingMatchIds.put(quizId, waiting.getId());
+            return buildEvent(waiting);
         }
     }
 
     @Override
     @Transactional
     public MatchEvent submitAnswer(UUID matchId, UUID userId, UUID questionId, UUID optionId) {
-        QuizMatch match = quizMatchRepository.findById(matchId)
-            .orElseThrow(() -> new ApiException("Match not found"));
+        QuizMatch match = loadForUpdate(matchId);
+        requireParticipant(match, userId);
 
         if (match.getStatus() != QuizMatchStatus.IN_PROGRESS) {
-            return buildEvent(match);
+            throw new ApiException("Match is not in progress", "MATCH_NOT_IN_PROGRESS");
         }
 
         // Prevent duplicate answers
@@ -90,15 +89,18 @@ public class QuizMatchServiceImpl implements QuizMatchService {
             return buildEvent(match);
         }
 
-        QuizOption option = quizOptionRepository.findById(optionId).orElseThrow();
-        User player = userRepository.findById(userId).orElseThrow();
+        QuizQuestion question = quizQuestionRepository.findByIdAndQuizId(questionId, match.getQuiz().getId())
+            .orElseThrow(() -> new ApiException("Question does not belong to this quiz", "INVALID_MATCH_QUESTION"));
+        QuizOption option = quizOptionRepository.findByIdAndQuestionId(optionId, questionId)
+            .orElseThrow(() -> new ApiException("Option does not belong to this question", "INVALID_MATCH_OPTION"));
+        User player = match.getPlayer1().getId().equals(userId) ? match.getPlayer1() : match.getPlayer2();
         boolean isCorrect = option.getCorrect() != null && option.getCorrect();
 
         // Record the answer
         QuizMatchAnswer answer = new QuizMatchAnswer();
         answer.setMatch(match);
         answer.setPlayer(player);
-        answer.setQuestion(option.getQuestion());
+        answer.setQuestion(question);
         answer.setOption(option);
         answer.setCorrect(isCorrect);
         quizMatchAnswerRepository.save(answer);
@@ -120,11 +122,14 @@ public class QuizMatchServiceImpl implements QuizMatchService {
     @Override
     @Transactional
     public MatchEvent finishMatch(UUID matchId, UUID userId) {
-        QuizMatch match = quizMatchRepository.findById(matchId)
-            .orElseThrow(() -> new ApiException("Match not found"));
+        QuizMatch match = loadForUpdate(matchId);
+        requireParticipant(match, userId);
 
         if (match.getStatus() == QuizMatchStatus.COMPLETED) {
             return buildEvent(match);
+        }
+        if (match.getStatus() != QuizMatchStatus.IN_PROGRESS) {
+            throw new ApiException("Only an in-progress match can be finished", "MATCH_NOT_IN_PROGRESS");
         }
 
         match.setStatus(QuizMatchStatus.COMPLETED);
@@ -144,6 +149,19 @@ public class QuizMatchServiceImpl implements QuizMatchService {
         }
 
         return buildEvent(quizMatchRepository.save(match));
+    }
+
+    private QuizMatch loadForUpdate(UUID matchId) {
+        return quizMatchRepository.findByIdForUpdate(matchId)
+            .orElseThrow(() -> new ApiException("Match not found", "MATCH_NOT_FOUND"));
+    }
+
+    private void requireParticipant(QuizMatch match, UUID userId) {
+        boolean player1 = match.getPlayer1().getId().equals(userId);
+        boolean player2 = match.getPlayer2() != null && match.getPlayer2().getId().equals(userId);
+        if (!player1 && !player2) {
+            throw new ApiException("User is not a participant in this match", "MATCH_ACCESS_DENIED");
+        }
     }
 
     private MatchEvent buildEvent(QuizMatch match) {

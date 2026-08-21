@@ -63,7 +63,7 @@ class MobileFinanceBffServiceImplTest {
         when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(null);
         when(expenseRepository.sumByCategoryAndCurrency(any(), any(), any(), any())).thenReturn(List.of());
         when(expenseRepository.findByUser(any(), any(), any())).thenReturn(Page.empty());
-        when(budgetRepository.findByUserIdAndMonthAndYearAndDeletedAtIsNull(any(), any(), any()))
+        when(budgetRepository.findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(any(), any(), any(), any()))
             .thenReturn(Optional.empty());
         when(savingGoalRepository.findByUserIdAndDeletedAtIsNullAndStatusOrderByCreatedAtDesc(
             any(), eq(SavingGoalStatus.IN_PROGRESS))).thenReturn(List.of());
@@ -88,7 +88,7 @@ class MobileFinanceBffServiceImplTest {
     @Test
     void monthOverviewComputesSpendLiveAndFlagsWarning() {
         Budget budget = Budget.builder().totalBudget(new BigDecimal("200.00")).build();
-        when(budgetRepository.findByUserIdAndMonthAndYearAndDeletedAtIsNull(any(), any(), any()))
+        when(budgetRepository.findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(any(), any(), any(), any()))
             .thenReturn(Optional.of(budget));
         when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(new BigDecimal("180.00"));
 
@@ -102,7 +102,7 @@ class MobileFinanceBffServiceImplTest {
     @Test
     void budgetStatusIsLimitReachedAtOrOverTotal() {
         Budget budget = Budget.builder().totalBudget(new BigDecimal("100.00")).build();
-        when(budgetRepository.findByUserIdAndMonthAndYearAndDeletedAtIsNull(any(), any(), any()))
+        when(budgetRepository.findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(any(), any(), any(), any()))
             .thenReturn(Optional.of(budget));
         when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(new BigDecimal("100.00"));
 
