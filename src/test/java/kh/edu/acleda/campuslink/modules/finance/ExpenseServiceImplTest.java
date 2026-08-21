@@ -134,14 +134,16 @@ class ExpenseServiceImplTest {
 
     @Test
     void summaryMapsCategoriesAndReportsNullAsUncategorized() {
-        when(expenseRepository.sumByCategory(eq(USER_ID), any(), any())).thenReturn(List.of(
+        when(expenseRepository.sumByCategoryAndCurrency(eq(USER_ID), eq(Currency.USD), any(), any())).thenReturn(List.of(
             new Object[]{"FOOD", new BigDecimal("10.00")},
             new Object[]{null, new BigDecimal("5.00")}));
-        when(expenseRepository.sumForMonth(eq(USER_ID), any(), any())).thenReturn(new BigDecimal("15.00"));
+        when(expenseRepository.sumForMonthByCurrency(eq(USER_ID), eq(Currency.USD), any(), any()))
+            .thenReturn(new BigDecimal("15.00"));
 
-        MonthlySummaryResponse summary = service.monthlySummary(3, 2026);
+        MonthlySummaryResponse summary = service.monthlySummary(3, 2026, Currency.USD);
 
         assertThat(summary.total()).isEqualByComparingTo("15.00");
+        assertThat(summary.currency()).isEqualTo(Currency.USD);
         assertThat(summary.byCategory()).hasSize(2);
         assertThat(summary.byCategory().get(1).category()).isEqualTo("UNCATEGORIZED");
     }
@@ -149,10 +151,25 @@ class ExpenseServiceImplTest {
     /** A month with no expenses returns zero, not null. */
     @Test
     void summaryReturnsZeroWhenThereAreNoExpenses() {
-        when(expenseRepository.sumByCategory(any(), any(), any())).thenReturn(List.of());
-        when(expenseRepository.sumForMonth(any(), any(), any())).thenReturn(null);
+        when(expenseRepository.sumByCategoryAndCurrency(any(), any(), any(), any())).thenReturn(List.of());
+        when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(null);
 
         assertThat(service.monthlySummary(3, 2026).total()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void summaryQueriesOnlyTheRequestedCurrency() {
+        when(expenseRepository.sumByCategoryAndCurrency(USER_ID, Currency.KHR,
+            LocalDate.of(2026, 3, 1), LocalDate.of(2026, 4, 1))).thenReturn(List.of());
+        when(expenseRepository.sumForMonthByCurrency(USER_ID, Currency.KHR,
+            LocalDate.of(2026, 3, 1), LocalDate.of(2026, 4, 1))).thenReturn(new BigDecimal("40000"));
+
+        MonthlySummaryResponse summary = service.monthlySummary(3, 2026, Currency.KHR);
+
+        assertThat(summary.currency()).isEqualTo(Currency.KHR);
+        assertThat(summary.total()).isEqualByComparingTo("40000");
+        verify(expenseRepository, never()).sumForMonth(any(), any(), any());
+        verify(expenseRepository, never()).sumByCategory(any(), any(), any());
     }
 
     @Test

@@ -8,6 +8,7 @@ import kh.edu.acleda.campuslink.modules.finance.dto.request.ExpenseCreateRequest
 import kh.edu.acleda.campuslink.modules.finance.dto.response.ExpenseResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.MonthlySummaryResponse;
 import kh.edu.acleda.campuslink.modules.finance.service.ExpenseService;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import org.springframework.data.domain.Pageable;
@@ -58,11 +59,12 @@ public class ExpenseController {
     @GetMapping("/summary")
     public ResponseEntity<ApiResponse<MonthlySummaryResponse>> summary(
         @RequestParam(required = false) Integer month,
-        @RequestParam(required = false) Integer year) {
+        @RequestParam(required = false) Integer year,
+        @RequestParam(defaultValue = "USD") Currency currency) {
         LocalDate now = LocalDate.now();
         int m = month == null ? now.getMonthValue() : month;
         int y = year == null ? now.getYear() : year;
-        return ResponseEntity.ok(ApiResponse.success("Summary retrieved", expenseService.monthlySummary(m, y)));
+        return ResponseEntity.ok(ApiResponse.success("Summary retrieved", expenseService.monthlySummary(m, y, currency)));
     }
 
     @GetMapping("/{id}")

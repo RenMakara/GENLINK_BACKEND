@@ -1,6 +1,6 @@
 # Entertainment Domain — Implementation Plan
 
-Status: DONE (2026-07-19) - Quiz, Reward pipeline, Badges, Challenges, Leaderboard, Short Content. Deferred: multiplayer quiz, friends ranking. Scope: backend only.
+Status: DONE (updated 2026-08-21) - Quiz, Reward pipeline, Badges, Challenges, Leaderboard, Short Content, and secured 1v1 multiplayer quiz. Deferred: friends ranking. Scope: backend only.
 Owner: (Entertainment / Gamification, per Team Assignment v5).
 
 The gamification pillar: quizzes, daily challenges, badges, a leaderboard, and short
@@ -122,8 +122,11 @@ Khmer left for the content team.
    **Friends ranking deferred** (needs the follow graph).
 5. **Short content = build a basic version** (revised). List/detail by category +
    like/save/share counters + creator-profile link. No upload/media pipeline.
-6. **Multiplayer quiz = deferred pending confirmation.** The flow has Find Opponent ->
-   Start Match; real-time matchmaking is a feature on its own (WebSocket, like Chat).
+6. **Multiplayer quiz = implemented.** STOMP matchmaking uses `/user/queue/match`, while
+   match updates use participant-authorized `/topic/quiz/match/{matchId}` subscriptions.
+   The persisted WAITING row becomes the IN_PROGRESS match. Answer submission validates
+   participant, match state, quiz question, and question option. Match mutation uses a
+   pessimistic row lock; completion and XP awards are idempotent.
 
 ## Revised phase order (dependency-driven)
 
@@ -133,7 +136,8 @@ Khmer left for the content team.
 2. **Daily Challenges** - join/complete/claim via RewardService.
 4. **Leaderboard** - period x category on read.
 5. **Short content** - list/detail + counters.
-Deferred: Multiplayer quiz, Friends ranking, Chat.
+6. **Multiplayer quiz** - DONE (secured matchmaking, answers, completion, rewards).
+Deferred: Friends ranking.
 
 ## Follow-ups
 

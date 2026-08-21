@@ -62,7 +62,13 @@ class HabitServiceImplTest {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
         when(habitRepository.save(any(Habit.class))).thenAnswer(i -> i.getArgument(0));
         when(habitRepository.findByIdAndUserIdAndDeletedAtIsNull(HABIT_ID, USER_ID)).thenReturn(Optional.of(habit));
-        when(checkInRepository.save(any(HabitCheckIn.class))).thenAnswer(i -> i.getArgument(0));
+        when(checkInRepository.saveAndFlush(any(HabitCheckIn.class))).thenAnswer(i -> {
+            HabitCheckIn checkIn = i.getArgument(0);
+            if (checkIn.getId() == null) {
+                ReflectionTestUtils.setField(checkIn, "id", UUID.randomUUID());
+            }
+            return checkIn;
+        });
         when(checkInRepository.findByHabitIdAndUserIdAndCheckInDate(any(), any(), any())).thenReturn(Optional.empty());
         when(checkInRepository.findByHabitIdAndUserIdOrderByCheckInDateDesc(any(), any())).thenReturn(List.of());
     }
@@ -90,7 +96,7 @@ class HabitServiceImplTest {
         service.checkIn(HABIT_ID, new HabitCheckInRequest(null, null));
 
         ArgumentCaptor<HabitCheckIn> captor = ArgumentCaptor.forClass(HabitCheckIn.class);
-        verify(checkInRepository).save(captor.capture());
+        verify(checkInRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getCheckInDate()).isEqualTo(LocalDate.now());
         assertThat(captor.getValue().getCompleted()).isTrue();
     }
@@ -105,9 +111,10 @@ class HabitServiceImplTest {
         service.checkIn(HABIT_ID, new HabitCheckInRequest(null, true));
 
         ArgumentCaptor<HabitCheckIn> captor = ArgumentCaptor.forClass(HabitCheckIn.class);
-        verify(checkInRepository).save(captor.capture());
+        verify(checkInRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue()).isSameAs(existing);
         assertThat(captor.getValue().getCompleted()).isTrue();
+        verify(rewardService).award(user, "HABIT", existing.getId(), 5);
     }
 
     @Test
@@ -115,7 +122,7 @@ class HabitServiceImplTest {
         service.checkIn(HABIT_ID, new HabitCheckInRequest(null, false));
 
         ArgumentCaptor<HabitCheckIn> captor = ArgumentCaptor.forClass(HabitCheckIn.class);
-        verify(checkInRepository).save(captor.capture());
+        verify(checkInRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getCompleted()).isFalse();
     }
 

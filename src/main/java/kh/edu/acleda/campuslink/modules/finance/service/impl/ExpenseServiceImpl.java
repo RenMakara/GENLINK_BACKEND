@@ -122,22 +122,23 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     @Override
     @Transactional(readOnly = true)
-    public MonthlySummaryResponse monthlySummary(int month, int year) {
+    public MonthlySummaryResponse monthlySummary(int month, int year, Currency currency) {
         validateMonth(month);
         UUID userId = currentUserProvider.getCurrentUserId();
         LocalDate start = LocalDate.of(year, month, 1);
         LocalDate end = start.plusMonths(1);
 
         List<MonthlySummaryResponse.CategoryTotal> byCategory = expenseRepository
-            .sumByCategory(userId, start, end)
+            .sumByCategoryAndCurrency(userId, currency, start, end)
             .stream()
             .map(row -> new MonthlySummaryResponse.CategoryTotal(
                 row[0] == null ? UNCATEGORIZED : (String) row[0],
                 (BigDecimal) row[1]))
             .toList();
 
-        BigDecimal total = expenseRepository.sumForMonth(userId, start, end);
-        return new MonthlySummaryResponse(month, year, total == null ? BigDecimal.ZERO : total, byCategory);
+        BigDecimal total = expenseRepository.sumForMonthByCurrency(userId, currency, start, end);
+        return new MonthlySummaryResponse(month, year, currency,
+            total == null ? BigDecimal.ZERO : total, byCategory);
     }
 
     /** Also guards LocalDate.of, which would otherwise throw its own DateTimeException. */

@@ -26,6 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -137,6 +139,19 @@ class TaskServiceImplTest {
 
         assertThat(r.completed()).isTrue();
         assertThat(r.overdue()).isFalse();
+    }
+
+    @Test
+    void completionRetriesUseTheSameXpSourceKey() {
+        Task task = task("WORK", "HIGH", false, null);
+        when(taskRepository.findByIdAndUserIdAndDeletedAtIsNull(task.getId(), USER_ID))
+            .thenReturn(Optional.of(task));
+
+        service.setCompleted(task.getId(), true);
+        service.setCompleted(task.getId(), false);
+        service.setCompleted(task.getId(), true);
+
+        verify(rewardService, times(2)).award(user, "TASK", task.getId(), 5);
     }
 
     @Test

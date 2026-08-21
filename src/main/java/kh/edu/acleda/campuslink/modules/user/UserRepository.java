@@ -4,6 +4,10 @@ import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -13,6 +17,10 @@ import java.util.UUID;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.id = :id")
+    Optional<User> findByIdForUpdate(@Param("id") UUID id);
+
     Optional<User> findByEmail(String email);
     Optional<User> findByUsername(String username);
     Optional<User> findByPhoneNumber(String phoneNumber);
