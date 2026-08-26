@@ -43,6 +43,7 @@ public class StorageConfig {
     @Bean
     @Profile("!test")
     public S3Client s3Client() {
+        properties.validateCdnBaseMatchesBucketAndRegion();
         return S3Client.builder()
             .endpointOverride(URI.create(properties.getEndpoint()))
             .region(Region.of(properties.getRegion()))
@@ -54,6 +55,7 @@ public class StorageConfig {
     @Bean
     @Profile("!test")
     public S3Presigner s3Presigner() {
+        properties.validateCdnBaseMatchesBucketAndRegion();
         return S3Presigner.builder()
             .endpointOverride(URI.create(properties.getEndpoint()))
             .region(Region.of(properties.getRegion()))

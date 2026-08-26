@@ -1,5 +1,7 @@
 package kh.edu.acleda.campuslink.modules.media.storage;
 
+import java.net.URI;
+import java.util.Locale;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -57,5 +59,38 @@ public class StorageProperties {
 
     public long maxVideoBytes() {
         return maxVideoMb * 1024 * 1024;
+    }
+
+    /**
+     * Fail fast when a standard DigitalOcean CDN hostname does not describe the
+     * configured Space and region. Custom CDN domains and other S3-compatible
+     * providers remain supported because only DigitalOcean's default hostname is
+     * checked.
+     */
+    public void validateCdnBaseMatchesBucketAndRegion() {
+        if (cdnBase == null || cdnBase.isBlank()) {
+            return;
+        }
+
+        final String host;
+        try {
+            host = URI.create(cdnBase).getHost();
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException("app.storage.cdn-base is not a valid URL", exception);
+        }
+
+        if (host == null) {
+            throw new IllegalStateException("app.storage.cdn-base must be an absolute URL");
+        }
+
+        String digitalOceanCdnSuffix = ".cdn.digitaloceanspaces.com";
+        if (host.toLowerCase(Locale.ROOT).endsWith(digitalOceanCdnSuffix)) {
+            String expectedHost = bucket + "." + region + digitalOceanCdnSuffix;
+            if (!host.equalsIgnoreCase(expectedHost)) {
+                throw new IllegalStateException(
+                    "DigitalOcean CDN host must match app.storage.bucket and app.storage.region; "
+                        + "expected https://" + expectedHost);
+            }
+        }
     }
 }
