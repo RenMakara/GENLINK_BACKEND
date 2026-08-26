@@ -7,6 +7,7 @@ import kh.edu.acleda.campuslink.modules.entertainment.service.BadgeAwarder;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -38,22 +39,31 @@ public class RewardServiceImpl implements RewardService {
         if (xp <= 0) {
             return;
         }
-        int newTotal = user.getTotalXp() + xp;
-        int newLevel = 1 + newTotal / XP_PER_LEVEL;
-        boolean leveledUp = newLevel > user.getLevel();
+        User lockedUser = userRepository.findByIdForUpdate(user.getId())
+            .orElseThrow(() -> new NotFoundException("User not found"));
+        if (sourceId != null && xpHistoryRepository
+                .existsByUserIdAndSourceTypeAndSourceId(lockedUser.getId(), sourceType, sourceId)) {
+            log.debug("Skipped duplicate XP award: user={} sourceType={} sourceId={}",
+                lockedUser.getId(), sourceType, sourceId);
+            return;
+        }
 
-        user.setTotalXp(newTotal);
-        user.setLevel(newLevel);
-        userRepository.save(user);
+        int newTotal = lockedUser.getTotalXp() + xp;
+        int newLevel = 1 + newTotal / XP_PER_LEVEL;
+        boolean leveledUp = newLevel > lockedUser.getLevel();
+
+        lockedUser.setTotalXp(newTotal);
+        lockedUser.setLevel(newLevel);
+        userRepository.save(lockedUser);
 
         xpHistoryRepository.save(XpHistory.builder()
-            .user(user).sourceType(sourceType).sourceId(sourceId).xpAmount(xp).build());
+            .user(lockedUser).sourceType(sourceType).sourceId(sourceId).xpAmount(xp).build());
 
         // Badge unlocks are evaluated after the XP lands, so thresholds see the new total.
-        badgeAwarder.evaluate(user, sourceType);
+        badgeAwarder.evaluate(lockedUser, sourceType);
 
         if (leveledUp) {
-            log.info("Level up: user={} level={} totalXp={}", user.getId(), newLevel, newTotal);
+            log.info("Level up: user={} level={} totalXp={}", lockedUser.getId(), newLevel, newTotal);
         }
     }
 }

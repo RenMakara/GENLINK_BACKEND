@@ -5112,6 +5112,31 @@
               ]
             }
           }
+        },
+        {
+          "name": "Get Motivation by Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Motivation id matches', function () { pm.expect(pm.response.json().data.motivationId).to.eql('c0000000-0000-4000-8000-000000000001'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productivity/motivation/c0000000-0000-4000-8000-000000000001",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "productivity", "motivation", "c0000000-0000-4000-8000-000000000001"]
+            },
+            "description": "Fetches one seeded motivation item. Accept-Language may be set to en or km."
+          }
         }
       ]
     },
@@ -5120,7 +5145,7 @@
       "item": [
         {
           "name": "Income",
-          "description": "Income tracking (allowance, part-time, scholarship) and the monthly cash-flow / savings-rate summary. Money-in twin of Expenses. Everything is implicitly USD until dual currency lands.",
+          "description": "Income tracking (allowance, part-time, scholarship) and the per-currency monthly cash-flow / savings-rate summary. Money-in twin of Expenses; currency defaults to USD and also supports KHR.",
           "item": [
             {
               "name": "Create Income",
@@ -5427,11 +5452,23 @@
             },
             {
               "name": "Monthly Summary",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                      "pm.test('Summary is USD-only', function () { var d = pm.response.json().data; pm.expect(d.currency).to.eql('USD'); pm.expect(d.total).to.be.a('number'); pm.expect(d.byCategory).to.be.an('array'); });"
+                    ]
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/api/v1/finance/expenses/summary?month=7&year=2026",
+                  "raw": "{{baseUrl}}/api/v1/finance/expenses/summary?month=7&year=2026&currency=USD",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -5450,6 +5487,11 @@
                     {
                       "key": "year",
                       "value": "2026"
+                    },
+                    {
+                      "key": "currency",
+                      "value": "USD",
+                      "description": "USD or KHR; defaults to USD for backward compatibility"
                     }
                   ]
                 },
@@ -5604,11 +5646,23 @@
             },
             {
               "name": "Current Month Budget",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                      "pm.test('Budget currency matches request', function () { pm.expect(pm.response.json().data.currency).to.eql('USD'); });"
+                    ]
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{baseUrl}}/api/v1/finance/budgets/current?month=7&year=2026",
+                  "raw": "{{baseUrl}}/api/v1/finance/budgets/current?month=7&year=2026&currency=USD",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -5627,6 +5681,11 @@
                     {
                       "key": "year",
                       "value": "2026"
+                    },
+                    {
+                      "key": "currency",
+                      "value": "USD",
+                      "description": "USD or KHR; defaults to USD for backward compatibility"
                     }
                   ]
                 },
@@ -6749,7 +6808,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/finance/expenses/summary?month={{fMonth}}&year={{fYear}}",
+              "raw": "{{baseUrl}}/api/v1/finance/expenses/summary?month={{fMonth}}&year={{fYear}}&currency=USD",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -6768,6 +6827,10 @@
                 {
                   "key": "year",
                   "value": "{{fYear}}"
+                },
+                {
+                  "key": "currency",
+                  "value": "USD"
                 }
               ]
             }
@@ -6831,7 +6894,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/finance/budgets/current?month={{fMonth}}&year={{fYear}}",
+              "raw": "{{baseUrl}}/api/v1/finance/budgets/current?month={{fMonth}}&year={{fYear}}&currency=USD",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -6850,6 +6913,10 @@
                 {
                   "key": "year",
                   "value": "{{fYear}}"
+                },
+                {
+                  "key": "currency",
+                  "value": "USD"
                 }
               ]
             }
@@ -7290,6 +7357,7 @@
     },
     {
       "name": "Entertainment",
+      "description": "REST requests are runnable here. Multiplayer uses STOMP rather than HTTP: connect to /ws with Authorization: Bearer <MOBILE JWT>; subscribe /user/queue/match; SEND /app/quiz/matchmake/{quizId}; after matching, participants subscribe /topic/quiz/match/{matchId} and SEND to /app/quiz/match/{matchId}/submit or /finish. See docs/MULTIPLAYER_QUIZ_FLOW_KM.md because Postman Collection v2.1 cannot encode STOMP frames.",
       "item": [
         {
           "name": "List Quizzes",
@@ -7649,6 +7717,30 @@
           }
         },
         {
+          "name": "Get Short Content by Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content id matches', function () { pm.expect(pm.response.json().data.shortContentId).to.eql(pm.collectionVariables.get('shortContentId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/short-content/{{shortContentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "entertainment", "short-content", "{{shortContentId}}"]
+            }
+          }
+        },
+        {
           "name": "Like Short Content",
           "request": {
             "method": "POST",
@@ -7671,6 +7763,31 @@
           }
         },
         {
+          "name": "Unlike Short Content",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content is no longer liked', function () { pm.expect(pm.response.json().data.liked).to.eql(false); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/short-content/{{shortContentId}}/like",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "entertainment", "short-content", "{{shortContentId}}", "like"]
+            },
+            "description": "Idempotently removes the current user's like."
+          }
+        },
+        {
           "name": "Save Short Content",
           "request": {
             "method": "POST",
@@ -7689,6 +7806,31 @@
                 "save"
               ]
             }
+          }
+        },
+        {
+          "name": "Unsave Short Content",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content is no longer saved', function () { pm.expect(pm.response.json().data.saved).to.eql(false); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/entertainment/short-content/{{shortContentId}}/save",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "entertainment", "short-content", "{{shortContentId}}", "save"]
+            },
+            "description": "Idempotently removes the current user's saved item."
           }
         },
         {

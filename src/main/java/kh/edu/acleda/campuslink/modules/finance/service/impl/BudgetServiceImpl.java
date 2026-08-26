@@ -73,10 +73,11 @@ public class BudgetServiceImpl implements BudgetService {
         User user = loadCurrentUser();
         UUID userId = user.getId();
 
-        // UNIQUE(user, month, year): give a clear error rather than a constraint 500.
-        if (budgetRepository.existsByUserIdAndMonthAndYearAndDeletedAtIsNull(
-                userId, request.month(), request.year())) {
-            throw new ApiException("A budget already exists for this month", "BUDGET_ALREADY_EXISTS");
+        Currency currency = request.currency() == null ? Currency.USD : request.currency();
+        // UNIQUE(user, month, year, currency): give a clear error rather than a constraint 500.
+        if (budgetRepository.existsByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
+                userId, request.month(), request.year(), currency)) {
+            throw new ApiException("A budget already exists for this month and currency", "BUDGET_ALREADY_EXISTS");
         }
 
         Budget budget = budgetRepository.save(Budget.builder()
@@ -84,7 +85,7 @@ public class BudgetServiceImpl implements BudgetService {
             .month(request.month())
             .year(request.year())
             .totalBudget(request.totalBudget())
-            .currency(request.currency() == null ? Currency.USD : request.currency())
+            .currency(currency)
             // Stored counters satisfy the NOT NULL columns but are not read back -
             // spend is recomputed from expenses on every read, so it cannot drift.
             .spentAmount(BigDecimal.ZERO)
@@ -142,11 +143,12 @@ public class BudgetServiceImpl implements BudgetService {
      */
     @Override
     @Transactional(readOnly = true)
-    public BudgetResponse getForMonth(int month, int year) {
+    public BudgetResponse getForMonth(int month, int year, Currency currency) {
         validateMonth(month);
         Budget budget = budgetRepository
-            .findByUserIdAndMonthAndYearAndDeletedAtIsNull(currentUserProvider.getCurrentUserId(), month, year)
-            .orElseThrow(() -> new NotFoundException("No budget set for this month"));
+            .findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
+                currentUserProvider.getCurrentUserId(), month, year, currency)
+            .orElseThrow(() -> new NotFoundException("No budget set for this month and currency"));
         return toResponse(budget, true);
     }
 
@@ -167,10 +169,15 @@ public class BudgetServiceImpl implements BudgetService {
     public BudgetResponse update(UUID id, BudgetCreateRequest request) {
         validateMonth(request.month());
         Budget budget = loadOwned(id);
+        Currency currency = request.currency() == null ? budget.getCurrency() : request.currency();
+        if (budgetRepository.existsByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNullAndIdNot(
+                currentUserProvider.getCurrentUserId(), request.month(), request.year(), currency, id)) {
+            throw new ApiException("A budget already exists for this month and currency", "BUDGET_ALREADY_EXISTS");
+        }
         budget.setMonth(request.month());
         budget.setYear(request.year());
         budget.setTotalBudget(request.totalBudget());
-        budget.setCurrency(request.currency() == null ? Currency.USD : request.currency());
+        budget.setCurrency(currency);
         budgetRepository.save(budget);
 
         // Categories are replaced wholesale, matching the full-object edit from the UI.

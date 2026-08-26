@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.media.storage;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
@@ -29,6 +30,7 @@ import java.util.Optional;
  */
 @Slf4j
 @Service
+@Profile("!test")
 public class S3StorageService implements StorageService {
 
     private final S3Client client;

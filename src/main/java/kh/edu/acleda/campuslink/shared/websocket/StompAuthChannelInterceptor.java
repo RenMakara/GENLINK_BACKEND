@@ -3,6 +3,11 @@ package kh.edu.acleda.campuslink.shared.websocket;
 import kh.edu.acleda.campuslink.shared.security.AuthenticatedUser;
 import kh.edu.acleda.campuslink.shared.security.JwtService;
 import kh.edu.acleda.campuslink.shared.security.TokenType;
+import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizMatchRepository;
+import kh.edu.acleda.campuslink.modules.user.UserRepository;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.Message;
@@ -24,13 +29,19 @@ import org.springframework.stereotype.Component;
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     private static final Logger log = LoggerFactory.getLogger(StompAuthChannelInterceptor.class);
+    private static final Pattern MATCH_TOPIC = Pattern.compile("^/topic/quiz/match/([0-9a-fA-F-]{36})$");
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final UserRepository userRepository;
+    private final QuizMatchRepository quizMatchRepository;
 
-    public StompAuthChannelInterceptor(JwtService jwtService, UserDetailsService userDetailsService) {
+    public StompAuthChannelInterceptor(JwtService jwtService, UserDetailsService userDetailsService,
+                                       UserRepository userRepository, QuizMatchRepository quizMatchRepository) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.userRepository = userRepository;
+        this.quizMatchRepository = quizMatchRepository;
     }
 
     @Override
@@ -64,12 +75,36 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                 throw new AccessDeniedException("Unauthenticated subscription attempt");
             }
             String destination = accessor.getDestination();
-            if (destination == null || !destination.equals("/user/queue/chat")) {
+            if (!isAllowedSubscription(destination, accessor.getUser().getName())) {
                 throw new AccessDeniedException("Subscription to destination not allowed");
             }
         }
         
         return message;
+    }
+
+    private boolean isAllowedSubscription(String destination, String username) {
+        if ("/user/queue/chat".equals(destination) || "/user/queue/match".equals(destination)) {
+            return true;
+        }
+        if (destination == null) {
+            return false;
+        }
+        Matcher matcher = MATCH_TOPIC.matcher(destination);
+        if (!matcher.matches()) {
+            return false;
+        }
+        UUID matchId;
+        try {
+            matchId = UUID.fromString(matcher.group(1));
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+        UUID userId = userRepository.findByEmail(username)
+            .or(() -> userRepository.findByUsername(username))
+            .map(user -> user.getId())
+            .orElse(null);
+        return userId != null && quizMatchRepository.isParticipant(matchId, userId);
     }
 
     private String extractToken(StompHeaderAccessor accessor) {

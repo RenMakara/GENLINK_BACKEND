@@ -7,6 +7,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.BudgetCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.BudgetResponse;
 import kh.edu.acleda.campuslink.modules.finance.service.BudgetService;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import org.springframework.data.domain.Pageable;
@@ -53,11 +54,12 @@ public class BudgetController {
     @GetMapping("/current")
     public ResponseEntity<ApiResponse<BudgetResponse>> current(
         @RequestParam(required = false) Integer month,
-        @RequestParam(required = false) Integer year) {
+        @RequestParam(required = false) Integer year,
+        @RequestParam(defaultValue = "USD") Currency currency) {
         LocalDate now = LocalDate.now();
         int m = month == null ? now.getMonthValue() : month;
         int y = year == null ? now.getYear() : year;
-        return ResponseEntity.ok(ApiResponse.success("Budget retrieved", budgetService.getForMonth(m, y)));
+        return ResponseEntity.ok(ApiResponse.success("Budget retrieved", budgetService.getForMonth(m, y, currency)));
     }
 
     @GetMapping("/{id}")

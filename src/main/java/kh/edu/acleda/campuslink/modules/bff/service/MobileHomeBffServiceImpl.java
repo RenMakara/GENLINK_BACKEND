@@ -23,6 +23,7 @@ import kh.edu.acleda.campuslink.modules.entertainment.entity.DailyChallenge;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.DailyChallengeRepository;
 import kh.edu.acleda.campuslink.modules.finance.entity.Budget;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingGoal;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.SavingGoalStatus;
 import kh.edu.acleda.campuslink.modules.finance.repository.BudgetRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.ExpenseRepository;
@@ -150,7 +151,8 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
 
     private MobileHomeResponse.FinanceSnapshot financeSnapshot(UUID userId, LocalDate today) {
         Budget budget = budgetRepository
-            .findByUserIdAndMonthAndYearAndDeletedAtIsNull(userId, today.getMonthValue(), today.getYear())
+            .findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
+                userId, today.getMonthValue(), today.getYear(), Currency.USD)
             .orElse(null);
         List<SavingGoal> goals = savingGoalRepository
             .findByUserIdAndDeletedAtIsNullAndStatusOrderByCreatedAtDesc(userId, SavingGoalStatus.IN_PROGRESS);

@@ -46,11 +46,7 @@ app:
     # block on connect timeouts.
     enabled: false
 
-  # NOTE on app.storage.*: application.yaml declares ${STORAGE_BUCKET},
-  # ${STORAGE_CDN_BASE}, ${STORAGE_ACCESS_KEY} and ${STORAGE_SECRET_KEY} without
-  # defaults too, but they are bound via @ConfigurationProperties rather than
-  # @Value. Spring's Binder leaves an unresolvable placeholder as its literal
-  # text instead of throwing, so the context still starts - verified, not assumed.
-  # StorageProperties therefore holds the string "${STORAGE_BUCKET}" in tests.
-  # Harmless today because nothing here makes a storage call; set real test values
-  # here if that ever changes.
+  # The test profile uses InMemoryStorageService from src/test. StorageConfig still
+  # binds provider-neutral limits and expiry settings, but its AWS client beans and
+  # S3StorageService are excluded by @Profile("!test"). Tests therefore need no S3
+  # credentials and cannot contact external object storage accidentally.

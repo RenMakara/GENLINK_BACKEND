@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.media.storage;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -40,7 +41,9 @@ public class StorageConfig {
     }
 
     @Bean
+    @Profile("!test")
     public S3Client s3Client() {
+        properties.validateCdnBaseMatchesBucketAndRegion();
         return S3Client.builder()
             .endpointOverride(URI.create(properties.getEndpoint()))
             .region(Region.of(properties.getRegion()))
@@ -50,7 +53,9 @@ public class StorageConfig {
     }
 
     @Bean
+    @Profile("!test")
     public S3Presigner s3Presigner() {
+        properties.validateCdnBaseMatchesBucketAndRegion();
         return S3Presigner.builder()
             .endpointOverride(URI.create(properties.getEndpoint()))
             .region(Region.of(properties.getRegion()))

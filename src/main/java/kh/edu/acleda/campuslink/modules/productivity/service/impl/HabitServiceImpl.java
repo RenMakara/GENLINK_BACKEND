@@ -116,11 +116,13 @@ public class HabitServiceImpl implements HabitService {
             .orElseGet(() -> HabitCheckIn.builder().habit(habit).user(habit.getUser()).checkInDate(date).build());
         boolean wasCompleted = Boolean.TRUE.equals(checkIn.getCompleted());
         checkIn.setCompleted(completed);
-        checkInRepository.save(checkIn);
+        checkIn = checkInRepository.saveAndFlush(checkIn);
 
         // XP only on the transition to completed, so re-checking the same day pays once.
         if (completed && !wasCompleted) {
-            rewardService.award(loadCurrentUser(), XP_SOURCE, id, CHECK_IN_XP);
+            // The check-in row is the stable per-day idempotency key. Undoing and
+            // re-completing the same date therefore cannot award XP twice.
+            rewardService.award(loadCurrentUser(), XP_SOURCE, checkIn.getId(), CHECK_IN_XP);
         }
         return toResponse(habit);
     }

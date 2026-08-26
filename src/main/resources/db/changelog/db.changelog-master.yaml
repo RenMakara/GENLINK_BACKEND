@@ -85,3 +85,11 @@ databaseChangeLog:
       file: db/changelog/changes/0042-add-chat-roles-and-pin.sql
   - include:
       file: db/changelog/changes/0043-create-stories-tables.sql
+  - include:
+      file: db/changelog/changes/0044-create-quiz-matches-table.sql
+  - include:
+      file: db/changelog/changes/0045-create-quiz-match-answers-table.sql
+  - include:
+      file: db/changelog/changes/0046-add-quiz-match-answer-auditing.sql
+  - include:
+      file: db/changelog/changes/0047-fix-domain-correctness-constraints.sql

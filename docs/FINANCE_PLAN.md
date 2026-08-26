@@ -41,7 +41,7 @@ path now works.
 - [x] `GET /api/v1/finance/expenses` — paginated, filter by category and by
       month/year (date range, not EXTRACT, to stay portable and avoid the
       `:date IS NULL` Postgres trap).
-- [x] `GET /api/v1/finance/expenses/summary?month=&year=` — total plus a
+- [x] `GET /api/v1/finance/expenses/summary?month=&year=&currency=` — currency-specific total plus a
       per-category breakdown, for the spending chart.
 - [x] Tests.
 
@@ -49,7 +49,7 @@ No dependencies. Everything else reads from expenses.
 
 ## Phase 2 — Budget Planner — DONE
 
-- [x] Monthly budget CRUD, UNIQUE(user, month, year) enforced with a clear
+- [x] Monthly budget CRUD, UNIQUE(user, month, year, currency) enforced with a clear
       BUDGET_ALREADY_EXISTS error, not a raw constraint 500.
 - [x] Category budgets (budget_categories); update replaces them wholesale.
 - [x] **Spent/remaining/status computed from expenses on read**, not a cached
@@ -59,7 +59,7 @@ No dependencies. Everything else reads from expenses.
       (ExpenseRepository.sumForMonth for total, sumByCategory per category).
 - [x] Budget alert = status SAFE / WARNING / LIMIT_REACHED from spent vs total
       (WARNING at >= 80%, LIMIT_REACHED at >= 100%).
-- [x] `GET /budgets` list (light, no categories); `GET /budgets/current`,
+- [x] `GET /budgets` list (light, no categories); `GET /budgets/current?currency=`,
       `GET /budgets/{id}` (with category breakdown). Tests.
 
 ## Phase 3 — Saving Goals — DONE

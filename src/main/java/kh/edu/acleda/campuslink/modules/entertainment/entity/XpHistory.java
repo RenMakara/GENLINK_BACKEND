@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
@@ -24,7 +25,8 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "xp_history")
+@Table(name = "xp_history", uniqueConstraints = @UniqueConstraint(
+    name = "uk_xp_history_user_source", columnNames = {"user_id", "source_type", "source_id"}))
 @AttributeOverride(name = "id", column = @Column(name = "xp_history_id", nullable = false, updatable = false))
 public class XpHistory extends BaseEntity {
 

@@ -92,7 +92,8 @@ public class MobileFinanceBffServiceImpl implements MobileFinanceBffService {
         // Spend is per the budget's currency (default USD when no budget). Mixing KHR and USD
         // in one "spent" figure would be meaningless.
         Budget budget = budgetRepository
-            .findByUserIdAndMonthAndYearAndDeletedAtIsNull(userId, today.getMonthValue(), today.getYear())
+            .findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
+                userId, today.getMonthValue(), today.getYear(), Currency.USD)
             .orElse(null);
         Currency currency = budget == null ? Currency.USD : budget.getCurrency();
         BigDecimal spent = orZero(expenseRepository.sumForMonthByCurrency(userId, currency, monthStart, monthEnd));
