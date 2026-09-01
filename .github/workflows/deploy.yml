@@ -96,7 +96,7 @@ jobs:
           retention-days: 14
 
   deploy:
-    name: Deploy to DigitalOcean
+    name: Deploy to Server
     needs: ci
     # Pull requests are CI-only. Production changes only from main after CI.
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
@@ -158,11 +158,11 @@ jobs:
             footer="🛡️ Production was not changed."
             link_text="View test logs →"
           elif [ "$DEPLOY_STATUS" = "success" ]; then
-            header="✅ <b>CI/CD succeeded</b>"
-            footer="🟢 Live · http://165.22.101.156"
+            header="<b>So fullyrespect🙏😒</b>"
+            footer="🟢 Live · http://18.143.33.191"
             link_text="View workflow run →"
           else
-            header="❌ <b>Deploy failed</b>"
+            header="❌ <b>ខ្ញុំខ្សោយណាស់</b>"
             footer="🛡️ Previous image restored when available; verify migrations and health."
             link_text="View deploy logs →"
           fi
