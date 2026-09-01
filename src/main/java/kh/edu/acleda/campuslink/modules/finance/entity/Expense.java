@@ -57,6 +57,10 @@ public class Expense extends BaseEntity {
     @Column(name = "payment_method", length = 80)
     private String paymentMethod;
 
+    /** Whether this tracked expense also moved money out of the demo wallet. */
+    @Column(name = "paid_from_wallet", nullable = false)
+    private boolean paidFromWallet;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 

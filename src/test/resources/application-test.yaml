@@ -1,6 +1,8 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:campuslink;DB_CLOSE_DELAY=-1
+    # Finance schema uses month/year column names that PostgreSQL accepts. Tell H2
+    # not to treat them as keywords so integration tests can create the same model.
+    url: jdbc:h2:mem:campuslink;DB_CLOSE_DELAY=-1;NON_KEYWORDS=MONTH,YEAR
     driver-class-name: org.h2.Driver
     username: sa
     password:

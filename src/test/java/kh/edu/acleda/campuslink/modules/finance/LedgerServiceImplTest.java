@@ -2,6 +2,8 @@ package kh.edu.acleda.campuslink.modules.finance;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
@@ -35,6 +37,7 @@ class LedgerServiceImplTest {
 
     @Mock private DemoTransactionRepository transactionRepository;
     @Mock private DemoWalletRepository walletRepository;
+    @Mock private EntityManager entityManager;
 
     private LedgerServiceImpl service;
     private User user;
@@ -42,7 +45,7 @@ class LedgerServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new LedgerServiceImpl(transactionRepository, walletRepository);
+        service = new LedgerServiceImpl(transactionRepository, walletRepository, entityManager);
         user = new User();
         ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
         wallet = DemoWallet.builder().user(user)
@@ -50,6 +53,7 @@ class LedgerServiceImplTest {
             .balanceKhr(new BigDecimal("10000.00"))
             .build();
         ReflectionTestUtils.setField(wallet, "id", UUID.randomUUID());
+        when(entityManager.contains(wallet)).thenReturn(true);
         when(transactionRepository.save(any(DemoTransaction.class))).thenAnswer(i -> i.getArgument(0));
         when(walletRepository.save(any(DemoWallet.class))).thenAnswer(i -> i.getArgument(0));
     }
@@ -70,6 +74,7 @@ class LedgerServiceImplTest {
         assertThat(t.getRelatedId()).isEqualTo(incomeId);
         assertThat(t.getStatus()).isEqualTo(TransactionStatus.SUCCESS);
         verify(walletRepository).save(wallet);
+        verify(entityManager).refresh(wallet, LockModeType.PESSIMISTIC_WRITE);
     }
 
     @Test

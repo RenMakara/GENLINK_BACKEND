@@ -24,7 +24,6 @@ import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,7 +74,8 @@ public class DemoWalletServiceImpl implements DemoWalletService {
     public DemoWallet getOrCreateWalletEntity(User user) {
         // Background work (the recurring/auto-save scheduler) already holds the User, so it
         // skips the current-user lookup that loadOrCreateWallet() does.
-        return demoWalletRepository.findByUserId(user.getId()).orElseGet(() -> createWalletFor(user));
+        return demoWalletRepository.findByUserId(user.getId())
+            .orElseGet(() -> loadOrCreateWalletForUserId(user.getId()));
     }
 
     @Override
@@ -113,6 +113,9 @@ public class DemoWalletServiceImpl implements DemoWalletService {
         // 2. Provider approved -> the ledger is the single source of truth: it debits the wallet,
         //    records the DEBIT row (provider-neutral type + the provider identity for reconciliation)
         //    and enforces sufficient funds. The whole thing rolls back together on any failure.
+        //    A real provider charge is an external side effect: production integration must add an
+        //    idempotency key, retry/reconciliation handling, and a compensation policy because a
+        //    database rollback cannot undo a provider-approved charge.
         String description = "KHQR payment to " + merchant
             + (request.note() == null ? "" : " (" + request.note() + ")");
         ledgerService.debit(wallet, TransactionType.KHQR_PAYMENT, currency, request.amount(), description,
@@ -151,30 +154,33 @@ public class DemoWalletServiceImpl implements DemoWalletService {
     }
 
     /**
-     * Get-or-create the current user's wallet. UNIQUE(user_id) means two concurrent
-     * first-access requests could both try to insert; the loser catches the constraint
-     * violation and re-reads the winner's row.
+     * Get-or-create the current user's wallet. The fast path is an unlocked read; when no row
+     * exists, the fallback locks the owning user row before re-checking and inserting. That
+     * serialises first access without querying inside a transaction that has already failed a
+     * wallet unique constraint.
      */
     private DemoWallet loadOrCreateWallet() {
         UUID userId = currentUserProvider.getCurrentUserId();
-        return demoWalletRepository.findByUserId(userId).orElseGet(() -> {
-            User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
-            return createWalletFor(user);
-        });
+        return demoWalletRepository.findByUserId(userId)
+            .orElseGet(() -> loadOrCreateWalletForUserId(userId));
+    }
+
+    /**
+     * Serialises wallet creation for one user. User rows always exist before wallet rows and are
+     * therefore a stable lock target even when no wallet row exists yet.
+     */
+    private DemoWallet loadOrCreateWalletForUserId(UUID userId) {
+        User user = userRepository.findByIdForUpdate(userId)
+            .orElseThrow(() -> new NotFoundException("User not found"));
+        return demoWalletRepository.findByUserId(userId).orElseGet(() -> createWalletFor(user));
     }
 
     private DemoWallet createWalletFor(User user) {
-        try {
-            return demoWalletRepository.saveAndFlush(DemoWallet.builder()
-                .user(user)
-                .balanceUsd(BigDecimal.ZERO)
-                .balanceKhr(BigDecimal.ZERO)
-                .build());
-        } catch (DataIntegrityViolationException e) {
-            return demoWalletRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new ApiException("Could not open wallet", "WALLET_CREATE_FAILED"));
-        }
+        return demoWalletRepository.saveAndFlush(DemoWallet.builder()
+            .user(user)
+            .balanceUsd(BigDecimal.ZERO)
+            .balanceKhr(BigDecimal.ZERO)
+            .build());
     }
 
     private WalletResponse toResponse(DemoWallet wallet) {

@@ -10,7 +10,7 @@ import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
 /**
  * @param currency USD or KHR; defaults to USD. Deposits inherit the goal's currency, and a
- *                 wallet-funded deposit must be USD until the dual-currency wallet ships.
+ *                 wallet-funded deposit debits the matching wallet balance.
  */
 public record SavingGoalCreateRequest(
     @NotBlank @Size(max = 160) String title,

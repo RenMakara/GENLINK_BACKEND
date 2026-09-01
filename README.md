@@ -350,9 +350,14 @@ The backend pipeline is defined in `.github/workflows/deploy.yml`:
    Actions artifacts for 14 days.
 6. Telegram reports CI blocks, deployment success, or deployment failure.
 
-The CI job uses H2 and the test-profile in-memory object store, so it requires no
-database, SMTP, Google, S3 or DigitalOcean credentials. Production deployment
-still requires `SSH_HOST`, `SSH_USER`, and `SSH_KEY` repository secrets and the
+The CI job runs `./gradlew clean test` with a disposable PostgreSQL 16 service so
+the PostgreSQL migration and wallet-concurrency tests are enabled. Those tests use
+the non-production values `campuslink_test` / `postgres` through
+`GENLINK_TEST_POSTGRES_URL`, `GENLINK_TEST_POSTGRES_USERNAME`, and
+`GENLINK_TEST_POSTGRES_PASSWORD`; no production database is used. Other tests keep
+the test-profile H2 database and in-memory object store, so SMTP, Google, S3, and
+DigitalOcean credentials are still unnecessary. Production deployment still
+requires `SSH_HOST`, `SSH_USER`, and `SSH_KEY` repository secrets and the
 server-side `/opt/GENLINK_BACKEND/.env` file.
 
 Database migrations are not reversed by an image rollback. Keep migrations

@@ -9,8 +9,8 @@ import java.time.LocalDate;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
 /**
- * @param currency USD or KHR; defaults to USD when omitted. Only USD income credits the demo
- *                 wallet until the dual-currency wallet ships (Phase 3b); KHR income is tracked.
+ * @param currency USD or KHR; defaults to USD on create. On update, omission keeps the existing
+ *                 currency. Income credits the matching demo-wallet balance.
  */
 public record IncomeCreateRequest(
     @NotBlank @Size(max = 160) String title,

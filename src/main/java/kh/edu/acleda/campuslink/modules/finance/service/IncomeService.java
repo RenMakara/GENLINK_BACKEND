@@ -13,8 +13,14 @@ public interface IncomeService {
 
     IncomeResponse create(IncomeCreateRequest request);
 
-    /** The caller's income, newest first. source, month and year are optional filters. */
-    PageResponse<IncomeResponse> getMine(String source, Integer month, Integer year, Pageable pageable);
+    /** The caller's income, newest first. source, month, year and currency are optional filters. */
+    PageResponse<IncomeResponse> getMine(String source, Integer month, Integer year,
+                                         Currency currency, Pageable pageable);
+
+    default PageResponse<IncomeResponse> getMine(String source, Integer month, Integer year,
+                                                 Pageable pageable) {
+        return getMine(source, month, year, null, pageable);
+    }
 
     IncomeResponse getById(UUID id);
 

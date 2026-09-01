@@ -64,6 +64,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             .description(request.description())
             .expenseDate(request.expenseDate())
             .paymentMethod(request.paymentMethod())
+            .paidFromWallet(Boolean.TRUE.equals(request.paidFromWallet()))
             .build());
 
         // Opt-in: only "paid from wallet" expenses move the balance. A too-low balance rejects
@@ -79,7 +80,8 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ExpenseResponse> getMine(String category, Integer month, Integer year, Pageable pageable) {
+    public PageResponse<ExpenseResponse> getMine(String category, Integer month, Integer year,
+                                                 Currency currency, Pageable pageable) {
         UUID userId = currentUserProvider.getCurrentUserId();
 
         // A month filter needs both month and year, otherwise "March" spans every year.
@@ -88,9 +90,10 @@ public class ExpenseServiceImpl implements ExpenseService {
             LocalDate start = LocalDate.of(year, month, 1);
             LocalDate end = start.plusMonths(1);
             return PageResponse.from(
-                expenseRepository.findByUserAndDateRange(userId, category, start, end, pageable), this::toResponse);
+                expenseRepository.findByUserAndDateRange(userId, category, currency, start, end, pageable),
+                this::toResponse);
         }
-        return PageResponse.from(expenseRepository.findByUser(userId, category, pageable), this::toResponse);
+        return PageResponse.from(expenseRepository.findByUser(userId, category, currency, pageable), this::toResponse);
     }
 
     @Override
@@ -102,22 +105,74 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Override
     @Transactional
     public ExpenseResponse update(UUID id, ExpenseCreateRequest request) {
-        Expense expense = loadOwned(id);
+        Expense expense = loadOwnedForUpdate(id);
+        Currency oldCurrency = expense.getCurrency();
+        Currency newCurrency = request.currency() == null ? oldCurrency : request.currency();
+        boolean newPaidFromWallet = request.paidFromWallet() == null
+            ? expense.isPaidFromWallet()
+            : request.paidFromWallet();
+        adjustWalletForExpenseChange(expense, oldCurrency, expense.getAmount(), expense.isPaidFromWallet(),
+            newCurrency, request.amount(), newPaidFromWallet);
+
         expense.setTitle(request.title().strip());
         expense.setAmount(request.amount());
+        expense.setCurrency(newCurrency);
         expense.setCategory(request.category());
         expense.setDescription(request.description());
         expense.setExpenseDate(request.expenseDate());
         expense.setPaymentMethod(request.paymentMethod());
+        expense.setPaidFromWallet(newPaidFromWallet);
         return toResponse(expenseRepository.save(expense));
     }
 
     @Override
     @Transactional
     public void delete(UUID id) {
-        Expense expense = loadOwned(id);
+        Expense expense = loadOwnedForUpdate(id);
+        if (expense.isPaidFromWallet()) {
+            DemoWallet wallet = demoWalletService.getOrCreateWalletEntity();
+            ledgerService.credit(wallet, TransactionType.EXPENSE, expense.getCurrency(), expense.getAmount(),
+                "Expense deleted (refund): " + expense.getTitle(), "EXPENSE", expense.getId());
+        }
         expense.setDeletedAt(Instant.now());
         expenseRepository.save(expense);
+    }
+
+    /** Applies only the wallet difference while retaining every correction in the ledger. */
+    private void adjustWalletForExpenseChange(Expense expense,
+                                              Currency oldCurrency, BigDecimal oldAmount, boolean oldPaid,
+                                              Currency newCurrency, BigDecimal newAmount, boolean newPaid) {
+        if (!oldPaid && !newPaid) {
+            return;
+        }
+
+        DemoWallet wallet = demoWalletService.getOrCreateWalletEntity();
+        if (!oldPaid) {
+            ledgerService.debit(wallet, TransactionType.EXPENSE, newCurrency, newAmount,
+                "Expense moved to wallet: " + expense.getTitle(), "EXPENSE", expense.getId());
+            return;
+        }
+        if (!newPaid) {
+            ledgerService.credit(wallet, TransactionType.EXPENSE, oldCurrency, oldAmount,
+                "Expense removed from wallet (refund): " + expense.getTitle(), "EXPENSE", expense.getId());
+            return;
+        }
+        if (oldCurrency != newCurrency) {
+            ledgerService.credit(wallet, TransactionType.EXPENSE, oldCurrency, oldAmount,
+                "Expense currency changed (refund): " + expense.getTitle(), "EXPENSE", expense.getId());
+            ledgerService.debit(wallet, TransactionType.EXPENSE, newCurrency, newAmount,
+                "Expense currency changed: " + expense.getTitle(), "EXPENSE", expense.getId());
+            return;
+        }
+
+        BigDecimal delta = newAmount.subtract(oldAmount);
+        if (delta.signum() > 0) {
+            ledgerService.debit(wallet, TransactionType.EXPENSE, newCurrency, delta,
+                "Expense increased: " + expense.getTitle(), "EXPENSE", expense.getId());
+        } else if (delta.signum() < 0) {
+            ledgerService.credit(wallet, TransactionType.EXPENSE, oldCurrency, delta.abs(),
+                "Expense reduced (refund): " + expense.getTitle(), "EXPENSE", expense.getId());
+        }
     }
 
     @Override
@@ -154,6 +209,11 @@ public class ExpenseServiceImpl implements ExpenseService {
             .orElseThrow(() -> new NotFoundException("Expense not found"));
     }
 
+    private Expense loadOwnedForUpdate(UUID id) {
+        return expenseRepository.findByIdAndUserIdForUpdate(id, currentUserProvider.getCurrentUserId())
+            .orElseThrow(() -> new NotFoundException("Expense not found"));
+    }
+
     private User loadCurrentUser() {
         return userRepository.findById(currentUserProvider.getCurrentUserId())
             .orElseThrow(() -> new NotFoundException("User not found"));
@@ -169,6 +229,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             expense.getDescription(),
             expense.getExpenseDate(),
             expense.getPaymentMethod(),
+            expense.isPaidFromWallet(),
             expense.getCreatedAt()
         );
     }

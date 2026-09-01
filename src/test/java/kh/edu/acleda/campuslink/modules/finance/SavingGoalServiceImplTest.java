@@ -179,20 +179,21 @@ class SavingGoalServiceImplTest {
 
     @Test
     void getMineWithoutStatusReturnsAll() {
-        when(savingGoalRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(USER_ID))
+        when(savingGoalRepository.findByUser(USER_ID, null, Currency.USD))
             .thenReturn(List.of(goal));
 
-        assertThat(service.getMine(null)).hasSize(1);
+        assertThat(service.getMine(null, Currency.USD)).hasSize(1);
+        verify(savingGoalRepository).findByUser(USER_ID, null, Currency.USD);
     }
 
     @Test
     void getMineWithStatusFiltersByStatus() {
-        when(savingGoalRepository.findByUserIdAndDeletedAtIsNullAndStatusOrderByCreatedAtDesc(
-            USER_ID, SavingGoalStatus.COMPLETED)).thenReturn(List.of());
+        when(savingGoalRepository.findByUser(USER_ID, SavingGoalStatus.COMPLETED, Currency.KHR))
+            .thenReturn(List.of());
 
-        assertThat(service.getMine(SavingGoalStatus.COMPLETED)).isEmpty();
+        assertThat(service.getMine(SavingGoalStatus.COMPLETED, Currency.KHR)).isEmpty();
         verify(savingGoalRepository)
-            .findByUserIdAndDeletedAtIsNullAndStatusOrderByCreatedAtDesc(USER_ID, SavingGoalStatus.COMPLETED);
+            .findByUser(USER_ID, SavingGoalStatus.COMPLETED, Currency.KHR);
     }
 
     @Test

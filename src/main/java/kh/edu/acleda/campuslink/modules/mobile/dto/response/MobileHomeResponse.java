@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
 /**
  * Everything the Home Super Dashboard needs, in one call.
@@ -48,8 +49,12 @@ public record MobileHomeResponse(
         LocalDateTime deadline
     ) {}
 
-    /** Amounts come from the cached columns on budgets; nothing is recomputed here. */
+    /**
+     * Budget values come from the selected-currency budget; spend is calculated live from
+     * expenses in that same currency. Saving amounts are aggregated only for that currency.
+     */
     public record FinanceSnapshot(
+        Currency currency,
         BigDecimal totalBudget,
         BigDecimal spentAmount,
         BigDecimal remainingAmount,

@@ -74,7 +74,8 @@ public class IncomeServiceImpl implements IncomeService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<IncomeResponse> getMine(String source, Integer month, Integer year, Pageable pageable) {
+    public PageResponse<IncomeResponse> getMine(String source, Integer month, Integer year,
+                                                Currency currency, Pageable pageable) {
         UUID userId = currentUserProvider.getCurrentUserId();
 
         // A month filter needs both month and year, otherwise "March" spans every year.
@@ -83,9 +84,10 @@ public class IncomeServiceImpl implements IncomeService {
             LocalDate start = LocalDate.of(year, month, 1);
             LocalDate end = start.plusMonths(1);
             return PageResponse.from(
-                incomeRepository.findByUserAndDateRange(userId, source, start, end, pageable), this::toResponse);
+                incomeRepository.findByUserAndDateRange(userId, source, currency, start, end, pageable),
+                this::toResponse);
         }
-        return PageResponse.from(incomeRepository.findByUser(userId, source, pageable), this::toResponse);
+        return PageResponse.from(incomeRepository.findByUser(userId, source, currency, pageable), this::toResponse);
     }
 
     @Override
@@ -97,9 +99,14 @@ public class IncomeServiceImpl implements IncomeService {
     @Override
     @Transactional
     public IncomeResponse update(UUID id, IncomeCreateRequest request) {
-        Income income = loadOwned(id);
+        Income income = loadOwnedForUpdate(id);
+        Currency oldCurrency = income.getCurrency();
+        Currency newCurrency = request.currency() == null ? oldCurrency : request.currency();
+        adjustWalletForIncomeChange(income, oldCurrency, income.getAmount(), newCurrency, request.amount());
+
         income.setTitle(request.title().strip());
         income.setAmount(request.amount());
+        income.setCurrency(newCurrency);
         income.setSource(request.source());
         income.setDescription(request.description());
         income.setIncomeDate(request.incomeDate());
@@ -109,9 +116,37 @@ public class IncomeServiceImpl implements IncomeService {
     @Override
     @Transactional
     public void delete(UUID id) {
-        Income income = loadOwned(id);
+        Income income = loadOwnedForUpdate(id);
+        DemoWallet wallet = demoWalletService.getOrCreateWalletEntity();
+        ledgerService.debit(wallet, TransactionType.INCOME, income.getCurrency(), income.getAmount(),
+            "Income deleted: " + income.getTitle(), "INCOME", income.getId());
         income.setDeletedAt(Instant.now());
         incomeRepository.save(income);
+    }
+
+    /**
+     * Income always belongs to the wallet. Corrections are append-only ledger movements: a delta
+     * in the same currency, or a full reversal/re-credit when the currency changes.
+     */
+    private void adjustWalletForIncomeChange(Income income, Currency oldCurrency, BigDecimal oldAmount,
+                                             Currency newCurrency, BigDecimal newAmount) {
+        DemoWallet wallet = demoWalletService.getOrCreateWalletEntity();
+        if (oldCurrency == newCurrency) {
+            BigDecimal delta = newAmount.subtract(oldAmount);
+            if (delta.signum() > 0) {
+                ledgerService.credit(wallet, TransactionType.INCOME, newCurrency, delta,
+                    "Income increased: " + income.getTitle(), "INCOME", income.getId());
+            } else if (delta.signum() < 0) {
+                ledgerService.debit(wallet, TransactionType.INCOME, oldCurrency, delta.abs(),
+                    "Income reduced: " + income.getTitle(), "INCOME", income.getId());
+            }
+            return;
+        }
+
+        ledgerService.debit(wallet, TransactionType.INCOME, oldCurrency, oldAmount,
+            "Income currency changed (reverse): " + income.getTitle(), "INCOME", income.getId());
+        ledgerService.credit(wallet, TransactionType.INCOME, newCurrency, newAmount,
+            "Income currency changed: " + income.getTitle(), "INCOME", income.getId());
     }
 
     @Override
@@ -150,6 +185,11 @@ public class IncomeServiceImpl implements IncomeService {
     /** Owner-scoped: another user's id reads as not found, never forbidden. */
     private Income loadOwned(UUID id) {
         return incomeRepository.findByIdAndUserIdAndDeletedAtIsNull(id, currentUserProvider.getCurrentUserId())
+            .orElseThrow(() -> new NotFoundException("Income not found"));
+    }
+
+    private Income loadOwnedForUpdate(UUID id) {
+        return incomeRepository.findByIdAndUserIdForUpdate(id, currentUserProvider.getCurrentUserId())
             .orElseThrow(() -> new NotFoundException("Income not found"));
     }
 

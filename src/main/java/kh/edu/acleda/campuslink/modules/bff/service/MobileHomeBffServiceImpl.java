@@ -104,9 +104,10 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
 
     @Override
     @Transactional(readOnly = true)
-    public MobileHomeResponse getHome(String email, Language language) {
+    public MobileHomeResponse getHome(String email, Language language, Currency currency) {
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new NotFoundException("User not found"));
+        Currency selectedCurrency = currency == null ? Currency.USD : currency;
         UUID userId = user.getId();
         LocalDate today = LocalDate.now();
         LocalDateTime now = LocalDateTime.now();
@@ -116,7 +117,7 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
                 user.getLevel(), user.getTotalXp()),
             todayProgress(userId, today),
             dailyChallenge(now, language),
-            financeSnapshot(userId, today),
+            financeSnapshot(userId, today, selectedCurrency),
             upcomingEvent(userId, now),
             recommendedCommunities(userId),
             dailyMotivation(today, language),
@@ -149,13 +150,13 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
         );
     }
 
-    private MobileHomeResponse.FinanceSnapshot financeSnapshot(UUID userId, LocalDate today) {
+    private MobileHomeResponse.FinanceSnapshot financeSnapshot(UUID userId, LocalDate today, Currency currency) {
         Budget budget = budgetRepository
             .findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
-                userId, today.getMonthValue(), today.getYear(), Currency.USD)
+                userId, today.getMonthValue(), today.getYear(), currency)
             .orElse(null);
         List<SavingGoal> goals = savingGoalRepository
-            .findByUserIdAndDeletedAtIsNullAndStatusOrderByCreatedAtDesc(userId, SavingGoalStatus.IN_PROGRESS);
+            .findByUser(userId, SavingGoalStatus.IN_PROGRESS, currency);
 
         // Nothing to show at all - let the client render the "set a budget" empty state.
         if (budget == null && goals.isEmpty()) {
@@ -185,7 +186,8 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
             status = budgetStatus(spent, total);
         }
 
-        return new MobileHomeResponse.FinanceSnapshot(total, spent, remaining, status, savingTarget, savingCurrent);
+        return new MobileHomeResponse.FinanceSnapshot(currency, total, spent, remaining, status,
+            savingTarget, savingCurrent);
     }
 
     /** SAFE / WARNING (>=80%) / LIMIT_REACHED (>=100%) from live spend, same thresholds as the budget module. */

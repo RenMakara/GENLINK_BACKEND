@@ -9,6 +9,7 @@ import kh.edu.acleda.campuslink.modules.finance.dto.request.SavingGoalCreateRequ
 import kh.edu.acleda.campuslink.modules.finance.dto.response.SavingDepositResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.SavingGoalResponse;
 import kh.edu.acleda.campuslink.modules.finance.enums.SavingGoalStatus;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.service.SavingGoalService;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import org.springframework.http.ResponseEntity;
@@ -39,11 +40,13 @@ public class SavingGoalController {
         return ResponseEntity.ok(ApiResponse.success("Saving goal created", savingGoalService.create(request)));
     }
 
-    /** Newest first; optional ?status=IN_PROGRESS|COMPLETED|CANCELLED. */
+    /** Newest first; optional ?status=IN_PROGRESS|COMPLETED|CANCELLED and ?currency=USD|KHR. */
     @GetMapping
     public ResponseEntity<ApiResponse<List<SavingGoalResponse>>> getMine(
-        @RequestParam(required = false) SavingGoalStatus status) {
-        return ResponseEntity.ok(ApiResponse.success("Saving goals retrieved", savingGoalService.getMine(status)));
+        @RequestParam(required = false) SavingGoalStatus status,
+        @RequestParam(required = false) Currency currency) {
+        return ResponseEntity.ok(ApiResponse.success("Saving goals retrieved",
+            savingGoalService.getMine(status, currency)));
     }
 
     @GetMapping("/{id}")

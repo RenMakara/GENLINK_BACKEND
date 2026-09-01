@@ -9,6 +9,7 @@ import kh.edu.acleda.campuslink.modules.finance.entity.Budget;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.entity.Expense;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingGoal;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.SavingGoalStatus;
 import kh.edu.acleda.campuslink.modules.finance.repository.BudgetRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
@@ -34,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -62,11 +64,11 @@ class MobileFinanceBffServiceImplTest {
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
         when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(null);
         when(expenseRepository.sumByCategoryAndCurrency(any(), any(), any(), any())).thenReturn(List.of());
-        when(expenseRepository.findByUser(any(), any(), any())).thenReturn(Page.empty());
+        when(expenseRepository.findByUser(any(), any(), any(), any())).thenReturn(Page.empty());
         when(budgetRepository.findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(any(), any(), any(), any()))
             .thenReturn(Optional.empty());
-        when(savingGoalRepository.findByUserIdAndDeletedAtIsNullAndStatusOrderByCreatedAtDesc(
-            any(), eq(SavingGoalStatus.IN_PROGRESS))).thenReturn(List.of());
+        when(savingGoalRepository.findByUser(any(), eq(SavingGoalStatus.IN_PROGRESS), any()))
+            .thenReturn(List.of());
         when(demoWalletRepository.findByUserId(any())).thenReturn(Optional.empty());
     }
 
@@ -74,6 +76,8 @@ class MobileFinanceBffServiceImplTest {
     void aBrandNewUserStillGetsAWellFormedBody() {
         MobileFinanceDashboardResponse r = service.getFinanceDashboard(EMAIL);
 
+        assertThat(r.currency()).isEqualTo(Currency.USD);
+        assertThat(r.month().currency()).isEqualTo(Currency.USD);
         assertThat(r.month().spent()).isEqualByComparingTo("0");
         assertThat(r.month().budgetTotal()).isNull();
         assertThat(r.topCategories()).isEmpty();
@@ -87,7 +91,7 @@ class MobileFinanceBffServiceImplTest {
 
     @Test
     void monthOverviewComputesSpendLiveAndFlagsWarning() {
-        Budget budget = Budget.builder().totalBudget(new BigDecimal("200.00")).build();
+        Budget budget = Budget.builder().totalBudget(new BigDecimal("200.00")).currency(Currency.USD).build();
         when(budgetRepository.findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(any(), any(), any(), any()))
             .thenReturn(Optional.of(budget));
         when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(new BigDecimal("180.00"));
@@ -101,7 +105,7 @@ class MobileFinanceBffServiceImplTest {
 
     @Test
     void budgetStatusIsLimitReachedAtOrOverTotal() {
-        Budget budget = Budget.builder().totalBudget(new BigDecimal("100.00")).build();
+        Budget budget = Budget.builder().totalBudget(new BigDecimal("100.00")).currency(Currency.USD).build();
         when(budgetRepository.findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(any(), any(), any(), any()))
             .thenReturn(Optional.of(budget));
         when(expenseRepository.sumForMonthByCurrency(any(), any(), any(), any())).thenReturn(new BigDecimal("100.00"));
@@ -127,14 +131,17 @@ class MobileFinanceBffServiceImplTest {
 
     @Test
     void savingProgressAggregatesActiveGoals() {
-        when(savingGoalRepository.findByUserIdAndDeletedAtIsNullAndStatusOrderByCreatedAtDesc(
-            any(), eq(SavingGoalStatus.IN_PROGRESS))).thenReturn(List.of(
-                SavingGoal.builder().targetAmount(new BigDecimal("100")).currentAmount(new BigDecimal("30")).build(),
-                SavingGoal.builder().targetAmount(new BigDecimal("200")).currentAmount(new BigDecimal("60")).build()));
+        when(savingGoalRepository.findByUser(any(), eq(SavingGoalStatus.IN_PROGRESS), eq(Currency.USD)))
+            .thenReturn(List.of(
+                SavingGoal.builder().currency(Currency.USD).targetAmount(new BigDecimal("100"))
+                    .currentAmount(new BigDecimal("30")).build(),
+                SavingGoal.builder().currency(Currency.USD).targetAmount(new BigDecimal("200"))
+                    .currentAmount(new BigDecimal("60")).build()));
 
         MobileFinanceDashboardResponse.SavingProgress s = service.getFinanceDashboard(EMAIL).saving();
 
         assertThat(s.totalTarget()).isEqualByComparingTo("300");
+        assertThat(s.currency()).isEqualTo(Currency.USD);
         assertThat(s.totalSaved()).isEqualByComparingTo("90");
         assertThat(s.progressPercent()).isEqualTo(30);
         assertThat(s.activeGoals()).isEqualTo(2);
@@ -143,15 +150,32 @@ class MobileFinanceBffServiceImplTest {
     @Test
     void recentExpensesAreMapped() {
         Expense e = Expense.builder().title("Coffee").category("FOOD")
-            .amount(new BigDecimal("2.50")).expenseDate(java.time.LocalDate.now()).build();
+            .currency(Currency.USD).amount(new BigDecimal("2.50"))
+            .expenseDate(java.time.LocalDate.now()).build();
         ReflectionTestUtils.setField(e, "id", UUID.randomUUID());
-        when(expenseRepository.findByUser(any(), any(), any())).thenReturn(new PageImpl<>(List.of(e)));
+        when(expenseRepository.findByUser(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(e)));
 
         assertThat(service.getFinanceDashboard(EMAIL).recentExpenses()).singleElement()
             .satisfies(re -> {
                 assertThat(re.title()).isEqualTo("Coffee");
+                assertThat(re.currency()).isEqualTo(Currency.USD);
                 assertThat(re.amount()).isEqualByComparingTo("2.50");
             });
+    }
+
+    @Test
+    void khrDashboardQueriesAndLabelsOnlyKhrData() {
+        when(expenseRepository.sumForMonthByCurrency(eq(USER_ID), eq(Currency.KHR), any(), any()))
+            .thenReturn(new BigDecimal("12000"));
+
+        MobileFinanceDashboardResponse response = service.getFinanceDashboard(EMAIL, Currency.KHR);
+
+        assertThat(response.currency()).isEqualTo(Currency.KHR);
+        assertThat(response.month().currency()).isEqualTo(Currency.KHR);
+        assertThat(response.month().spent()).isEqualByComparingTo("12000");
+        assertThat(response.saving().currency()).isEqualTo(Currency.KHR);
+        verify(expenseRepository).findByUser(eq(USER_ID), eq(null), eq(Currency.KHR), any());
+        verify(savingGoalRepository).findByUser(USER_ID, SavingGoalStatus.IN_PROGRESS, Currency.KHR);
     }
 
     @Test

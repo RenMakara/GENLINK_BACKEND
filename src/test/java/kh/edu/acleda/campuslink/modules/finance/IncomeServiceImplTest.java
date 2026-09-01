@@ -63,7 +63,7 @@ class IncomeServiceImplTest {
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
         income = Income.builder().user(user).title("Allowance").amount(new BigDecimal("100.00"))
-            .source("ALLOWANCE").incomeDate(LocalDate.of(2026, 7, 1)).build();
+            .currency(Currency.USD).source("ALLOWANCE").incomeDate(LocalDate.of(2026, 7, 1)).build();
         ReflectionTestUtils.setField(income, "id", INCOME_ID);
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
@@ -98,19 +98,21 @@ class IncomeServiceImplTest {
 
     @Test
     void getMineWithAMonthUsesTheDateRangeQuery() {
-        when(incomeRepository.findByUserAndDateRange(eq(USER_ID), any(), any(), any(), any()))
+        when(incomeRepository.findByUserAndDateRange(eq(USER_ID), any(), any(), any(), any(), any()))
             .thenReturn(new PageImpl<>(List.of(income)));
 
-        assertThat(service.getMine(null, 7, 2026, PageRequest.of(0, 20)).content()).hasSize(1);
-        verify(incomeRepository).findByUserAndDateRange(eq(USER_ID), any(), any(), any(), any());
+        assertThat(service.getMine(null, 7, 2026, Currency.KHR, PageRequest.of(0, 20)).content()).hasSize(1);
+        verify(incomeRepository).findByUserAndDateRange(eq(USER_ID), any(), eq(Currency.KHR),
+            any(), any(), any());
     }
 
     @Test
     void getMineWithoutAMonthUsesThePlainList() {
-        when(incomeRepository.findByUser(eq(USER_ID), any(), any())).thenReturn(new PageImpl<>(List.of(income)));
+        when(incomeRepository.findByUser(eq(USER_ID), any(), any(), any()))
+            .thenReturn(new PageImpl<>(List.of(income)));
 
         assertThat(service.getMine(null, null, null, PageRequest.of(0, 20)).content()).hasSize(1);
-        verify(incomeRepository).findByUser(eq(USER_ID), any(), any());
+        verify(incomeRepository).findByUser(eq(USER_ID), any(), eq(null), any());
     }
 
     @Test
@@ -122,11 +124,54 @@ class IncomeServiceImplTest {
 
     @Test
     void deleteIsASoftDelete() {
-        when(incomeRepository.findByIdAndUserIdAndDeletedAtIsNull(INCOME_ID, USER_ID)).thenReturn(Optional.of(income));
+        DemoWallet wallet = wallet();
+        when(incomeRepository.findByIdAndUserIdForUpdate(INCOME_ID, USER_ID)).thenReturn(Optional.of(income));
+        when(demoWalletService.getOrCreateWalletEntity()).thenReturn(wallet);
 
         service.delete(INCOME_ID);
 
         assertThat(income.getDeletedAt()).isNotNull();
+        verify(ledgerService).debit(wallet, TransactionType.INCOME, Currency.USD,
+            new BigDecimal("100.00"), "Income deleted: Allowance", "INCOME", INCOME_ID);
+    }
+
+    @Test
+    void updateAppliesOnlyTheIncomeDeltaToTheWallet() {
+        DemoWallet wallet = wallet();
+        when(incomeRepository.findByIdAndUserIdForUpdate(INCOME_ID, USER_ID)).thenReturn(Optional.of(income));
+        when(demoWalletService.getOrCreateWalletEntity()).thenReturn(wallet);
+
+        service.update(INCOME_ID, new IncomeCreateRequest(
+            "Allowance", new BigDecimal("60.00"), "ALLOWANCE", null,
+            LocalDate.of(2026, 7, 1), Currency.USD));
+
+        verify(ledgerService).debit(wallet, TransactionType.INCOME, Currency.USD,
+            new BigDecimal("40.00"), "Income reduced: Allowance", "INCOME", INCOME_ID);
+        assertThat(income.getAmount()).isEqualByComparingTo("60.00");
+    }
+
+    @Test
+    void updateChangingCurrencyReversesOldAndCreditsNewCurrency() {
+        DemoWallet wallet = wallet();
+        when(incomeRepository.findByIdAndUserIdForUpdate(INCOME_ID, USER_ID)).thenReturn(Optional.of(income));
+        when(demoWalletService.getOrCreateWalletEntity()).thenReturn(wallet);
+
+        service.update(INCOME_ID, new IncomeCreateRequest(
+            "Allowance", new BigDecimal("400000"), "ALLOWANCE", null,
+            LocalDate.of(2026, 7, 1), Currency.KHR));
+
+        verify(ledgerService).debit(wallet, TransactionType.INCOME, Currency.USD,
+            new BigDecimal("100.00"), "Income currency changed (reverse): Allowance", "INCOME", INCOME_ID);
+        verify(ledgerService).credit(wallet, TransactionType.INCOME, Currency.KHR,
+            new BigDecimal("400000"), "Income currency changed: Allowance", "INCOME", INCOME_ID);
+        assertThat(income.getCurrency()).isEqualTo(Currency.KHR);
+    }
+
+    private DemoWallet wallet() {
+        return DemoWallet.builder().user(user)
+            .balanceUsd(new BigDecimal("500.00"))
+            .balanceKhr(new BigDecimal("2000000.00"))
+            .build();
     }
 
     // ---- Cash flow ----

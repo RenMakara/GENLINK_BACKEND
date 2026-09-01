@@ -81,40 +81,41 @@ public class MobileFinanceBffServiceImpl implements MobileFinanceBffService {
 
     @Override
     @Transactional(readOnly = true)
-    public MobileFinanceDashboardResponse getFinanceDashboard(String email) {
+    public MobileFinanceDashboardResponse getFinanceDashboard(String email, Currency currency) {
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new NotFoundException("User not found"));
+        Currency selectedCurrency = currency == null ? Currency.USD : currency;
         UUID userId = user.getId();
         LocalDate today = LocalDate.now();
         LocalDate monthStart = today.withDayOfMonth(1);
         LocalDate monthEnd = monthStart.plusMonths(1);
 
-        // Spend is per the budget's currency (default USD when no budget). Mixing KHR and USD
-        // in one "spent" figure would be meaningless.
         Budget budget = budgetRepository
             .findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
-                userId, today.getMonthValue(), today.getYear(), Currency.USD)
+                userId, today.getMonthValue(), today.getYear(), selectedCurrency)
             .orElse(null);
-        Currency currency = budget == null ? Currency.USD : budget.getCurrency();
-        BigDecimal spent = orZero(expenseRepository.sumForMonthByCurrency(userId, currency, monthStart, monthEnd));
+        BigDecimal spent = orZero(expenseRepository.sumForMonthByCurrency(
+            userId, selectedCurrency, monthStart, monthEnd));
 
         return new MobileFinanceDashboardResponse(
-            monthOverview(today, budget, spent),
-            topCategories(userId, currency, monthStart, monthEnd),
-            savingProgress(userId),
-            recentExpenses(userId),
+            selectedCurrency,
+            monthOverview(today, selectedCurrency, budget, spent),
+            topCategories(userId, selectedCurrency, monthStart, monthEnd),
+            savingProgress(userId, selectedCurrency),
+            recentExpenses(userId, selectedCurrency),
             walletSummary(userId),
             TIPS.get(today.getDayOfYear() % TIPS.size()),
             QUICK_ACTIONS
         );
     }
 
-    private MonthOverview monthOverview(LocalDate today, Budget budget, BigDecimal spent) {
+    private MonthOverview monthOverview(LocalDate today, Currency currency, Budget budget, BigDecimal spent) {
         if (budget == null) {
-            return new MonthOverview(today.getMonthValue(), today.getYear(), spent, null, null, null);
+            return new MonthOverview(today.getMonthValue(), today.getYear(), currency,
+                spent, null, null, null);
         }
         BigDecimal total = budget.getTotalBudget();
-        return new MonthOverview(today.getMonthValue(), today.getYear(), spent,
+        return new MonthOverview(today.getMonthValue(), today.getYear(), currency, spent,
             total, total.subtract(spent), statusFor(spent, total));
     }
 
@@ -122,29 +123,30 @@ public class MobileFinanceBffServiceImpl implements MobileFinanceBffService {
         return expenseRepository.sumByCategoryAndCurrency(userId, currency, start, end).stream()
             .limit(TOP_CATEGORIES)
             .map(row -> new CategorySpend(
-                row[0] == null ? UNCATEGORIZED : (String) row[0], (BigDecimal) row[1]))
+                row[0] == null ? UNCATEGORIZED : (String) row[0], currency, (BigDecimal) row[1]))
             .toList();
     }
 
-    private SavingProgress savingProgress(UUID userId) {
+    private SavingProgress savingProgress(UUID userId, Currency currency) {
         List<SavingGoal> goals = savingGoalRepository
-            .findByUserIdAndDeletedAtIsNullAndStatusOrderByCreatedAtDesc(userId, SavingGoalStatus.IN_PROGRESS);
+            .findByUser(userId, SavingGoalStatus.IN_PROGRESS, currency);
         BigDecimal target = goals.stream().map(SavingGoal::getTargetAmount)
             .filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal saved = goals.stream().map(SavingGoal::getCurrentAmount)
             .filter(Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new SavingProgress(target, saved, percent(saved, target), goals.size());
+        return new SavingProgress(currency, target, saved, percent(saved, target), goals.size());
     }
 
-    private List<RecentExpense> recentExpenses(UUID userId) {
+    private List<RecentExpense> recentExpenses(UUID userId, Currency currency) {
         PageRequest recent = PageRequest.of(0, RECENT_EXPENSES, Sort.by(Sort.Direction.DESC, "expenseDate"));
-        return expenseRepository.findByUser(userId, null, recent).getContent().stream()
+        return expenseRepository.findByUser(userId, null, currency, recent).getContent().stream()
             .map(this::toRecentExpense)
             .toList();
     }
 
     private RecentExpense toRecentExpense(Expense e) {
-        return new RecentExpense(e.getId(), e.getTitle(), e.getCategory(), e.getAmount(), e.getExpenseDate());
+        return new RecentExpense(e.getId(), e.getTitle(), e.getCategory(), e.getCurrency(),
+            e.getAmount(), e.getExpenseDate());
     }
 
     private WalletSummary walletSummary(UUID userId) {

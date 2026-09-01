@@ -9,7 +9,6 @@ import kh.edu.acleda.campuslink.modules.profile.repository.UserSettingRepository
 import kh.edu.acleda.campuslink.modules.profile.service.UserSettingService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
-import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.enums.Theme;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;

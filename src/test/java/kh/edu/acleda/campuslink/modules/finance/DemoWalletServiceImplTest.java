@@ -30,7 +30,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -92,6 +91,7 @@ class DemoWalletServiceImplTest {
     @Test
     void getOrCreateOpensAZeroBalanceWalletWhenNoneExists() {
         when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+        when(userRepository.findByIdForUpdate(USER_ID)).thenReturn(Optional.of(user));
 
         WalletResponse r = service.getOrCreate();
 
@@ -108,14 +108,13 @@ class DemoWalletServiceImplTest {
     }
 
     @Test
-    void concurrentCreateLosesTheRaceAndRereadsTheWinnersWallet() {
-        when(demoWalletRepository.findByUserId(USER_ID))
-            .thenReturn(Optional.empty())   // first check: none yet
-            .thenReturn(Optional.of(wallet)); // re-read after the constraint violation
-        when(demoWalletRepository.saveAndFlush(any(DemoWallet.class)))
-            .thenThrow(new DataIntegrityViolationException("uk_demo_wallets_user"));
+    void firstAccessLocksTheUserRowBeforeCreatingTheWallet() {
+        when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+        when(userRepository.findByIdForUpdate(USER_ID)).thenReturn(Optional.of(user));
 
-        assertThat(service.getOrCreate().walletId()).isEqualTo(WALLET_ID);
+        assertThat(service.getOrCreate().balanceUsd()).isZero();
+        verify(userRepository).findByIdForUpdate(USER_ID);
+        verify(demoWalletRepository).saveAndFlush(any(DemoWallet.class));
     }
 
     /** Balance movement lives in LedgerService now, so this asserts the delegation. */

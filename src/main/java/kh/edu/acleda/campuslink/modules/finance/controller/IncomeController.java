@@ -41,15 +41,16 @@ public class IncomeController {
         return ResponseEntity.ok(ApiResponse.success("Income created", incomeService.create(request)));
     }
 
-    /** Newest first. Optional filters: ?source, and ?month + ?year together. */
+    /** Newest first. Optional filters: ?source, ?currency, and ?month + ?year together. */
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<IncomeResponse>>> getMine(
         @RequestParam(required = false) String source,
         @RequestParam(required = false) Integer month,
         @RequestParam(required = false) Integer year,
+        @RequestParam(required = false) Currency currency,
         @PageableDefault(size = 20, sort = "incomeDate", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success("Income retrieved",
-            incomeService.getMine(source, month, year, pageable)));
+            incomeService.getMine(source, month, year, currency, pageable)));
     }
 
     /**
