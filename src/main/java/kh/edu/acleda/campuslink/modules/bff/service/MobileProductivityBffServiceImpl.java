@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.bff.service;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.localization.LocalizedTextSelector;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,7 +58,9 @@ public class MobileProductivityBffServiceImpl implements MobileProductivityBffSe
     private final GoalRepository goalRepository;
     private final FocusSessionRepository focusSessionRepository;
     private final MotivationContentRepository motivationRepository;
+    private final Clock clock;
 
+    @Autowired
     public MobileProductivityBffServiceImpl(UserRepository userRepository,
                                             HabitRepository habitRepository,
                                             HabitCheckInRepository habitCheckInRepository,
@@ -64,6 +68,18 @@ public class MobileProductivityBffServiceImpl implements MobileProductivityBffSe
                                             GoalRepository goalRepository,
                                             FocusSessionRepository focusSessionRepository,
                                             MotivationContentRepository motivationRepository) {
+        this(userRepository, habitRepository, habitCheckInRepository, taskRepository, goalRepository,
+            focusSessionRepository, motivationRepository, Clock.systemDefaultZone());
+    }
+
+    public MobileProductivityBffServiceImpl(UserRepository userRepository,
+                                            HabitRepository habitRepository,
+                                            HabitCheckInRepository habitCheckInRepository,
+                                            TaskRepository taskRepository,
+                                            GoalRepository goalRepository,
+                                            FocusSessionRepository focusSessionRepository,
+                                            MotivationContentRepository motivationRepository,
+                                            Clock clock) {
         this.userRepository = userRepository;
         this.habitRepository = habitRepository;
         this.habitCheckInRepository = habitCheckInRepository;
@@ -71,6 +87,7 @@ public class MobileProductivityBffServiceImpl implements MobileProductivityBffSe
         this.goalRepository = goalRepository;
         this.focusSessionRepository = focusSessionRepository;
         this.motivationRepository = motivationRepository;
+        this.clock = clock;
     }
 
     @Override
@@ -79,7 +96,7 @@ public class MobileProductivityBffServiceImpl implements MobileProductivityBffSe
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new NotFoundException("User not found"));
         UUID userId = user.getId();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(clock);
 
         return new MobileProductivityDashboardResponse(
             habitsToday(userId, today),
@@ -106,7 +123,7 @@ public class MobileProductivityBffServiceImpl implements MobileProductivityBffSe
     }
 
     private TasksSummary tasksSummary(UUID userId, LocalDate today) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         List<Task> tasks = taskRepository.findByUserIdAndDeletedAtIsNullOrderByCompletedAscDueDateAsc(userId);
         long completed = 0;
         int dueToday = 0;
@@ -161,7 +178,7 @@ public class MobileProductivityBffServiceImpl implements MobileProductivityBffSe
         }
         List<MotivationContent> ordered = new ArrayList<>(contents);
         ordered.sort((a, b) -> a.getId().compareTo(b.getId()));
-        MotivationContent pick = ordered.get(LocalDate.now().getDayOfYear() % ordered.size());
+        MotivationContent pick = ordered.get(LocalDate.now(clock).getDayOfYear() % ordered.size());
         return new MotivationCard(pick.getId(),
             LocalizedTextSelector.select(pick.getTitleEn(), pick.getTitleKm(), language),
             LocalizedTextSelector.select(pick.getContentEn(), pick.getContentKm(), language));

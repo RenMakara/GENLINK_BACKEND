@@ -1,8 +1,11 @@
 package kh.edu.acleda.campuslink.modules.bff;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,6 +49,9 @@ class MobileProductivityBffServiceImplTest {
     private static final Language EN = Language.ENGLISH;
     private static final String EMAIL = "dara@example.com";
     private static final UUID USER_ID = UUID.randomUUID();
+    private static final LocalDate TODAY = LocalDate.of(2026, 9, 1);
+    private static final LocalDateTime NOW = TODAY.atTime(10, 0);
+    private static final Clock TEST_CLOCK = Clock.fixed(Instant.parse("2026-09-01T10:00:00Z"), ZoneOffset.UTC);
 
     @Mock private UserRepository userRepository;
     @Mock private HabitRepository habitRepository;
@@ -61,7 +67,7 @@ class MobileProductivityBffServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new MobileProductivityBffServiceImpl(userRepository, habitRepository, habitCheckInRepository,
-            taskRepository, goalRepository, focusSessionRepository, motivationRepository);
+            taskRepository, goalRepository, focusSessionRepository, motivationRepository, TEST_CLOCK);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
@@ -101,7 +107,7 @@ class MobileProductivityBffServiceImplTest {
         when(habitRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(USER_ID))
             .thenReturn(List.of(h1, h2));
         HabitCheckIn done = HabitCheckIn.builder().habit(h1).user(user)
-            .checkInDate(LocalDate.now()).completed(true).build();
+            .checkInDate(TODAY).completed(true).build();
         when(habitCheckInRepository.findByUserIdAndCheckInDateAndCompletedTrue(eq(USER_ID), any()))
             .thenReturn(List.of(done));
 
@@ -117,9 +123,9 @@ class MobileProductivityBffServiceImplTest {
     void tasksSummaryCountsCompletedDueTodayAndOverdue() {
         Task done = Task.builder().user(user).title("a").completed(true).build();
         Task dueToday = Task.builder().user(user).title("b").completed(false)
-            .dueDate(LocalDate.now().atTime(18, 0)).build();
+            .dueDate(TODAY.atTime(18, 0)).build();
         Task overdue = Task.builder().user(user).title("c").completed(false)
-            .dueDate(LocalDateTime.now().minusDays(1)).build();
+            .dueDate(NOW.minusDays(1)).build();
         when(taskRepository.findByUserIdAndDeletedAtIsNullOrderByCompletedAscDueDateAsc(USER_ID))
             .thenReturn(List.of(done, dueToday, overdue));
 
@@ -147,9 +153,9 @@ class MobileProductivityBffServiceImplTest {
     @Test
     void focusAggregatesTodayMinutesAndTotalXp() {
         FocusSession today = FocusSession.builder().user(user).durationMinutes(25).completed(true)
-            .xpEarned(5).startedAt(LocalDateTime.now()).build();
+            .xpEarned(5).startedAt(NOW).build();
         FocusSession past = FocusSession.builder().user(user).durationMinutes(50).completed(true)
-            .xpEarned(10).startedAt(LocalDateTime.now().minusDays(2)).build();
+            .xpEarned(10).startedAt(NOW.minusDays(2)).build();
         when(focusSessionRepository.findByUserIdAndCompletedTrue(USER_ID)).thenReturn(List.of(today, past));
 
         MobileProductivityDashboardResponse.FocusSummary focus = service.getDashboard(EMAIL, EN).focus();
