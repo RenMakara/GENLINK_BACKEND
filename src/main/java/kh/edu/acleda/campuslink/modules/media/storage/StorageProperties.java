@@ -10,15 +10,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Object-storage configuration, bound from {@code app.storage.*}.
  *
  * <p>Every value is environment-driven so the same build runs against any
- * S3-compatible provider (DigitalOcean Spaces, AWS S3, Cloudflare R2, MinIO) by
- * changing configuration alone.
+ * S3-compatible provider by changing configuration alone.
  */
 @Getter
 @Setter
 @ConfigurationProperties(prefix = "app.storage")
 public class StorageProperties {
 
-    /** S3 endpoint, e.g. https://sgp1.digitaloceanspaces.com */
+    /** S3 endpoint, e.g. https://s3.ap-southeast-1.amazonaws.com */
     private String endpoint;
 
     private String region;
@@ -41,15 +40,15 @@ public class StorageProperties {
 
     /**
      * When true, the presigned PUT pins {@code x-amz-checksum-sha256} so the store
-     * verifies the body on upload. Off by default because DigitalOcean Spaces has
-     * partial support and pinning would break uploads there; the checksum is stored
-     * either way.
+     * verifies the body on upload. Off by default for compatibility with providers
+     * that do not support this header; the checksum is stored either way.
      */
     private boolean enforceChecksum = false;
 
     /**
      * The one provider quirk we expose. Virtual-hosted style (false) works for
-     * DigitalOcean Spaces, AWS S3 and R2; MinIO typically needs path-style (true).
+     * AWS S3 and other virtual-hosted S3-compatible services; MinIO typically
+     * needs path-style (true).
      */
     private boolean pathStyleAccess = false;
 
@@ -62,10 +61,9 @@ public class StorageProperties {
     }
 
     /**
-     * Fail fast when a standard DigitalOcean CDN hostname does not describe the
-     * configured Space and region. Custom CDN domains and other S3-compatible
-     * providers remain supported because only DigitalOcean's default hostname is
-     * checked.
+     * Fail fast when a recognized provider CDN hostname does not describe the
+     * configured bucket and region. Custom CDN domains and other S3-compatible
+     * providers remain supported.
      */
     public void validateCdnBaseMatchesBucketAndRegion() {
         if (cdnBase == null || cdnBase.isBlank()) {

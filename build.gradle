@@ -43,7 +43,7 @@ dependencies {
     // Source: https://mvnrepository.com/artifact/org.liquibase/liquibase-core
     implementation 'org.liquibase:liquibase-core'
 
-    // S3-compatible object storage (DigitalOcean Spaces / AWS S3 / Cloudflare R2 /
+    // S3-compatible object storage (AWS S3 / Cloudflare R2 /
     // MinIO). Only S3StorageService imports this; the rest of the app is unaware
     // of the provider, so switching is an env change, not a code change.
     implementation platform('software.amazon.awssdk:bom:2.28.16')

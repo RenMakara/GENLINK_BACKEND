@@ -9,8 +9,8 @@ import java.util.Optional;
  * Provider-agnostic object storage. The only abstraction the rest of the app
  * depends on — nothing outside {@code storage} knows which provider is live.
  *
- * <p>The implementation speaks S3, so DigitalOcean Spaces, AWS S3, Cloudflare R2
- * and MinIO are all reachable through the same interface with only configuration
+ * <p>The implementation speaks S3, so AWS S3 and other S3-compatible providers
+ * are reachable through the same interface with only configuration
  * changes.
  */
 public interface StorageService {

@@ -6,7 +6,7 @@
 #   Step 4        nginx runs on the HOST, not here, and proxies to `app`
 #
 # Nothing here is published to the public internet. Ports are bound to
-# 127.0.0.1 so they are reachable only from the droplet itself (or through
+# 127.0.0.1 so they are reachable only from the EC2 instance itself (or through
 # an SSH tunnel). Nginx is the single public door — that is what makes the
 # later IP -> domain migration a config change instead of a code change.
 #
@@ -33,7 +33,7 @@ services:
 
     volumes:
       # Named volume = data survives `docker compose down`, image upgrades
-      # and droplet reboots. See Step 6.
+      # and EC2 instance reboots. See Step 6.
       - postgres_data:/var/lib/postgresql/data
 
     ports:
@@ -132,7 +132,7 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_PROJECT_ID: ${GOOGLE_PROJECT_ID:-genlinkkh}
       APP_DEFAULT_LANGUAGE: ${APP_DEFAULT_LANGUAGE:-ENGLISH}
-      # Object storage (DigitalOcean Spaces). Must be listed here, not only in
+      # S3-compatible object storage. Must be listed here, not only in
       # .env: Compose reads .env to interpolate this file, but only the keys named
       # in `environment:` are injected into the container.
       STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-https://sgp1.digitaloceanspaces.com}
@@ -159,12 +159,12 @@ services:
     ports:
       # Loopback only. Nginx (on the host) proxies to this; the port is
       # never reachable from the internet. Keeping it bound lets you curl
-      # the app directly from the droplet while debugging.
+      # the app directly from the EC2 instance while debugging.
       - "127.0.0.1:8888:8888"
 
     # Caps the JVM. Combined with MaxRAMPercentage=75 in the Dockerfile
     # this gives roughly a 576 MB heap and leaves room for Postgres.
-    # Raise it if your droplet is larger than 2 GB.
+    # Raise it if your EC2 instance is larger than 2 GB.
     mem_limit: 768m
 
     healthcheck:

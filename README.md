@@ -147,7 +147,7 @@ Everyday campus and community utilities.
 |---|---|
 | **Docker Compose** | Container orchestration (app + database) |
 | **Nginx** | Reverse proxy and single public entry point |
-| **DigitalOcean** | Cloud hosting (Ubuntu droplet) |
+| **AWS EC2** | Cloud hosting (Ubuntu instance) |
 | **GitHub Actions** | Java 21 build/test gate, reports and artifacts, then auto-deploy with rollback |
 
 ### Security
@@ -215,7 +215,7 @@ GenLink KH is built as a **Modular Monolith**: a single deployable application i
 | Reason | Benefit |
 |---|---|
 | **Clear boundaries** | Each domain is a self-contained module with its own controllers, services, and entities — the discipline of microservices without the overhead. |
-| **Single deployment** | One artifact to build, test, and ship. Simple to operate for a small team on a single droplet. |
+| **Single deployment** | One artifact to build, test, and ship. Simple to operate for a small team on a single EC2 instance. |
 | **Low operational cost** | No service mesh, no inter-service networking, no distributed transactions to reason about. |
 | **Refactor-friendly** | Modules communicate in-process, so boundaries can evolve cheaply as the product matures. |
 | **Future-proof** | If a domain ever needs to scale independently, its clean boundary makes extraction into a service straightforward. |
@@ -343,7 +343,7 @@ The backend pipeline is defined in `.github/workflows/deploy.yml`:
 1. Pull requests into `main` run a clean Java 21 Gradle build and all tests.
 2. Pushes to `main` run the same CI gate.
 3. Only a successful `main` build may open the production SSH deployment.
-4. The droplet runs `scripts/deploy.sh`, builds the Docker image, replaces only
+4. The EC2 instance runs `scripts/deploy.sh`, builds the Docker image, replaces only
    the application container, waits for `/actuator/health`, and restores the
    previous image if health verification fails.
 5. Test, JaCoCo and Gradle reports plus the verified JAR are retained as GitHub
@@ -356,7 +356,7 @@ the non-production values `campuslink_test` / `postgres` through
 `GENLINK_TEST_POSTGRES_URL`, `GENLINK_TEST_POSTGRES_USERNAME`, and
 `GENLINK_TEST_POSTGRES_PASSWORD`; no production database is used. Other tests keep
 the test-profile H2 database and in-memory object store, so SMTP, Google, S3, and
-DigitalOcean credentials are still unnecessary. Production deployment still
+   cloud-provider credentials are still unnecessary. Production deployment still
 requires `SSH_HOST`, `SSH_USER`, and `SSH_KEY` repository secrets and the
 server-side `/opt/GENLINK_BACKEND/.env` file.
 

@@ -129,13 +129,13 @@ app:
       batch-size: ${MEDIA_CLEANUP_BATCH_SIZE:500}
   storage:
     # S3-compatible object storage. Provider is decided entirely by these env
-    # vars — DigitalOcean Spaces in every environment today, but the code speaks
-    # plain S3 so R2/S3/MinIO would only change these values.
+    # vars — the code speaks plain S3, so changing provider only changes
+    # these values.
     endpoint: ${STORAGE_ENDPOINT:https://sgp1.digitaloceanspaces.com}
     region: ${STORAGE_REGION:sgp1}
     bucket: ${STORAGE_BUCKET:}
     # CDN base used to build public URLs, e.g.
-    # https://genlink-media-dev.sgp1.cdn.digitaloceanspaces.com
+    # https://<cdn-host>/genlink-media-dev/...
     cdn-base: ${STORAGE_CDN_BASE:}
     access-key: ${STORAGE_ACCESS_KEY:}
     secret-key: ${STORAGE_SECRET_KEY:}
@@ -145,9 +145,10 @@ app:
     # client-side compression.
     max-image-mb: ${MEDIA_MAX_IMAGE_MB:5}
     max-video-mb: ${MEDIA_MAX_VIDEO_MB:50}
-    # Off by default: DigitalOcean Spaces has partial support for the
-    # x-amz-checksum-sha256 header, and pinning it in the presigned PUT would
-    # break uploads where unsupported. The checksum is still stored for integrity
+    # Off by default for compatibility: some S3-compatible providers have
+    # partial support for the x-amz-checksum-sha256 header, and pinning it in
+    # the presigned PUT would break uploads where unsupported. The checksum is
+    # still stored for integrity
     # and dedup. Turn on only against a provider that supports flexible checksums.
     enforce-checksum: ${STORAGE_ENFORCE_CHECKSUM:false}
     # false = virtual-hosted style (Spaces/S3/R2); true = path-style (MinIO).

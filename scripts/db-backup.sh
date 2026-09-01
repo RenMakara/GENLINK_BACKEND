@@ -3,7 +3,7 @@
 # GenLink KH — PostgreSQL backup.
 #
 # Runs on the HOST (not inside a container) and dumps the database out of
-# the running postgres container to a directory on the droplet.
+# the running postgres container to a directory on the EC2 instance.
 #
 #   ./scripts/db-backup.sh
 #

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# GenLink KH — deploy the latest main to this droplet.
+# GenLink KH — deploy the latest main to this EC2 instance.
 #
-# Runs ON the droplet (invoked by the GitHub Actions SSH step, or by hand):
+# Runs ON the EC2 instance (invoked by the GitHub Actions SSH step, or by hand):
 #   ./scripts/deploy.sh
 #
 # Safe by construction:

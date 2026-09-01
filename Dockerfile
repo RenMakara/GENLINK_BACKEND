@@ -6,7 +6,7 @@
 # source code from the production attack surface.
 #
 # Build:  docker compose build app
-# (Docker does the compiling, so the droplet needs no JDK or Gradle.)
+# (Docker does the compiling, so the EC2 instance needs no JDK or Gradle.)
 
 # ── Stage 1: build ─────────────────────────────────────────────────────
 # Pinned to the same JDK the Gradle toolchain requests (Java 21). Match
@@ -66,7 +66,7 @@ EXPOSE 8888
 # MaxRAMPercentage instead of a fixed -Xmx: the JVM reads the container's
 # cgroup limit, so the heap adapts to whatever mem_limit Compose sets.
 # Hardcoding -Xmx risks the JVM sizing itself against the HOST's RAM and
-# getting OOM-killed alongside Postgres on a small droplet.
+# getting OOM-killed alongside Postgres on a small EC2 instance.
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 
 # Exec form (via `sh -c` only for $JAVA_OPTS expansion, then `exec`) so the
