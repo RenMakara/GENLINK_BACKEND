@@ -5,7 +5,10 @@ import java.util.Optional;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingGoal;
 import kh.edu.acleda.campuslink.modules.finance.enums.SavingGoalStatus;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface SavingGoalRepository extends JpaRepository<SavingGoal, UUID> {
 
@@ -15,4 +18,11 @@ public interface SavingGoalRepository extends JpaRepository<SavingGoal, UUID> {
 
     List<SavingGoal> findByUserIdAndDeletedAtIsNullAndStatusOrderByCreatedAtDesc(
         UUID userId, SavingGoalStatus status);
+
+    @Query("SELECT g FROM SavingGoal g WHERE g.user.id = :userId AND g.deletedAt IS NULL "
+        + "AND (:status IS NULL OR g.status = :status) "
+        + "AND (:currency IS NULL OR g.currency = :currency) ORDER BY g.createdAt DESC")
+    List<SavingGoal> findByUser(@Param("userId") UUID userId,
+                                @Param("status") SavingGoalStatus status,
+                                @Param("currency") Currency currency);
 }

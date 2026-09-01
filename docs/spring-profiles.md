@@ -131,6 +131,45 @@ The test profile uses:
 
 This keeps automated tests independent from local PostgreSQL.
 
+### PostgreSQL integration verification
+
+The PostgreSQL-only verification tests run against a disposable PostgreSQL 16 database when
+`GENLINK_TEST_POSTGRES_URL` is set. CI provisions `postgres:16` with these non-production values:
+
+```text
+PostgreSQL version: 16.x
+Database: campuslink_test
+Username: postgres
+Password: postgres
+JDBC URL: jdbc:postgresql://localhost:5432/campuslink_test
+GENLINK_TEST_POSTGRES_URL=jdbc:postgresql://localhost:5432/campuslink_test
+GENLINK_TEST_POSTGRES_USERNAME=postgres
+GENLINK_TEST_POSTGRES_PASSWORD=postgres
+```
+
+The wallet race test enables Liquibase with
+`classpath:db/changelog/db.changelog-master.yaml` and uses `ddl-auto=validate`, proving the
+application starts against the migrated schema (including 0047 then 0048). The migration test
+disables Liquibase intentionally, applies the real 0048 SQL to an isolated PostgreSQL schema,
+and verifies the backfill and index. The concurrent wallet mutation tests use the same
+PostgreSQL variables in CI; without them they continue to use the H2 test profile locally.
+
+To reproduce locally with a disposable container:
+
+```powershell
+docker run --rm --name genlink-postgres-test `
+  -e POSTGRES_DB=campuslink_test `
+  -e POSTGRES_USER=postgres `
+  -e POSTGRES_PASSWORD=postgres `
+  -p 5432:5432 postgres:16
+$env:GENLINK_TEST_POSTGRES_URL="jdbc:postgresql://localhost:5432/campuslink_test"
+$env:GENLINK_TEST_POSTGRES_USERNAME="postgres"
+$env:GENLINK_TEST_POSTGRES_PASSWORD="postgres"
+./gradlew clean test
+```
+
+Never point these variables at a production database. Use a disposable database or schema.
+
 ## Environment Variables
 
 | Variable | Required in `prod` | Purpose |

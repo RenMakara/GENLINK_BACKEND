@@ -15,6 +15,7 @@ public record ExpenseResponse(
     String description,
     LocalDate expenseDate,
     String paymentMethod,
+    boolean paidFromWallet,
     Instant createdAt
 ) {
 }

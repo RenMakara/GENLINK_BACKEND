@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.modules.finance.repository;
 
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
+import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,4 +11,6 @@ public interface DemoTransactionRepository extends JpaRepository<DemoTransaction
 
     /** Wallet history, most recent first. */
     Page<DemoTransaction> findByWalletIdOrderByCreatedAtDesc(UUID walletId, Pageable pageable);
+
+    long countByWalletIdAndDirection(UUID walletId, TransactionDirection direction);
 }

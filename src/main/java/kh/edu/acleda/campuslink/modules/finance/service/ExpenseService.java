@@ -13,8 +13,14 @@ public interface ExpenseService {
 
     ExpenseResponse create(ExpenseCreateRequest request);
 
-    /** The caller's expenses, newest first. category, month and year are optional filters. */
-    PageResponse<ExpenseResponse> getMine(String category, Integer month, Integer year, Pageable pageable);
+    /** The caller's expenses, newest first. category, month, year and currency are optional filters. */
+    PageResponse<ExpenseResponse> getMine(String category, Integer month, Integer year,
+                                          Currency currency, Pageable pageable);
+
+    default PageResponse<ExpenseResponse> getMine(String category, Integer month, Integer year,
+                                                  Pageable pageable) {
+        return getMine(category, month, year, null, pageable);
+    }
 
     ExpenseResponse getById(UUID id);
 

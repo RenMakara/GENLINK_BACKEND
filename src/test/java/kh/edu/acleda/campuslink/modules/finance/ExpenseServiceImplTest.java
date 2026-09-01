@@ -66,7 +66,7 @@ class ExpenseServiceImplTest {
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
         expense = Expense.builder().user(user).title("Coffee").amount(new BigDecimal("2.50"))
-            .category("FOOD").expenseDate(LocalDate.now()).build();
+            .currency(Currency.USD).category("FOOD").expenseDate(LocalDate.now()).build();
         ReflectionTestUtils.setField(expense, "id", EXPENSE_ID);
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
@@ -110,26 +110,26 @@ class ExpenseServiceImplTest {
     /** month + year together route to the date-range query. */
     @Test
     void listWithMonthAndYearUsesTheDateRangeQuery() {
-        when(expenseRepository.findByUserAndDateRange(eq(USER_ID), any(), any(), any(), any()))
+        when(expenseRepository.findByUserAndDateRange(eq(USER_ID), any(), any(), any(), any(), any()))
             .thenReturn(new PageImpl<>(List.of(expense)));
 
-        service.getMine(null, 3, 2026, PageRequest.of(0, 20));
+        service.getMine(null, 3, 2026, Currency.KHR, PageRequest.of(0, 20));
 
-        verify(expenseRepository).findByUserAndDateRange(eq(USER_ID), isNull(),
+        verify(expenseRepository).findByUserAndDateRange(eq(USER_ID), isNull(), eq(Currency.KHR),
             eq(LocalDate.of(2026, 3, 1)), eq(LocalDate.of(2026, 4, 1)), any());
-        verify(expenseRepository, never()).findByUser(any(), any(), any());
+        verify(expenseRepository, never()).findByUser(any(), any(), any(), any());
     }
 
     /** month without year cannot bound a range, so it falls back to the plain list. */
     @Test
     void listWithMonthButNoYearFallsBackToPlainList() {
-        when(expenseRepository.findByUser(eq(USER_ID), any(), any()))
+        when(expenseRepository.findByUser(eq(USER_ID), any(), any(), any()))
             .thenReturn(new PageImpl<>(List.of(expense)));
 
         service.getMine("FOOD", 3, null, PageRequest.of(0, 20));
 
-        verify(expenseRepository).findByUser(eq(USER_ID), eq("FOOD"), any());
-        verify(expenseRepository, never()).findByUserAndDateRange(any(), any(), any(), any(), any());
+        verify(expenseRepository).findByUser(eq(USER_ID), eq("FOOD"), isNull(), any());
+        verify(expenseRepository, never()).findByUserAndDateRange(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -168,8 +168,6 @@ class ExpenseServiceImplTest {
 
         assertThat(summary.currency()).isEqualTo(Currency.KHR);
         assertThat(summary.total()).isEqualByComparingTo("40000");
-        verify(expenseRepository, never()).sumForMonth(any(), any(), any());
-        verify(expenseRepository, never()).sumByCategory(any(), any(), any());
     }
 
     @Test
@@ -181,21 +179,71 @@ class ExpenseServiceImplTest {
 
     @Test
     void deleteIsASoftDelete() {
-        when(expenseRepository.findByIdAndUserIdAndDeletedAtIsNull(EXPENSE_ID, USER_ID))
+        expense.setPaidFromWallet(true);
+        DemoWallet wallet = wallet();
+        when(expenseRepository.findByIdAndUserIdForUpdate(EXPENSE_ID, USER_ID))
             .thenReturn(Optional.of(expense));
+        when(demoWalletService.getOrCreateWalletEntity()).thenReturn(wallet);
 
         service.delete(EXPENSE_ID);
 
         assertThat(expense.getDeletedAt()).isNotNull();
+        verify(ledgerService).credit(wallet, TransactionType.EXPENSE, Currency.USD,
+            new BigDecimal("2.50"), "Expense deleted (refund): Coffee", "EXPENSE", EXPENSE_ID);
+    }
+
+    @Test
+    void reducingWalletPaidExpenseRefundsTheDifference() {
+        expense.setPaidFromWallet(true);
+        expense.setAmount(new BigDecimal("50.00"));
+        DemoWallet wallet = wallet();
+        when(expenseRepository.findByIdAndUserIdForUpdate(EXPENSE_ID, USER_ID))
+            .thenReturn(Optional.of(expense));
+        when(demoWalletService.getOrCreateWalletEntity()).thenReturn(wallet);
+
+        service.update(EXPENSE_ID, new ExpenseCreateRequest(
+            "Coffee", new BigDecimal("20.00"), "FOOD", null, LocalDate.now(),
+            "WALLET", true, Currency.USD));
+
+        verify(ledgerService).credit(wallet, TransactionType.EXPENSE, Currency.USD,
+            new BigDecimal("30.00"), "Expense reduced (refund): Coffee", "EXPENSE", EXPENSE_ID);
+        assertThat(expense.getAmount()).isEqualByComparingTo("20.00");
+        assertThat(expense.isPaidFromWallet()).isTrue();
+    }
+
+    @Test
+    void changingExpenseCurrencyRefundsOldAndDebitsNew() {
+        expense.setPaidFromWallet(true);
+        DemoWallet wallet = wallet();
+        when(expenseRepository.findByIdAndUserIdForUpdate(EXPENSE_ID, USER_ID))
+            .thenReturn(Optional.of(expense));
+        when(demoWalletService.getOrCreateWalletEntity()).thenReturn(wallet);
+
+        service.update(EXPENSE_ID, new ExpenseCreateRequest(
+            "Coffee", new BigDecimal("10000"), "FOOD", null, LocalDate.now(),
+            "WALLET", true, Currency.KHR));
+
+        verify(ledgerService).credit(wallet, TransactionType.EXPENSE, Currency.USD,
+            new BigDecimal("2.50"), "Expense currency changed (refund): Coffee", "EXPENSE", EXPENSE_ID);
+        verify(ledgerService).debit(wallet, TransactionType.EXPENSE, Currency.KHR,
+            new BigDecimal("10000"), "Expense currency changed: Coffee", "EXPENSE", EXPENSE_ID);
+        assertThat(expense.getCurrency()).isEqualTo(Currency.KHR);
     }
 
     @Test
     void updatingSomeoneElsesExpenseReadsAsNotFound() {
-        when(expenseRepository.findByIdAndUserIdAndDeletedAtIsNull(EXPENSE_ID, USER_ID))
+        when(expenseRepository.findByIdAndUserIdForUpdate(EXPENSE_ID, USER_ID))
             .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.update(EXPENSE_ID, new ExpenseCreateRequest(
             "Hack", new BigDecimal("1.00"), null, null, LocalDate.now(), null, null, null)))
             .isInstanceOf(NotFoundException.class);
+    }
+
+    private DemoWallet wallet() {
+        return DemoWallet.builder().user(user)
+            .balanceUsd(new BigDecimal("500.00"))
+            .balanceKhr(new BigDecimal("2000000.00"))
+            .build();
     }
 }

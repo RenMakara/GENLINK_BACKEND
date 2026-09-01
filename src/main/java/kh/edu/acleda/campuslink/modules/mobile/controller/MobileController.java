@@ -11,6 +11,7 @@ import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileFinanceDashboa
 import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileHomeResponse;
 import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileNotificationsResponse;
 import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileProductivityDashboardResponse;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.localization.LanguageResolver;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -54,10 +56,11 @@ public class MobileController {
     @GetMapping("/home")
     public ResponseEntity<ApiResponse<MobileHomeResponse>> home(
         @AuthenticationPrincipal UserDetails userDetails,
-        @RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage) {
+        @RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage,
+        @RequestParam(defaultValue = "USD") Currency currency) {
         Language language = languageResolver.resolve(userDetails.getUsername(), acceptLanguage);
         return ResponseEntity.ok(ApiResponse.success("Mobile home retrieved",
-            mobileHomeBffService.getHome(userDetails.getUsername(), language)));
+            mobileHomeBffService.getHome(userDetails.getUsername(), language, currency)));
     }
 
     @GetMapping("/profile-summary")
@@ -67,9 +70,10 @@ public class MobileController {
 
     @GetMapping("/finance-dashboard")
     public ResponseEntity<ApiResponse<MobileFinanceDashboardResponse>> financeDashboard(
-        @AuthenticationPrincipal UserDetails userDetails) {
+        @AuthenticationPrincipal UserDetails userDetails,
+        @RequestParam(defaultValue = "USD") Currency currency) {
         return ResponseEntity.ok(ApiResponse.success("Finance dashboard retrieved",
-            mobileFinanceBffService.getFinanceDashboard(userDetails.getUsername())));
+            mobileFinanceBffService.getFinanceDashboard(userDetails.getUsername(), currency)));
     }
 
     @GetMapping("/productivity-dashboard")

@@ -41,15 +41,16 @@ public class ExpenseController {
         return ResponseEntity.ok(ApiResponse.success("Expense created", expenseService.create(request)));
     }
 
-    /** Newest first. Optional filters: ?category, and ?month + ?year together. */
+    /** Newest first. Optional filters: ?category, ?currency, and ?month + ?year together. */
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ExpenseResponse>>> getMine(
         @RequestParam(required = false) String category,
         @RequestParam(required = false) Integer month,
         @RequestParam(required = false) Integer year,
+        @RequestParam(required = false) Currency currency,
         @PageableDefault(size = 20, sort = "expenseDate", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success("Expenses retrieved",
-            expenseService.getMine(category, month, year, pageable)));
+            expenseService.getMine(category, month, year, currency, pageable)));
     }
 
     /**

@@ -71,11 +71,9 @@ public class SavingGoalServiceImpl implements SavingGoalService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<SavingGoalResponse> getMine(SavingGoalStatus status) {
+    public List<SavingGoalResponse> getMine(SavingGoalStatus status, Currency currency) {
         UUID userId = currentUserProvider.getCurrentUserId();
-        List<SavingGoal> goals = status == null
-            ? savingGoalRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(userId)
-            : savingGoalRepository.findByUserIdAndDeletedAtIsNullAndStatusOrderByCreatedAtDesc(userId, status);
+        List<SavingGoal> goals = savingGoalRepository.findByUser(userId, status, currency);
         return goals.stream().map(this::toResponse).toList();
     }
 

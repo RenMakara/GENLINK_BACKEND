@@ -7,13 +7,18 @@ import kh.edu.acleda.campuslink.modules.finance.dto.request.SavingGoalCreateRequ
 import kh.edu.acleda.campuslink.modules.finance.dto.response.SavingDepositResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.SavingGoalResponse;
 import kh.edu.acleda.campuslink.modules.finance.enums.SavingGoalStatus;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
 public interface SavingGoalService {
 
     SavingGoalResponse create(SavingGoalCreateRequest request);
 
-    /** All of the user's goals, newest first; optionally filtered by status. */
-    List<SavingGoalResponse> getMine(SavingGoalStatus status);
+    /** All of the user's goals, newest first; optionally filtered by status and currency. */
+    List<SavingGoalResponse> getMine(SavingGoalStatus status, Currency currency);
+
+    default List<SavingGoalResponse> getMine(SavingGoalStatus status) {
+        return getMine(status, null);
+    }
 
     SavingGoalResponse getById(UUID id);
 

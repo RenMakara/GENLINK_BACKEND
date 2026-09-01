@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
 /**
  * The Finance screen in one call (BFF-lite). Every section degrades independently: a
@@ -19,6 +20,7 @@ import java.util.UUID;
  * @param quickActions   action keys the client maps to localized buttons
  */
 public record MobileFinanceDashboardResponse(
+    Currency currency,
     MonthOverview month,
     List<CategorySpend> topCategories,
     SavingProgress saving,
@@ -31,15 +33,17 @@ public record MobileFinanceDashboardResponse(
     public record MonthOverview(
         int month,
         int year,
+        Currency currency,
         BigDecimal spent,
         BigDecimal budgetTotal,
         BigDecimal budgetRemaining,
         String budgetStatus
     ) {}
 
-    public record CategorySpend(String category, BigDecimal amount) {}
+    public record CategorySpend(String category, Currency currency, BigDecimal amount) {}
 
     public record SavingProgress(
+        Currency currency,
         BigDecimal totalTarget,
         BigDecimal totalSaved,
         int progressPercent,
@@ -50,6 +54,7 @@ public record MobileFinanceDashboardResponse(
         UUID expenseId,
         String title,
         String category,
+        Currency currency,
         BigDecimal amount,
         LocalDate expenseDate
     ) {}

@@ -23,6 +23,26 @@ jobs:
     name: Build and test
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # The PostgreSQL-only integration tests are enabled in CI against this
+      # disposable service database. No production credentials are used.
+      GENLINK_TEST_POSTGRES_URL: jdbc:postgresql://localhost:5432/campuslink_test
+      GENLINK_TEST_POSTGRES_USERNAME: postgres
+      GENLINK_TEST_POSTGRES_PASSWORD: postgres
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: campuslink_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d campuslink_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -41,10 +61,13 @@ jobs:
             settings.gradle
             gradle/wrapper/gradle-wrapper.properties
 
-      - name: Build and run all tests
+      - name: Run full Gradle test suite
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon clean build
+          ./gradlew clean test
+
+      - name: Build verified application artifact
+        run: ./gradlew bootJar
 
       # Always retain reports: successful runs provide coverage evidence and a
       # failed run remains diagnosable after the runner has gone away.
