@@ -24,6 +24,15 @@ HEALTH_TIMEOUT=120   # seconds to wait for the new container to go healthy
 
 log() { echo "[$(date -Is)] $*"; }
 
+# The EC2 checkout may use an HTTPS GitHub remote. When called from GitHub
+# Actions, use its short-lived read token without persisting credentials.
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+  export GIT_TERMINAL_PROMPT=0
+  export GIT_CONFIG_COUNT=1
+  export GIT_CONFIG_KEY_0=credential.helper
+  export GIT_CONFIG_VALUE_0='!f() { if [ "${1:-}" = get ]; then printf "username=x-access-token\npassword=%s\n\n" "$GITHUB_TOKEN"; fi; }; f'
+fi
+
 # 0. The first EC2 bootstrap may have cloned this repository as root while
 #    GitHub Actions connects as ubuntu. Git refuses a repository owned by a
 #    different user, and a pull also needs the checkout to be writable.

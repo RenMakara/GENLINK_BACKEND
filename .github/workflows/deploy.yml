@@ -105,17 +105,28 @@ jobs:
     steps:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          # The EC2 checkout uses HTTPS. Pass the short-lived workflow token
+          # only for this SSH session so a private repository can be pulled.
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: 22
+          envs: GITHUB_TOKEN
           script_stop: true
           command_timeout: 15m
           script: |
             # The initial checkout may have been created as root. Make the
             # working tree writable by the SSH user before Git runs.
             sudo -n chown -R "$(id -u):$(id -g)" /opt/GENLINK_BACKEND
+            # Configure an in-memory Git credential helper. The token is not
+            # written to .git/config or any file on the EC2 instance.
+            export GIT_TERMINAL_PROMPT=0
+            export GIT_CONFIG_COUNT=1
+            export GIT_CONFIG_KEY_0=credential.helper
+            export GIT_CONFIG_VALUE_0='!f() { if [ "${1:-}" = get ]; then printf "username=x-access-token\npassword=%s\n\n" "$GITHUB_TOKEN"; fi; }; f'
             cd /opt/GENLINK_BACKEND
             ./scripts/deploy.sh
 
