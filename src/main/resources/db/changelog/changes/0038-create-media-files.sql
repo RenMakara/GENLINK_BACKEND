@@ -1,8 +1,9 @@
 --liquibase formatted sql
 
 --changeset genlink:0038-create-media-files
+--validCheckSum: 9:a1729a32fa29b0d7c2e7b6b05e56411f
 -- Metadata for user-uploaded media. The bytes live in S3-compatible object
--- storage (S3-compatible object storage); this table only records what/where/whose, so
+-- storage; this table only records what/where/whose, so
 -- the database stays small and backups stay fast.
 --
 -- Three timestamps track the lifecycle: created_at (presign requested),
