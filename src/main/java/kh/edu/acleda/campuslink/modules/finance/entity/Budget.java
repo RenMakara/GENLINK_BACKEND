@@ -9,7 +9,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.Instant;
 import kh.edu.acleda.campuslink.modules.finance.enums.BudgetStatus;
@@ -28,8 +27,9 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "budgets", uniqueConstraints = {@UniqueConstraint(
-    name = "uk_budgets_user_month_year_currency", columnNames = {"user_id", "month", "year", "currency"})})
+// Active-budget uniqueness is a PostgreSQL partial index managed by Liquibase
+// (0049), because JPA's @UniqueConstraint cannot exclude soft-deleted rows.
+@Table(name = "budgets")
 @AttributeOverride(name = "id", column = @Column(name = "budget_id", nullable = false, updatable = false))
 public class Budget extends BaseEntity {
 

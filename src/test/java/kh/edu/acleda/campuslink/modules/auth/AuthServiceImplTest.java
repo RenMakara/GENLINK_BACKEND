@@ -302,7 +302,7 @@ class AuthServiceImplTest {
         verify(authenticationManager, never()).authenticate(any());
     }
 
-    @Test
+    @Test     
     void loginRejectsDeletedUserBeforePasswordAuthentication() {
         User user = new User();
         user.setEmail("deleted@example.com");

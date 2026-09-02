@@ -95,3 +95,5 @@ databaseChangeLog:
       file: db/changelog/changes/0047-fix-domain-correctness-constraints.sql
   - include:
       file: db/changelog/changes/0048-finance-wallet-consistency.sql
+  - include:
+      file: db/changelog/changes/0049-fix-budget-soft-delete-uniqueness.sql

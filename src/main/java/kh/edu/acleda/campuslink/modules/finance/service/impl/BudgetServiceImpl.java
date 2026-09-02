@@ -54,18 +54,7 @@ public class BudgetServiceImpl implements BudgetService {
         this.currentUserProvider = currentUserProvider;
     }
 
-    /**
-     * Creates a new budget for the current user.
-     * Validates that the month is valid (1-12) and ensures no budget already exists
-     * for the given month/year combination. Initializes the budget with zero spent amount
-     * and a SAFE status, then saves all associated budget categories.
-     *
-     * @param request the budget creation request containing month, year, total budget,
-     *                currency, and budget categories
-     * @return the created budget response with full details
-     * @throws ApiException if a budget already exists for this month or month is invalid
-     * @author RenMakara
-     */
+
     @Override
     @Transactional
     public BudgetResponse create(BudgetCreateRequest request) {
@@ -98,15 +87,7 @@ public class BudgetServiceImpl implements BudgetService {
         return toResponse(budget, true);
     }
 
-    /**
-     * Retrieves all budgets for the current user with pagination.
-     * Only returns non-deleted budgets. Does not include detailed category breakdowns
-     * for performance reasons in list views.
-     *
-     * @param pageable pagination information
-     * @return a page of budget responses
-     * @author RenMakara
-     */
+
     @Override
     @Transactional(readOnly = true)
     public PageResponse<BudgetResponse> getMine(Pageable pageable) {
@@ -115,32 +96,13 @@ public class BudgetServiceImpl implements BudgetService {
             budget -> toResponse(budget, false));
     }
 
-    /**
-     * Retrieves a budget by ID with full details including category breakdown.
-     * Only accessible to the budget owner.
-     *
-     * @param id the budget ID
-     * @return the detailed budget response
-     * @throws NotFoundException if budget not found or not owned by current user
-     * @author RenMakara
-     */
     @Override
     @Transactional(readOnly = true)
     public BudgetResponse getById(UUID id) {
         return toResponse(loadOwned(id), true);
     }
 
-    /**
-     * Retrieves the budget for the current user for a specific month and year.
-     * Validates that the month is valid (1-12).
-     *
-     * @param month the month (1-12)
-     * @param year the year
-     * @return the detailed budget response with categories
-     * @throws ApiException if month is invalid
-     * @throws NotFoundException if no budget exists for the given month/year
-     * @author RenMakara
-     */
+
     @Override
     @Transactional(readOnly = true)
     public BudgetResponse getForMonth(int month, int year, Currency currency) {
@@ -152,18 +114,8 @@ public class BudgetServiceImpl implements BudgetService {
         return toResponse(budget, true);
     }
 
-    /**
-     * Updates an existing budget with new information.
-     * Replaces the budget categories wholesale with the provided categories.
-     * Only accessible to the budget owner.
-     *
-     * @param id the budget ID
-     * @param request the updated budget information
-     * @return the updated budget response
-     * @throws NotFoundException if budget not found or not owned by current user
-     * @throws ApiException if month is invalid
-     * @author RenMakara
-     */
+    // if budget not found or not owned by current user
+
     @Override
     @Transactional
     public BudgetResponse update(UUID id, BudgetCreateRequest request) {
@@ -187,14 +139,8 @@ public class BudgetServiceImpl implements BudgetService {
         return toResponse(budget, true);
     }
 
-    /**
-     * Soft deletes a budget by setting its deletedAt timestamp.
-     * Only accessible to the budget owner.
-     *
-     * @param id the budget ID
-     * @throws NotFoundException if budget not found or not owned by current user
-     * @author RenMakara
-     */
+    //if budget not found or not owned by current user
+
     @Override
     @Transactional
     public void delete(UUID id) {
@@ -203,15 +149,7 @@ public class BudgetServiceImpl implements BudgetService {
         budgetRepository.save(budget);
     }
 
-    /**
-     * Saves budget categories for a given budget.
-     * Each category is initialized with zero spent amount and remaining amount equal
-     * to the allocated amount. Does nothing if categories list is null or empty.
-     *
-     * @param budget the budget to save categories for
-     * @param categories the list of budget category requests
-     * @author RenMakara
-     */
+
     private void saveCategories(Budget budget, List<BudgetCategoryRequest> categories) {
         if (categories == null || categories.isEmpty()) {
             return;
@@ -227,12 +165,7 @@ public class BudgetServiceImpl implements BudgetService {
         }
     }
 
-    /**
-     * Builds the response with spend computed live from expenses for the budget's
-     * month. withCategories is false for the list (one grouped query per budget is
-     * enough there) and true for detail views.
-     * @author REN-MAKARA
-     */
+
     private BudgetResponse toResponse(Budget budget, boolean withCategories) {
         UUID userId = budget.getUser().getId();
         LocalDate start = LocalDate.of(budget.getYear(), budget.getMonth(), 1);
@@ -252,19 +185,7 @@ public class BudgetServiceImpl implements BudgetService {
             budget.getTotalBudget(), spent, remaining, status, currency, categories);
     }
 
-    /**
-     * Computes category-level expense spending for a budget.
-     * Groups expenses by category for the specified period and currency, then maps
-     * each budget category to its actual spending and remaining amount.
-     *
-     * @param budgetId the budget ID
-     * @param userId the user ID
-     * @param currency the currency to filter expenses
-     * @param start the start date of the period
-     * @param end the end date of the period (exclusive)
-     * @return a list of category budgets with allocated, spent, and remaining amounts
-     * @author REN-MAKARA
-     */
+
     private List<BudgetResponse.CategoryBudget> categoryBreakdown(UUID budgetId, UUID userId, Currency currency,
                                                                   LocalDate start, LocalDate end) {
         Map<String, BigDecimal> spentByCategory = new HashMap<>();
@@ -283,17 +204,7 @@ public class BudgetServiceImpl implements BudgetService {
             .toList();
     }
 
-    /**
-     * Determines the budget status based on spending relative to total budget.
-     * Returns LIMIT_REACHED if total is zero/negative or spent >= total.
-     * Returns WARNING if spent >= 80% of total (WARNING_THRESHOLD).
-     * Otherwise returns SAFE.
-     *
-     * @param spent the amount spent
-     * @param total the total budget amount
-     * @return the budget status (SAFE, WARNING, or LIMIT_REACHED)
-     * @author RenMakara
-     */
+
     private BudgetStatus statusFor(BigDecimal spent, BigDecimal total) {
         if (total.signum() <= 0 || spent.compareTo(total) >= 0) {
             return BudgetStatus.LIMIT_REACHED;
@@ -305,11 +216,7 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     /**
-     * Validates that the provided month is in the valid range (1-12).
-     * Throws an ApiException if validation fails.
-     *
-     * @param month the month to validate
-     * @throws ApiException if month is less than 1 or greater than 12
+     * if month is less than 1 or greater than 12
      * @author RenMakara
      */
     private void validateMonth(int month) {
@@ -318,13 +225,7 @@ public class BudgetServiceImpl implements BudgetService {
         }
     }
 
-    /**
-     * Loads a budget by ID that is owned by the current user and not deleted.
-     * Ensures the current user has access to the budget.
-     *
-     * @param id the budget ID
-     * @return the budget owned by the current user
-     * @throws NotFoundException if budget not found or not owned by current user
+    /** if budget not found or not owned by current user
      * @author RenMakara
      */
     private Budget loadOwned(UUID id) {
@@ -332,24 +233,12 @@ public class BudgetServiceImpl implements BudgetService {
             .orElseThrow(() -> new NotFoundException("Budget not found"));
     }
 
-    /**
-     * Loads the current authenticated user from the user repository.
-     *
-     * @return the current user
-     * @throws NotFoundException if user not found
-     */
+    //if user not found
     private User loadCurrentUser() {
         return userRepository.findById(currentUserProvider.getCurrentUserId())
             .orElseThrow(() -> new NotFoundException("User not found"));
     }
 
-    /**
-     * Returns the provided BigDecimal value or BigDecimal.ZERO if the value is null.
-     * Utility method for handling null values in financial calculations.
-     *
-     * @param value the value to check
-     * @return the value if non-null, otherwise BigDecimal.ZERO
-     */
     private BigDecimal orZero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
     }
