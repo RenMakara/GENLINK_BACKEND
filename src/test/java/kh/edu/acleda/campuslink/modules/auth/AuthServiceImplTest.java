@@ -4,6 +4,7 @@ import kh.edu.acleda.campuslink.modules.auth.dto.LoginRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RegisterRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRotation;
+import kh.edu.acleda.campuslink.modules.auth.dto.VerifyEmailRequest;
 import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
 import kh.edu.acleda.campuslink.modules.auth.repository.SocialAccountRepository;
 import kh.edu.acleda.campuslink.modules.auth.security.AuthRateLimitService;
@@ -36,6 +37,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -207,6 +209,27 @@ class AuthServiceImplTest {
             .extracting(ex -> ((ApiException) ex).getErrorCode())
             .isEqualTo("AUTH_EMAIL_ALREADY_REGISTERED");
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void verifyEmailChecksResentOtpBeforeOriginalRegistrationOtp() {
+        User user = new User();
+        user.setEmail("resent@example.com");
+        user.setAccountStatus(AccountStatus.PENDING);
+        user.setEmailVerified(false);
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(jwtService.generateAccessToken(user.getEmail(), user.getTokenVersion())).thenReturn("access-token");
+        when(refreshTokenService.create(any(User.class), any(), any(), any())).thenReturn("refresh-token");
+
+        authService.verifyEmail(new VerifyEmailRequest(user.getEmail(), "654321"));
+
+        verify(otpService).verify(
+            eq(user),
+            eq("654321"),
+            eq(OtpPurpose.RESEND_VERIFICATION),
+            eq(OtpPurpose.REGISTER));
+        assertThat(user.isEmailVerified()).isTrue();
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
     }
 
     @Test

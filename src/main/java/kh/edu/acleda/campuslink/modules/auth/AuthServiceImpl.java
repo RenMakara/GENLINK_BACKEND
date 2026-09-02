@@ -279,7 +279,10 @@ public class AuthServiceImpl implements AuthService {
         }
 
         try {
-            otpService.verify(user, request.otp(), OtpPurpose.REGISTER, OtpPurpose.RESEND_VERIFICATION);
+            // A resend is issued with RESEND_VERIFICATION, so it must be checked
+            // before the original REGISTER OTP. Otherwise the original record is
+            // always selected and every resent code is rejected as invalid.
+            otpService.verify(user, request.otp(), OtpPurpose.RESEND_VERIFICATION, OtpPurpose.REGISTER);
         } catch (ApiException ex) {
             securityAuditService.logFailure("VERIFY_OTP_FAILED", user, request.email(), ex.getErrorCode());
             throw ex;
