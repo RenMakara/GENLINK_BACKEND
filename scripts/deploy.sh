@@ -24,6 +24,17 @@ HEALTH_TIMEOUT=120   # seconds to wait for the new container to go healthy
 
 log() { echo "[$(date -Is)] $*"; }
 
+# 0. The first EC2 bootstrap may have cloned this repository as root while
+#    GitHub Actions connects as ubuntu. Git refuses a repository owned by a
+#    different user, and a pull also needs the checkout to be writable.
+if [[ "$(stat -c '%u' "$PROJECT_DIR")" != "$(id -u)" ]]; then
+  log "Project checkout is owned by another user; fixing ownership…"
+  if ! command -v sudo >/dev/null 2>&1 || ! sudo -n chown -R "$(id -u):$(id -g)" "$PROJECT_DIR"; then
+    log "ERROR: cannot change ownership of $PROJECT_DIR. Run: sudo chown -R \"$(id -un):$(id -gn)\" $PROJECT_DIR"
+    exit 1
+  fi
+fi
+
 # 1. Pull the new code. --ff-only refuses to create a merge commit: if the
 #    server checkout has diverged (someone edited a tracked file here), the
 #    deploy stops loudly instead of silently merging. .env is gitignored, so

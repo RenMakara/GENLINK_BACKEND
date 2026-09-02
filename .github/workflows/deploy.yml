@@ -113,6 +113,9 @@ jobs:
           script_stop: true
           command_timeout: 15m
           script: |
+            # The initial checkout may have been created as root. Make the
+            # working tree writable by the SSH user before Git runs.
+            sudo -n chown -R "$(id -u):$(id -g)" /opt/GENLINK_BACKEND
             cd /opt/GENLINK_BACKEND
             ./scripts/deploy.sh
 
