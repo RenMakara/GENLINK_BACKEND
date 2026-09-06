@@ -153,6 +153,9 @@ app:
     enforce-checksum: ${STORAGE_ENFORCE_CHECKSUM:false}
     # false = virtual-hosted style (Spaces/S3/R2); true = path-style (MinIO).
     path-style-access: ${STORAGE_PATH_STYLE:false}
+    # Legacy Spaces deployments may need object ACLs. AWS S3 with a private
+    # bucket and CloudFront OAC must keep this false because ACLs are disabled.
+    public-read-acl: ${STORAGE_PUBLIC_READ_ACL:true}
 
 springdoc:
   swagger-ui:

@@ -4,8 +4,8 @@
 #   Step 1 (now)  postgres  + optional redis
 #   Step 3        app       (Spring Boot, once its Dockerfile exists)
 #   Step 4        nginx runs on the HOST, not here, and proxies to `app`
-#
-# Nothing here is published to the public internet. Ports are bound to
+  ##
+  # Nothing here is published to the public internet. Ports are bound to
 # 127.0.0.1 so they are reachable only from the EC2 instance itself (or through
 # an SSH tunnel). Nginx is the single public door — that is what makes the
 # later IP -> domain migration a config change instead of a code change.
@@ -141,6 +141,9 @@ services:
       STORAGE_CDN_BASE: ${STORAGE_CDN_BASE}
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+      # Set false for AWS S3 Bucket owner enforced + CloudFront OAC. Keep true
+      # only while using a legacy provider that relies on object ACLs.
+      STORAGE_PUBLIC_READ_ACL: ${STORAGE_PUBLIC_READ_ACL:-true}
       # Lets Spring trust Nginx's X-Forwarded-* headers (Step 4). This is
       # what makes http://IP -> https://domain a config-only migration.
       SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-framework}

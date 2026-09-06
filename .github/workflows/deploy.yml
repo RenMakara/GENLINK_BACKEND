@@ -172,11 +172,11 @@ jobs:
             footer="🛡️ Production was not changed."
             link_text="View test logs →"
           elif [ "$DEPLOY_STATUS" = "success" ]; then
-            header="<b>So fullyrespect🙏😒</b>"
+            header="<b>CI/CD Successfully🙏😒🐸</b>"
             footer="🟢 Live · http://18.143.33.191"
             link_text="View workflow run →"
           else
-            header="❌ <b>ខ្ញុំខ្សោយណាស់</b>"
+            header="❌ <b>Fail to deploy</b>"
             footer="🛡️ Previous image restored when available; verify migrations and health."
             link_text="View deploy logs →"
           fi

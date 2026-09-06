@@ -104,6 +104,12 @@ public class S3StorageService implements StorageService {
 
     @Override
     public void makePublic(String key) {
+        if (!properties.isPublicReadAcl()) {
+            // AWS S3 buckets with Bucket owner enforced disable ACLs. Public
+            // access is provided by the bucket policy/CloudFront OAC instead.
+            log.debug("Skipping object ACL for {} because public access is policy-managed", key);
+            return;
+        }
         client.putObjectAcl(PutObjectAclRequest.builder()
             .bucket(properties.getBucket())
             .key(key)

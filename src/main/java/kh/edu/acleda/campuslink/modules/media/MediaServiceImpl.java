@@ -115,8 +115,8 @@ public class MediaServiceImpl implements MediaService {
         media.setStatus(MediaStatus.CONFIRMED);
         media.setConfirmedAt(Instant.now());
         if (media.getVisibility() == MediaVisibility.PUBLIC) {
-            // Objects are private by default; PUBLIC media must be granted
-            // public-read or its CDN URL 403s.
+            // Legacy providers may use an object ACL. AWS S3 uses its bucket
+            // policy/CloudFront OAC instead, so the storage adapter can no-op.
             storage.makePublic(media.getStorageKey());
             media.setPublicUrl(storage.publicUrl(media.getStorageKey()));
         }

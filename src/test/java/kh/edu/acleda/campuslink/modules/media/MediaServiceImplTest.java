@@ -156,7 +156,7 @@ class MediaServiceImplTest {
         assertThat(pending.getWidth()).isEqualTo(1080);
         assertThat(pending.getConfirmedAt()).isNotNull();
         assertThat(response.url()).isEqualTo("https://cdn.example.com/" + pending.getStorageKey());
-        verify(storage).makePublic(pending.getStorageKey()); // PUBLIC media granted public-read
+        verify(storage).makePublic(pending.getStorageKey()); // PUBLIC media access is configured by the storage adapter
     }
 
     @Test

@@ -52,6 +52,13 @@ public class StorageProperties {
      */
     private boolean pathStyleAccess = false;
 
+    /**
+     * Whether PUBLIC media should receive an object-level public-read ACL.
+     * Keep true for legacy Spaces-style deployments; use false for AWS S3 with
+     * a private bucket and CloudFront OAC.
+     */
+    private boolean publicReadAcl = true;
+
     public long maxImageBytes() {
         return maxImageMb * 1024 * 1024;
     }

@@ -35,9 +35,9 @@ public interface StorageService {
     String presignDownload(String key, Duration expiry);
 
     /**
-     * Grant public-read on an object. Objects are created private by default, so
-     * PUBLIC media must be made readable at confirm time — otherwise its CDN URL
-     * returns 403.
+     * Make PUBLIC media readable for providers that use object ACLs. This is a
+     * no-op for AWS S3 with a private bucket and CloudFront OAC, where a policy
+     * grants CloudFront access instead.
      */
     void makePublic(String key);
 
