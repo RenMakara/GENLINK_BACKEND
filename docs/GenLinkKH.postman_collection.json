@@ -3489,7 +3489,7 @@
         },
         {
           "name": "Events & RSVP",
-          "description": "Events with capacity and simulated paid entry via the demo wallet. Capacity is checked before payment.",
+          "description": "Events with full schedule/location details, persisted attendee registration, capacity and simulated paid entry via the demo wallet. Capacity is checked before payment.",
           "item": [
             {
               "name": "Create Event",
@@ -3515,9 +3515,9 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"title\": \"Flutter Workshop\",\n  \"description\": \"Intro to Flutter\",\n  \"category\": \"WORKSHOP\",\n  \"coverImageUrl\": null,\n  \"dateTime\": \"2026-08-01T14:00:00\",\n  \"locationName\": \"ACLEDA University\",\n  \"attendeeLimit\": 50,\n  \"status\": \"PUBLISHED\",\n  \"language\": \"ENGLISH\",\n  \"paid\": false,\n  \"price\": null\n}"
+                  "raw": "{\n  \"title\": \"Flutter Workshop\",\n  \"description\": \"Intro to Flutter\",\n  \"category\": \"WORKSHOP\",\n  \"coverImageUrl\": null,\n  \"startDateTime\": \"2026-10-01T14:00:00\",\n  \"endDateTime\": \"2026-10-01T16:00:00\",\n  \"mode\": \"IN_PERSON\",\n  \"meetingUrl\": null,\n  \"locationName\": \"ACLEDA University\",\n  \"latitude\": 11.5564,\n  \"longitude\": 104.9282,\n  \"attendeeLimit\": 50,\n  \"status\": \"PUBLISHED\",\n  \"language\": \"ENGLISH\",\n  \"paid\": false,\n  \"price\": null,\n  \"currency\": null\n}"
                 },
-                "description": "status: DRAFT | PUBLISHED | CANCELLED | COMPLETED\ndateTime is a local date-time (no offset).\n\npaid + price: a paid event MUST have a price above zero (chk_events_paid_requires_price).\nPayment is SIMULATED against the demo wallet - there is no real KHQR transfer."
+                "description": "status: DRAFT | PUBLISHED | CANCELLED | COMPLETED\nstartDateTime/endDateTime are local date-times (no offset), and endDateTime must be after startDateTime.\n\nmode: ONLINE | IN_PERSON. ONLINE requires an http(s) meetingUrl; IN_PERSON requires locationName. latitude and longitude are optional, but must be supplied together.\n\npaid + price + currency: a paid event MUST have a price above zero and currency=USD or KHR. The price is charged from the matching demo-wallet balance; there is no exchange-rate conversion. A free event uses paid=false, price=null and currency=null.\nPayment is SIMULATED against the demo wallet - there is no real KHQR transfer."
               },
               "event": [
                 {
@@ -3526,11 +3526,41 @@
                     "type": "text/javascript",
                     "exec": [
                       "const json = pm.response.json();",
+                      "pm.test('Event exposes currency', function () { pm.expect(json.data).to.have.property('currency'); pm.expect(json.data.currency).to.eql(null); });",
                       "if (json && json.data && json.data.eventId) { pm.collectionVariables.set('eventId', json.data.eventId); }"
                     ]
                   }
                 }
               ]
+            },
+            {
+              "name": "Create Paid Event (KHR)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/community/events",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "community",
+                    "events"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"KHR Paid Workshop\",\n  \"description\": \"Paid event example in Khmer riel\",\n  \"category\": \"WORKSHOP\",\n  \"coverImageUrl\": null,\n  \"startDateTime\": \"2026-10-02T14:00:00\",\n  \"endDateTime\": \"2026-10-02T16:00:00\",\n  \"mode\": \"IN_PERSON\",\n  \"meetingUrl\": null,\n  \"locationName\": \"ACLEDA University\",\n  \"latitude\": 11.5564,\n  \"longitude\": 104.9282,\n  \"attendeeLimit\": 50,\n  \"status\": \"PUBLISHED\",\n  \"language\": \"ENGLISH\",\n  \"paid\": true,\n  \"price\": 5000,\n  \"currency\": \"KHR\"\n}"
+                },
+                "description": "Paid event example. The price is 5,000 KHR and RSVP debits the attendee's KHR wallet balance. Change currency to USD and price to a USD amount for a USD event."
+              }
             },
             {
               "name": "List My Events",
@@ -3617,7 +3647,12 @@
               "name": "RSVP to Event",
               "request": {
                 "method": "POST",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{baseUrl}}/api/v1/community/events/{{eventId}}/rsvp",
                   "host": [
@@ -3632,7 +3667,11 @@
                     "rsvp"
                   ]
                 },
-                "description": "Idempotent - RSVPing twice does not double-count or re-award XP.\n\nOrder matters: capacity is checked BEFORE payment, so a full paid event never charges you.\n\nFree event -> joins, +10 XP.\nPaid event -> deducts the demo wallet, writes a demo_transaction (EVENT_PAYMENT), returns amountPaid and simulatedPayment=true. Label it a simulation on screen.\n\nErrors: EVENT_FULL, EVENT_CANCELLED, EVENT_PAST, DEMO_WALLET_NOT_FOUND, DEMO_WALLET_INSUFFICIENT_BALANCE."
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Registered Student\",\n  \"email\": \"student@example.com\",\n  \"phoneNumber\": \"012345678\",\n  \"university\": \"ACLEDA University of Business\",\n  \"faculty\": \"Computer Science\",\n  \"studyYear\": \"Year 3\",\n  \"termsAccepted\": true\n}"
+                },
+                "description": "Full registration form is persisted on event_rsvps. fullName, email, phoneNumber, university, faculty and studyYear are required; termsAccepted must be true.\n\nIdempotent - RSVPing twice does not double-count or re-award XP.\n\nOrder matters: capacity is checked BEFORE payment, so a full paid event never charges you.\n\nFree event -> joins, +10 XP.\nPaid event -> deducts balanceUsd or balanceKhr according to the event's currency, writes a demo_transaction (EVENT_PAYMENT), and returns amountPaid in that currency with simulatedPayment=true. There is no USD/KHR conversion. Label it a simulation on screen.\n\nErrors: VALIDATION_ERROR, EVENT_FULL, EVENT_CANCELLED, EVENT_PAST, DEMO_WALLET_NOT_FOUND, DEMO_WALLET_INSUFFICIENT_BALANCE, EVENT_CURRENCY_MISSING."
               }
             },
             {

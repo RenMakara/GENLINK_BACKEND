@@ -1,13 +1,14 @@
-us# Community Domain — Implementation Plan
+# Community Domain — Implementation Plan
 
 Status: **Phases 0-5 done** (Phase 5 on 2026-07-18), except 4.4 (interest-based
 suggestions). **Chat delivered** (REST Phases 1-2, realtime Phase 3 on 2026-08-14) —
 see CHAT_REALTIME.md and COMMUNITY_ROLES.md. **Polls delivered** (2026-08-14) — see
 POLLS.md. **Stories delivered** (2026-08-14) — see STORIES.md. Nothing in the original
-deferred list remains.
+deferred list remains except the 4.4 interest-suggestion follow-up.
 Created: 2026-07-17
 Owner: Enat (Community domain, per Team Assignment v5)
 Scope: backend only
+Last verified: 2026-09-08
 
 ---
 
@@ -21,8 +22,8 @@ early phases establish patterns the later ones copy.
 
 Measured 2026-07-17, not estimated. Kept as the record of what was found, and of
 what "the endpoint exists" was worth. Posts, comments, likes and hashtags are now
-real — see the Delivered sections at the end. Phases 0-4 have since landed; only
-Opportunities remains from the original plan.
+real — see the Delivered sections at the end. Phases 0-5 have since landed; only
+4.4 interest-based suggestions remains from the original plan.
 
 | Thing | Count |
 |---|---|
@@ -134,10 +135,19 @@ The single most visible surface in the app. Also unblocks `/mobile/home`, whose
       `UNIQUE(event_id, user_id)`, maintain `attendeeCount`, award XP.
       **Organiser notification not done** — the notification module exists but is
       not wired to anything, so this would be the first caller.
-- [x] **2.4** Paid events route through the demo wallet — simulation only. Never
-      imply a real KHQR transfer.
+- [x] **2.4** Paid events route through the demo wallet in the event's selected
+      currency (`USD` or `KHR`) — simulation only. Never imply a real KHQR transfer.
+- [x] **2.5** Complete event details: start/end time, `ONLINE`/`IN_PERSON` mode,
+      meeting URL, physical location and optional latitude/longitude coordinates.
+- [x] **2.6** Full RSVP registration form is validated and persisted on
+      `event_rsvps`: full name, email, phone number, university, faculty, study
+      year and terms acceptance. Flutter create/register flows call the real API.
+- [x] **2.7** Create Event exposes a paid-event currency selector. `USD` and `KHR`
+      are stored on `events.currency`, displayed in event responses, and matched to
+      the corresponding wallet balance during RSVP.
 
-Defer: QR check-in, map/location search.
+Defer: QR check-in, map search/picker UI, organiser notifications and free/paid
+browse filtering.
 
 ---
 
@@ -234,7 +244,8 @@ than discovering a wrong pattern in Phase 4.
 
 1. **Ownership.** Community is Enat's assigned area. Phases 1-5 are a large slice
    of their work — coordinate before starting.
-2. **Chat.** Confirm it is deferred.
+2. **Chat.** Basic REST chat and new-message realtime delivery are live; presence,
+   typing, read receipts, and other advanced realtime events remain deferred.
 3. **Feed scope.** The FigJam feed mixes curated news, followed users, skills,
    events and leaderboard highlights. Phase 1 delivers posts only. Is that enough
    for the demo?
@@ -344,7 +355,7 @@ timeline, not a social product.
 - **The creator is the first member**, otherwise a community starts with an owner
   who is not in it and `memberCount` disagrees with `community_members`.
 - **The OWNER cannot leave** — that would orphan the community with nobody able to
-  administer it. Transfer ownership first (not built).
+  administer it. Transfer ownership first (see the fixed gap below).
 - **Rejoining reuses the membership row**, because `UNIQUE(community_id, user_id)`
   forbids a second one. Status moves LEFT -> ACTIVE.
 - **A PRIVATE profile makes follows PENDING** and needs approval, mirroring how
@@ -392,8 +403,26 @@ timeline, not a social product.
 | GET | `/api/v1/community/events/mine` (includes drafts) |
 | GET | `/api/v1/community/events/{id}` |
 | PUT/DELETE | `/api/v1/community/events/{id}` |
-| POST/DELETE | `/api/v1/community/events/{id}/rsvp` |
+| POST/DELETE | `/api/v1/community/events/{id}/rsvp` | POST accepts the full registration form |
 | GET | `/api/v1/community/events/{id}/attendees` |
+
+### Event request contract (migrations 0050 + 0051)
+
+Create/update accepts `startDateTime` and `endDateTime` as local date-times. The
+end must be after the start. `mode` is `ONLINE` or `IN_PERSON`; online events
+require an `http`/`https` `meetingUrl`, while in-person events require a
+`locationName`. `latitude` and `longitude` are optional but must be provided as
+a pair. The existing `date_time` column remains the start time so the mobile
+home BFF and existing data stay compatible.
+
+RSVP accepts `fullName`, `email`, `phoneNumber`, `university`, `faculty`,
+`studyYear` and `termsAccepted=true`. These values are stored on the unique
+`event_rsvps` row and are not exposed by the public attendee summary endpoint.
+
+Paid events also accept `paid=true`, a `price` above zero and `currency=USD|KHR`.
+The price is expressed in the selected currency; there is no USD/KHR conversion.
+Free events send `paid=false`, `price=null` and `currency=null`. `EventResponse`
+returns the same currency so Flutter can format the fee correctly.
 
 ### Migration 0018 — paid events did not exist
 
@@ -406,6 +435,14 @@ free and the paid RSVP path could not be built at all.
 — a paid event with no price would take a payment of nothing and still write a
 wallet transaction.
 
+### Migration 0051 — paid-event currency
+
+0051 adds nullable `events.currency`, backfills existing paid events to `USD` to
+preserve their previous behaviour, and enforces `USD`/`KHR` as the only values.
+The database also enforces that every paid event has a currency. A paid RSVP
+debits `balanceUsd` or `balanceKhr` according to this field; it never mixes or
+converts the two balances.
+
 ### The ordering that matters
 
 Capacity is checked **before** payment, matching the corrected paid-RSVP flow. The
@@ -415,9 +452,9 @@ other order takes someone's money and then tells them the event is full. Pinned 
 ### Decisions worth keeping
 
 - Paid RSVP deducts the demo wallet and writes a `demo_transaction` of type
-  `EVENT_PAYMENT`. `RsvpResponse.simulatedPayment` is true whenever money moved, so
-  the client can label the screen a simulation. **Nothing here touches a real
-  payment rail.**
+  `EVENT_PAYMENT` in the event's selected currency. `RsvpResponse.simulatedPayment`
+  is true whenever money moved, so the client can label the screen a simulation.
+  **Nothing here touches a real payment rail.**
 - RSVP is idempotent: it backs a button and `(event_id, user_id)` is unique. A
   second tap does not double-count or re-award XP.
 - Cancelling **does not refund** — the demo wallet has no refund flow, and inventing
@@ -432,9 +469,12 @@ other order takes someone's money and then tells them the event is full. Pinned 
 - Only PUBLISHED events are discoverable; a DRAFT belongs to its organiser alone.
   Past events are excluded from browse.
 - A free event never touches the wallet. A free event never keeps a stale price.
+- A paid event with insufficient funds in its selected currency is rejected before
+  the RSVP row is saved; the reserved seat rolls back with the transaction.
 - +10 XP per RSVP, written to `xp_history` and `users.total_xp`.
-- `EventResponse` carries organizer, `myRsvpStatus` and `full`, so the list renders
-  Join/Cancel/Full without a request per row. It previously had no organizer.
+- `EventResponse` carries organizer, start/end schedule, mode/location details,
+  `myRsvpStatus` and `full`, so the list renders Join/Cancel/Full without a
+  request per row. It previously had no organizer.
 
 ### Known gaps
 
@@ -444,7 +484,9 @@ other order takes someone's money and then tells them the event is full. Pinned 
 - **No free/paid filter** on browse, though the columns now exist.
 - **No QR check-in.** `event_rsvps.checked_in` and `qr_code` exist, unused.
 - **No refund on cancel**, deliberately.
-- **No map/location search.** `latitude`/`longitude` exist, unused.
+- **No map search/picker UI.** `latitude`/`longitude` are now accepted and stored;
+  the current Flutter form exposes optional coordinate inputs, but map search
+  and a map-based picker remain deferred.
 
 ---
 
@@ -508,8 +550,8 @@ The interesting part of this phase, and the easiest to get wrong.
   Added `forum_comments.like_count` + a `forum_comment_reactions` table (UNIQUE per
   comment+user). `POST`/`DELETE /discussions/comments/{id}/like` toggle it idempotently;
   `CommentResponse` now carries a real `likeCount` and `likedByMe` (batched per page).
-  Mirrors `forum_reactions`. See `FORUM_COMMENT_LIKES.md`. (Post-comment likes are still
-  not wired - only forum comments.)
+  Mirrors `forum_reactions`. See `FORUM_COMMENT_LIKES.md`. Post-comment likes are wired
+  separately; see `POST_COMMENT_LIKES.md`.
 - Anonymity is all-or-nothing: an author cannot un-anonymise later without the edit
   revealing them retroactively to anyone who saw the earlier version.
 

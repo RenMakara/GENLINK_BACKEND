@@ -2,6 +2,7 @@
 
 Status: DONE (2026-07-19). Part of backend/docs/FINANCE_PLAN.md (Phase 4).
 Scope: backend only. Rewards are simulated (XP + demo wallet), never real money.
+Last verified: 2026-09-06
 
 Maps the "Financial Literacy Flow" figma: Open → Learning Dashboard → Choose Topic
 → Learning Content (Article / Khmer Tip / Short Video) → Finish Learning → Quiz →
@@ -107,4 +108,5 @@ bilingual via _en/_km + LanguageResolver.
 ## Follow-ups / notes
 
 - Khmer content for lessons, quizzes, and the finance tip (Phase 6) still needs review.
-- Home dashboard finance card still reads stale Budget.spentAmount — flagged separately.
+- Home dashboard finance card now uses live expense spend; bilingual finance content review
+  remains.

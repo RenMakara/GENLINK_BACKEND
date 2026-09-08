@@ -4,26 +4,72 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import kh.edu.acleda.campuslink.modules.community.enums.EventStatus;
+import kh.edu.acleda.campuslink.modules.community.enums.EventMode;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 
 /**
- * @param paid  the Free/Paid toggle from the Create Event flow
+ * Event creation/update payload shared by the organizer flow and the API.
+ *
+ * @param mode ONLINE requires meetingUrl; IN_PERSON requires locationName
+ * @param paid the Free/Paid toggle from the Create Event flow
  * @param price required when paid; settled against the demo wallet, never real money
+ * @param currency required when paid; selects the wallet balance to debit (USD or KHR)
  */
 public record EventCreateRequest(
     @NotBlank @Size(max = 180) String title,
     String description,
     String category,
     String coverImageUrl,
-    @NotNull LocalDateTime dateTime,
+    @NotNull LocalDateTime startDateTime,
+    @NotNull LocalDateTime endDateTime,
+    @NotNull EventMode mode,
+    @Size(max = 2048) String meetingUrl,
     String locationName,
-    Integer attendeeLimit,
+    @DecimalMin(value = "-90.0")
+    @DecimalMax(value = "90.0") BigDecimal latitude,
+    @DecimalMin(value = "-180.0")
+    @DecimalMax(value = "180.0") BigDecimal longitude,
+    @Positive Integer attendeeLimit,
     EventStatus status,
     Language language,
     Boolean paid,
-    @Positive BigDecimal price
+    @Positive BigDecimal price,
+    Currency currency
 ) {
+
+    /**
+     * Source-compatible constructor for callers written before event currency was added.
+     * Paid legacy requests use USD, matching the previous RSVP behaviour.
+     */
+    public EventCreateRequest(String title, String description, String category,
+                              String coverImageUrl, LocalDateTime startDateTime,
+                              LocalDateTime endDateTime, EventMode mode, String meetingUrl,
+                              String locationName, BigDecimal latitude, BigDecimal longitude,
+                              Integer attendeeLimit, EventStatus status, Language language,
+                              Boolean paid, BigDecimal price) {
+        this(title, description, category, coverImageUrl, startDateTime, endDateTime, mode,
+            meetingUrl, locationName, latitude, longitude, attendeeLimit, status, language,
+            paid, price, Boolean.TRUE.equals(paid) ? Currency.USD : null);
+    }
+
+    /**
+     * Source-compatible constructor for older backend callers. The legacy single
+     * date/time represented the event start, so use a one-hour default end time.
+     */
+    public EventCreateRequest(String title, String description, String category,
+                              String coverImageUrl, LocalDateTime dateTime,
+                              String locationName, Integer attendeeLimit,
+                              EventStatus status, Language language, Boolean paid,
+                              BigDecimal price) {
+        this(title, description, category, coverImageUrl, dateTime,
+            dateTime == null ? null : dateTime.plusHours(1), null, null,
+            locationName, null, null, attendeeLimit, status, language, paid, price,
+            Boolean.TRUE.equals(paid) ? Currency.USD : null);
+    }
 }

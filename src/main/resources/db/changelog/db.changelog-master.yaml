@@ -97,3 +97,7 @@ databaseChangeLog:
       file: db/changelog/changes/0048-finance-wallet-consistency.sql
   - include:
       file: db/changelog/changes/0049-fix-budget-soft-delete-uniqueness.sql
+  - include:
+      file: db/changelog/changes/0050-expand-event-details-and-registration.sql
+  - include:
+      file: db/changelog/changes/0051-add-event-currency.sql

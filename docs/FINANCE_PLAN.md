@@ -4,6 +4,7 @@ Status: Phases 1-6 all done. Owner: Sela (Finance, per Team Assignment v5).
 Order note: 5 and 6 were done before 4 (5 unblocks Community paid RSVP; 6 only needs
 the finished phases). Phase 4 detail lives in backend/docs/FINANCE_LITERACY_PLAN.md.
 Scope: backend only. Payments are simulation only — no real banking, no real KHQR.
+Last verified: 2026-09-06
 
 ---
 
@@ -93,10 +94,11 @@ Full detail in backend/docs/FINANCE_LITERACY_PLAN.md.
 
 ## Phase 5 — Demo Wallet / KHQR Simulation — DONE
 
-- [x] Get-or-create wallet (`GET /finance/wallet`), balance + currency (USD).
+- [x] Get-or-create wallet (`GET /finance/wallet`), with independent `balanceUsd` and
+      `balanceKhr` balances (default top-up/payment currency is USD).
       Created on first access; the UNIQUE(user_id) race is caught and re-read.
 - [x] Top-up (`POST /finance/wallet/top-up`, DEPOSIT) and mock KHQR payment
-      (`POST /finance/wallet/pay`, MOCK_KHQR_PAYMENT); paginated transaction
+      (`POST /finance/wallet/pay`, `KHQR_PAYMENT` with provider `MOCK_KHQR`); paginated transaction
       history (`GET /finance/wallet/transactions`). Every balance move writes a
       DemoTransaction and logs "SIMULATED" - never implies a real transfer.
       Insufficient balance throws before any write (no FAILED row), matching the
@@ -115,9 +117,8 @@ Full detail in backend/docs/FINANCE_LITERACY_PLAN.md.
       well-formed body with nulls/empties. Spend is computed live from expenses
       (not Budget.spentAmount). Tests.
 - [ ] Follow-ups: the tip is English-only - needs a bilingual finance-tip seed or
-      reviewed Khmer. The home dashboard's finance card still reads the stale
-      Budget.spentAmount counter (shows spent=0) - flagged separately to fix the
-      same live-spend way.
+      reviewed Khmer. The home dashboard's finance card now uses live expense spend;
+      the old `Budget.spentAmount` drift issue is resolved.
 
 ---
 

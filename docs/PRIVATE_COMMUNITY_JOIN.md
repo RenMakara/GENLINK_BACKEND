@@ -125,6 +125,6 @@ second request:
   join-requests list. Wiring the notification module here would be its first caller.
 - **Rejection is not a block.** A rejected user can request again. A sticky blocklist would
   be a separate feature.
-- **Role promotion and ownership transfer still do not exist** (open Phase 4 gaps): only the
-  creator is ever `OWNER`, and no endpoint promotes a member to `ADMIN`/`MODERATOR`, so in
-  practice only the owner can approve requests today.
+- **Role promotion and ownership transfer are implemented** — see `COMMUNITY_ROLES.md`.
+  The remaining join-flow limits are the missing request notification and the fact that
+  rejection is not a sticky block.

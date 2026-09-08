@@ -32,7 +32,7 @@ If no profile is selected, Spring Boot starts with `dev`.
 - Liquibase enabled with `db/changelog/db.changelog-master.yaml`
 - Mail host and port
 - JWT issuer, secret, access-token expiry, and refresh-token expiry
-- Google OAuth client ID and Firebase project ID
+- Google OAuth client ID (Firebase-free Google ID-token verification)
 - Default localization language
 - Swagger/OpenAPI paths
 
@@ -67,7 +67,6 @@ DB_URL=jdbc:postgresql://localhost:16801/campuslink_db
 DB_USERNAME=campuslink_usr
 DB_PASSWORD=campuslink@168
 JWT_ISSUER=campuslink-kh-dev
-GOOGLE_PROJECT_ID=genlinkkh-dev
 ```
 
 Use real mail, Google, or JWT values by setting environment variables before running the app.
@@ -104,8 +103,6 @@ JWT_SECRET=replace-with-a-strong-secret-at-least-32-characters
 MAIL_USERNAME=real-mail-account
 MAIL_PASSWORD=real-mail-password
 GOOGLE_CLIENT_ID=real-google-client-id
-GOOGLE_PROJECT_ID=real-firebase-project-id
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/firebase-service-account.json
 ```
 
 Production disables Swagger UI and OpenAPI docs:
@@ -187,8 +184,6 @@ Never point these variables at a production database. Use a disposable database 
 | `MAIL_USERNAME` | Yes | SMTP username and sender address |
 | `MAIL_PASSWORD` | Yes | SMTP password or app password |
 | `GOOGLE_CLIENT_ID` | Yes | Google OAuth client ID |
-| `GOOGLE_PROJECT_ID` | Yes | Firebase project ID |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Yes for Google login | Firebase service account JSON path |
 | `APP_DEFAULT_LANGUAGE` | No | Default language, defaults to `ENGLISH` |
 
 ## Recommended Improvements

@@ -1,6 +1,8 @@
 package kh.edu.acleda.campuslink.modules.community.service.impl;
 
 import java.math.BigDecimal;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -10,6 +12,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import kh.edu.acleda.campuslink.modules.community.dto.request.EventCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.EventRegistrationRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommunityMemberResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.EventResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
@@ -17,6 +20,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.response.RsvpResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Event;
 import kh.edu.acleda.campuslink.modules.community.entity.EventRsvp;
 import kh.edu.acleda.campuslink.modules.community.enums.EventStatus;
+import kh.edu.acleda.campuslink.modules.community.enums.EventMode;
 import kh.edu.acleda.campuslink.modules.community.enums.RsvpStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
@@ -74,6 +78,7 @@ public class EventServiceImpl implements EventService {
     @Transactional
     public EventResponse create(EventCreateRequest request) {
         validatePricing(request);
+        validateEventDetails(request);
         User organizer = loadCurrentUser();
         Event event = eventRepository.save(Event.builder()
             .organizer(organizer)
@@ -81,14 +86,20 @@ public class EventServiceImpl implements EventService {
             .description(request.description())
             .category(request.category())
             .coverImageUrl(request.coverImageUrl())
-            .dateTime(request.dateTime())
-            .locationName(request.locationName())
+            .dateTime(request.startDateTime())
+            .endDateTime(request.endDateTime())
+            .mode(modeOrDefault(request))
+            .meetingUrl(normalizeMeetingUrl(request))
+            .locationName(normalizeLocation(request))
+            .latitude(request.latitude())
+            .longitude(request.longitude())
             .attendeeLimit(request.attendeeLimit())
             .attendeeCount(0)
             .status(request.status() == null ? EventStatus.PUBLISHED : request.status())
             .language(request.language())
             .isPaid(Boolean.TRUE.equals(request.paid()))
             .price(Boolean.TRUE.equals(request.paid()) ? request.price() : null)
+            .currency(Boolean.TRUE.equals(request.paid()) ? request.currency() : null)
             .build());
         return toResponse(event, null);
     }
@@ -117,13 +128,19 @@ public class EventServiceImpl implements EventService {
     @Transactional
     public EventResponse update(UUID eventId, EventCreateRequest request) {
         validatePricing(request);
+        validateEventDetails(request);
         Event event = loadOwned(eventId);
         event.setTitle(request.title().strip());
         event.setDescription(request.description());
         event.setCategory(request.category());
         event.setCoverImageUrl(request.coverImageUrl());
-        event.setDateTime(request.dateTime());
-        event.setLocationName(request.locationName());
+        event.setDateTime(request.startDateTime());
+        event.setEndDateTime(request.endDateTime());
+        event.setMode(modeOrDefault(request));
+        event.setMeetingUrl(normalizeMeetingUrl(request));
+        event.setLocationName(normalizeLocation(request));
+        event.setLatitude(request.latitude());
+        event.setLongitude(request.longitude());
         event.setAttendeeLimit(request.attendeeLimit());
         if (request.status() != null) {
             event.setStatus(request.status());
@@ -133,6 +150,7 @@ public class EventServiceImpl implements EventService {
         }
         event.setIsPaid(Boolean.TRUE.equals(request.paid()));
         event.setPrice(Boolean.TRUE.equals(request.paid()) ? request.price() : null);
+        event.setCurrency(Boolean.TRUE.equals(request.paid()) ? request.currency() : null);
         return toResponse(eventRepository.save(event), myRsvpStatus(eventId));
     }
 
@@ -154,6 +172,13 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional
     public RsvpResponse rsvp(UUID eventId) {
+        return rsvp(eventId, null);
+    }
+
+    @Override
+    @Transactional
+    public RsvpResponse rsvp(UUID eventId, EventRegistrationRequest registration) {
+        validateRegistration(registration);
         Event event = loadEvent(eventId);
         UUID userId = currentUserProvider.getCurrentUserId();
 
@@ -167,6 +192,12 @@ public class EventServiceImpl implements EventService {
         EventRsvp existing = rsvpRepository.findByEventIdAndUserId(eventId, userId).orElse(null);
         if (existing != null && existing.getStatus() == RsvpStatus.JOINED) {
             // Idempotent: RSVP backs a button, and (event_id, user_id) is unique.
+            // If an older client joined without a body, accept the later full form
+            // without charging or awarding XP a second time.
+            if (registration != null) {
+                applyRegistration(existing, registration);
+                rsvpRepository.save(existing);
+            }
             return new RsvpResponse(eventId, RsvpStatus.JOINED, event.getAttendeeCount(), 0, null, false);
         }
 
@@ -184,14 +215,17 @@ public class EventServiceImpl implements EventService {
         if (existing != null) {
             // The unique constraint forbids a second row, so a cancelled RSVP is reused.
             existing.setStatus(RsvpStatus.JOINED);
+            applyRegistration(existing, registration);
             rsvpRepository.save(existing);
         } else {
-            rsvpRepository.save(EventRsvp.builder()
+            EventRsvp created = EventRsvp.builder()
                 .event(event)
                 .user(loadCurrentUser())
                 .status(RsvpStatus.JOINED)
                 .checkedIn(false)
-                .build());
+                .build();
+            applyRegistration(created, registration);
+            rsvpRepository.save(created);
         }
         int xp = awardXp(eventId);
 
@@ -240,7 +274,14 @@ public class EventServiceImpl implements EventService {
         BigDecimal price = event.getPrice();
         // debit enforces sufficient funds (throws DEMO_WALLET_INSUFFICIENT_BALANCE before any
         // write), subtracts the balance, and records the DEBIT row linked back to the event.
-        ledgerService.debit(wallet, TransactionType.EVENT_PAYMENT, Currency.USD, price,
+        Currency currency = event.getCurrency();
+        if (currency == null) {
+            // Protect legacy or manually-created rows that predate event currency. New paid
+            // events are rejected at creation/update time, and the migration backfills old paid
+            // rows to USD, but this keeps the RSVP failure explicit if neither ran.
+            throw new ApiException("Paid event currency is missing", "EVENT_CURRENCY_MISSING");
+        }
+        ledgerService.debit(wallet, TransactionType.EVENT_PAYMENT, currency, price,
             "Simulated payment for event: " + event.getTitle(), "EVENT", event.getId());
 
         // The only place a balance moves outside the finance module. It is simulated,
@@ -248,8 +289,12 @@ public class EventServiceImpl implements EventService {
         // reaches GlobalExceptionHandler, so nothing else would record it. Says
         // SIMULATED out loud so a log reader never mistakes it for a real payment.
         log.info("SIMULATED wallet debit: user={} event={} currency={} amount={} balanceAfter={}",
-            userId, event.getId(), Currency.USD, price, wallet.getBalanceUsd());
+            userId, event.getId(), currency, price, balanceFor(wallet, currency));
         return price;
+    }
+
+    private BigDecimal balanceFor(DemoWallet wallet, Currency currency) {
+        return currency == Currency.KHR ? wallet.getBalanceKhr() : wallet.getBalanceUsd();
     }
 
     private int awardXp(UUID eventId) {
@@ -286,6 +331,92 @@ public class EventServiceImpl implements EventService {
             && (request.price() == null || request.price().signum() <= 0)) {
             throw new ApiException("A paid event needs a price above zero", "VALIDATION_ERROR");
         }
+        if (Boolean.TRUE.equals(request.paid()) && request.currency() == null) {
+            throw new ApiException("A paid event needs a currency", "VALIDATION_ERROR");
+        }
+    }
+
+    private void validateEventDetails(EventCreateRequest request) {
+        if (request.startDateTime() == null || request.endDateTime() == null
+            || !request.endDateTime().isAfter(request.startDateTime())) {
+            throw new ApiException("Event end time must be after start time", "VALIDATION_ERROR");
+        }
+        if (request.latitude() == null ^ request.longitude() == null) {
+            throw new ApiException("Latitude and longitude must be provided together", "VALIDATION_ERROR");
+        }
+        if ((request.latitude() != null
+                && (request.latitude().compareTo(BigDecimal.valueOf(-90)) < 0
+                    || request.latitude().compareTo(BigDecimal.valueOf(90)) > 0))
+            || (request.longitude() != null
+                && (request.longitude().compareTo(BigDecimal.valueOf(-180)) < 0
+                    || request.longitude().compareTo(BigDecimal.valueOf(180)) > 0))) {
+            throw new ApiException("Map coordinates are out of range", "VALIDATION_ERROR");
+        }
+
+        if (request.mode() == EventMode.ONLINE) {
+            if (request.meetingUrl() == null || request.meetingUrl().isBlank()) {
+                throw new ApiException("An online event needs a meeting URL", "VALIDATION_ERROR");
+            }
+            try {
+                URI uri = new URI(request.meetingUrl().trim());
+                if (!"http".equalsIgnoreCase(uri.getScheme())
+                    && !"https".equalsIgnoreCase(uri.getScheme())) {
+                    throw new ApiException("Meeting URL must use http or https", "VALIDATION_ERROR");
+                }
+                if (uri.getHost() == null) {
+                    throw new ApiException("Meeting URL is invalid", "VALIDATION_ERROR");
+                }
+            } catch (URISyntaxException ex) {
+                throw new ApiException("Meeting URL is invalid", "VALIDATION_ERROR");
+            }
+        } else if (request.mode() == EventMode.IN_PERSON
+            && (request.locationName() == null || request.locationName().isBlank())) {
+            throw new ApiException("An in-person event needs a location", "VALIDATION_ERROR");
+        }
+    }
+
+    private EventMode modeOrDefault(EventCreateRequest request) {
+        return request.mode() == null ? EventMode.IN_PERSON : request.mode();
+    }
+
+    private String normalizeMeetingUrl(EventCreateRequest request) {
+        return request.mode() == EventMode.ONLINE && request.meetingUrl() != null
+            ? request.meetingUrl().trim() : null;
+    }
+
+    private String normalizeLocation(EventCreateRequest request) {
+        return request.mode() == EventMode.ONLINE ? null : request.locationName();
+    }
+
+    private void validateRegistration(EventRegistrationRequest registration) {
+        if (registration == null) {
+            return;
+        }
+        if (!registration.termsAccepted()) {
+            throw new ApiException("You must accept the event terms", "VALIDATION_ERROR");
+        }
+        if (isBlank(registration.fullName()) || isBlank(registration.email())
+            || isBlank(registration.phoneNumber()) || isBlank(registration.university())
+            || isBlank(registration.faculty()) || isBlank(registration.studyYear())) {
+            throw new ApiException("Complete event registration is required", "VALIDATION_ERROR");
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private void applyRegistration(EventRsvp rsvp, EventRegistrationRequest registration) {
+        if (registration == null) {
+            return;
+        }
+        rsvp.setFullName(registration.fullName().strip());
+        rsvp.setEmail(registration.email().strip());
+        rsvp.setPhoneNumber(registration.phoneNumber().strip());
+        rsvp.setUniversity(registration.university().strip());
+        rsvp.setFaculty(registration.faculty().strip());
+        rsvp.setStudyYear(registration.studyYear().strip());
+        rsvp.setTermsAccepted(true);
     }
 
     private Event loadEvent(UUID eventId) {
@@ -318,13 +449,19 @@ public class EventServiceImpl implements EventService {
             event.getCategory(),
             event.getCoverImageUrl(),
             event.getDateTime(),
+            event.getEndDateTime(),
+            event.getMode(),
+            event.getMeetingUrl(),
             event.getLocationName(),
+            event.getLatitude(),
+            event.getLongitude(),
             event.getAttendeeLimit(),
             event.getAttendeeCount(),
             event.getStatus(),
             event.getLanguage(),
             Boolean.TRUE.equals(event.getIsPaid()),
             event.getPrice(),
+            event.getCurrency(),
             myRsvpStatus,
             isFull(event),
             event.getCreatedAt()

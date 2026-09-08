@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.community.service;
 
 import kh.edu.acleda.campuslink.modules.community.dto.request.EventCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.EventRegistrationRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommunityMemberResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.EventResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.RsvpResponse;
@@ -29,7 +30,11 @@ public interface EventService {
      * Join. Idempotent. Capacity is checked before any payment, and a paid event is
      * settled against the demo wallet - simulation only.
      */
+    /** Legacy bodyless RSVP kept for existing service callers; new clients use the form overload. */
     RsvpResponse rsvp(UUID eventId);
+
+    /** Join and persist the attendee's full registration form. */
+    RsvpResponse rsvp(UUID eventId, EventRegistrationRequest request);
 
     /** Cancelling does not refund: the demo wallet has no refund flow. */
     void cancelRsvp(UUID eventId);

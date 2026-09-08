@@ -12,7 +12,9 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import kh.edu.acleda.campuslink.modules.community.enums.EventMode;
 import kh.edu.acleda.campuslink.modules.community.enums.EventStatus;
+import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -51,6 +53,16 @@ public class Event extends BaseEntity {
     @Column(name = "date_time", nullable = false)
     private LocalDateTime dateTime;
 
+    @Column(name = "end_date_time", nullable = false)
+    private LocalDateTime endDateTime;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "event_mode", nullable = false, length = 20)
+    private EventMode mode;
+
+    @Column(name = "meeting_url", columnDefinition = "TEXT")
+    private String meetingUrl;
+
     @Column(name = "location_name", length = 180)
     private String locationName;
 
@@ -72,6 +84,11 @@ public class Event extends BaseEntity {
 
     @Column(name = "price", precision = 12, scale = 2)
     private BigDecimal price;
+
+    /** Currency used for a paid RSVP; free events leave this null. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "currency", length = 3)
+    private Currency currency;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)

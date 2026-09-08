@@ -10,7 +10,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import kh.edu.acleda.campuslink.modules.community.entity.Event;
 import kh.edu.acleda.campuslink.modules.community.enums.RsvpStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
@@ -47,5 +46,27 @@ public class EventRsvp extends BaseEntity {
 
     @Column(name = "qr_code", length = 255)
     private String qrCode;
+
+    @Column(name = "full_name", length = 180)
+    private String fullName;
+
+    @Column(name = "email", length = 320)
+    private String email;
+
+    @Column(name = "phone_number", length = 32)
+    private String phoneNumber;
+
+    @Column(name = "university", length = 180)
+    private String university;
+
+    @Column(name = "faculty", length = 180)
+    private String faculty;
+
+    @Column(name = "study_year", length = 80)
+    private String studyYear;
+
+    @Builder.Default
+    @Column(name = "terms_accepted", nullable = false)
+    private Boolean termsAccepted = false;
 
 }

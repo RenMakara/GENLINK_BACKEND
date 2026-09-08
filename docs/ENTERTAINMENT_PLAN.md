@@ -2,6 +2,7 @@
 
 Status: DONE (updated 2026-08-21) - Quiz, Reward pipeline, Badges, Challenges, Leaderboard, Short Content, and secured 1v1 multiplayer quiz. Deferred: friends ranking. Scope: backend only.
 Owner: (Entertainment / Gamification, per Team Assignment v5).
+Last verified: 2026-09-06
 
 The gamification pillar: quizzes, daily challenges, badges, a leaderboard, and short
 (reel) content. Plugs into the XP system (xp_history + users.total_xp) already used by
@@ -131,7 +132,7 @@ Khmer left for the content team.
 ## Revised phase order (dependency-driven)
 
 0. **Reward pipeline** (foundation) - RewardService + level + retrofit + habit/task XP.
-1. Quiz - DONE (single-player; will call RewardService after Phase 0).
+1. Quiz - DONE (single-player; uses RewardService for first-pass XP).
 3. **Badges** - catalog + earned flag + auto-unlock wired into RewardService.
 2. **Daily Challenges** - join/complete/claim via RewardService.
 4. **Leaderboard** - period x category on read.

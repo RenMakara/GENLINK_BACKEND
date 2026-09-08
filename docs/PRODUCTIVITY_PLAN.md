@@ -2,6 +2,7 @@
 
 Status: all 6 phases done (2026-07-19). Scope: backend only.
 Owner: (Productivity, per Team Assignment v5).
+Last verified: 2026-09-06
 
 The "Study & Productivity" super-app pillar: habits, tasks, goals, a focus timer, and
 motivation content. Powers the Home dashboard's today-progress and daily-motivation
@@ -106,8 +107,8 @@ _en/_km + LanguageResolver.
    stored streak_count/completion_rate columns are written but not trusted.
 2. **Focus-session XP = scaled by duration**: `min(CAP, durationMinutes / 5)` with a
    cap (30 XP), written to xp_history + users.total_xp.
-3. **Include the Productivity dashboard BFF (Phase 6)** — fills the
-   MobileProductivityDashboardResponse stub.
+3. **Include the Productivity dashboard BFF (Phase 6)** — the former
+   MobileProductivityDashboardResponse stub is now implemented.
 4. **Motivation seed = English samples**; Khmer left for the content team.
 
 ## Follow-ups

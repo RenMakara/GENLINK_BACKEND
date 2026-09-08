@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.dto.request.EventCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.EventRegistrationRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommunityMemberResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.EventResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.RsvpResponse;
@@ -73,12 +74,16 @@ public class EventController {
     }
 
     /**
-     * Join. Idempotent. Capacity is checked before payment, and a paid event is settled
-     * against the demo wallet - simulation only, no real transfer.
+     * Join with the full attendee registration form. Idempotent. Capacity is checked
+     * before payment, and a paid event is settled against the demo wallet - simulation
+     * only, no real transfer. The body remains optional for legacy clients; new clients
+     * should always submit EventRegistrationRequest.
      */
     @PostMapping("/{eventId}/rsvp")
-    public ResponseEntity<ApiResponse<RsvpResponse>> rsvp(@PathVariable UUID eventId) {
-        return ResponseEntity.ok(ApiResponse.success("RSVP confirmed", eventService.rsvp(eventId)));
+    public ResponseEntity<ApiResponse<RsvpResponse>> rsvp(
+        @PathVariable UUID eventId,
+        @Valid @RequestBody(required = false) EventRegistrationRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("RSVP confirmed", eventService.rsvp(eventId, request)));
     }
 
     @DeleteMapping("/{eventId}/rsvp")

@@ -5,10 +5,12 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.dto.request.EventCreateRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.EventRegistrationRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.RsvpResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Event;
 import kh.edu.acleda.campuslink.modules.community.entity.EventRsvp;
 import kh.edu.acleda.campuslink.modules.community.enums.EventStatus;
+import kh.edu.acleda.campuslink.modules.community.enums.EventMode;
 import kh.edu.acleda.campuslink.modules.community.enums.RsvpStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
@@ -106,6 +108,38 @@ class EventServiceImplTest {
         verify(rewardService).award(any(), eq("EVENT_RSVP"), eq(EVENT_ID), eq(10));
     }
 
+    @Test
+    void rsvpPersistsTheFullRegistrationForm() {
+        EventRegistrationRequest registration = new EventRegistrationRequest(
+            "Registered Student", "registered@example.com", "012345678",
+            "ACLEDA University of Business", "Computer Science", "Year 3", true);
+
+        service.rsvp(EVENT_ID, registration);
+
+        ArgumentCaptor<EventRsvp> captor = ArgumentCaptor.forClass(EventRsvp.class);
+        verify(rsvpRepository).save(captor.capture());
+        EventRsvp saved = captor.getValue();
+        assertThat(saved.getFullName()).isEqualTo("Registered Student");
+        assertThat(saved.getEmail()).isEqualTo("registered@example.com");
+        assertThat(saved.getPhoneNumber()).isEqualTo("012345678");
+        assertThat(saved.getUniversity()).isEqualTo("ACLEDA University of Business");
+        assertThat(saved.getFaculty()).isEqualTo("Computer Science");
+        assertThat(saved.getStudyYear()).isEqualTo("Year 3");
+        assertThat(saved.getTermsAccepted()).isTrue();
+    }
+
+    @Test
+    void rsvpRejectsRegistrationWhenTermsAreNotAccepted() {
+        EventRegistrationRequest registration = new EventRegistrationRequest(
+            "Registered Student", "registered@example.com", "012345678",
+            "ACLEDA University of Business", "Computer Science", "Year 3", false);
+
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, registration))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("accept the event terms");
+        verify(eventRepository, never()).reserveSeat(any());
+    }
+
     /** RSVP backs a button and (event_id, user_id) is unique. */
     @Test
     void rsvpIsIdempotentAndDoesNotAwardXpTwice() {
@@ -137,6 +171,7 @@ class EventServiceImplTest {
     void aFullPaidEventIsRejectedBeforeTheWalletIsTouched() {
         event.setIsPaid(true);
         event.setPrice(new BigDecimal("5.00"));
+        event.setCurrency(Currency.USD);
         when(eventRepository.reserveSeat(EVENT_ID)).thenReturn(0);
 
         assertThatThrownBy(() -> service.rsvp(EVENT_ID)).isInstanceOf(ApiException.class);
@@ -149,6 +184,7 @@ class EventServiceImplTest {
     void paidRsvpDebitsTheDemoWalletThroughTheLedger() {
         event.setIsPaid(true);
         event.setPrice(new BigDecimal("5.00"));
+        event.setCurrency(Currency.USD);
         DemoWallet wallet = DemoWallet.builder().user(user)
             .balanceUsd(new BigDecimal("20.00"))
             .balanceKhr(new BigDecimal("0.00"))
@@ -167,9 +203,28 @@ class EventServiceImplTest {
     }
 
     @Test
+    void paidRsvpDebitsTheKhrWalletWhenTheEventUsesKhr() {
+        event.setIsPaid(true);
+        event.setPrice(new BigDecimal("5000"));
+        event.setCurrency(Currency.KHR);
+        DemoWallet wallet = DemoWallet.builder().user(user)
+            .balanceUsd(new BigDecimal("20.00"))
+            .balanceKhr(new BigDecimal("10000"))
+            .build();
+        when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
+
+        RsvpResponse response = service.rsvp(EVENT_ID);
+
+        assertThat(response.amountPaid()).isEqualByComparingTo("5000");
+        verify(ledgerService).debit(eq(wallet), eq(TransactionType.EVENT_PAYMENT), eq(Currency.KHR),
+            eq(new BigDecimal("5000")), any(), eq("EVENT"), any());
+    }
+
+    @Test
     void paidRsvpPropagatesTheLedgersInsufficientFundsError() {
         event.setIsPaid(true);
         event.setPrice(new BigDecimal("50.00"));
+        event.setCurrency(Currency.USD);
         when(demoWalletRepository.findByUserId(USER_ID))
             .thenReturn(Optional.of(DemoWallet.builder()
                 .balanceUsd(new BigDecimal("5.00"))
@@ -263,6 +318,34 @@ class EventServiceImplTest {
     }
 
     @Test
+    void creatingAPaidEventWithoutCurrencyIsRejected() {
+        LocalDateTime start = LocalDateTime.now().plusDays(1);
+
+        assertThatThrownBy(() -> service.create(new EventCreateRequest(
+            "Paid", null, null, null, start, start.plusHours(1), EventMode.IN_PERSON,
+            null, "Campus", null, null, null, EventStatus.PUBLISHED, null, true,
+            new BigDecimal("5.00"), null)))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("currency");
+    }
+
+    @Test
+    void creatingAPaidEventStoresTheSelectedCurrency() {
+        LocalDateTime start = LocalDateTime.now().plusDays(1);
+
+        service.create(new EventCreateRequest(
+            "KHR workshop", null, "WORKSHOP", null, start, start.plusHours(2),
+            EventMode.IN_PERSON, null, "Campus", null, null, 50,
+            EventStatus.PUBLISHED, null, true, new BigDecimal("5000"), Currency.KHR));
+
+        ArgumentCaptor<Event> captor = ArgumentCaptor.forClass(Event.class);
+        verify(eventRepository).save(captor.capture());
+        assertThat(captor.getValue().getIsPaid()).isTrue();
+        assertThat(captor.getValue().getPrice()).isEqualByComparingTo("5000");
+        assertThat(captor.getValue().getCurrency()).isEqualTo(Currency.KHR);
+    }
+
+    @Test
     void aFreeEventDoesNotKeepAStalePrice() {
         service.create(new EventCreateRequest("Free", null, null, null,
             LocalDateTime.now().plusDays(1), null, null, EventStatus.PUBLISHED, null, false,
@@ -271,6 +354,41 @@ class EventServiceImplTest {
         ArgumentCaptor<Event> captor = ArgumentCaptor.forClass(Event.class);
         verify(eventRepository).save(captor.capture());
         assertThat(captor.getValue().getPrice()).isNull();
+        assertThat(captor.getValue().getCurrency()).isNull();
+    }
+
+    @Test
+    void creatingAnOnlineEventStoresScheduleModeMeetingUrlAndCoordinates() {
+        LocalDateTime start = LocalDateTime.now().plusDays(2);
+        LocalDateTime end = start.plusHours(2);
+
+        service.create(new EventCreateRequest(
+            "Online session", "Description", "Workshop", null,
+            start, end, EventMode.ONLINE, "https://meet.google.com/example",
+            null, new BigDecimal("11.55"), new BigDecimal("104.92"), 50,
+            EventStatus.PUBLISHED, null, false, null));
+
+        ArgumentCaptor<Event> captor = ArgumentCaptor.forClass(Event.class);
+        verify(eventRepository).save(captor.capture());
+        Event saved = captor.getValue();
+        assertThat(saved.getDateTime()).isEqualTo(start);
+        assertThat(saved.getEndDateTime()).isEqualTo(end);
+        assertThat(saved.getMode()).isEqualTo(EventMode.ONLINE);
+        assertThat(saved.getMeetingUrl()).isEqualTo("https://meet.google.com/example");
+        assertThat(saved.getLatitude()).isEqualByComparingTo("11.55");
+        assertThat(saved.getLongitude()).isEqualByComparingTo("104.92");
+    }
+
+    @Test
+    void creatingAnEventWithEndBeforeStartIsRejected() {
+        LocalDateTime start = LocalDateTime.now().plusDays(2);
+
+        assertThatThrownBy(() -> service.create(new EventCreateRequest(
+            "Invalid schedule", null, null, null, start, start,
+            EventMode.IN_PERSON, null, "Campus", null, null, null,
+            EventStatus.PUBLISHED, null, false, null)))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("end time must be after start time");
     }
 
     @Test
