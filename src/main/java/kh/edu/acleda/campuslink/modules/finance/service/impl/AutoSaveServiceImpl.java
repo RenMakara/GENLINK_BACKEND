@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.AutoSaveRuleCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.AutoSaveRuleResponse;
@@ -25,6 +26,8 @@ import kh.edu.acleda.campuslink.modules.finance.service.AutoSaveService;
 import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.finance.service.SavingGoalCompletionNotifier;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -40,6 +43,9 @@ public class AutoSaveServiceImpl implements AutoSaveService {
 
     private static final Logger log = LoggerFactory.getLogger(AutoSaveServiceImpl.class);
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
+    private static final String AUTO_SAVE_NOTIFICATION_TYPE = "FINANCE_AUTO_SAVE";
+    private static final String AUTO_SAVE_APPLIED_TEMPLATE = "FINANCE_AUTO_SAVE_APPLIED";
+    private static final String AUTO_SAVE_SKIPPED_TEMPLATE = "FINANCE_AUTO_SAVE_SKIPPED";
 
     private final AutoSaveRuleRepository autoSaveRuleRepository;
     private final SavingGoalRepository savingGoalRepository;
@@ -49,6 +55,7 @@ public class AutoSaveServiceImpl implements AutoSaveService {
     private final DemoWalletService demoWalletService;
     private final LedgerService ledgerService;
     private final SavingGoalCompletionNotifier savingGoalCompletionNotifier;
+    private final NotificationEmitter notificationEmitter;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
@@ -60,6 +67,7 @@ public class AutoSaveServiceImpl implements AutoSaveService {
                                DemoWalletService demoWalletService,
                                LedgerService ledgerService,
                                SavingGoalCompletionNotifier savingGoalCompletionNotifier,
+                               NotificationEmitter notificationEmitter,
                                UserRepository userRepository,
                                CurrentUserProvider currentUserProvider) {
         this.autoSaveRuleRepository = autoSaveRuleRepository;
@@ -70,6 +78,7 @@ public class AutoSaveServiceImpl implements AutoSaveService {
         this.demoWalletService = demoWalletService;
         this.ledgerService = ledgerService;
         this.savingGoalCompletionNotifier = savingGoalCompletionNotifier;
+        this.notificationEmitter = notificationEmitter;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -195,6 +204,7 @@ public class AutoSaveServiceImpl implements AutoSaveService {
             // Funds may arrive next month; skip this run without retiring the rule.
             log.warn("Auto-save rule {} skipped (insufficient {} funds): user={} needed={}",
                 rule.getId(), rule.getCurrency(), rule.getUser().getId(), amount);
+            notifyAutoSaveSkipped(rule, goal, amount, runDate);
             return false;
         }
 
@@ -211,9 +221,50 @@ public class AutoSaveServiceImpl implements AutoSaveService {
         }
         savingGoalRepository.save(goal);
         savingGoalCompletionNotifier.notifyIfCompleted(goal, statusBefore);
+        notifyAutoSaveApplied(rule, goal, amount, runDate);
         log.info("Auto-save applied: rule={} goal={} amount={} {} on {}",
             rule.getId(), goal.getId(), amount, rule.getCurrency(), runDate);
         return true;
+    }
+
+    private void notifyAutoSaveApplied(AutoSaveRule rule, SavingGoal goal, BigDecimal amount,
+                                       LocalDate runDate) {
+        emitAutoSaveNotification(rule, goal, amount, runDate, AUTO_SAVE_APPLIED_TEMPLATE,
+            "auto-save-applied:");
+    }
+
+    private void notifyAutoSaveSkipped(AutoSaveRule rule, SavingGoal goal, BigDecimal amount,
+                                       LocalDate runDate) {
+        emitAutoSaveNotification(rule, goal, amount, runDate, AUTO_SAVE_SKIPPED_TEMPLATE,
+            "auto-save-skipped:");
+    }
+
+    private void emitAutoSaveNotification(AutoSaveRule rule, SavingGoal goal, BigDecimal amount,
+                                          LocalDate runDate, String templateKey, String dedupePrefix) {
+        if (rule.getId() == null || rule.getUser() == null || rule.getUser().getId() == null
+            || goal.getId() == null || goal.getTitle() == null || goal.getTitle().isBlank()
+            || rule.getCurrency() == null) {
+            log.warn("Skipping auto-save notification because details are incomplete: rule={}",
+                rule.getId());
+            return;
+        }
+
+        UUID ruleId = rule.getId();
+        notificationEmitter.emit(new NotificationRequest(
+            rule.getUser().getId(),
+            templateKey,
+            AUTO_SAVE_NOTIFICATION_TYPE,
+            Map.of(
+                "amount", formatAmount(amount),
+                "currency", rule.getCurrency().name(),
+                "goalName", goal.getTitle()),
+            "AUTO_SAVE_RULE",
+            ruleId,
+            dedupePrefix + ruleId + ":" + runDate));
+    }
+
+    private String formatAmount(BigDecimal amount) {
+        return amount.stripTrailingZeros().toPlainString();
     }
 
     private AutoSaveRuleResponse toResponse(AutoSaveRule rule) {

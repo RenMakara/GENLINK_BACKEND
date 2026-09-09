@@ -1,12 +1,12 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, and 3A/3B implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, and 3A-3C implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
 emission foundation and initial template seed; Community Tasks 2A-2G now wire event RSVP,
-private join-request, moderation, and scheduled event-reminder triggers. Finance Tasks 3A/3B now
-wire budget threshold and saving-goal completion alerts to finance mutations.
+private join-request, moderation, and scheduled event-reminder triggers. Finance Tasks 3A-3C now
+wire budget threshold, saving-goal completion, and auto-save run alerts to finance mutations.
 Last verified: 2026-09-09
 
 Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
@@ -333,7 +333,8 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   keys prevent repeated approaching/exceeded rows for the same budget.
 - [x] Saving goal reached from a manual deposit, target update, or auto-save deposit. Only the
   transition into `COMPLETED` emits the owner notification, with a stable goal-scoped dedupe key.
-- [ ] Auto-save applied and auto-save skipped for insufficient funds.
+- [x] Auto-save applied and auto-save skipped for insufficient funds. Each due run emits an
+  owner-scoped notification with `AUTO_SAVE_RULE` navigation metadata and a rule/run-date dedupe key.
 - [ ] Simulated event/payment receipt where the user should see a ledger confirmation.
 - [x] Tests for USD/KHR context where a budget notification includes the currency in its rendered
   budget name and queries spend from the matching currency only.
@@ -372,7 +373,27 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Data/API: no migration, endpoint, response contract, or Postman request was required.
 - Tests/checks: added notifier rendering/metadata coverage and integration assertions for manual
   deposit and auto-save completion. Run `gradlew test` on the development host/CI before release.
-- Deferred: auto-save applied/skipped alerts and payment-receipt notifications remain in Phase 3.
+- Deferred: payment-receipt notifications remain in Phase 3.
+
+### Task 3C implementation report — 2026-09-09
+
+- Changed: `AutoSaveServiceImpl` now emits an applied notification after the wallet debit, saving
+  deposit, and goal update succeed. A positive run that cannot be funded emits a skipped
+  notification and still advances the rule to its next monthly run; the rule remains active.
+- Notification data: added bilingual templates in migration `0056` for applied and insufficient-funds
+  skipped outcomes. Both use type `FINANCE_AUTO_SAVE`, `AUTO_SAVE_RULE + ruleId` metadata, and
+  `amount`, `currency`, and `goalName` parameters. Dedupe keys include the rule id and scheduled
+  run date, so scheduler retries are safe without suppressing later months.
+- Behavior: zero-amount runs, completed/cancelled/deleted goals, and incomplete rule/goal details
+  do not emit auto-save outcome notifications. Existing saving-goal completion notifications remain
+  separate and still use their goal-scoped dedupe key.
+- Data/API: registered `0056-seed-auto-save-notification-templates.sql`; no endpoint, response
+  contract, or Postman request changed.
+- Tests/checks: added applied/skipped/zero-amount notification assertions and migration-template
+  coverage. Run `gradlew test` on the development host/CI before release; this workspace's local
+  Gradle execution remains blocked before compilation by its loopback restriction.
+- Deferred: simulated event/payment receipt notifications, durable outbox/retry, and external
+  push/email delivery remain later work.
 
 ## Phase 4 — Productivity, Entertainment, Security, and Admin triggers
 

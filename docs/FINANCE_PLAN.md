@@ -85,6 +85,10 @@ No dependencies. Everything else reads from expenses.
       auto-save deposits use the shared notification port when a goal transitions to `COMPLETED`.
       The bilingual 0052 template, owner recipient, `SAVING_GOAL` reference, and goal-scoped
       dedupe key are reused; no finance endpoint or migration changed.
+- [x] Auto-save outcome notifications (2026-09-09): each positive auto-save run notifies the
+      owner when applied or skipped for insufficient funds. The bilingual 0056 templates use
+      `AUTO_SAVE_RULE` metadata and a rule/run-date dedupe key; zero-amount and inactive-goal runs
+      remain quiet.
 
 ## Phase 4 — Financial Literacy — DONE
 

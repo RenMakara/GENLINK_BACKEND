@@ -61,4 +61,23 @@ class NotificationTemplateSeedTest {
                 .contains("message_km");
         }
     }
+
+    @Test
+    void autoSaveTemplatesAreBilingualAndRerunSafe() throws IOException {
+        try (InputStream stream = getClass().getResourceAsStream(
+            "/db/changelog/changes/0056-seed-auto-save-notification-templates.sql")) {
+            assertThat(stream).as("auto-save notification template migration").isNotNull();
+            String sql = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(sql)
+                .contains("FINANCE_AUTO_SAVE_APPLIED")
+                .contains("FINANCE_AUTO_SAVE_SKIPPED")
+                .contains("{amount}")
+                .contains("{currency}")
+                .contains("{goalName}")
+                .contains("ON CONFLICT (template_key) DO NOTHING")
+                .contains("title_km")
+                .contains("message_km");
+        }
+    }
 }
