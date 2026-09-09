@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, 3A-3D, and 4A-4D implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4C, while local Codex Gradle execution remains blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, and 4A-4D implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, while local Codex Gradle execution remains blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -192,7 +192,7 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - [x] Event reminder → every five minutes, notify `JOINED` attendees when a published event is
   roughly 24 hours away, with `EVENT + eventId`, formatted start time, and a recipient-scoped
   dedupe key.
-- [ ] Tests prove recipient selection, idempotency, and that a notification failure does not undo
+- [x] Tests prove recipient selection, idempotency, and that a notification failure does not undo
   RSVP, join, or moderation state.
 
 ### Task 2A implementation report — 2026-09-09
@@ -329,6 +329,24 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Limitation: this is an in-app, best-effort scheduled reminder. A process outage that spans the
   five-minute window can miss a reminder; a durable outbox/claim table and distributed scheduler
   lock remain production-scale follow-ups.
+
+### Task 2H implementation report — 2026-09-09
+
+- Changed: completed the Community notification reliability test matrix for RSVP, private join
+  requests, post moderation, and forum discussion moderation. Each test drives the existing
+  after-commit listener with a failing notification writer and verifies that the source state is
+  still persisted or returned successfully.
+- Coverage: the existing Community tests already prove recipient selection, navigation metadata,
+  recipient-scoped dedupe keys, idempotent RSVP/join behavior, and reminder failure isolation. The
+  new cases verify writer failure does not undo RSVP state, a pending join request, post soft
+  deletion/count cleanup, or discussion soft deletion.
+- Architecture: no domain or API contract changed. The shared `NotificationEventListener` remains
+  responsible for catching/logging writer failures after the source transaction, so notification
+  persistence stays secondary to the Community action.
+- Tests/checks: `git diff --check` passed. The targeted Gradle run was attempted locally but
+  stopped before compilation with `Unable to establish loopback connection`; no assertion failure
+  was observed. Run full `gradlew test` on the development host/CI for this commit.
+- API/Postman: no endpoint, response shape, migration, or Postman request changed.
 
 ## Phase 3 — Finance triggers
 

@@ -13,8 +13,11 @@ import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.CommunityServiceImpl;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationEventListener;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationWriter;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -42,6 +45,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -60,6 +64,7 @@ class CommunityServiceImplTest {
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
     @Mock private NotificationEmitter notificationEmitter;
+    @Mock private NotificationWriter notificationWriter;
 
     private CommunityServiceImpl service;
     private User user;
@@ -286,6 +291,24 @@ class CommunityServiceImplTest {
         assertThat(captor.getAllValues())
             .allSatisfy(request -> assertThat(request.dedupeKey())
                 .isEqualTo("community-join-request:" + COMMUNITY_ID + ":" + USER_ID));
+    }
+
+    @Test
+    void notificationWriterFailureDoesNotUndoPrivateJoinRequest() {
+        community.setPrivacy(CommunityPrivacy.PRIVATE);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.empty());
+        service = new CommunityServiceImpl(
+            communityRepository, memberRepository, userRepository, currentUserProvider,
+            emitterWithWriterFailure());
+
+        CommunityResponse response = service.join(COMMUNITY_ID);
+
+        assertThat(response.requestPending()).isTrue();
+        ArgumentCaptor<CommunityMember> captor = ArgumentCaptor.forClass(CommunityMember.class);
+        verify(memberRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(MemberStatus.PENDING);
+        verify(communityRepository, never()).adjustMemberCount(any(), anyInt());
+        verify(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
     }
 
     @Test
@@ -614,5 +637,12 @@ class CommunityServiceImplTest {
                 .role(CommunityRole.ADMIN).status(MemberStatus.ACTIVE).build()));
 
         assertThatThrownBy(() -> service.delete(COMMUNITY_ID)).isInstanceOf(NotFoundException.class);
+    }
+
+    private NotificationEmitter emitterWithWriterFailure() {
+        NotificationEventListener listener = new NotificationEventListener(notificationWriter);
+        doThrow(new IllegalStateException("notification store unavailable"))
+            .when(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
+        return request -> listener.onNotificationRequested(new NotificationRequestedEvent(request));
     }
 }

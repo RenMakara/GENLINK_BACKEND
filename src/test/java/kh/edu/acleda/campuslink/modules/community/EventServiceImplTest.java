@@ -23,8 +23,11 @@ import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationEventListener;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationWriter;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -46,6 +49,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -66,6 +70,7 @@ class EventServiceImplTest {
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
     @Mock private NotificationEmitter notificationEmitter;
+    @Mock private NotificationWriter notificationWriter;
 
     private EventServiceImpl service;
     private User user;
@@ -192,6 +197,20 @@ class EventServiceImplTest {
         verify(eventRepository, never()).reserveSeat(any());
         verify(rewardService, never()).award(any(), any(), any(), anyInt());
         verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
+    }
+
+    @Test
+    void notificationWriterFailureDoesNotUndoRsvpState() {
+        service = new EventServiceImpl(eventRepository, rsvpRepository, demoWalletRepository,
+            ledgerService, rewardService, userRepository, currentUserProvider,
+            emitterWithWriterFailure());
+
+        RsvpResponse response = service.rsvp(EVENT_ID);
+
+        assertThat(response.status()).isEqualTo(RsvpStatus.JOINED);
+        verify(rsvpRepository).save(any(EventRsvp.class));
+        verify(rewardService).award(any(), eq("EVENT_RSVP"), eq(EVENT_ID), eq(10));
+        verify(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
     }
 
     @Test
@@ -474,5 +493,12 @@ class EventServiceImplTest {
         assertThatThrownBy(() -> service.update(EVENT_ID, new EventCreateRequest(
             "Hijack", null, null, null, LocalDateTime.now().plusDays(1), null, null, null, null, false, null)))
             .isInstanceOf(NotFoundException.class);
+    }
+
+    private NotificationEmitter emitterWithWriterFailure() {
+        NotificationEventListener listener = new NotificationEventListener(notificationWriter);
+        doThrow(new IllegalStateException("notification store unavailable"))
+            .when(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
+        return request -> listener.onNotificationRequested(new NotificationRequestedEvent(request));
     }
 }

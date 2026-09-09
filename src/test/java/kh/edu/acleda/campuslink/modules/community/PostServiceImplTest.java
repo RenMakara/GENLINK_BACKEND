@@ -36,6 +36,9 @@ import kh.edu.acleda.campuslink.modules.community.repository.PollOptionRepositor
 import kh.edu.acleda.campuslink.modules.community.repository.PollVoteRepository;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationEventListener;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationWriter;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
 import kh.edu.acleda.campuslink.modules.profile.repository.SavedItemRepository;
@@ -63,6 +66,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -88,6 +92,7 @@ class PostServiceImplTest {
     @Mock private PollOptionRepository pollOptionRepository;
     @Mock private PollVoteRepository pollVoteRepository;
     @Mock private NotificationEmitter notificationEmitter;
+    @Mock private NotificationWriter notificationWriter;
 
     private PostServiceImpl service;
     private User author;
@@ -302,6 +307,28 @@ class PostServiceImplTest {
         assertThat(request.dedupeKey()).isEqualTo("community-post-moderated:" + POST_ID + ":" + USER_ID);
     }
 
+    @Test
+    void notificationWriterFailureDoesNotUndoPostModeration() {
+        Community community = communityWithId();
+        post.setCommunity(community);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(communityMemberRepository.findByCommunityIdAndUserId(community.getId(), USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.MODERATOR).status(MemberStatus.ACTIVE).build()));
+        service = new PostServiceImpl(postRepository, postReactionRepository, postReportRepository,
+            savedItemRepository, communityRepository, communityMemberRepository, followRepository,
+            hashtagService, userRepository, currentUserProvider,
+            pollRepository, pollOptionRepository, pollVoteRepository, emitterWithWriterFailure());
+
+        service.removeAsModerator(POST_ID);
+
+        assertThat(post.getDeletedAt()).isNotNull();
+        verify(postRepository).save(post);
+        verify(communityRepository).adjustPostCount(community.getId(), -1);
+        verify(hashtagService).clearForPost(post);
+        verify(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
+    }
+
     /** Moderation is a role power, so a plain member is refused - and as not-found, not 403. */
     @Test
     void aPlainMemberCannotRemoveAPostAndGetsNotFound() {
@@ -338,6 +365,13 @@ class PostServiceImplTest {
         when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
 
         assertThatThrownBy(() -> service.removeAsModerator(POST_ID)).isInstanceOf(NotFoundException.class);
+    }
+
+    private NotificationEmitter emitterWithWriterFailure() {
+        NotificationEventListener listener = new NotificationEventListener(notificationWriter);
+        doThrow(new IllegalStateException("notification store unavailable"))
+            .when(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
+        return request -> listener.onNotificationRequested(new NotificationRequestedEvent(request));
     }
 
     // ---- Reporting & moderation queue ----

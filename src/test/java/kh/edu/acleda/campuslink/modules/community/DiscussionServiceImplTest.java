@@ -20,8 +20,11 @@ import kh.edu.acleda.campuslink.modules.community.repository.ForumCommentReposit
 import kh.edu.acleda.campuslink.modules.community.repository.ForumDiscussionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.DiscussionServiceImpl;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationEventListener;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationWriter;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -47,6 +50,7 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -66,6 +70,7 @@ class DiscussionServiceImplTest {
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
     @Mock private NotificationEmitter notificationEmitter;
+    @Mock private NotificationWriter notificationWriter;
 
     private DiscussionServiceImpl service;
     private User author;
@@ -287,6 +292,19 @@ class DiscussionServiceImplTest {
     }
 
     @Test
+    void notificationWriterFailureDoesNotUndoDiscussionModeration() {
+        service = new DiscussionServiceImpl(discussionRepository, commentRepository, reactionRepository,
+            commentReactionRepository, reportRepository, userRepository, currentUserProvider,
+            emitterWithWriterFailure());
+
+        service.removeAsAdmin(DISCUSSION_ID);
+
+        assertThat(discussion.getDeletedAt()).isNotNull();
+        verify(discussionRepository).save(discussion);
+        verify(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
+    }
+
+    @Test
     void adminRemovalOfAMissingDiscussionIsNotFound() {
         when(discussionRepository.findByIdAndDeletedAtIsNull(DISCUSSION_ID)).thenReturn(Optional.empty());
 
@@ -301,6 +319,13 @@ class DiscussionServiceImplTest {
         verify(reportRepository).deleteByDiscussionId(DISCUSSION_ID);
         verify(discussionRepository).clearReportCount(DISCUSSION_ID);
         verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
+    }
+
+    private NotificationEmitter emitterWithWriterFailure() {
+        NotificationEventListener listener = new NotificationEventListener(notificationWriter);
+        doThrow(new IllegalStateException("notification store unavailable"))
+            .when(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
+        return request -> listener.onNotificationRequested(new NotificationRequestedEvent(request));
     }
 
     // ---- Comments & replies ----

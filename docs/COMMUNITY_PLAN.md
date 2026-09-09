@@ -405,6 +405,10 @@ timeline, not a social product.
 - **Event attendee reminder delivered (2026-09-09).** A five-minute Phnom Penh scheduler sweep
   emits `COMMUNITY_EVENT_REMINDER` to `JOINED` attendees when a published event is approximately
   24 hours away, with `EVENT + eventId` navigation data and a recipient-scoped dedupe key.
+- **Community notification reliability tests delivered (2026-09-09).** RSVP, private join request,
+  post moderation, and forum discussion moderation now have coverage proving a notification writer
+  failure does not undo the source action; recipient selection, idempotency, dedupe, and reminder
+  failure isolation are covered in the notification test suite.
 - `user_settings.allow_follow_request` is still unused — PENDING keys off
   `privacyProfile` instead.
 
