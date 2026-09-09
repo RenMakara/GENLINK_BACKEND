@@ -101,3 +101,5 @@ databaseChangeLog:
       file: db/changelog/changes/0050-expand-event-details-and-registration.sql
   - include:
       file: db/changelog/changes/0051-add-event-currency.sql
+  - include:
+      file: db/changelog/changes/0052-seed-notification-templates.sql
