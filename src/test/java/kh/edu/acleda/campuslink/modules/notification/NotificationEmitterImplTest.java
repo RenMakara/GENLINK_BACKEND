@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.notification;
 import java.util.Map;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationDeliveryPolicy;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.notification.service.impl.NotificationEmitterImpl;
@@ -20,10 +21,11 @@ import static org.mockito.Mockito.verify;
 class NotificationEmitterImplTest {
 
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private NotificationDeliveryPolicy deliveryPolicy;
 
     @Test
     void publishesFactsAsAnApplicationEvent() {
-        NotificationEmitter emitter = new NotificationEmitterImpl(eventPublisher);
+        NotificationEmitter emitter = new NotificationEmitterImpl(eventPublisher, deliveryPolicy);
         UUID recipientId = UUID.randomUUID();
         NotificationRequest request = new NotificationRequest(
             recipientId,
@@ -31,11 +33,25 @@ class NotificationEmitterImplTest {
             "PRODUCTIVITY_TASK",
             Map.of("taskTitle", "Review plan"));
 
+        org.mockito.Mockito.when(deliveryPolicy.isAllowed(request)).thenReturn(true);
         emitter.emit(request);
 
         ArgumentCaptor<NotificationRequestedEvent> captor =
             ArgumentCaptor.forClass(NotificationRequestedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().request()).isEqualTo(request);
+    }
+
+    @Test
+    void doesNotPublishWhenTheDeliveryPolicySuppressesTheRequest() {
+        NotificationEmitter emitter = new NotificationEmitterImpl(eventPublisher, deliveryPolicy);
+        NotificationRequest request = new NotificationRequest(
+            UUID.randomUUID(), "PRODUCTIVITY_TASK_DUE", "PRODUCTIVITY_TASK", Map.of());
+        org.mockito.Mockito.when(deliveryPolicy.isAllowed(request)).thenReturn(false);
+
+        emitter.emit(request);
+
+        org.mockito.Mockito.verify(eventPublisher, org.mockito.Mockito.never()).publishEvent(
+            org.mockito.Mockito.any());
     }
 }

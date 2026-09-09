@@ -252,7 +252,7 @@
                   "// Copy it into the {{otp}} variable, then run Verify Email."
                 ]
               }
-            }
+            },
           ],
           "request": {
             "auth": {
@@ -848,10 +848,64 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"language\": \"KHMER\",\n  \"theme\": \"SYSTEM_DEFAULT\",\n  \"notificationEnabled\": true,\n  \"privacyProfile\": \"PUBLIC\",\n  \"allowMessages\": true,\n  \"allowFollowRequest\": true,\n  \"biometricEnabled\": false\n}"
+                "raw": "{\n  \"language\": \"KHMER\",\n  \"theme\": \"SYSTEM_DEFAULT\",\n  \"notificationEnabled\": true,\n  \"quietHoursEnabled\": false,\n  \"quietHoursStart\": \"22:00\",\n  \"quietHoursEnd\": \"07:00\",\n  \"privacyProfile\": \"PUBLIC\",\n  \"allowMessages\": true,\n  \"allowFollowRequest\": true,\n  \"biometricEnabled\": false\n}"
                 },
-                "description": "theme: LIGHT | DARK | SYSTEM_DEFAULT\nlanguage: KHMER | ENGLISH\nprivacyProfile: PUBLIC | FRIENDS | PRIVATE\nPartial update — omit fields to leave them unchanged."
+                "description": "theme: LIGHT | DARK | SYSTEM_DEFAULT\nlanguage: KHMER | ENGLISH\nprivacyProfile: PUBLIC | FRIENDS | PRIVATE\nquietHoursStart/quietHoursEnd use HH:mm and support overnight ranges such as 22:00-07:00.\nWhen quietHoursEnabled is true, both bounds are required and must differ.\nPartial update — omit fields to leave them unchanged."
               }
+            },
+            {
+              "name": "List My Notification Preferences",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/settings/notifications/preferences",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "settings",
+                    "notifications",
+                    "preferences"
+                  ]
+                }
+              },
+              "description": "Returns only explicit per-type overrides. Types without a row are enabled by default unless global notifications or quiet hours suppress them."
+            },
+            {
+              "name": "Set Notification Type Preference",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/settings/notifications/preferences/COMMUNITY_EVENT_RSVP",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "settings",
+                    "notifications",
+                    "preferences",
+                    "COMMUNITY_EVENT_RSVP"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": false\n}"
+                }
+              },
+              "description": "Upserts one explicit override. notificationType is normalised to uppercase and may contain only A-Z, 0-9, and underscore."
             }
           ]
         },

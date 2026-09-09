@@ -115,3 +115,5 @@ databaseChangeLog:
       file: db/changelog/changes/0057-seed-payment-receipt-notification-templates.sql
   - include:
       file: db/changelog/changes/0058-seed-goal-milestone-notification-template.sql
+  - include:
+      file: db/changelog/changes/0059-add-notification-preferences-and-quiet-hours.sql

@@ -18,6 +18,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -108,9 +109,9 @@ class SuspiciousLoginNotifierImplTest {
         assertThatCode(() -> notifier.notifyIfNeeded(user, KNOWN_IP, KNOWN_USER_AGENT))
             .doesNotThrowAnyException();
 
-        when(securityAuditLogRepository
-            .findTop50ByUserAndEventTypeAndSuccessTrueOrderByCreatedAtDesc(user, EVENT_TYPE))
-            .thenReturn(List.of(successfulLogin("192.0.2.1", "Old client")));
+        doReturn(List.of(successfulLogin("192.0.2.1", "Old client")))
+            .when(securityAuditLogRepository)
+            .findTop50ByUserAndEventTypeAndSuccessTrueOrderByCreatedAtDesc(user, EVENT_TYPE);
         doThrow(new IllegalStateException("notification unavailable"))
             .when(notificationEmitter).emit(any(NotificationRequest.class));
 

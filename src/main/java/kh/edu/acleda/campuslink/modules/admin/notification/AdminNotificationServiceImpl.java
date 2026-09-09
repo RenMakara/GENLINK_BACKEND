@@ -86,7 +86,7 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
     public AdminNotificationTemplateResponse createTemplate(
         AdminNotificationTemplateCreateRequest request) {
         if (request == null) {
-            throw failure(CREATE_TEMPLATE_ACTION, null, null, null,
+            throw failure(CREATE_TEMPLATE_ACTION, null, null,
                 AdminErrorCode.ADMIN_NOTIFICATION_TEMPLATE_INVALID,
                 "Template request is required");
         }
@@ -127,7 +127,7 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
     public AdminNotificationTemplateResponse updateTemplate(
         String templateKey, AdminNotificationTemplateUpdateRequest request) {
         if (request == null) {
-            throw failure(UPDATE_TEMPLATE_ACTION, null, null, null,
+            throw failure(UPDATE_TEMPLATE_ACTION, null, null,
                 AdminErrorCode.ADMIN_NOTIFICATION_TEMPLATE_INVALID,
                 "Template request is required");
         }
@@ -166,7 +166,7 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
     public AdminBroadcastResponse broadcast(AdminBroadcastRequest request) {
         UUID batchId = UUID.randomUUID();
         if (request == null) {
-            throw failure(BROADCAST_ACTION, batchId, null, null,
+            throw failure(BROADCAST_ACTION, batchId, null,
                 AdminErrorCode.ADMIN_NOTIFICATION_TEMPLATE_INVALID,
                 "Broadcast request is required");
         }

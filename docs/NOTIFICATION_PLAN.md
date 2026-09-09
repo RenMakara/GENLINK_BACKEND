@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, 4A-4F, and Phase 5 implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, Task 4F, and Phase 5, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, 4A-4F, Phase 5, and Phase 6 Task 6A complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, Task 4F, Phase 5, and Task 6A, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -79,8 +79,8 @@ needed for reminders and scheduled jobs so a retry cannot create repeated rows.
 - Template keys and notification types are stable API contracts.
 - The recipient is always explicit; never infer it from the current request after a queued event.
 - Reads remain owner-scoped and another user's notification id returns not-found.
-- `notificationEnabled` from profile settings is a later preference gate; it is not silently
-  assumed to disable notifications until that phase is implemented and tested.
+- Global `notificationEnabled`, per-type overrides, and quiet hours are enforced by the emitter;
+  a preference storage failure fails open so it cannot roll back the source business action.
 - The current scope is in-app only. OTP email through Brevo is a separate mail flow, not an
   in-app notification.
 
@@ -662,13 +662,50 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Deferred: preferences/quiet hours, durable outbox/retry, and external push/email delivery
   remain Phase 6 work.
 
-## Phase 6 — Preferences and delivery expansion
+## Phase 6 — Preferences and delivery expansion — Task 6A DONE
 
-- [ ] Add per-type on/off and quiet hours; the emitter must enforce them for eligible notifications.
+- [x] Task 6A — Add per-type on/off and quiet hours; the emitter must enforce them for eligible
+  notifications.
 - [ ] Add `notification_outbox`, retry, dedupe, and delivery status before external transports or
   multiple backend instances.
 - [ ] Add push/email adapters behind the same internal emit contract. Brevo remains a transport
   implementation for email and must not be mixed with the OTP flow.
+
+### Task 6A plan and contract
+
+- Keep the existing profile settings endpoint as the source of truth for the global
+  `notificationEnabled` flag and quiet-hours window. Quiet hours use `HH:mm`, the fixed MVP zone
+  `Asia/Phnom_Penh`, and the half-open interval `[start, end)`; `start > end` means an overnight
+  window such as `22:00-07:00`.
+- Add `notification_preferences` for explicit per-user, per-type overrides. Types without a row
+  are enabled by default. The authenticated user can list overrides with
+  `GET /api/v1/profile/settings/notifications/preferences` and upsert one with
+  `PUT /api/v1/profile/settings/notifications/preferences/{notificationType}`.
+- Gate every `NotificationEmitter` request before the application event is published. Global off,
+  an explicit type-off row, or an active quiet-hours window suppresses the request. A preference
+  storage/read failure fails open and logs, so notification infrastructure cannot roll back RSVP,
+  payment, moderation, or another source action.
+- This task remains in-app only. It does not add an outbox, retry worker, push adapter, or email
+  delivery; those remain later Phase 6 tasks.
+
+### Task 6A implementation report — 2026-09-10
+
+- Changed: extended `UserSetting` and the existing profile settings contract with global
+  notification quiet-hours fields; added `NotificationPreference` persistence, repository, service,
+  DTOs, and authenticated profile-settings endpoints for per-type overrides.
+- Database: added and registered Liquibase migration `0059-add-notification-preferences-and-quiet-hours.sql`.
+- Integration: `NotificationEmitterImpl` now consults a separate delivery policy before publishing
+  an application event. Policy reads use a new transaction and fail open; global off, explicit
+  type off, and active quiet hours suppress eligible in-app notifications.
+- Tests/checks: added settings, preference-service, quiet-hours boundary, and emitter suppression
+  coverage. The first development-host compile exposed three stale six-argument `failure(...)`
+  calls in `AdminNotificationServiceImpl`; those were corrected. The first test run then exposed
+  strict Mockito setup defects in the Admin, suspicious-login, and new preference tests; those
+  fixtures were corrected. The user subsequently confirmed full `gradlew test` passed. Postman
+  JSON parsing and `git diff --check` passed; local Codex Gradle execution remains blocked by its
+  network/loopback restriction before compilation.
+- Deferred: durable `notification_outbox`/retry/delivery status is the next Task 6B; push/email
+  adapters remain later work. Brevo remains separate from OTP delivery.
 
 ---
 

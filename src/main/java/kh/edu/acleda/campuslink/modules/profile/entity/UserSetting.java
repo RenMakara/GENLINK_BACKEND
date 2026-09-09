@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.time.LocalTime;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -44,6 +45,15 @@ public class UserSetting extends BaseEntity {
 
     @Column(name = "notification_enabled", nullable = false)
     private Boolean notificationEnabled;
+
+    @Column(name = "notification_quiet_hours_enabled", nullable = false)
+    private Boolean notificationQuietHoursEnabled;
+
+    @Column(name = "notification_quiet_start")
+    private LocalTime notificationQuietStart;
+
+    @Column(name = "notification_quiet_end")
+    private LocalTime notificationQuietEnd;
 
     @Column(name = "privacy_profile", length = 50)
     private String privacyProfile;

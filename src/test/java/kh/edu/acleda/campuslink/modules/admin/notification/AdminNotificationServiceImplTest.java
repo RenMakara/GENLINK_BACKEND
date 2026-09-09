@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -65,10 +66,12 @@ class AdminNotificationServiceImplTest {
     void selectedBroadcastEmitsOneBoundedRequestPerActiveRecipient() {
         UUID firstId = UUID.randomUUID();
         UUID secondId = UUID.randomUUID();
+        User first = activeUser(firstId);
+        User second = activeUser(secondId);
         when(templateRepository.findByTemplateKey("ADMIN_MAINTENANCE"))
             .thenReturn(java.util.Optional.of(template("ADMIN_MAINTENANCE")));
         when(userRepository.findAllById(any()))
-            .thenReturn(List.of(activeUser(firstId), activeUser(secondId)));
+            .thenReturn(List.of(first, second));
 
         AdminBroadcastResponse response = service.broadcast(new AdminBroadcastRequest(
             "ADMIN_MAINTENANCE",
@@ -105,7 +108,7 @@ class AdminNotificationServiceImplTest {
             .thenReturn(java.util.Optional.of(template("ADMIN_NOTICE")));
         List<User> tooManyUsers = new ArrayList<>();
         for (int i = 0; i <= AdminNotificationServiceImpl.MAX_BROADCAST_RECIPIENTS; i++) {
-            tooManyUsers.add(activeUser(UUID.randomUUID()));
+            tooManyUsers.add(org.mockito.Mockito.mock(User.class));
         }
         when(userRepository.findByAccountStatusAndDeletedAtIsNullOrderById(
             eq(AccountStatus.ACTIVE), any())).thenReturn(tooManyUsers);
@@ -206,9 +209,11 @@ class AdminNotificationServiceImplTest {
 
     private User activeUser(UUID id) {
         User user = org.mockito.Mockito.mock(User.class);
-        when(user.getId()).thenReturn(id);
-        when(user.getAccountStatus()).thenReturn(AccountStatus.ACTIVE);
-        when(user.getDeletedAt()).thenReturn(null);
+        // This helper is shared by tests that may stop before recipient eligibility is read.
+        // Lenient stubs keep those setup-only details from masking the behavior under test.
+        lenient().when(user.getId()).thenReturn(id);
+        lenient().when(user.getAccountStatus()).thenReturn(AccountStatus.ACTIVE);
+        lenient().when(user.getDeletedAt()).thenReturn(null);
         return user;
     }
 }

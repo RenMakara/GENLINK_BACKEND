@@ -1,5 +1,6 @@
 package kh.edu.acleda.campuslink.modules.profile.service.impl;
 
+import java.time.LocalTime;
 import java.util.Set;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.profile.dto.request.UserSettingUpdateRequest;
@@ -53,6 +54,16 @@ public class UserSettingServiceImpl implements UserSettingService {
         if (request.notificationEnabled() != null) {
             setting.setNotificationEnabled(request.notificationEnabled());
         }
+        if (request.quietHoursEnabled() != null) {
+            setting.setNotificationQuietHoursEnabled(request.quietHoursEnabled());
+        }
+        if (request.quietHoursStart() != null) {
+            setting.setNotificationQuietStart(request.quietHoursStart());
+        }
+        if (request.quietHoursEnd() != null) {
+            setting.setNotificationQuietEnd(request.quietHoursEnd());
+        }
+        validateQuietHours(setting);
         if (request.privacyProfile() != null) {
             String privacy = request.privacyProfile().toUpperCase();
             if (!ALLOWED_PRIVACY.contains(privacy)) {
@@ -94,6 +105,9 @@ public class UserSettingServiceImpl implements UserSettingService {
             .language(user.getPreferredLanguage())
             .theme(Theme.SYSTEM_DEFAULT)
             .notificationEnabled(true)
+            .notificationQuietHoursEnabled(false)
+            .notificationQuietStart(null)
+            .notificationQuietEnd(null)
             .privacyProfile("PUBLIC")
             .allowMessages(true)
             .allowFollowRequest(true)
@@ -107,10 +121,31 @@ public class UserSettingServiceImpl implements UserSettingService {
             setting.getLanguage(),
             setting.getTheme(),
             setting.getNotificationEnabled(),
+            setting.getNotificationQuietHoursEnabled(),
+            setting.getNotificationQuietStart(),
+            setting.getNotificationQuietEnd(),
             setting.getPrivacyProfile(),
             setting.getAllowMessages(),
             setting.getAllowFollowRequest(),
             setting.getBiometricEnabled()
         );
+    }
+
+    private void validateQuietHours(UserSetting setting) {
+        if (!Boolean.TRUE.equals(setting.getNotificationQuietHoursEnabled())) {
+            return;
+        }
+        LocalTime start = setting.getNotificationQuietStart();
+        LocalTime end = setting.getNotificationQuietEnd();
+        if (start == null || end == null) {
+            throw new ApiException(
+                "Quiet hours require both quietHoursStart and quietHoursEnd",
+                "VALIDATION_ERROR");
+        }
+        if (start.equals(end)) {
+            throw new ApiException(
+                "Quiet hours start and end must be different",
+                "VALIDATION_ERROR");
+        }
     }
 }
