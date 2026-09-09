@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, 3A-3D, and 4A-4C implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4C, while local Codex Gradle execution remains blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, 3A-3D, and 4A-4D implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4C, while local Codex Gradle execution remains blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -8,7 +8,8 @@ emission foundation and initial template seed; Community Tasks 2A-2G now wire ev
 private join-request, moderation, and scheduled event-reminder triggers. Finance Tasks 3A-3D now
 wire budget threshold, saving-goal completion, auto-save run, and payment receipt alerts to finance mutations.
 Productivity Tasks 4A-4C now wire configured task reminders, completed habit streak updates, and
-goal milestone completion to the same in-app notification path.
+goal milestone completion to the same in-app notification path. Entertainment Task 4D now wires
+claimed challenge rewards to that path as well.
 Last verified: 2026-09-09
 
 Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
@@ -428,7 +429,8 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   current streak count with `HABIT + habitId` navigation metadata and a check-in-date dedupe key.
 - [x] Productivity goal milestone: a successful incomplete → completed milestone update emits
   the goal owner’s progress and uses `GOAL + goalId` navigation metadata.
-- [ ] Entertainment challenge completed and reward earned.
+- [x] Entertainment challenge completed and reward earned: a successful reward claim emits one
+  notification after XP award and `CLAIMED` persistence, with `CHALLENGE + challengeId` metadata.
 - [ ] Security suspicious-login notification, only after the security event contract and privacy
   policy are approved.
 - [ ] Admin broadcast and notification-template management only after Admin controllers,
@@ -509,6 +511,32 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Deferred: entertainment challenge rewards, security alerts, admin broadcast/template management,
   durable outbox/retry, distributed scheduler locking, and external push/email delivery remain
   later work.
+
+### Task 4D implementation report — 2026-09-09
+
+- Changed: added `ChallengeRewardNotifier`/`ChallengeRewardNotifierImpl` and connected it to
+  `ChallengeServiceImpl.claim`. The notifier runs after the reward pipeline succeeds, the user's
+  challenge is moved to `CLAIMED`, and the response is rendered.
+- Trigger behavior: `complete` alone does not emit because it has not awarded XP yet. A claim that
+  is already `CLAIMED`, not yet `COMPLETED`, or not joined is rejected by the existing guards and
+  remains silent. The challenge display name follows the resolved language used by the claim
+  response, while Notification still selects the localized template for the user.
+- Notification data: reused the bilingual `ENTERTAINMENT_CHALLENGE_COMPLETE` template from
+  migration `0052`; emitted rows use type `ENTERTAINMENT_CHALLENGE`, `CHALLENGE + challengeId`
+  navigation metadata, `challengeName` and `rewardXp` parameters, and the recipient-scoped stable
+  `challenge-reward:{challengeId}` dedupe key.
+- Behavior: notification persistence remains after-commit through the shared emitter, so a writer
+  failure is secondary to the successful reward claim. Invalid challenge/user/reward details are
+  skipped safely.
+    - Tests/checks: added claim integration coverage, notifier rendering/metadata/silence coverage,
+      and stronger seed-template placeholder assertions. `git diff --check` passed. The targeted
+      Gradle run was attempted twice, but this workspace stopped before compilation with
+      `Unable to establish loopback connection`; no assertion failure was observed. Run full
+      `gradlew test` on the development host/CI before releasing this commit.
+- API/Postman: no endpoint, response shape, migration, or Postman request changed. Existing
+  `POST /api/v1/entertainment/challenges/{id}/claim` is reused.
+- Deferred: security alerts, admin broadcast/template management, durable outbox/retry,
+  distributed scheduler locking, and external push/email delivery remain later work.
 
 ## Phase 5 — Mobile BFF and client contract
 

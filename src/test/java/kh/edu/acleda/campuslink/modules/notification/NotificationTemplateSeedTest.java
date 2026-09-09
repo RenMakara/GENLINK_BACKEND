@@ -21,6 +21,8 @@ class NotificationTemplateSeedTest {
                 .contains("FINANCE_BUDGET_APPROACHING")
                 .contains("PRODUCTIVITY_TASK_DUE")
                 .contains("ENTERTAINMENT_CHALLENGE_COMPLETE")
+                .contains("{challengeName}")
+                .contains("{rewardXp}")
                 .contains("SECURITY_SUSPICIOUS_LOGIN")
                 .contains("ON CONFLICT (template_key) DO NOTHING")
                 .contains("title_km")

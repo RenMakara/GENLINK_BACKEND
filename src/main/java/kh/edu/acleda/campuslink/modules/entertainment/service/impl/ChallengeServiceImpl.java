@@ -9,6 +9,7 @@ import kh.edu.acleda.campuslink.modules.entertainment.entity.UserChallenge;
 import kh.edu.acleda.campuslink.modules.entertainment.enums.ChallengeStatus;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.DailyChallengeRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.UserChallengeRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.ChallengeRewardNotifier;
 import kh.edu.acleda.campuslink.modules.entertainment.service.ChallengeService;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
@@ -29,17 +30,20 @@ public class ChallengeServiceImpl implements ChallengeService {
     private final DailyChallengeRepository challengeRepository;
     private final UserChallengeRepository userChallengeRepository;
     private final RewardService rewardService;
+    private final ChallengeRewardNotifier challengeRewardNotifier;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public ChallengeServiceImpl(DailyChallengeRepository challengeRepository,
                                 UserChallengeRepository userChallengeRepository,
                                 RewardService rewardService,
+                                ChallengeRewardNotifier challengeRewardNotifier,
                                 UserRepository userRepository,
                                 CurrentUserProvider currentUserProvider) {
         this.challengeRepository = challengeRepository;
         this.userChallengeRepository = userChallengeRepository;
         this.rewardService = rewardService;
+        this.challengeRewardNotifier = challengeRewardNotifier;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -106,7 +110,9 @@ public class ChallengeServiceImpl implements ChallengeService {
         uc.setStatus(ChallengeStatus.CLAIMED);
         uc.setClaimedAt(LocalDateTime.now());
         userChallengeRepository.save(uc);
-        return toResponse(uc.getChallenge(), uc, language);
+        ChallengeResponse response = toResponse(uc.getChallenge(), uc, language);
+        challengeRewardNotifier.notifyForClaimedChallenge(uc, response.title());
+        return response;
     }
 
     private UserChallenge userChallengeFor(UUID userId, UUID challengeId) {

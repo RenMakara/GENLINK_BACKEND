@@ -1,8 +1,8 @@
 # Entertainment Domain — Implementation Plan
 
-Status: DONE (updated 2026-08-21) - Quiz, Reward pipeline, Badges, Challenges, Leaderboard, Short Content, and secured 1v1 multiplayer quiz. Deferred: friends ranking. Scope: backend only.
+Status: DONE (updated 2026-09-09) - Quiz, Reward pipeline, Badges, Challenges, Leaderboard, Short Content, secured 1v1 multiplayer quiz, and challenge reward notification integration. Deferred: friends ranking. Scope: backend only.
 Owner: (Entertainment / Gamification, per Team Assignment v5).
-Last verified: 2026-09-06
+Last verified: 2026-09-09
 
 The gamification pillar: quizzes, daily challenges, badges, a leaderboard, and short
 (reel) content. Plugs into the XP system (xp_history + users.total_xp) already used by
@@ -139,6 +139,13 @@ Khmer left for the content team.
 5. **Short content** - list/detail + counters.
 6. **Multiplayer quiz** - DONE (secured matchmaking, answers, completion, rewards).
 Deferred: Friends ranking.
+
+## Notification integration
+
+- [x] Challenge reward notification (2026-09-09): a successful `claim` awards XP, persists
+  `CLAIMED`, and emits the bilingual `ENTERTAINMENT_CHALLENGE_COMPLETE` notification with
+  `CHALLENGE + challengeId` navigation data. Repeated claims remain rejected and silent; the
+  existing challenge API contract is unchanged.
 
 ## Follow-ups
 
