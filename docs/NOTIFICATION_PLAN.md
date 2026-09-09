@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, 3A-3D, and 4A-4C implementation complete; the user confirmed `gradlew test` build success for Task 4B, while local Codex Gradle execution remains blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, 3A-3D, and 4A-4C implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4C, while local Codex Gradle execution remains blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -504,7 +504,8 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Tests/checks: added notifier rendering/metadata/silence coverage, goal service transition
   assertions, and bilingual migration structure coverage. `git diff --check` passed. The targeted
   Gradle run was attempted, but this workspace stopped before compilation with
-  `Unable to establish loopback connection`; no assertion failure was observed.
+  `Unable to establish loopback connection`; no assertion failure was observed. The user
+  subsequently confirmed the full `gradlew test` build passed on the development host.
 - Deferred: entertainment challenge rewards, security alerts, admin broadcast/template management,
   durable outbox/retry, distributed scheduler locking, and external push/email delivery remain
   later work.
