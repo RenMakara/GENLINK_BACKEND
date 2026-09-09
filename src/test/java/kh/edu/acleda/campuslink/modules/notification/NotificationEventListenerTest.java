@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.notification.event.NotificationEventListener;
 import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationOutboxService;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationWriter;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +21,7 @@ import static org.mockito.Mockito.verify;
 class NotificationEventListenerTest {
 
     @Mock private NotificationWriter notificationWriter;
+    @Mock private NotificationOutboxService notificationOutboxService;
 
     private NotificationEventListener listener;
     private NotificationRequestedEvent event;
@@ -42,6 +44,25 @@ class NotificationEventListenerTest {
     void swallowsWriterFailureSoSourceActionIsNotBroken() {
         doThrow(new IllegalStateException("database unavailable"))
             .when(notificationWriter).writeInNewTransaction(event);
+
+        assertThatCode(() -> listener.onNotificationRequested(event))
+            .doesNotThrowAnyException();
+    }
+
+    @Test
+    void delegatesToDurableOutboxInProductionPath() {
+        listener = new NotificationEventListener(notificationOutboxService);
+
+        listener.onNotificationRequested(event);
+
+        verify(notificationOutboxService).enqueue(event.request());
+    }
+
+    @Test
+    void swallowsOutboxFailureSoSourceActionIsNotBroken() {
+        listener = new NotificationEventListener(notificationOutboxService);
+        doThrow(new IllegalStateException("database unavailable"))
+            .when(notificationOutboxService).enqueue(event.request());
 
         assertThatCode(() -> listener.onNotificationRequested(event))
             .doesNotThrowAnyException();

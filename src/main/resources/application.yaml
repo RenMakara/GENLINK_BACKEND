@@ -77,6 +77,14 @@ app:
     # Set empty scheduling globally with app.scheduling.enabled=false when needed.
     event-reminder-cron: ${EVENT_REMINDER_CRON:0 */5 * * * *}
 
+  notification:
+    outbox:
+      # Polling is enabled only on instances that run the shared scheduler.
+      poll-ms: ${NOTIFICATION_OUTBOX_POLL_MS:5000}
+      initial-delay-ms: ${NOTIFICATION_OUTBOX_INITIAL_DELAY_MS:5000}
+      batch-size: ${NOTIFICATION_OUTBOX_BATCH_SIZE:100}
+      max-attempts: ${NOTIFICATION_OUTBOX_MAX_ATTEMPTS:5}
+
   productivity:
     # Task reminders scan configured reminder_time values every five minutes.
     task-reminder-cron: ${TASK_REMINDER_CRON:0 */5 * * * *}

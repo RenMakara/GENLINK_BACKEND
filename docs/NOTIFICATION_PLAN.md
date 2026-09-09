@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, 4A-4F, Phase 5, and Phase 6 Task 6A complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, Task 4F, Phase 5, and Task 6A, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, 4A-4F, Phase 5, and Phase 6 Tasks 6A-6B complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, Task 4F, Phase 5, and Tasks 6A-6B, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -37,21 +37,24 @@ entities directly.
 Domain service action
   -> domain/application notification event
   -> NotificationEmitter
+  -> delivery-policy gate
+  -> after-commit durable notification_outbox row
+  -> locked outbox worker + retry/backoff
   -> recipient + language resolution
   -> bilingual template rendering with parameters
   -> rendered notification saved in a new transaction
   -> current Notification API / future Mobile BFF
 ```
 
-The first implementation will publish the notification event after the source transaction
-commits and persist the notification in a separate transaction. A failed notification is logged
-and must not roll back the business action that caused it. This keeps the initial design simple
-while avoiding a notification insert that makes RSVP, expense creation, or another domain action
-fail.
+The source action still publishes the notification event after commit. The listener now stores the
+request facts durably and independently, and a bounded worker later renders and writes the in-app
+row. A failed enqueue or delivery is logged/retried and must not roll back the business action
+that caused it. The after-commit handoff intentionally retains a short process-crash gap; an
+atomic same-transaction outbox is a later opt-in migration for source modules.
 
-Before push/email delivery or more than one backend instance is introduced, add a durable
-`notification_outbox` with retry and deduplication. An in-memory event alone is not sufficient for
-those requirements.
+Before push/email delivery or more than one backend instance is introduced, the durable
+`notification_outbox` with retry and deduplication must be enabled. Task 6B now provides that
+foundation; an in-memory event alone is not sufficient for those requirements.
 
 ### Internal emitter contract
 
@@ -662,12 +665,12 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Deferred: preferences/quiet hours, durable outbox/retry, and external push/email delivery
   remain Phase 6 work.
 
-## Phase 6 — Preferences and delivery expansion — Task 6A DONE
+## Phase 6 — Preferences and delivery expansion — Task 6B IN PROGRESS
 
 - [x] Task 6A — Add per-type on/off and quiet hours; the emitter must enforce them for eligible
   notifications.
-- [ ] Add `notification_outbox`, retry, dedupe, and delivery status before external transports or
-  multiple backend instances.
+- [ ] Task 6B — Add `notification_outbox`, retry, dedupe, and delivery status before external
+  transports or multiple backend instances. **IN PROGRESS**
 - [ ] Add push/email adapters behind the same internal emit contract. Brevo remains a transport
   implementation for email and must not be mixed with the OTP flow.
 
@@ -704,8 +707,52 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   fixtures were corrected. The user subsequently confirmed full `gradlew test` passed. Postman
   JSON parsing and `git diff --check` passed; local Codex Gradle execution remains blocked by its
   network/loopback restriction before compilation.
-- Deferred: durable `notification_outbox`/retry/delivery status is the next Task 6B; push/email
-  adapters remain later work. Brevo remains separate from OTP delivery.
+- Deferred: push/email adapters remain later work. Brevo remains separate from OTP delivery.
+
+### Task 6B plan and contract — DONE
+
+- Keep the existing after-commit business-action boundary. The shared notification event listener
+  will enqueue the immutable request into `notification_outbox` in a separate transaction; the
+  RSVP, payment, moderation, or other source transaction must never depend on outbox availability.
+- The outbox stores the explicit recipient, template key, type, bounded JSON parameters, reference
+  metadata, optional dedupe key, attempt count, next-attempt time, error text, and a delivery status.
+  A recipient-scoped unique dedupe index is the final concurrency guard for repeated events.
+- A scheduled worker claims due `PENDING` rows with a database lock, re-checks current delivery
+  preferences, and delegates rendering/persistence to the existing `NotificationWriter`. Success
+  becomes `DELIVERED`; current preferences can mark a row `SUPPRESSED`; failures use bounded
+  exponential backoff and become `FAILED` after the retry limit.
+- The worker is safe for multiple enabled instances at the row-claim boundary. The queue is
+  at-least-once: writer dedupe and the database unique index prevent duplicate rows when a worker
+  retries after a partial commit. The existing after-commit handoff still has a short process-crash
+  gap before enqueue; an atomic same-transaction outbox is intentionally deferred until the source
+  modules can opt into that stronger coupling.
+- This task adds no public endpoint and therefore requires no Postman request. Push/email adapters
+  remain deferred; Brevo stays an email transport concern separate from OTP.
+
+### Task 6B implementation report — 2026-09-10
+
+- Changed: added `NotificationOutbox` persistence, status transitions, JSON request-fact storage,
+  recipient-scoped dedupe lookup, a row-locking poller, bounded retry/backoff, and terminal
+  `FAILED`/`SUPPRESSED` states. The after-commit notification listener now enqueues durable facts;
+  the existing writer still owns template lookup, language selection, rendering, and in-app row
+  creation.
+- Database/config: added and registered Liquibase migration `0060-create-notification-outbox.sql`
+  with due-row and unique-dedupe indexes. Added `app.notification.outbox.*` settings for poll
+  interval, initial delay, batch size, and maximum attempts. Scheduling can still be disabled with
+  the existing `app.scheduling.enabled=false` switch.
+- Reliability: due rows are selected with pessimistic locks so multiple enabled instances do not
+  deliver the same row concurrently. Writer failures retry after 5 seconds, 30 seconds, 5 minutes,
+  30 minutes, and 2 hours, then become `FAILED`. A preference change before delivery becomes
+  `SUPPRESSED`; a policy infrastructure error fails open and keeps the durable request deliverable.
+- Tests/checks: the user confirmed full `gradlew test` passed on the development host. This Codex
+  workspace could not run Gradle: the wrapper first failed with `Permission denied: getsockopt`, and
+  the escalated attempt stopped with `Unable to establish loopback connection` before compilation.
+  `git diff --check` passed; no Postman JSON change was needed because the public API is unchanged.
+- Release status: committed and pushed to `origin/dev`; no deployment was performed. The short
+  process-crash gap between source commit and after-commit enqueue remains documented; an atomic
+  same-transaction outbox is intentionally deferred until source modules opt into that coupling.
+- Deferred: push/email adapters behind the same internal emit contract remain the next task. Brevo
+  continues to be an email transport and remains separate from OTP delivery.
 
 ---
 
