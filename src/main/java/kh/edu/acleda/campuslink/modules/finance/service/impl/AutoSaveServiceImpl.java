@@ -24,6 +24,7 @@ import kh.edu.acleda.campuslink.modules.finance.repository.SavingGoalRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.AutoSaveService;
 import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.finance.service.SavingGoalCompletionNotifier;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -47,6 +48,7 @@ public class AutoSaveServiceImpl implements AutoSaveService {
     private final ExpenseRepository expenseRepository;
     private final DemoWalletService demoWalletService;
     private final LedgerService ledgerService;
+    private final SavingGoalCompletionNotifier savingGoalCompletionNotifier;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
@@ -57,6 +59,7 @@ public class AutoSaveServiceImpl implements AutoSaveService {
                                ExpenseRepository expenseRepository,
                                DemoWalletService demoWalletService,
                                LedgerService ledgerService,
+                               SavingGoalCompletionNotifier savingGoalCompletionNotifier,
                                UserRepository userRepository,
                                CurrentUserProvider currentUserProvider) {
         this.autoSaveRuleRepository = autoSaveRuleRepository;
@@ -66,6 +69,7 @@ public class AutoSaveServiceImpl implements AutoSaveService {
         this.expenseRepository = expenseRepository;
         this.demoWalletService = demoWalletService;
         this.ledgerService = ledgerService;
+        this.savingGoalCompletionNotifier = savingGoalCompletionNotifier;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -183,6 +187,7 @@ public class AutoSaveServiceImpl implements AutoSaveService {
             rule.setActive(false); // nothing left to save toward
             return false;
         }
+        SavingGoalStatus statusBefore = goal.getStatus();
 
         DemoWallet wallet = demoWalletService.getOrCreateWalletEntity(rule.getUser());
         BigDecimal balance = rule.getCurrency() == Currency.KHR ? wallet.getBalanceKhr() : wallet.getBalanceUsd();
@@ -205,6 +210,7 @@ public class AutoSaveServiceImpl implements AutoSaveService {
             rule.setActive(false); // goal reached - stop auto-saving into it
         }
         savingGoalRepository.save(goal);
+        savingGoalCompletionNotifier.notifyIfCompleted(goal, statusBefore);
         log.info("Auto-save applied: rule={} goal={} amount={} {} on {}",
             rule.getId(), goal.getId(), amount, rule.getCurrency(), runDate);
         return true;

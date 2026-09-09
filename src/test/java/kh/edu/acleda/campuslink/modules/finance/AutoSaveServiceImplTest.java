@@ -21,6 +21,7 @@ import kh.edu.acleda.campuslink.modules.finance.repository.SavingDepositReposito
 import kh.edu.acleda.campuslink.modules.finance.repository.SavingGoalRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.finance.service.SavingGoalCompletionNotifier;
 import kh.edu.acleda.campuslink.modules.finance.service.impl.AutoSaveServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -60,6 +61,7 @@ class AutoSaveServiceImplTest {
     @Mock private ExpenseRepository expenseRepository;
     @Mock private DemoWalletService demoWalletService;
     @Mock private LedgerService ledgerService;
+    @Mock private SavingGoalCompletionNotifier savingGoalCompletionNotifier;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -69,7 +71,8 @@ class AutoSaveServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new AutoSaveServiceImpl(autoSaveRuleRepository, savingGoalRepository, savingDepositRepository,
-            incomeRepository, expenseRepository, demoWalletService, ledgerService, userRepository,
+            incomeRepository, expenseRepository, demoWalletService, ledgerService, savingGoalCompletionNotifier,
+            userRepository,
             currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
@@ -218,6 +221,7 @@ class AutoSaveServiceImplTest {
 
         assertThat(g.getStatus()).isEqualTo(SavingGoalStatus.COMPLETED);
         assertThat(r.isActive()).isFalse();
+        verify(savingGoalCompletionNotifier).notifyIfCompleted(g, SavingGoalStatus.IN_PROGRESS);
     }
 
     @Test

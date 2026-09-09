@@ -81,6 +81,10 @@ No dependencies. Everything else reads from expenses.
 - [x] Deposit history (`GET /savings/{id}/deposits`), most recent first.
 - [x] Progress bar data: response carries remainingAmount (floored at 0) and
       progressPercent (0-100, capped) alongside current/target. Tests.
+- [x] Saving-goal completion notification (2026-09-09): manual deposits, target updates, and
+      auto-save deposits use the shared notification port when a goal transitions to `COMPLETED`.
+      The bilingual 0052 template, owner recipient, `SAVING_GOAL` reference, and goal-scoped
+      dedupe key are reused; no finance endpoint or migration changed.
 
 ## Phase 4 — Financial Literacy — DONE
 
