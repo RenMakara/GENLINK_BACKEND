@@ -80,4 +80,26 @@ class NotificationTemplateSeedTest {
                 .contains("message_km");
         }
     }
+
+    @Test
+    void paymentReceiptTemplatesAreBilingualAndRerunSafe() throws IOException {
+        try (InputStream stream = getClass().getResourceAsStream(
+            "/db/changelog/changes/0057-seed-payment-receipt-notification-templates.sql")) {
+            assertThat(stream).as("payment receipt notification template migration").isNotNull();
+            String sql = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(sql)
+                .contains("COMMUNITY_EVENT_PAYMENT_RECEIPT")
+                .contains("FINANCE_WALLET_PAYMENT_RECEIPT")
+                .contains("{amount}")
+                .contains("{currency}")
+                .contains("{eventTitle}")
+                .contains("{merchant}")
+                .contains("{provider}")
+                .contains("{providerRef}")
+                .contains("ON CONFLICT (template_key) DO NOTHING")
+                .contains("title_km")
+                .contains("message_km");
+        }
+    }
 }

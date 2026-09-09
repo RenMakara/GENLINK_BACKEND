@@ -116,6 +116,10 @@ Full detail in backend/docs/FINANCE_LITERACY_PLAN.md.
       DemoTransaction and logs "SIMULATED" - never implies a real transfer.
       Insufficient balance throws before any write (no FAILED row), matching the
       paid-RSVP debit path.
+- [x] Payment receipts (2026-09-09): successful paid RSVP and simulated wallet payments emit
+      bilingual in-app confirmation notifications after their ledger transaction succeeds.
+      Receipts include currency/amount and ledger-linked dedupe metadata; declined or rolled-back
+      payments remain silent.
 - [x] Unblocks Community paid RSVP: a user can now open a wallet and top up, so
       settlePayment no longer dead-ends at DEMO_WALLET_NOT_FOUND. Tests.
 

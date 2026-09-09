@@ -1,11 +1,13 @@
 package kh.edu.acleda.campuslink.modules.finance.service.impl;
 
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.WalletPaymentRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.WalletTopUpRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.TransactionResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.WalletResponse;
+import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
@@ -16,6 +18,8 @@ import kh.edu.acleda.campuslink.modules.finance.repository.DemoTransactionReposi
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -35,11 +39,14 @@ public class DemoWalletServiceImpl implements DemoWalletService {
 
     /** Keep the API backward-compatible: omitted wallet currency means USD. */
     private static final Currency DEFAULT_CURRENCY = Currency.USD;
+    private static final String PAYMENT_RECEIPT_TEMPLATE = "FINANCE_WALLET_PAYMENT_RECEIPT";
+    private static final String PAYMENT_RECEIPT_TYPE = "FINANCE_WALLET_PAYMENT";
 
     private final DemoWalletRepository demoWalletRepository;
     private final DemoTransactionRepository demoTransactionRepository;
     private final LedgerService ledgerService;
     private final PaymentProvider paymentProvider;
+    private final NotificationEmitter notificationEmitter;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
@@ -47,12 +54,14 @@ public class DemoWalletServiceImpl implements DemoWalletService {
                                  DemoTransactionRepository demoTransactionRepository,
                                  LedgerService ledgerService,
                                  PaymentProvider paymentProvider,
+                                 NotificationEmitter notificationEmitter,
                                  UserRepository userRepository,
                                  CurrentUserProvider currentUserProvider) {
         this.demoWalletRepository = demoWalletRepository;
         this.demoTransactionRepository = demoTransactionRepository;
         this.ledgerService = ledgerService;
         this.paymentProvider = paymentProvider;
+        this.notificationEmitter = notificationEmitter;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -118,13 +127,44 @@ public class DemoWalletServiceImpl implements DemoWalletService {
         //    database rollback cannot undo a provider-approved charge.
         String description = "KHQR payment to " + merchant
             + (request.note() == null ? "" : " (" + request.note() + ")");
-        ledgerService.debit(wallet, TransactionType.KHQR_PAYMENT, currency, request.amount(), description,
+        DemoTransaction transaction = ledgerService.debit(wallet, TransactionType.KHQR_PAYMENT, currency,
+            request.amount(), description,
             null, null, result.provider(), result.providerRef());
+        emitPaymentReceiptNotification(wallet, transaction, request.amount(), currency, merchant, result);
 
         log.info("Wallet payment via {}: user={} currency={} amount={} merchant={} ref={} balanceAfter={}",
             result.provider(), wallet.getUser().getId(), currency, request.amount(), merchant,
             result.providerRef(), balanceFor(wallet, currency));
         return toResponse(wallet);
+    }
+
+    private void emitPaymentReceiptNotification(DemoWallet wallet, DemoTransaction transaction,
+                                                BigDecimal amount, Currency currency, String merchant,
+                                                PaymentResult result) {
+        if (transaction == null || transaction.getId() == null || wallet == null || wallet.getUser() == null
+            || wallet.getUser().getId() == null || currency == null) {
+            log.warn("Skipping wallet payment receipt because payment details are incomplete: transaction={}",
+                transaction == null ? null : transaction.getId());
+            return;
+        }
+
+        String provider = result.provider() == null || result.provider().isBlank()
+            ? "UNKNOWN" : result.provider();
+        String providerRef = result.providerRef() == null || result.providerRef().isBlank()
+            ? "UNAVAILABLE" : result.providerRef();
+        notificationEmitter.emit(new NotificationRequest(
+            wallet.getUser().getId(),
+            PAYMENT_RECEIPT_TEMPLATE,
+            PAYMENT_RECEIPT_TYPE,
+            Map.of(
+                "amount", formatAmount(amount),
+                "currency", currency.name(),
+                "merchant", merchant == null || merchant.isBlank() ? "merchant" : merchant,
+                "provider", provider,
+                "providerRef", providerRef),
+            "TRANSACTION",
+            transaction.getId(),
+            "wallet-payment-receipt:" + transaction.getId()));
     }
 
     @Override
@@ -189,5 +229,9 @@ public class DemoWalletServiceImpl implements DemoWalletService {
 
     private BigDecimal balanceFor(DemoWallet wallet, Currency currency) {
         return currency == Currency.KHR ? wallet.getBalanceKhr() : wallet.getBalanceUsd();
+    }
+
+    private String formatAmount(BigDecimal amount) {
+        return amount.stripTrailingZeros().toPlainString();
     }
 }

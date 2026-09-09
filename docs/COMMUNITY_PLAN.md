@@ -473,6 +473,10 @@ other order takes someone's money and then tells them the event is full. Pinned 
   `EVENT_PAYMENT` in the event's selected currency. `RsvpResponse.simulatedPayment`
   is true whenever money moved, so the client can label the screen a simulation.
   **Nothing here touches a real payment rail.**
+- A successful paid RSVP also emits `COMMUNITY_EVENT_PAYMENT_RECEIPT` to the attendee after the
+  ledger charge and RSVP transaction complete. It carries `EVENT + eventId`, amount/currency, and
+  a ledger-transaction dedupe key; free, declined, insufficient-funds, and rolled-back RSVPs stay
+  silent.
 - RSVP is idempotent: it backs a button and `(event_id, user_id)` is unique. A
   second tap does not double-count or re-award XP.
 - Cancelling **does not refund** — the demo wallet has no refund flow, and inventing

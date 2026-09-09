@@ -1,12 +1,12 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, and 3A-3C implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, and 3A-3D implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
 emission foundation and initial template seed; Community Tasks 2A-2G now wire event RSVP,
-private join-request, moderation, and scheduled event-reminder triggers. Finance Tasks 3A-3C now
-wire budget threshold, saving-goal completion, and auto-save run alerts to finance mutations.
+private join-request, moderation, and scheduled event-reminder triggers. Finance Tasks 3A-3D now
+wire budget threshold, saving-goal completion, auto-save run, and payment receipt alerts to finance mutations.
 Last verified: 2026-09-09
 
 Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
@@ -335,7 +335,8 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   transition into `COMPLETED` emits the owner notification, with a stable goal-scoped dedupe key.
 - [x] Auto-save applied and auto-save skipped for insufficient funds. Each due run emits an
   owner-scoped notification with `AUTO_SAVE_RULE` navigation metadata and a rule/run-date dedupe key.
-- [ ] Simulated event/payment receipt where the user should see a ledger confirmation.
+- [x] Simulated event/payment receipt where the user should see a ledger confirmation. Paid event
+  RSVP receipts point to the event; wallet payment receipts point to the ledger transaction.
 - [x] Tests for USD/KHR context where a budget notification includes the currency in its rendered
   budget name and queries spend from the matching currency only.
 
@@ -392,8 +393,28 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Tests/checks: added applied/skipped/zero-amount notification assertions and migration-template
   coverage. Run `gradlew test` on the development host/CI before release; this workspace's local
   Gradle execution remains blocked before compilation by its loopback restriction.
-- Deferred: simulated event/payment receipt notifications, durable outbox/retry, and external
-  push/email delivery remain later work.
+- Deferred: durable outbox/retry and external push/email delivery remain later work.
+
+### Task 3D implementation report — 2026-09-09
+
+- Changed: paid event RSVP now emits a receipt to the attendee after the ledger charge, RSVP save,
+  and XP award succeed. Wallet `pay` now emits a receipt after the provider-approved KHQR debit
+  creates a ledger transaction.
+- Notification data: added bilingual migration `0057` templates for event and wallet payment
+  receipts. Event receipts use `COMMUNITY_EVENT_PAYMENT`, `EVENT + eventId`, and a ledger-transaction
+  dedupe key. Wallet receipts use `FINANCE_WALLET_PAYMENT`, `TRANSACTION + transactionId`, and the
+  same transaction-scoped dedupe strategy. Amount, currency, event/merchant, provider, and provider
+  reference are rendered from domain facts.
+- Behavior: free RSVP, provider declines, insufficient wallet balance, rolled-back RSVP/payment,
+  and incomplete ledger/payment details do not emit a success receipt. The existing organiser RSVP
+  notification remains separate, and cancelling an RSVP still has no refund receipt.
+- Data/API: registered `0057-seed-payment-receipt-notification-templates.sql`; no endpoint or
+  response shape changed, so the Postman collection is unchanged.
+- Tests/checks: added event-payment and wallet-payment notification metadata assertions plus bilingual
+  migration coverage. Run `gradlew test` on the development host/CI before release; this workspace's
+  local Gradle execution remains blocked before compilation by its loopback restriction.
+- Deferred: real payment-provider integration, refund handling, durable outbox/retry, and external
+  push/email delivery remain out of scope.
 
 ## Phase 4 — Productivity, Entertainment, Security, and Admin triggers
 

@@ -16,6 +16,7 @@ import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.EventServiceImpl;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
+import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
@@ -45,6 +46,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -241,6 +243,40 @@ class EventServiceImplTest {
     }
 
     @Test
+    void paidRsvpEmitsAPaymentReceiptForTheLedgerCharge() {
+        event.setIsPaid(true);
+        event.setPrice(new BigDecimal("5.00"));
+        event.setCurrency(Currency.USD);
+        DemoWallet wallet = DemoWallet.builder().user(user)
+            .balanceUsd(new BigDecimal("20.00"))
+            .balanceKhr(new BigDecimal("0.00"))
+            .build();
+        UUID transactionId = UUID.randomUUID();
+        DemoTransaction transaction = DemoTransaction.builder().wallet(wallet).build();
+        ReflectionTestUtils.setField(transaction, "id", transactionId);
+        when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
+        when(ledgerService.debit(eq(wallet), eq(TransactionType.EVENT_PAYMENT), eq(Currency.USD),
+            eq(new BigDecimal("5.00")), any(), eq("EVENT"), eq(EVENT_ID))).thenReturn(transaction);
+
+        service.rsvp(EVENT_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter, times(2)).emit(captor.capture());
+        NotificationRequest receipt = captor.getAllValues().stream()
+            .filter(request -> "COMMUNITY_EVENT_PAYMENT_RECEIPT".equals(request.templateKey()))
+            .findFirst().orElseThrow();
+        assertThat(receipt.recipientUserId()).isEqualTo(USER_ID);
+        assertThat(receipt.type()).isEqualTo("COMMUNITY_EVENT_PAYMENT");
+        assertThat(receipt.parameters())
+            .containsEntry("amount", "5")
+            .containsEntry("currency", "USD")
+            .containsEntry("eventTitle", "Flutter Workshop");
+        assertThat(receipt.referenceType()).isEqualTo("EVENT");
+        assertThat(receipt.referenceId()).isEqualTo(EVENT_ID);
+        assertThat(receipt.dedupeKey()).isEqualTo("event-payment-receipt:" + transactionId);
+    }
+
+    @Test
     void paidRsvpDebitsTheKhrWalletWhenTheEventUsesKhr() {
         event.setIsPaid(true);
         event.setPrice(new BigDecimal("5000"));
@@ -277,6 +313,7 @@ class EventServiceImplTest {
             .hasMessageContaining("balance is too low");
 
         verify(rsvpRepository, never()).save(any(EventRsvp.class));
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     @Test
