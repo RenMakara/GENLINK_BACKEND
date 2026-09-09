@@ -12,6 +12,7 @@ import kh.edu.acleda.campuslink.modules.productivity.entity.HabitCheckIn;
 import kh.edu.acleda.campuslink.modules.productivity.repository.HabitCheckInRepository;
 import kh.edu.acleda.campuslink.modules.productivity.repository.HabitRepository;
 import kh.edu.acleda.campuslink.modules.productivity.service.impl.HabitServiceImpl;
+import kh.edu.acleda.campuslink.modules.productivity.service.HabitStreakNotifier;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
@@ -42,6 +43,7 @@ class HabitServiceImplTest {
     @Mock private HabitRepository habitRepository;
     @Mock private HabitCheckInRepository checkInRepository;
     @Mock private kh.edu.acleda.campuslink.modules.entertainment.service.RewardService rewardService;
+    @Mock private HabitStreakNotifier habitStreakNotifier;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -51,8 +53,8 @@ class HabitServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new HabitServiceImpl(habitRepository, checkInRepository, rewardService, userRepository,
-            currentUserProvider);
+        service = new HabitServiceImpl(habitRepository, checkInRepository, rewardService, habitStreakNotifier,
+            userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
         habit = Habit.builder().user(user).title("Read").category("STUDY").frequency("DAILY").build();
@@ -115,6 +117,37 @@ class HabitServiceImplTest {
         assertThat(captor.getValue()).isSameAs(existing);
         assertThat(captor.getValue().getCompleted()).isTrue();
         verify(rewardService).award(user, "HABIT", existing.getId(), 5);
+    }
+
+    @Test
+    void completedCheckInEmitsTheCurrentStreakUpdate() {
+        LocalDate today = LocalDate.now();
+        HabitCheckIn persisted = checkInOn(today, true);
+        ReflectionTestUtils.setField(persisted, "id", UUID.randomUUID());
+        when(checkInRepository.findByHabitIdAndUserIdAndCheckInDate(HABIT_ID, USER_ID, today))
+            .thenReturn(Optional.empty());
+        when(checkInRepository.findByHabitIdAndUserIdOrderByCheckInDateDesc(HABIT_ID, USER_ID))
+            .thenReturn(List.of(persisted));
+
+        service.checkIn(HABIT_ID, new HabitCheckInRequest(today, true));
+
+        verify(habitStreakNotifier).notifyForCompletedCheckIn(habit, today, 1);
+    }
+
+    @Test
+    void alreadyCompletedCheckInDoesNotEmitAnotherStreakUpdate() {
+        LocalDate today = LocalDate.now();
+        HabitCheckIn existing = checkInOn(today, true);
+        ReflectionTestUtils.setField(existing, "id", UUID.randomUUID());
+        when(checkInRepository.findByHabitIdAndUserIdAndCheckInDate(HABIT_ID, USER_ID, today))
+            .thenReturn(Optional.of(existing));
+        when(checkInRepository.findByHabitIdAndUserIdOrderByCheckInDateDesc(HABIT_ID, USER_ID))
+            .thenReturn(List.of(existing));
+
+        service.checkIn(HABIT_ID, new HabitCheckInRequest(today, true));
+
+        verify(habitStreakNotifier, org.mockito.Mockito.never())
+            .notifyForCompletedCheckIn(any(), any(), org.mockito.ArgumentMatchers.anyInt());
     }
 
     @Test

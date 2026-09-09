@@ -121,3 +121,6 @@ _en/_km + LanguageResolver.
   incomplete, non-deleted tasks with an explicit `reminderTime` are scanned and emitted through
   the shared in-app notification port. The existing task API contract and `reminderTime` field
   are unchanged; habit reminders remain a later Notification task.
+- [x] Habit streak notifications (2026-09-09) are emitted after a successful incomplete →
+  completed check-in. The notification uses the live streak computed from `habit_check_ins`,
+  while repeated completion and undo remain silent; the existing check-in API is unchanged.
