@@ -22,6 +22,8 @@ import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -52,6 +54,7 @@ class EventServiceImplTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID EVENT_ID = UUID.randomUUID();
+    private static final UUID ORGANIZER_ID = UUID.randomUUID();
 
     @Mock private EventRepository eventRepository;
     @Mock private EventRsvpRepository rsvpRepository;
@@ -60,15 +63,17 @@ class EventServiceImplTest {
     @Mock private RewardService rewardService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private NotificationEmitter notificationEmitter;
 
     private EventServiceImpl service;
     private User user;
+    private User organizer;
     private Event event;
 
     @BeforeEach
     void setUp() {
         service = new EventServiceImpl(eventRepository, rsvpRepository, demoWalletRepository,
-            ledgerService, rewardService, userRepository, currentUserProvider);
+            ledgerService, rewardService, userRepository, currentUserProvider, notificationEmitter);
 
         user = new User();
         user.setEmail("user@example.com");
@@ -77,7 +82,12 @@ class EventServiceImplTest {
         user.setTotalXp(50);
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
-        event = Event.builder().organizer(user).title("Flutter Workshop")
+        organizer = new User();
+        organizer.setFullName("Event Organizer");
+        organizer.setUsername("organizer");
+        ReflectionTestUtils.setField(organizer, "id", ORGANIZER_ID);
+
+        event = Event.builder().organizer(organizer).title("Flutter Workshop")
             .dateTime(LocalDateTime.now().plusDays(7))
             .attendeeCount(3).attendeeLimit(50)
             .status(EventStatus.PUBLISHED).isPaid(false).build();
@@ -106,6 +116,33 @@ class EventServiceImplTest {
         assertThat(response.xpAwarded()).isEqualTo(10);
         verify(eventRepository).reserveSeat(EVENT_ID);
         verify(rewardService).award(any(), eq("EVENT_RSVP"), eq(EVENT_ID), eq(10));
+    }
+
+    @Test
+    void successfulRsvpNotifiesTheOrganizerWithNavigationAndDedupeData() {
+        service.rsvp(EVENT_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        NotificationRequest request = captor.getValue();
+        assertThat(request.recipientUserId()).isEqualTo(ORGANIZER_ID);
+        assertThat(request.templateKey()).isEqualTo("COMMUNITY_EVENT_RSVP_ORGANIZER");
+        assertThat(request.type()).isEqualTo("COMMUNITY_EVENT_RSVP");
+        assertThat(request.parameters())
+            .containsEntry("attendeeName", "User")
+            .containsEntry("eventTitle", "Flutter Workshop");
+        assertThat(request.referenceType()).isEqualTo("EVENT");
+        assertThat(request.referenceId()).isEqualTo(EVENT_ID);
+        assertThat(request.dedupeKey()).isEqualTo("event-rsvp:" + EVENT_ID + ":" + USER_ID);
+    }
+
+    @Test
+    void organizerSelfRsvpDoesNotCreateAnOrganizerNotification() {
+        event.setOrganizer(user);
+
+        service.rsvp(EVENT_ID);
+
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     @Test
@@ -152,6 +189,7 @@ class EventServiceImplTest {
         assertThat(response.xpAwarded()).isZero();
         verify(eventRepository, never()).reserveSeat(any());
         verify(rewardService, never()).award(any(), any(), any(), anyInt());
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     @Test

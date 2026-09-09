@@ -31,6 +31,8 @@ import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -49,6 +51,8 @@ public class EventServiceImpl implements EventService {
 
     private static final int RSVP_XP = 10;
     private static final String XP_SOURCE = "EVENT_RSVP";
+    private static final String RSVP_NOTIFICATION_TEMPLATE = "COMMUNITY_EVENT_RSVP_ORGANIZER";
+    private static final String RSVP_NOTIFICATION_TYPE = "COMMUNITY_EVENT_RSVP";
 
     private final EventRepository eventRepository;
     private final EventRsvpRepository rsvpRepository;
@@ -57,6 +61,7 @@ public class EventServiceImpl implements EventService {
     private final RewardService rewardService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final NotificationEmitter notificationEmitter;
 
     public EventServiceImpl(EventRepository eventRepository,
                             EventRsvpRepository rsvpRepository,
@@ -64,7 +69,8 @@ public class EventServiceImpl implements EventService {
                             LedgerService ledgerService,
                             RewardService rewardService,
                             UserRepository userRepository,
-                            CurrentUserProvider currentUserProvider) {
+                            CurrentUserProvider currentUserProvider,
+                            NotificationEmitter notificationEmitter) {
         this.eventRepository = eventRepository;
         this.rsvpRepository = rsvpRepository;
         this.demoWalletRepository = demoWalletRepository;
@@ -72,6 +78,7 @@ public class EventServiceImpl implements EventService {
         this.rewardService = rewardService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
+        this.notificationEmitter = notificationEmitter;
     }
 
     @Override
@@ -212,6 +219,7 @@ public class EventServiceImpl implements EventService {
 
         BigDecimal charged = settlePayment(event, userId);
 
+        User attendee = loadCurrentUser();
         if (existing != null) {
             // The unique constraint forbids a second row, so a cancelled RSVP is reused.
             existing.setStatus(RsvpStatus.JOINED);
@@ -220,14 +228,15 @@ public class EventServiceImpl implements EventService {
         } else {
             EventRsvp created = EventRsvp.builder()
                 .event(event)
-                .user(loadCurrentUser())
+                .user(attendee)
                 .status(RsvpStatus.JOINED)
                 .checkedIn(false)
                 .build();
             applyRegistration(created, registration);
             rsvpRepository.save(created);
         }
-        int xp = awardXp(eventId);
+        int xp = awardXp(eventId, attendee);
+        emitRsvpNotification(event, attendee, registration);
 
         return new RsvpResponse(eventId, RsvpStatus.JOINED, event.getAttendeeCount() + 1, xp,
             charged, charged != null);
@@ -297,9 +306,37 @@ public class EventServiceImpl implements EventService {
         return currency == Currency.KHR ? wallet.getBalanceKhr() : wallet.getBalanceUsd();
     }
 
-    private int awardXp(UUID eventId) {
-        rewardService.award(loadCurrentUser(), XP_SOURCE, eventId, RSVP_XP);
+    private int awardXp(UUID eventId, User attendee) {
+        rewardService.award(attendee, XP_SOURCE, eventId, RSVP_XP);
         return RSVP_XP;
+    }
+
+    /** Notify the organiser only for a newly joined RSVP, not for an idempotent button re-tap. */
+    private void emitRsvpNotification(Event event,
+                                      User attendee,
+                                      EventRegistrationRequest registration) {
+        User organizer = event.getOrganizer();
+        if (organizer == null || organizer.getId() == null || organizer.getId().equals(attendee.getId())) {
+            return;
+        }
+        String attendeeName = registration == null ? attendee.getFullName() : registration.fullName().strip();
+        if (isBlank(attendeeName)) {
+            attendeeName = !isBlank(attendee.getUsername()) ? attendee.getUsername() : attendee.getEmail();
+        }
+        if (isBlank(attendeeName) || isBlank(event.getTitle()) || event.getId() == null) {
+            log.warn("Skipping RSVP notification because attendee/event details are incomplete: event={} user={}",
+                event.getId(), attendee.getId());
+            return;
+        }
+
+        notificationEmitter.emit(new NotificationRequest(
+            organizer.getId(),
+            RSVP_NOTIFICATION_TEMPLATE,
+            RSVP_NOTIFICATION_TYPE,
+            Map.of("attendeeName", attendeeName, "eventTitle", event.getTitle()),
+            "EVENT",
+            event.getId(),
+            "event-rsvp:" + event.getId() + ":" + attendee.getId()));
     }
 
     private boolean isFull(Event event) {

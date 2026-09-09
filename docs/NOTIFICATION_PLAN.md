@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Task 1A done; Task 1B implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B done; Task 2A implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A now provides the internal
@@ -170,7 +170,9 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 
 ## Phase 2 — Community triggers
 
-- [ ] New event RSVP → notify the event organiser, including event reference and attendee name.
+- [x] New event RSVP → notify the event organiser after a successful non-idempotent RSVP,
+  including `EVENT + eventId`, attendee name, and a recipient-scoped dedupe key. Organiser
+  self-RSVPs and idempotent re-taps do not emit a row.
 - [ ] Private community join request → notify the owner/admin; approval → notify the requester.
 - [ ] Post/discussion moderation action → notify the affected author when the product contract
   defines a user-visible action.
@@ -178,6 +180,21 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   dedupe rules are agreed.
 - [ ] Tests prove recipient selection, idempotency, and that a notification failure does not undo
   RSVP, join, or moderation state.
+
+### Task 2A implementation report — 2026-09-09
+
+- Changed: `EventServiceImpl` now emits `COMMUNITY_EVENT_RSVP_ORGANIZER` only after a new RSVP
+  has reserved a seat, completed payment when required, saved the RSVP, and awarded XP. The
+  organiser receives the attendee display name, `EVENT` navigation reference, and a stable
+  `event-rsvp:{eventId}:{attendeeId}` dedupe key. Repeated joined requests and organiser self-RSVPs
+  stay silent.
+- Tests/checks: added Community service coverage for recipient selection, reference data, dedupe
+  key construction, and idempotent RSVP silence. `git diff --check` passed. The user confirmed
+  the previous Gradle test run passed; this environment could not execute the new Gradle run because
+  the wrapper stops before compilation with `Unable to establish loopback connection`.
+- API/Postman: no endpoint shape changed, so the collection requires no new request for this task.
+- Deferred: join-request, moderation, reminders, and the remaining Community trigger tests remain
+  for later tasks. Do not deploy until CI or a dev machine runs the full suite for this commit.
 
 ## Phase 3 — Finance triggers
 

@@ -132,9 +132,9 @@ The single most visible surface in the app. Also unblocks `/mobile/home`, whose
       **Free/paid filter not done** — the columns exist now, the filter does not.
 - [x] **2.3** RSVP: `POST /events/{id}/rsvp`, `DELETE /events/{id}/rsvp`.
       Capacity check **before** payment (see the corrected paid-RSVP flow),
-      `UNIQUE(event_id, user_id)`, maintain `attendeeCount`, award XP.
-      **Organiser notification not done** — the notification module exists but is
-      not wired to anything, so this would be the first caller.
+      `UNIQUE(event_id, user_id)`, maintain `attendeeCount`, award XP, and notify
+      the organiser after a successful non-idempotent RSVP through the Notification
+      emitter. The notification includes the attendee name and `EVENT + eventId`.
 - [x] **2.4** Paid events route through the demo wallet in the event's selected
       currency (`USD` or `KHR`) — simulation only. Never imply a real KHQR transfer.
 - [x] **2.5** Complete event details: start/end time, `ONLINE`/`IN_PERSON` mode,
@@ -146,8 +146,7 @@ The single most visible surface in the app. Also unblocks `/mobile/home`, whose
       are stored on `events.currency`, displayed in event responses, and matched to
       the corresponding wallet balance during RSVP.
 
-Defer: QR check-in, map search/picker UI, organiser notifications and free/paid
-browse filtering.
+Defer: QR check-in, map search/picker UI and free/paid browse filtering.
 
 ---
 
@@ -478,9 +477,10 @@ other order takes someone's money and then tells them the event is full. Pinned 
 
 ### Known gaps
 
-- **No organiser notification.** The flow says the organiser is told when someone
-  joins. The `notification` module exists but nothing calls it yet — this would be
-  its first caller.
+- **Organiser notification delivered (2026-09-09).** A successful new RSVP emits
+  `COMMUNITY_EVENT_RSVP_ORGANIZER` after the RSVP transaction, with the event
+  navigation reference and a recipient-scoped dedupe key. Idempotent re-taps and
+  organiser self-RSVPs do not create a notification.
 - **No free/paid filter** on browse, though the columns now exist.
 - **No QR check-in.** `event_rsvps.checked_in` and `qr_code` exist, unused.
 - **No refund on cancel**, deliberately.
