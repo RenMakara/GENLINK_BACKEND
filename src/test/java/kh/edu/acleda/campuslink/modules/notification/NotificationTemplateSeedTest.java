@@ -44,4 +44,21 @@ class NotificationTemplateSeedTest {
                 .contains("message_km");
         }
     }
+
+    @Test
+    void eventReminderTemplateIsBilingualAndRerunSafe() throws IOException {
+        try (InputStream stream = getClass().getResourceAsStream(
+            "/db/changelog/changes/0055-seed-event-reminder-template.sql")) {
+            assertThat(stream).as("event reminder notification template migration").isNotNull();
+            String sql = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(sql)
+                .contains("COMMUNITY_EVENT_REMINDER")
+                .contains("{eventTitle}")
+                .contains("{startsAt}")
+                .contains("ON CONFLICT (template_key) DO NOTHING")
+                .contains("title_km")
+                .contains("message_km");
+        }
+    }
 }

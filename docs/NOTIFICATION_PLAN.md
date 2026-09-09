@@ -1,11 +1,11 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B and 2A-2F implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B and 2A-2G implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
-emission foundation and initial template seed; Community Tasks 2A-2F now wire event RSVP,
-private join-request, community-post moderation, and forum-discussion moderation triggers.
+emission foundation and initial template seed; Community Tasks 2A-2G now wire event RSVP,
+private join-request, moderation, and scheduled event-reminder triggers.
 Last verified: 2026-09-09
 
 Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
@@ -184,8 +184,9 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - [x] Forum discussion moderation → notify the affected author after an app admin removes the
   discussion, including `DISCUSSION + discussionId`, discussion title, moderation action, and a
   recipient-scoped dedupe key.
-- [ ] Event reminder → notify attendees through a scheduler only after reminder timing and
-  dedupe rules are agreed.
+- [x] Event reminder → every five minutes, notify `JOINED` attendees when a published event is
+  roughly 24 hours away, with `EVENT + eventId`, formatted start time, and a recipient-scoped
+  dedupe key.
 - [ ] Tests prove recipient selection, idempotency, and that a notification failure does not undo
   RSVP, join, or moderation state.
 
@@ -297,6 +298,32 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - API/Postman: no endpoint or response shape changed, so the Postman collection is unchanged for
   this task.
 - Deferred: event reminders, durable outbox, and external push/email transports.
+
+### Task 2G implementation report — 2026-09-09
+
+- Changed: `EventReminderServiceImpl` queries joined attendees for non-deleted, published events
+  entering a 24-hour reminder window (five minutes on either side of the lead time) and emits
+  `COMMUNITY_EVENT_REMINDER` with the event title, formatted start time, `EVENT + eventId`, and a
+  stable `event-reminder-24h:{eventId}:{attendeeId}` dedupe key.
+- Scheduler: added `EventReminderJob`, running every five minutes in `Asia/Phnom_Penh`, with the
+  cron configurable through `EVENT_REMINDER_CRON`; the existing `app.scheduling.enabled=false`
+  switch disables it with the other scheduled jobs. Job failures are logged and do not stop later
+  runs; notification persistence remains after-commit.
+- Behavior: only `JOINED` attendees are eligible. Cancelled/interested RSVPs, draft/cancelled/
+  deleted events, incomplete rows, and repeated window scans do not create duplicate notification
+  rows. The database-backed dedupe index remains the concurrency guard.
+- Data: added Liquibase migration `0055-seed-event-reminder-template.sql` with a bilingual,
+  rerun-safe template and registered it in the master changelog.
+- Tests/checks: added coverage for the 24-hour query window, attendee selection, rendered
+  parameters, navigation metadata, dedupe key, incomplete-row silence, scheduler delegation,
+  failure isolation, cron, timezone, and migration structure. The targeted Gradle run remains
+  blocked in this workspace before compilation by `Unable to establish loopback connection`; the
+  user confirmed `gradlew test` passes on their host.
+- API/Postman: no endpoint or response shape changed, so the Postman collection is unchanged for
+  this task.
+- Limitation: this is an in-app, best-effort scheduled reminder. A process outage that spans the
+  five-minute window can miss a reminder; a durable outbox/claim table and distributed scheduler
+  lock remain production-scale follow-ups.
 
 ## Phase 3 — Finance triggers
 

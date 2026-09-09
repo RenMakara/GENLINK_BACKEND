@@ -72,6 +72,11 @@ app:
     # deactivates the last SUPER_ADMIN, so remove it.
     bootstrap-email: ${ADMIN_BOOTSTRAP_EMAIL:}
 
+  community:
+    # Event reminders run five minutes and look for events roughly 24 hours away.
+    # Set empty scheduling globally with app.scheduling.enabled=false when needed.
+    event-reminder-cron: ${EVENT_REMINDER_CRON:0 */5 * * * *}
+
   cors:
     # Origins allowed to call /api/v1/admin/** from a browser (SSOT 10.9).
     # Comma-separated full origins: https://admin.genlink.kh,http://localhost:3000

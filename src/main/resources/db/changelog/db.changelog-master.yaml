@@ -107,3 +107,5 @@ databaseChangeLog:
       file: db/changelog/changes/0053-add-notification-navigation-and-dedupe.sql
   - include:
       file: db/changelog/changes/0054-seed-forum-notification-template.sql
+  - include:
+      file: db/changelog/changes/0055-seed-event-reminder-template.sql

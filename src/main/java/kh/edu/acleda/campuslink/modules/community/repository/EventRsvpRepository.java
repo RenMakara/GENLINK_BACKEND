@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.community.repository;
 
 import kh.edu.acleda.campuslink.modules.community.entity.EventRsvp;
+import kh.edu.acleda.campuslink.modules.community.enums.EventStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.RsvpStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,4 +34,13 @@ public interface EventRsvpRepository extends JpaRepository<EventRsvp, UUID> {
     Page<EventRsvp> findAttendees(@Param("eventId") UUID eventId,
                                   @Param("status") RsvpStatus status,
                                   Pageable pageable);
+
+    /** Joined attendees whose published event enters the reminder window. */
+    @Query("SELECT r FROM EventRsvp r JOIN FETCH r.event e JOIN FETCH r.user u "
+        + "WHERE r.status = :rsvpStatus AND e.status = :eventStatus "
+        + "AND e.deletedAt IS NULL AND e.dateTime >= :from AND e.dateTime < :to")
+    List<EventRsvp> findForReminder(@Param("rsvpStatus") RsvpStatus rsvpStatus,
+                                    @Param("eventStatus") EventStatus eventStatus,
+                                    @Param("from") LocalDateTime from,
+                                    @Param("to") LocalDateTime to);
 }

@@ -402,6 +402,9 @@ timeline, not a social product.
 - **Private join-request approval notification delivered (2026-09-09).** Approving a pending
   request emits `COMMUNITY_JOIN_REQUEST_ACCEPTED` to the requester after the member becomes
   ACTIVE and the count is incremented, with a `COMMUNITY + communityId` reference and dedupe key.
+- **Event attendee reminder delivered (2026-09-09).** A five-minute Phnom Penh scheduler sweep
+  emits `COMMUNITY_EVENT_REMINDER` to `JOINED` attendees when a published event is approximately
+  24 hours away, with `EVENT + eventId` navigation data and a recipient-scoped dedupe key.
 - `user_settings.allow_follow_request` is still unused — PENDING keys off
   `privacyProfile` instead.
 
