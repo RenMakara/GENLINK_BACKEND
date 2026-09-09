@@ -1,10 +1,11 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B done; Task 2A implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B and 2A/2B implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
-for emission and cross-module integrations is now prepared. Task 1A now provides the internal
-emission foundation and initial template seed; no domain trigger is wired yet.
+for emission and cross-module integrations is now prepared. Task 1A provides the internal
+emission foundation and initial template seed; Community Tasks 2A/2B now wire event RSVP and
+private join-request owner triggers.
 Last verified: 2026-09-09
 
 Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
@@ -173,7 +174,9 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - [x] New event RSVP → notify the event organiser after a successful non-idempotent RSVP,
   including `EVENT + eventId`, attendee name, and a recipient-scoped dedupe key. Organiser
   self-RSVPs and idempotent re-taps do not emit a row.
-- [ ] Private community join request → notify the owner/admin; approval → notify the requester.
+- [x] Private community join request → notify the community owner after a new or reopened pending
+  request, including `COMMUNITY + communityId`, requester name, and a recipient-scoped dedupe key.
+- [ ] Join-request approval → notify the requester.
 - [ ] Post/discussion moderation action → notify the affected author when the product contract
   defines a user-visible action.
 - [ ] Event reminder → notify attendees through a scheduler only after reminder timing and
@@ -193,8 +196,28 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   the previous Gradle test run passed; this environment could not execute the new Gradle run because
   the wrapper stops before compilation with `Unable to establish loopback connection`.
 - API/Postman: no endpoint shape changed, so the collection requires no new request for this task.
-- Deferred: join-request, moderation, reminders, and the remaining Community trigger tests remain
-  for later tasks. Do not deploy until CI or a dev machine runs the full suite for this commit.
+- Deferred: join-request approval notification, moderation, reminders, and the remaining Community
+  trigger tests remain for later tasks. Do not deploy until CI or a dev machine runs the full suite
+  for this commit.
+
+### Task 2B implementation report — 2026-09-09
+
+- Changed: `CommunityServiceImpl` now emits `COMMUNITY_JOIN_REQUEST_OWNER` after saving a new or
+  reopened `PENDING` request for a PRIVATE community. The owner receives the requester name,
+  `COMMUNITY + communityId` navigation data, and a stable
+  `community-join-request:{communityId}:{requesterId}` dedupe key.
+- Behavior: existing pending requests, public joins, active joins, and owner self-requests stay
+  silent. Notification persistence remains after-commit and isolated from the membership action
+  through the notification foundation.
+- Tests/checks: added coverage for owner recipient selection, parameters, navigation metadata,
+  deduplication data, and silence for public/repeated pending joins. `git diff --check` is required
+  before commit. The targeted Gradle run was attempted, but this workspace stops before compilation
+  because it cannot establish Gradle's loopback connection; the user confirmed the previous Gradle
+  test run passed on their host.
+- API/Postman: no endpoint or response shape changed, so the Postman collection is unchanged for
+  this task.
+- Deferred: approval notification to the requester, fan-out to community admins, moderation,
+  reminders, durable outbox, and external push/email transports.
 
 ## Phase 3 — Finance triggers
 

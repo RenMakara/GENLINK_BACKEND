@@ -386,6 +386,11 @@ timeline, not a social product.
   an owner/admin approves via `GET/POST/DELETE /communities/{id}/join-requests[...]`,
   mirroring the Follow PENDING path. Pending users are not counted, not in the member
   list, and not served COMMUNITY-visibility posts until approved.
+- **Private join-request owner notification delivered (2026-09-09).** A new or reopened
+  pending request emits `COMMUNITY_JOIN_REQUEST_OWNER` after the membership row is saved,
+  with requester/community parameters, a `COMMUNITY + communityId` navigation reference,
+  and a recipient-scoped dedupe key. Approval notification to the requester and fan-out to
+  community admins remain deferred.
 - `user_settings.allow_follow_request` is still unused — PENDING keys off
   `privacyProfile` instead.
 
@@ -481,6 +486,10 @@ other order takes someone's money and then tells them the event is full. Pinned 
   `COMMUNITY_EVENT_RSVP_ORGANIZER` after the RSVP transaction, with the event
   navigation reference and a recipient-scoped dedupe key. Idempotent re-taps and
   organiser self-RSVPs do not create a notification.
+- **Private join-request owner notification delivered (2026-09-09).** New or reopened
+  pending requests notify the community owner with the community navigation reference and
+  dedupe key; repeated pending requests and public joins stay silent. Approval notification
+  to the requester remains deferred.
 - **No free/paid filter** on browse, though the columns now exist.
 - **No QR check-in.** `event_rsvps.checked_in` and `qr_code` exist, unused.
 - **No refund on cancel**, deliberately.

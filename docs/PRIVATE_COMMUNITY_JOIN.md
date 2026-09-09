@@ -121,10 +121,13 @@ second request:
 
 ## 7. Known limits / not built
 
-- **No request notification.** The owner is not told a request arrived; they must open the
-  join-requests list. Wiring the notification module here would be its first caller.
+- **Owner request notification delivered (2026-09-09).** A new or reopened PRIVATE join
+  request notifies the community owner after the pending membership row is saved. The
+  notification includes the requester/community details, `COMMUNITY + communityId` reference,
+  and a recipient-scoped dedupe key. Existing pending requests and public joins do not create
+  duplicates. Approval notification to the requester is not built yet.
 - **Rejection is not a block.** A rejected user can request again. A sticky blocklist would
   be a separate feature.
 - **Role promotion and ownership transfer are implemented** — see `COMMUNITY_ROLES.md`.
-  The remaining join-flow limits are the missing request notification and the fact that
+  The remaining join-flow limits are the missing approval notification and the fact that
   rejection is not a sticky block.

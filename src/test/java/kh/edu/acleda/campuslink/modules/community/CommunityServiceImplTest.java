@@ -13,6 +13,8 @@ import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.CommunityServiceImpl;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -50,19 +52,23 @@ class CommunityServiceImplTest {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID COMMUNITY_ID = UUID.randomUUID();
     private static final UUID REQUESTER_ID = UUID.randomUUID();
+    private static final UUID OWNER_ID = UUID.randomUUID();
 
     @Mock private CommunityRepository communityRepository;
     @Mock private CommunityMemberRepository memberRepository;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private NotificationEmitter notificationEmitter;
 
     private CommunityServiceImpl service;
     private User user;
+    private User owner;
     private Community community;
 
     @BeforeEach
     void setUp() {
-        service = new CommunityServiceImpl(communityRepository, memberRepository, userRepository, currentUserProvider);
+        service = new CommunityServiceImpl(
+            communityRepository, memberRepository, userRepository, currentUserProvider, notificationEmitter);
 
         user = new User();
         user.setEmail("user@example.com");
@@ -70,8 +76,14 @@ class CommunityServiceImplTest {
         user.setUsername("user");
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
+        owner = new User();
+        owner.setEmail("owner@example.com");
+        owner.setFullName("Community Owner");
+        owner.setUsername("owner");
+        ReflectionTestUtils.setField(owner, "id", OWNER_ID);
+
         community = Community.builder().name("Flutter KH").slug("flutter-kh")
-            .privacy(CommunityPrivacy.PUBLIC).memberCount(3).postCount(0).build();
+            .privacy(CommunityPrivacy.PUBLIC).createdByUser(owner).memberCount(3).postCount(0).build();
         ReflectionTestUtils.setField(community, "id", COMMUNITY_ID);
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
@@ -197,6 +209,7 @@ class CommunityServiceImplTest {
         assertThat(response.myRole()).isEqualTo(CommunityRole.MEMBER);
         assertThat(response.requestPending()).isFalse();
         verify(communityRepository).adjustMemberCount(COMMUNITY_ID, 1);
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     /**
@@ -222,6 +235,27 @@ class CommunityServiceImplTest {
     }
 
     @Test
+    void privateJoinRequestNotifiesCommunityOwnerWithReferenceAndDedupeData() {
+        community.setPrivacy(CommunityPrivacy.PRIVATE);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.empty());
+
+        service.join(COMMUNITY_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        NotificationRequest request = captor.getValue();
+        assertThat(request.recipientUserId()).isEqualTo(OWNER_ID);
+        assertThat(request.templateKey()).isEqualTo("COMMUNITY_JOIN_REQUEST_OWNER");
+        assertThat(request.type()).isEqualTo("COMMUNITY_JOIN_REQUEST");
+        assertThat(request.parameters())
+            .containsEntry("requesterName", "User")
+            .containsEntry("communityName", "Flutter KH");
+        assertThat(request.referenceType()).isEqualTo("COMMUNITY");
+        assertThat(request.referenceId()).isEqualTo(COMMUNITY_ID);
+        assertThat(request.dedupeKey()).isEqualTo("community-join-request:" + COMMUNITY_ID + ":" + USER_ID);
+    }
+
+    @Test
     void requestingToJoinAPrivateCommunityTwiceDoesNotDuplicateTheRequest() {
         community.setPrivacy(CommunityPrivacy.PRIVATE);
         when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID))
@@ -234,6 +268,7 @@ class CommunityServiceImplTest {
         assertThat(response.joined()).isFalse();
         verify(memberRepository, never()).save(any(CommunityMember.class));
         verify(communityRepository, never()).adjustMemberCount(any(), anyInt());
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     /** A previously-removed user re-requesting a PRIVATE community goes back through approval. */
