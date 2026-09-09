@@ -1,11 +1,11 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B and 2A-2E implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B and 2A-2F implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
-emission foundation and initial template seed; Community Tasks 2A-2E now wire event RSVP,
-private join-request, and community-post moderation triggers.
+emission foundation and initial template seed; Community Tasks 2A-2F now wire event RSVP,
+private join-request, community-post moderation, and forum-discussion moderation triggers.
 Last verified: 2026-09-09
 
 Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
@@ -181,8 +181,9 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   `COMMUNITY + communityId` and a recipient-scoped dedupe key.
 - [x] Community post removal by a moderator → notify the affected author with `POST + postId`,
   community name, moderation action, and a recipient-scoped dedupe key.
-- [ ] Forum discussion moderation → notify the affected author when the final product contract
-  defines the user-visible action.
+- [x] Forum discussion moderation → notify the affected author after an app admin removes the
+  discussion, including `DISCUSSION + discussionId`, discussion title, moderation action, and a
+  recipient-scoped dedupe key.
 - [ ] Event reminder → notify attendees through a scheduler only after reminder timing and
   dedupe rules are agreed.
 - [ ] Tests prove recipient selection, idempotency, and that a notification failure does not undo
@@ -275,6 +276,27 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   this task.
 - Deferred: forum discussion moderation notification, reminders, durable outbox, and external
   push/email transports.
+
+### Task 2F implementation report — 2026-09-09
+
+- Changed: `DiscussionServiceImpl.removeAsAdmin` now emits `FORUM_DISCUSSION_MODERATED` after an
+  app admin successfully soft-deletes a forum discussion. The author receives the discussion
+  title, `moderationAction=removed`, a `DISCUSSION + discussionId` navigation reference, and a
+  stable `forum-discussion-moderated:{discussionId}:{authorId}` dedupe key. Anonymous discussions
+  still notify the stored author; anonymity remains a public response rule.
+- Behavior: author-only deletion, report dismissal, missing discussions, and incomplete author
+  data do not emit this notification. Notification persistence remains after-commit and isolated
+  from the source moderation transaction.
+- Data: added Liquibase migration `0054-seed-forum-notification-template.sql` with the bilingual,
+  rerun-safe `FORUM_DISCUSSION_MODERATED` template and registered it in the master changelog.
+- Tests/checks: added coverage for recipient selection, template/type, parameters, navigation
+  metadata, deduplication data, no emission for missing/dismissed/self-delete paths, and template
+  migration structure. The targeted Gradle run remains blocked in this workspace before
+  compilation by `Unable to establish loopback connection`; the user confirmed `gradlew test`
+  passes on their host.
+- API/Postman: no endpoint or response shape changed, so the Postman collection is unchanged for
+  this task.
+- Deferred: event reminders, durable outbox, and external push/email transports.
 
 ## Phase 3 — Finance triggers
 

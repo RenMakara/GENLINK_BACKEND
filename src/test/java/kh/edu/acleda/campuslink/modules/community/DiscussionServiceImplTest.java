@@ -20,6 +20,8 @@ import kh.edu.acleda.campuslink.modules.community.repository.ForumCommentReposit
 import kh.edu.acleda.campuslink.modules.community.repository.ForumDiscussionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.DiscussionServiceImpl;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -29,6 +31,7 @@ import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -62,6 +65,7 @@ class DiscussionServiceImplTest {
     @Mock private DiscussionReportRepository reportRepository;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private NotificationEmitter notificationEmitter;
 
     private DiscussionServiceImpl service;
     private User author;
@@ -70,7 +74,7 @@ class DiscussionServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new DiscussionServiceImpl(discussionRepository, commentRepository, reactionRepository,
-            commentReactionRepository, reportRepository, userRepository, currentUserProvider);
+            commentReactionRepository, reportRepository, userRepository, currentUserProvider, notificationEmitter);
 
         author = new User();
         author.setEmail("author@example.com");
@@ -224,6 +228,7 @@ class DiscussionServiceImplTest {
         service.delete(DISCUSSION_ID);
 
         assertThat(discussion.getDeletedAt()).isNotNull();
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     @Test
@@ -263,10 +268,30 @@ class DiscussionServiceImplTest {
     }
 
     @Test
+    void adminRemovalNotifiesTheDiscussionAuthorWithReferenceAndDedupeData() {
+        service.removeAsAdmin(DISCUSSION_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        NotificationRequest request = captor.getValue();
+        assertThat(request.recipientUserId()).isEqualTo(AUTHOR_ID);
+        assertThat(request.templateKey()).isEqualTo("FORUM_DISCUSSION_MODERATED");
+        assertThat(request.type()).isEqualTo("FORUM_DISCUSSION_MODERATED");
+        assertThat(request.parameters())
+            .containsEntry("discussionTitle", "How do you stay focused?")
+            .containsEntry("moderationAction", "removed");
+        assertThat(request.referenceType()).isEqualTo("DISCUSSION");
+        assertThat(request.referenceId()).isEqualTo(DISCUSSION_ID);
+        assertThat(request.dedupeKey())
+            .isEqualTo("forum-discussion-moderated:" + DISCUSSION_ID + ":" + AUTHOR_ID);
+    }
+
+    @Test
     void adminRemovalOfAMissingDiscussionIsNotFound() {
         when(discussionRepository.findByIdAndDeletedAtIsNull(DISCUSSION_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.removeAsAdmin(DISCUSSION_ID)).isInstanceOf(NotFoundException.class);
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     @Test
@@ -275,6 +300,7 @@ class DiscussionServiceImplTest {
 
         verify(reportRepository).deleteByDiscussionId(DISCUSSION_ID);
         verify(discussionRepository).clearReportCount(DISCUSSION_ID);
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     // ---- Comments & replies ----

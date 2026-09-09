@@ -27,4 +27,21 @@ class NotificationTemplateSeedTest {
                 .contains("message_km");
         }
     }
+
+    @Test
+    void forumModerationTemplateIsBilingualAndRerunSafe() throws IOException {
+        try (InputStream stream = getClass().getResourceAsStream(
+            "/db/changelog/changes/0054-seed-forum-notification-template.sql")) {
+            assertThat(stream).as("forum moderation notification template migration").isNotNull();
+            String sql = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(sql)
+                .contains("FORUM_DISCUSSION_MODERATED")
+                .contains("{discussionTitle}")
+                .contains("{moderationAction}")
+                .contains("ON CONFLICT (template_key) DO NOTHING")
+                .contains("title_km")
+                .contains("message_km");
+        }
+    }
 }

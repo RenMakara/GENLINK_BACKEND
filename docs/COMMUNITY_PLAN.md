@@ -385,6 +385,10 @@ timeline, not a social product.
 - **Forum discussion moderation** — **done 2026-07-28** (ROLE_ADMIN queue). The forum is
   category-scoped, so it is an app-admin concern rather than a community-role one. See
   `FORUM_MODERATION.md`. Community moderation is now complete across posts and discussions.
+- **Forum discussion moderation notification delivered (2026-09-09).** A successful ROLE_ADMIN
+  removal notifies the stored discussion author with `FORUM_DISCUSSION_MODERATED`,
+  `DISCUSSION + discussionId` navigation metadata, discussion title, moderation action, and a
+  recipient-scoped dedupe key. Report dismissal and author self-deletion remain silent.
 - ~~**Private community membership is open**~~ — **fixed 2026-07-28.** `join` now
   gates on privacy: a PRIVATE community records a `MemberStatus.PENDING` request that
   an owner/admin approves via `GET/POST/DELETE /communities/{id}/join-requests[...]`,
