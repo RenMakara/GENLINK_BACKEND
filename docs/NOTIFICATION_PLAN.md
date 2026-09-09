@@ -1,12 +1,13 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, and 3A-3D implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, 3A-3D, and 4A implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
 emission foundation and initial template seed; Community Tasks 2A-2G now wire event RSVP,
 private join-request, moderation, and scheduled event-reminder triggers. Finance Tasks 3A-3D now
 wire budget threshold, saving-goal completion, auto-save run, and payment receipt alerts to finance mutations.
+Productivity Task 4A now wires configured task reminders to the same in-app notification path.
 Last verified: 2026-09-09
 
 Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
@@ -80,7 +81,8 @@ needed for reminders and scheduled jobs so a retry cannot create repeated rows.
 
 ### Current integration audit
 
-No domain currently calls `NotificationService` to emit a row. The existing Admin permissions
+Community, Finance, and Productivity trigger services now call the internal `NotificationEmitter`
+to emit rows after their source transactions. The existing Admin permissions
 `notification:send` and `notification:template:manage` are not proof of working Admin endpoints;
 Admin notification controllers are still pending. The Mobile BFF route
 `/api/v1/mobile/notifications` also remains `NOT_IMPLEMENTED`; Flutter can use the direct
@@ -418,13 +420,43 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 
 ## Phase 4 — Productivity, Entertainment, Security, and Admin triggers
 
-- [ ] Productivity task due/reminder, habit streak, and goal milestone.
+- [x] Productivity task reminder: every five minutes, scan incomplete, non-deleted tasks with a
+  configured `reminderTime` in the five-minute scheduler window and emit a deduplicated
+  `PRODUCTIVITY_TASK_DUE` notification with `TASK + taskId` navigation metadata.
+- [ ] Productivity habit streak and goal milestone.
 - [ ] Entertainment challenge completed and reward earned.
 - [ ] Security suspicious-login notification, only after the security event contract and privacy
   policy are approved.
 - [ ] Admin broadcast and notification-template management only after Admin controllers,
   permission checks, audit records, and recipient limits exist. The existing Admin permission
   constants alone do not satisfy this phase.
+
+### Task 4A implementation report — 2026-09-09
+
+- Changed: added `TaskReminderService`/`TaskReminderServiceImpl`, a repository query for live
+  incomplete tasks whose configured `reminderTime` falls within the scheduler window, and
+  `TaskReminderJob` running every five minutes in `Asia/Phnom_Penh`. The cron is configurable with
+  `TASK_REMINDER_CRON`; the existing `app.scheduling.enabled=false` switch disables it globally.
+- Trigger behavior: only tasks with an explicit `reminderTime` are eligible. Tasks without one do
+  not receive an automatic due-date reminder yet. The displayed `{dueAt}` uses `dueDate` when
+  present and falls back to `reminderTime` for reminder-only tasks. Completed, soft-deleted, or
+  incomplete task rows are skipped.
+- Notification data: reused the bilingual `PRODUCTIVITY_TASK_DUE` template from migration `0052`;
+  emitted rows use type `PRODUCTIVITY_TASK`, `TASK + taskId` navigation metadata, task title and
+  formatted due time parameters, and the stable
+  `task-reminder:{taskId}:{reminderTime}` dedupe key. Overlapping scans are therefore safe.
+- Failure isolation: a malformed task or emitter failure is logged per row; it does not stop the
+  rest of the sweep or affect the task domain transaction. Notification persistence remains
+  after-commit through the shared emitter.
+- Tests/checks: added service coverage for the query window, rendered parameters, fallback time,
+  navigation metadata, deduplication, invalid-row silence, and per-row failure isolation, plus
+  scheduler delegation/failure/cron/timezone coverage. `git diff --check` passed. The targeted
+  Gradle run remains blocked in this workspace before compilation by `Unable to establish loopback
+  connection`; no assertion failure was observed.
+- API/Postman: no endpoint, response shape, migration, or Postman request changed. The existing
+  task create/update contract already stores `reminderTime`.
+- Deferred: habit streak and goal milestone notifications, durable outbox/retry, distributed
+  scheduler locking, and external push/email delivery remain later work.
 
 ## Phase 5 — Mobile BFF and client contract
 

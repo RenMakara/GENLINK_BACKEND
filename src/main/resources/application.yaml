@@ -77,6 +77,10 @@ app:
     # Set empty scheduling globally with app.scheduling.enabled=false when needed.
     event-reminder-cron: ${EVENT_REMINDER_CRON:0 */5 * * * *}
 
+  productivity:
+    # Task reminders scan configured reminder_time values every five minutes.
+    task-reminder-cron: ${TASK_REMINDER_CRON:0 */5 * * * *}
+
   cors:
     # Origins allowed to call /api/v1/admin/** from a browser (SSOT 10.9).
     # Comma-separated full origins: https://admin.genlink.kh,http://localhost:3000
