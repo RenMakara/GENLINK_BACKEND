@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B and 2A/2B implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B and 2A-2C implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -176,7 +176,8 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   self-RSVPs and idempotent re-taps do not emit a row.
 - [x] Private community join request → notify the community owner after a new or reopened pending
   request, including `COMMUNITY + communityId`, requester name, and a recipient-scoped dedupe key.
-- [ ] Join-request approval → notify the requester.
+- [x] Join-request approval → notify the requester after `PENDING → ACTIVE`, including
+  `COMMUNITY + communityId` and a recipient-scoped dedupe key.
 - [ ] Post/discussion moderation action → notify the affected author when the product contract
   defines a user-visible action.
 - [ ] Event reminder → notify attendees through a scheduler only after reminder timing and
@@ -196,7 +197,7 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   the previous Gradle test run passed; this environment could not execute the new Gradle run because
   the wrapper stops before compilation with `Unable to establish loopback connection`.
 - API/Postman: no endpoint shape changed, so the collection requires no new request for this task.
-- Deferred: join-request approval notification, moderation, reminders, and the remaining Community
+- Deferred: join-request owner/admin fan-out, moderation, reminders, and the remaining Community
   trigger tests remain for later tasks. Do not deploy until CI or a dev machine runs the full suite
   for this commit.
 
@@ -216,8 +217,27 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   test run passed on their host.
 - API/Postman: no endpoint or response shape changed, so the Postman collection is unchanged for
   this task.
-- Deferred: approval notification to the requester, fan-out to community admins, moderation,
-  reminders, durable outbox, and external push/email transports.
+- Deferred: fan-out to community admins, moderation, reminders, durable outbox, and external
+  push/email transports.
+
+### Task 2C implementation report — 2026-09-09
+
+- Changed: `CommunityServiceImpl.approveJoinRequest` now emits
+  `COMMUNITY_JOIN_REQUEST_ACCEPTED` after the pending member is activated, `joinedAt` is stamped,
+  and the community member count is incremented. The requester receives the community name,
+  `COMMUNITY + communityId` navigation data, and a stable
+  `community-join-request-accepted:{communityId}:{requesterId}` dedupe key.
+- Behavior: only a valid `PENDING` request can be approved, so repeated approval attempts remain
+  not-found and do not emit another notification. Notification persistence remains after-commit
+  and isolated from the membership action through the notification foundation.
+- Tests/checks: added coverage for requester selection, template/type, parameters, navigation
+  metadata, deduplication data, and no emission for non-pending approval. The user confirmed
+  `gradlew test` passed for the previous task; this task's targeted run must also be confirmed on
+  a normal development host because this workspace cannot establish Gradle's loopback connection.
+- API/Postman: no endpoint or response shape changed, so the Postman collection is unchanged for
+  this task.
+- Deferred: notification fan-out to community admins, moderation, reminders, durable outbox, and
+  external push/email transports.
 
 ## Phase 3 — Finance triggers
 

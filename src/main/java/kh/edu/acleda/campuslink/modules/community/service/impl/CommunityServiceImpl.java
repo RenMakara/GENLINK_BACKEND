@@ -44,6 +44,8 @@ public class CommunityServiceImpl implements CommunityService {
     private static final Set<CommunityRole> CAN_MANAGE = EnumSet.of(CommunityRole.OWNER, CommunityRole.ADMIN);
     private static final String JOIN_REQUEST_NOTIFICATION_TEMPLATE = "COMMUNITY_JOIN_REQUEST_OWNER";
     private static final String JOIN_REQUEST_NOTIFICATION_TYPE = "COMMUNITY_JOIN_REQUEST";
+    private static final String JOIN_REQUEST_ACCEPTED_NOTIFICATION_TEMPLATE = "COMMUNITY_JOIN_REQUEST_ACCEPTED";
+    private static final String JOIN_REQUEST_ACCEPTED_NOTIFICATION_TYPE = "COMMUNITY_JOIN_REQUEST_ACCEPTED";
 
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository memberRepository;
@@ -312,13 +314,14 @@ public class CommunityServiceImpl implements CommunityService {
     @Override
     @Transactional
     public CommunityMemberResponse approveJoinRequest(UUID communityId, UUID userId) {
-        loadManageable(communityId);
+        Community community = loadManageable(communityId);
         CommunityMember member = pendingRequest(communityId, userId);
         member.setStatus(MemberStatus.ACTIVE);
         member.setJoinedAt(Instant.now());
         memberRepository.save(member);
         // The count moves only now: a pending request never incremented it.
         communityRepository.adjustMemberCount(communityId, 1);
+        emitJoinRequestAcceptedNotification(communityId, community, member.getUser());
         log.info("Join request approved: community={} user={} by manager={}",
             communityId, userId, currentUserProvider.getCurrentUserId());
         return toMemberResponse(member);
@@ -452,6 +455,23 @@ public class CommunityServiceImpl implements CommunityService {
             "COMMUNITY",
             communityId,
             "community-join-request:" + communityId + ":" + requester.getId()));
+    }
+
+    private void emitJoinRequestAcceptedNotification(UUID communityId, Community community, User requester) {
+        if (requester == null || requester.getId() == null || isBlank(community.getName()) || communityId == null) {
+            log.warn("Skipping community approval notification because details are incomplete: community={} user={}",
+                communityId, requester == null ? null : requester.getId());
+            return;
+        }
+
+        notificationEmitter.emit(new NotificationRequest(
+            requester.getId(),
+            JOIN_REQUEST_ACCEPTED_NOTIFICATION_TEMPLATE,
+            JOIN_REQUEST_ACCEPTED_NOTIFICATION_TYPE,
+            Map.of("communityName", community.getName()),
+            "COMMUNITY",
+            communityId,
+            "community-join-request-accepted:" + communityId + ":" + requester.getId()));
     }
 
     private boolean isBlank(String value) {

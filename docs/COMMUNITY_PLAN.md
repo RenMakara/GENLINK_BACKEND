@@ -389,8 +389,11 @@ timeline, not a social product.
 - **Private join-request owner notification delivered (2026-09-09).** A new or reopened
   pending request emits `COMMUNITY_JOIN_REQUEST_OWNER` after the membership row is saved,
   with requester/community parameters, a `COMMUNITY + communityId` navigation reference,
-  and a recipient-scoped dedupe key. Approval notification to the requester and fan-out to
-  community admins remain deferred.
+  and a recipient-scoped dedupe key.
+- **Private join-request approval notification delivered (2026-09-09).** Approving a pending
+  request emits `COMMUNITY_JOIN_REQUEST_ACCEPTED` to the requester after the member becomes
+  ACTIVE and the count is incremented, with a `COMMUNITY + communityId` reference and dedupe key.
+  Fan-out to community admins remains deferred.
 - `user_settings.allow_follow_request` is still unused — PENDING keys off
   `privacyProfile` instead.
 
@@ -488,8 +491,10 @@ other order takes someone's money and then tells them the event is full. Pinned 
   organiser self-RSVPs do not create a notification.
 - **Private join-request owner notification delivered (2026-09-09).** New or reopened
   pending requests notify the community owner with the community navigation reference and
-  dedupe key; repeated pending requests and public joins stay silent. Approval notification
-  to the requester remains deferred.
+  dedupe key; repeated pending requests and public joins stay silent.
+- **Private join-request approval notification delivered (2026-09-09).** A valid approval
+  notifies the requester with the community navigation reference and dedupe key; repeated
+  approval attempts are not-found and stay silent. Admin fan-out remains deferred.
 - **No free/paid filter** on browse, though the columns now exist.
 - **No QR check-in.** `event_rsvps.checked_in` and `qr_code` exist, unused.
 - **No refund on cancel**, deliberately.

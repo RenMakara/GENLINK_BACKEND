@@ -94,8 +94,11 @@ Rejoining reuses the existing row — `UNIQUE(community_id, user_id)` forbids a 
 ### Approve (`POST /{id}/join-requests/{userId}/approve`)
 
 Sets the pending member to `ACTIVE`, stamps `joinedAt`, and increments `memberCount`
-(the count moves only now — a pending request never incremented it). Returns the new
-member as a `CommunityMemberResponse`. If there is no pending request for that user, 404.
+(the count moves only now — a pending request never incremented it). It then emits the
+`COMMUNITY_JOIN_REQUEST_ACCEPTED` in-app notification to the requester with a
+`COMMUNITY + communityId` reference and dedupe key. Returns the new member as a
+`CommunityMemberResponse`. If there is no pending request for that user, 404 and no
+notification is emitted.
 
 ### Reject (`DELETE /{id}/join-requests/{userId}`)
 
@@ -125,9 +128,11 @@ second request:
   request notifies the community owner after the pending membership row is saved. The
   notification includes the requester/community details, `COMMUNITY + communityId` reference,
   and a recipient-scoped dedupe key. Existing pending requests and public joins do not create
-  duplicates. Approval notification to the requester is not built yet.
+  duplicates.
+- **Approval notification delivered (2026-09-09).** A valid approval notifies the requester
+  after they become an ACTIVE member, with the community navigation reference and dedupe key.
+  Notification fan-out to all community admins is not built yet.
 - **Rejection is not a block.** A rejected user can request again. A sticky blocklist would
   be a separate feature.
 - **Role promotion and ownership transfer are implemented** — see `COMMUNITY_ROLES.md`.
-  The remaining join-flow limits are the missing approval notification and the fact that
-  rejection is not a sticky block.
+  The remaining join-flow limit is that rejection is not a sticky block.

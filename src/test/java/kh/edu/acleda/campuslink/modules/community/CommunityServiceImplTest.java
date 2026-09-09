@@ -301,6 +301,27 @@ class CommunityServiceImplTest {
     }
 
     @Test
+    void approvingAPendingRequestNotifiesTheRequesterWithCommunityReferenceAndDedupeData() {
+        givenCurrentUserIsOwner();
+        CommunityMember pending = pendingRequestFrom(REQUESTER_ID);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID)).thenReturn(Optional.of(pending));
+
+        service.approveJoinRequest(COMMUNITY_ID, REQUESTER_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        NotificationRequest request = captor.getValue();
+        assertThat(request.recipientUserId()).isEqualTo(REQUESTER_ID);
+        assertThat(request.templateKey()).isEqualTo("COMMUNITY_JOIN_REQUEST_ACCEPTED");
+        assertThat(request.type()).isEqualTo("COMMUNITY_JOIN_REQUEST_ACCEPTED");
+        assertThat(request.parameters()).containsEntry("communityName", "Flutter KH");
+        assertThat(request.referenceType()).isEqualTo("COMMUNITY");
+        assertThat(request.referenceId()).isEqualTo(COMMUNITY_ID);
+        assertThat(request.dedupeKey())
+            .isEqualTo("community-join-request-accepted:" + COMMUNITY_ID + ":" + REQUESTER_ID);
+    }
+
+    @Test
     void rejectingAPendingRequestMarksItRemovedWithoutCounting() {
         givenCurrentUserIsOwner();
         CommunityMember pending = pendingRequestFrom(REQUESTER_ID);
@@ -323,6 +344,7 @@ class CommunityServiceImplTest {
         assertThatThrownBy(() -> service.approveJoinRequest(COMMUNITY_ID, REQUESTER_ID))
             .isInstanceOf(NotFoundException.class);
         verify(communityRepository, never()).adjustMemberCount(any(), anyInt());
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     /** Managing join requests is owner/admin only; a plain member is told not-found, not forbidden. */
