@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, and 4A-4E implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, while local Codex Gradle execution remains blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, and 4A-4F implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -9,8 +9,9 @@ private join-request, moderation, and scheduled event-reminder triggers. Finance
 wire budget threshold, saving-goal completion, auto-save run, and payment receipt alerts to finance mutations.
 Productivity Tasks 4A-4C now wire configured task reminders, completed habit streak updates, and
 goal milestone completion to the same in-app notification path. Entertainment Task 4D now wires
-claimed challenge rewards to that path as well.
-Last verified: 2026-09-09
+claimed challenge rewards to that path as well. Security Task 4E now alerts on unfamiliar login
+context, and Admin Task 4F now provides audited broadcast and `ADMIN_` template management.
+Last verified: 2026-09-10
 
 Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
 transport layer behind the same emit API). Cadence: **one phase per turn**, each compiled + tested +
@@ -72,7 +73,9 @@ needed for reminders and scheduled jobs so a retry cannot create repeated rows.
 ### Boundaries and rules
 
 - Source modules publish facts; they do not format localized text.
-- Notification templates are seeded and versioned by Liquibase, not created by frontend input.
+- Domain-trigger templates are seeded and versioned by Liquibase. Admin broadcast templates are
+  the explicit exception: they are created/updated only through the audited Admin API in the
+  reserved `ADMIN_` namespace.
 - Template keys and notification types are stable API contracts.
 - The recipient is always explicit; never infer it from the current request after a queued event.
 - Reads remain owner-scoped and another user's notification id returns not-found.
@@ -83,10 +86,10 @@ needed for reminders and scheduled jobs so a retry cannot create repeated rows.
 
 ### Current integration audit
 
-Community, Finance, and Productivity trigger services now call the internal `NotificationEmitter`
-to emit rows after their source transactions. The existing Admin permissions
-`notification:send` and `notification:template:manage` are not proof of working Admin endpoints;
-Admin notification controllers are still pending. The Mobile BFF route
+Community, Finance, Productivity, Entertainment, Security, and Admin broadcast services now call
+the internal `NotificationEmitter` to emit rows after their source transactions. Admin
+notification endpoints enforce `notification:send` and `notification:template:manage`, record
+success/failure audit rows, and cap fan-out at 500 active recipients. The Mobile BFF route
 `/api/v1/mobile/notifications` also remains `NOT_IMPLEMENTED`; Flutter can use the direct
 `/api/v1/notifications` read API until the BFF phase lands.
 
@@ -452,9 +455,31 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - [x] Security suspicious-login notification: after a prior successful login with complete context,
   a successful password or Google login from an unseen IP + User-Agent emits one in-app alert with
   `SECURITY + userId` navigation metadata. First-ever logins and failed logins stay silent.
-- [ ] Admin broadcast and notification-template management only after Admin controllers,
-  permission checks, audit records, and recipient limits exist. The existing Admin permission
-  constants alone do not satisfy this phase.
+- [x] Task 4F — Admin broadcast and notification-template management. The existing Admin
+  permission constants alone do not satisfy this phase: the API must enforce permissions,
+  write audit records, and cap the recipient population.
+
+### Task 4F contract — Admin broadcast and managed templates
+
+- Broadcast: `POST /api/v1/admin/notifications/broadcast` requires
+  `PERM_notification:send`. The request selects an existing `ADMIN_...` template, supplies
+  bounded placeholder parameters, and targets either `ALL_ACTIVE` users or an explicit set of
+  active user ids. The hard server-side recipient limit is 500; a selected audience containing a
+  missing, inactive, or deleted user is rejected rather than partially sent.
+- Template management: `GET`, `POST`, and `PUT` under
+  `/api/v1/admin/notifications/templates` require
+  `PERM_notification:template:manage`. Keys are immutable, must match the `ADMIN_` namespace,
+  and cannot be deleted. Domain-trigger templates remain Liquibase-owned so an admin broadcast
+  cannot silently change RSVP, payment, moderation, or security wording.
+- Safety and consistency: the service pre-validates both localized render paths before publishing
+  one after-commit notification event per recipient. Each broadcast gets a batch id and a
+  recipient-scoped dedupe key; writer failures remain isolated from the admin request's source
+  transaction. The response reports accepted recipients, not external delivery.
+- Audit: successful template creates/updates and broadcasts record action, reason, target and
+  batch metadata through `AdminAuditService`; validation and recipient-selection failures are
+  recorded in a separate transaction before the API error is returned.
+- Out of scope: editing seeded module templates, direct notification-row writes, external
+  push/email delivery, scheduling, and unlimited or partially accepted broadcasts.
 
 ### Task 4A implementation report — 2026-09-09
 
@@ -581,6 +606,33 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   seeds the bilingual template.
 - Deferred: admin broadcast/template management, durable outbox/retry, preferences/quiet hours,
   and push/email delivery remain later work.
+
+### Task 4F implementation report — 2026-09-10
+
+- Changed: added `AdminNotificationController` and `AdminNotificationService` for listing,
+  creating, and updating broadcast-only templates, plus `POST /api/v1/admin/notifications/broadcast`.
+  Template keys are immutable and restricted to the reserved `ADMIN_` namespace; seeded
+  module-trigger templates remain Liquibase-owned and are not exposed for runtime edits.
+- Safety and recipient behavior: broadcasts require the `notification:send` permission and an
+  audit reason, pre-validate both English and Khmer rendering paths, accept either all active
+  users or an explicit list, reject missing/inactive/deleted/duplicate recipients without a
+  partial send, and enforce a hard maximum of 500 recipients. One after-commit emitter request
+  is published per recipient with a batch-scoped dedupe key; the response reports accepted
+  recipients, not external delivery.
+- Audit behavior: template creates/updates and successful broadcasts use `AdminAuditService`
+  with target/batch metadata. Validation, template, recipient, and persistence failures use
+  independent failure audit rows before the API error is returned.
+- API/Postman: added the three template endpoints and broadcast examples to
+  `docs/GenLinkKH.postman_collection.json`; no external push/email transport or mobile BFF
+  response was changed.
+- Tests/checks: added service coverage for selected fan-out, the 500-recipient limit, inactive
+  recipient rejection, namespace enforcement, bilingual placeholder validation, and audit
+  calls. Postman JSON parsing and `git diff --check` passed. The targeted Gradle run was
+  attempted with the wrapper and elevated network access, but this workspace stopped before
+  compilation with `Unable to establish loopback connection`; no assertion failure was observed.
+  Run full `gradlew test` on the development host/CI before release.
+- Deferred: Mobile BFF, preference/quiet-hour enforcement, durable outbox/retry, and external
+  push/email delivery remain later phases.
 
 ## Phase 5 — Mobile BFF and client contract
 

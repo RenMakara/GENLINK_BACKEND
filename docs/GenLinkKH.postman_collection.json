@@ -213,6 +213,14 @@
     {
       "key": "adminTotpCode",
       "value": ""
+    },
+    {
+      "key": "adminTemplateKey",
+      "value": "ADMIN_MAINTENANCE"
+    },
+    {
+      "key": "adminUserId",
+      "value": ""
     }
   ],
   "event": [
@@ -2372,6 +2380,224 @@
         }
       ],
       "description": "Admin portal authentication (SSOT 8.1). Runs end to end with no copy-paste.\n\nSET FIRST: {{adminEmail}}, {{adminPassword}}.\n\nFIRST-TIME ADMIN (never enrolled) - run in order:\n  1. Admin Login            -> captures {{adminChallengeToken}}\n  2. MFA Enrol              -> captures {{adminTotpSecret}}, prints the otpauth:// URI\n  3. MFA Confirm            -> code auto-generated; returns 10 recovery codes. SAVE THEM.\n  4. MFA Verify             -> captures {{adminAccessToken}} + {{adminRefreshToken}}\n  5. Me                     -> identity + resolved permissions\nThe challenge lives 5 minutes. If steps 2-4 take longer, re-run Admin Login.\n\nALREADY-ENROLLED ADMIN - the normal case:\n  1. Admin Login   2. MFA Verify   3. Me\nMFA Enrol will refuse with ADMIN_MFA_ALREADY_ENROLLED, which is correct.\n\n  For the code to be auto-generated you need {{adminTotpSecret}} set. It is\n  returned exactly once, at enrolment, so if you enrolled elsewhere paste it in\n  by hand ONCE - that is setup, not per-request copy-paste. Otherwise replace\n  {{adminTotpCode}} in the body with a code from your authenticator.\n\nHOW THE CODE IS GENERATED\n  A pre-request script on Confirm / Verify / Sudo computes RFC 6238 TOTP from\n  {{adminTotpSecret}} using crypto-js. It was verified against the RFC 6238\n  Appendix B vectors before being committed.\n\nSUDO-GATED REQUESTS\n  'Regenerate recovery codes' answers 403 ADMIN_SUDO_REQUIRED until you run\n  'Sudo'. That 403 is worth seeing once - it is the control that bounds what an\n  unattended, unlocked laptop can do (SSOT 10.7).\n\nWHAT THE STATUS CODES MEAN HERE\n  Admin Login answers 401 ADMIN_MFA_REQUIRED on SUCCESS. The caller is not\n  authenticated yet - they hold a challenge, which grants nothing on its own."
+    },
+    {
+      "name": "Admin Notifications",
+      "description": "Admin-only notification controls. Run Admin Auth first and set {{adminAccessToken}}. Template keys must use the ADMIN_ namespace; seeded module templates cannot be changed here. Broadcasts are in-app only, audited, and capped at 500 active recipients.",
+      "item": [
+        {
+          "name": "List admin broadcast templates",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/notifications/templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "notifications",
+                "templates"
+              ]
+            },
+            "description": "Requires notification:template:manage. Lists only mutable ADMIN_ templates."
+          }
+        },
+        {
+          "name": "Create admin broadcast template",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateKey\": \"{{adminTemplateKey}}\",\n  \"titleEn\": \"GenLinkKH maintenance\",\n  \"titleKm\": \"ការថែទាំ GenLinkKH\",\n  \"messageEn\": \"The service will be unavailable from {window}.\",\n  \"messageKm\": \"សេវានឹងមិនអាចប្រើបានចាប់ពី {window}។\",\n  \"reason\": \"planned platform maintenance\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/notifications/templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "notifications",
+                "templates"
+              ]
+            },
+            "description": "The key is immutable and must match ADMIN_[A-Z0-9...]. English and Khmer must use the same placeholders."
+          }
+        },
+        {
+          "name": "Update admin broadcast template",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titleEn\": \"GenLinkKH maintenance updated\",\n  \"titleKm\": \"បានធ្វើបច្ចុប្បន្នភាពការថែទាំ GenLinkKH\",\n  \"messageEn\": \"The service will be unavailable from {window}.\",\n  \"messageKm\": \"សេវានឹងមិនអាចប្រើបានចាប់ពី {window}។\",\n  \"reason\": \"corrected maintenance wording\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/notifications/templates/{{adminTemplateKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "notifications",
+                "templates",
+                "{{adminTemplateKey}}"
+              ]
+            },
+            "description": "Updates localized text only; the template key cannot be changed or deleted."
+          }
+        },
+        {
+          "name": "Broadcast to selected active users",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateKey\": \"{{adminTemplateKey}}\",\n  \"audience\": \"SELECTED\",\n  \"recipientUserIds\": [\"{{adminUserId}}\"],\n  \"parameters\": {\n    \"window\": \"22:00 Phnom Penh time\"\n  },\n  \"reason\": \"notify selected test users\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/notifications/broadcast",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "notifications",
+                "broadcast"
+              ]
+            },
+            "description": "Every selected id must belong to an ACTIVE, non-deleted user. Duplicate, missing, inactive, or deleted ids are rejected; no partial send occurs."
+          }
+        },
+        {
+          "name": "Broadcast to all active users",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"templateKey\": \"{{adminTemplateKey}}\",\n  \"audience\": \"ALL_ACTIVE\",\n  \"parameters\": {\n    \"window\": \"22:00 Phnom Penh time\"\n  },\n  \"reason\": \"notify all users about maintenance\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/notifications/broadcast",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "notifications",
+                "broadcast"
+              ]
+            },
+            "description": "The server accepts the broadcast only when the current active, non-deleted population is between 1 and 500. The response reports accepted recipients, not email or push delivery."
+          }
+        }
+      ]
     },
     {
       "name": "Community",
