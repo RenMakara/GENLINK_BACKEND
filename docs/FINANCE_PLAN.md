@@ -4,7 +4,7 @@ Status: Phases 1-6 all done. Owner: Sela (Finance, per Team Assignment v5).
 Order note: 5 and 6 were done before 4 (5 unblocks Community paid RSVP; 6 only needs
 the finished phases). Phase 4 detail lives in backend/docs/FINANCE_LITERACY_PLAN.md.
 Scope: backend only. Payments are simulation only — no real banking, no real KHQR.
-Last verified: 2026-09-06
+Last verified: 2026-09-09
 
 ---
 
@@ -60,6 +60,11 @@ No dependencies. Everything else reads from expenses.
       (ExpenseRepository.sumForMonth for total, sumByCategory per category).
 - [x] Budget alert = status SAFE / WARNING / LIMIT_REACHED from spent vs total
       (WARNING at >= 80%, LIMIT_REACHED at >= 100%).
+- [x] **Budget threshold notifications** (2026-09-09): expense create/update evaluates live
+      same-currency spend and emits a deduplicated in-app alert when the budget crosses 80% or
+      100%. The alert is after the successful expense/wallet operation, so a rejected wallet debit
+      cannot create a false notification. Budget state remains live and the existing 0052 bilingual
+      notification templates are reused.
 - [x] `GET /budgets` list (light, no categories); `GET /budgets/current?currency=`,
       `GET /budgets/{id}` (with category breakdown). Tests.
 

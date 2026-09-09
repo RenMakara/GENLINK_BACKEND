@@ -1,11 +1,12 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B and 2A-2G implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, and 3A implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
 emission foundation and initial template seed; Community Tasks 2A-2G now wire event RSVP,
-private join-request, moderation, and scheduled event-reminder triggers.
+private join-request, moderation, and scheduled event-reminder triggers. Finance Task 3A now
+wires budget threshold alerts to expense mutations.
 Last verified: 2026-09-09
 
 Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
@@ -327,12 +328,31 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 
 ## Phase 3 — Finance triggers
 
-- [ ] Budget approaching limit and budget exceeded. Decide whether the trigger is expense-create,
-  a daily scheduler, or both; dedupe repeated alerts.
+- [x] Budget approaching limit and budget exceeded. The chosen trigger is expense create/update:
+  live same-currency spend is evaluated after a successful mutation, and recipient-scoped dedupe
+  keys prevent repeated approaching/exceeded rows for the same budget.
 - [ ] Saving goal reached.
 - [ ] Auto-save applied and auto-save skipped for insufficient funds.
 - [ ] Simulated event/payment receipt where the user should see a ledger confirmation.
 - [ ] Tests for USD/KHR context where a financial notification includes an amount or currency.
+
+### Task 3A implementation report — 2026-09-09
+
+- Changed: added `BudgetAlertService` and `BudgetAlertServiceImpl`. Expense create/update now
+  capture the budget status before mutation and evaluate live spend after the wallet/expense
+  operation succeeds. Alerts are emitted only when a budget crosses SAFE → WARNING (at 80%) or
+  WARNING → LIMIT_REACHED (at 100%); deletions and repeated spends do not emit alerts.
+- Currency and navigation: budgets are matched by user, month, year, and currency, so USD and KHR
+  spend never mix. The notification recipient is the budget owner and each row carries
+  `BUDGET + budgetId` plus a stable alert-specific dedupe key.
+- Data/API: reused the bilingual templates from migration `0052`; no new migration, endpoint,
+  response contract, or Postman request was required.
+- Tests/checks: added budget threshold and expense integration unit coverage. `git diff --check`
+  passed. The targeted Gradle command was attempted but this workspace stops before compilation
+  with `Unable to establish loopback connection`; no assertion failure was observed. Run
+  `gradlew test` on the development host/CI before release.
+- Deferred: saving-goal, auto-save, payment-receipt, and USD/KHR notification test coverage remain
+  in the rest of Phase 3. Durable outbox/retry and external push/email delivery remain later phases.
 
 ## Phase 4 — Productivity, Entertainment, Security, and Admin triggers
 

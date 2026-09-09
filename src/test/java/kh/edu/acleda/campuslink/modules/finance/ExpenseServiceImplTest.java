@@ -9,8 +9,10 @@ import kh.edu.acleda.campuslink.modules.finance.dto.request.ExpenseCreateRequest
 import kh.edu.acleda.campuslink.modules.finance.dto.response.MonthlySummaryResponse;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.entity.Expense;
+import kh.edu.acleda.campuslink.modules.finance.enums.BudgetStatus;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.repository.ExpenseRepository;
+import kh.edu.acleda.campuslink.modules.finance.service.BudgetAlertService;
 import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.finance.service.impl.ExpenseServiceImpl;
@@ -50,6 +52,7 @@ class ExpenseServiceImplTest {
     @Mock private ExpenseRepository expenseRepository;
     @Mock private DemoWalletService demoWalletService;
     @Mock private LedgerService ledgerService;
+    @Mock private BudgetAlertService budgetAlertService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -60,7 +63,7 @@ class ExpenseServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new ExpenseServiceImpl(expenseRepository, demoWalletService, ledgerService,
-            userRepository, currentUserProvider);
+            budgetAlertService, userRepository, currentUserProvider);
         user = new User();
         user.setEmail("user@example.com");
         ReflectionTestUtils.setField(user, "id", USER_ID);
@@ -105,6 +108,19 @@ class ExpenseServiceImplTest {
 
         verify(ledgerService).debit(eq(wallet), eq(TransactionType.EXPENSE), eq(Currency.USD),
             eq(new BigDecimal("4.00")), any(), eq("EXPENSE"), any());
+    }
+
+    @Test
+    void createEvaluatesBudgetAfterTheExpenseSucceeds() {
+        LocalDate expenseDate = LocalDate.of(2026, 9, 15);
+        when(budgetAlertService.statusBeforeExpenseMutation(USER_ID, expenseDate, Currency.USD))
+            .thenReturn(BudgetStatus.SAFE);
+
+        service.create(new ExpenseCreateRequest(
+            "Coffee", new BigDecimal("2.50"), "FOOD", null, expenseDate, "CASH", null, null));
+
+        verify(budgetAlertService).statusBeforeExpenseMutation(USER_ID, expenseDate, Currency.USD);
+        verify(budgetAlertService).evaluateAfterExpenseMutation(any(Expense.class), eq(BudgetStatus.SAFE));
     }
 
     /** month + year together route to the date-range query. */
