@@ -15,6 +15,7 @@ import kh.edu.acleda.campuslink.modules.productivity.entity.GoalMilestone;
 import kh.edu.acleda.campuslink.modules.productivity.repository.GoalMilestoneRepository;
 import kh.edu.acleda.campuslink.modules.productivity.repository.GoalRepository;
 import kh.edu.acleda.campuslink.modules.productivity.service.GoalService;
+import kh.edu.acleda.campuslink.modules.productivity.service.GoalMilestoneNotifier;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
@@ -31,15 +32,18 @@ public class GoalServiceImpl implements GoalService {
 
     private final GoalRepository goalRepository;
     private final GoalMilestoneRepository milestoneRepository;
+    private final GoalMilestoneNotifier goalMilestoneNotifier;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public GoalServiceImpl(GoalRepository goalRepository,
                            GoalMilestoneRepository milestoneRepository,
+                           GoalMilestoneNotifier goalMilestoneNotifier,
                            UserRepository userRepository,
                            CurrentUserProvider currentUserProvider) {
         this.goalRepository = goalRepository;
         this.milestoneRepository = milestoneRepository;
+        this.goalMilestoneNotifier = goalMilestoneNotifier;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -111,10 +115,16 @@ public class GoalServiceImpl implements GoalService {
         Goal goal = loadOwned(goalId);
         GoalMilestone milestone = milestoneRepository.findByIdAndGoalId(milestoneId, goalId)
             .orElseThrow(() -> new NotFoundException("Milestone not found"));
+        boolean wasCompleted = Boolean.TRUE.equals(milestone.getCompleted());
         milestone.setCompleted(completed);
         milestone.setCompletedAt(completed ? LocalDateTime.now() : null);
         milestoneRepository.save(milestone);
-        return syncAndRespond(goal);
+        GoalResponse response = syncAndRespond(goal);
+        if (completed && !wasCompleted) {
+            goalMilestoneNotifier.notifyForCompletedMilestone(
+                goal, milestone, response.progressPercentage());
+        }
+        return response;
     }
 
     @Override

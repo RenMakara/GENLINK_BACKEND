@@ -124,3 +124,6 @@ _en/_km + LanguageResolver.
 - [x] Habit streak notifications (2026-09-09) are emitted after a successful incomplete →
   completed check-in. The notification uses the live streak computed from `habit_check_ins`,
   while repeated completion and undo remain silent; the existing check-in API is unchanged.
+- [x] Goal milestone notifications (2026-09-09) are emitted after a successful incomplete →
+  completed milestone update, with the goal's recomputed progress and `GOAL + goalId` navigation;
+  repeated completion and reopening remain silent; the existing milestone API is unchanged.

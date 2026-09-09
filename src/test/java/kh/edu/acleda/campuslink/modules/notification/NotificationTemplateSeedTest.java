@@ -102,4 +102,22 @@ class NotificationTemplateSeedTest {
                 .contains("message_km");
         }
     }
+
+    @Test
+    void goalMilestoneTemplateIsBilingualAndRerunSafe() throws IOException {
+        try (InputStream stream = getClass().getResourceAsStream(
+            "/db/changelog/changes/0058-seed-goal-milestone-notification-template.sql")) {
+            assertThat(stream).as("goal milestone notification template migration").isNotNull();
+            String sql = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(sql)
+                .contains("PRODUCTIVITY_GOAL_MILESTONE")
+                .contains("{milestoneTitle}")
+                .contains("{goalTitle}")
+                .contains("{progressPercent}")
+                .contains("ON CONFLICT (template_key) DO NOTHING")
+                .contains("title_km")
+                .contains("message_km");
+        }
+    }
 }

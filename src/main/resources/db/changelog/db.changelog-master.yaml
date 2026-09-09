@@ -113,3 +113,5 @@ databaseChangeLog:
       file: db/changelog/changes/0056-seed-auto-save-notification-templates.sql
   - include:
       file: db/changelog/changes/0057-seed-payment-receipt-notification-templates.sql
+  - include:
+      file: db/changelog/changes/0058-seed-goal-milestone-notification-template.sql

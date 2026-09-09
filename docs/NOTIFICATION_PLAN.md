@@ -1,14 +1,14 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, 3A-3D, 4A, and 4B implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2G, 3A-3D, and 4A-4C implementation complete; the user confirmed `gradlew test` build success for Task 4B, while local Codex Gradle execution remains blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
 emission foundation and initial template seed; Community Tasks 2A-2G now wire event RSVP,
 private join-request, moderation, and scheduled event-reminder triggers. Finance Tasks 3A-3D now
 wire budget threshold, saving-goal completion, auto-save run, and payment receipt alerts to finance mutations.
-Productivity Tasks 4A-4B now wire configured task reminders and completed habit streak updates to
-the same in-app notification path.
+Productivity Tasks 4A-4C now wire configured task reminders, completed habit streak updates, and
+goal milestone completion to the same in-app notification path.
 Last verified: 2026-09-09
 
 Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
@@ -426,7 +426,8 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   `PRODUCTIVITY_TASK_DUE` notification with `TASK + taskId` navigation metadata.
 - [x] Productivity habit streak: a successful incomplete → completed habit check-in emits the
   current streak count with `HABIT + habitId` navigation metadata and a check-in-date dedupe key.
-- [ ] Productivity goal milestone.
+- [x] Productivity goal milestone: a successful incomplete → completed milestone update emits
+  the goal owner’s progress and uses `GOAL + goalId` navigation metadata.
 - [ ] Entertainment challenge completed and reward earned.
 - [ ] Security suspicious-login notification, only after the security event contract and privacy
   policy are approved.
@@ -478,10 +479,35 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   for first completion versus an already completed day. `git diff --check` is required before
   commit and passed. The targeted Gradle run was attempted twice but this workspace stops before
   compilation with `Unable to establish loopback connection`; no assertion failure was observed.
+  The user subsequently confirmed the full `gradlew test` build passed on the development host.
 - API/Postman: no endpoint, response shape, migration, or Postman request changed. The existing
   `POST /api/v1/productivity/habits/{id}/check-in` contract is reused.
 - Deferred: goal milestone notifications, durable outbox/retry, distributed scheduler locking,
   and external push/email delivery remain later work.
+
+### Task 4C implementation report — 2026-09-09
+
+- Changed: added `GoalMilestoneNotifier`/`GoalMilestoneNotifierImpl` and connected it to
+  `GoalServiceImpl.setMilestoneCompleted`. After a milestone is saved and the goal progress/status
+  is synchronized, the notifier runs only for an incomplete → completed transition.
+- Notification data: added bilingual template `PRODUCTIVITY_GOAL_MILESTONE` in Liquibase migration
+  `0058`; emitted rows use type `PRODUCTIVITY_GOAL`, `GOAL + goalId` navigation metadata,
+  `goalTitle`, `milestoneTitle`, and `progressPercent` parameters, with the stable
+  `goal-milestone:{milestoneId}` dedupe key.
+- Behavior: completing the last milestone also reports the resulting 100% goal progress. Repeating
+  an already completed milestone, reopening it, incomplete data, and invalid progress do not emit
+  another completion notification. Notification persistence remains after-commit through the
+  shared emitter.
+- Data/API: registered migration `0058-seed-goal-milestone-notification-template.sql`; no endpoint
+  or response shape changed. The existing milestone completion endpoint and Postman collection are
+  unchanged.
+- Tests/checks: added notifier rendering/metadata/silence coverage, goal service transition
+  assertions, and bilingual migration structure coverage. `git diff --check` passed. The targeted
+  Gradle run was attempted, but this workspace stopped before compilation with
+  `Unable to establish loopback connection`; no assertion failure was observed.
+- Deferred: entertainment challenge rewards, security alerts, admin broadcast/template management,
+  durable outbox/retry, distributed scheduler locking, and external push/email delivery remain
+  later work.
 
 ## Phase 5 — Mobile BFF and client contract
 

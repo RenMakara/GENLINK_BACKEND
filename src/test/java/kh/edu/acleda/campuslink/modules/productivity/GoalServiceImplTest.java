@@ -11,6 +11,7 @@ import kh.edu.acleda.campuslink.modules.productivity.entity.Goal;
 import kh.edu.acleda.campuslink.modules.productivity.entity.GoalMilestone;
 import kh.edu.acleda.campuslink.modules.productivity.repository.GoalMilestoneRepository;
 import kh.edu.acleda.campuslink.modules.productivity.repository.GoalRepository;
+import kh.edu.acleda.campuslink.modules.productivity.service.GoalMilestoneNotifier;
 import kh.edu.acleda.campuslink.modules.productivity.service.impl.GoalServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -42,6 +43,7 @@ class GoalServiceImplTest {
 
     @Mock private GoalRepository goalRepository;
     @Mock private GoalMilestoneRepository milestoneRepository;
+    @Mock private GoalMilestoneNotifier goalMilestoneNotifier;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -51,7 +53,8 @@ class GoalServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new GoalServiceImpl(goalRepository, milestoneRepository, userRepository, currentUserProvider);
+        service = new GoalServiceImpl(goalRepository, milestoneRepository, goalMilestoneNotifier,
+            userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
         goal = Goal.builder().user(user).title("Learn Spring").build();
@@ -113,6 +116,31 @@ class GoalServiceImplTest {
         assertThat(r.progressPercentage()).isEqualByComparingTo("50.00");
         assertThat(r.status()).isEqualTo("IN_PROGRESS");
         assertThat(r.completedMilestones()).isEqualTo(1);
+    }
+
+    @Test
+    void completingAMilestoneEmitsItsProgressUpdate() {
+        GoalMilestone m1 = milestone(M1, false);
+        GoalMilestone m2 = milestone(M2, false);
+        when(milestoneRepository.findByIdAndGoalId(M1, GOAL_ID)).thenReturn(Optional.of(m1));
+        milestones(m1, m2);
+
+        service.setMilestoneCompleted(GOAL_ID, M1, true);
+
+        verify(goalMilestoneNotifier).notifyForCompletedMilestone(
+            goal, m1, new java.math.BigDecimal("50.00"));
+    }
+
+    @Test
+    void completingAnAlreadyCompletedMilestoneDoesNotEmitAgain() {
+        GoalMilestone m1 = milestone(M1, true);
+        when(milestoneRepository.findByIdAndGoalId(M1, GOAL_ID)).thenReturn(Optional.of(m1));
+        milestones(m1);
+
+        service.setMilestoneCompleted(GOAL_ID, M1, true);
+
+        verify(goalMilestoneNotifier, org.mockito.Mockito.never())
+            .notifyForCompletedMilestone(any(), any(), any());
     }
 
     @Test
