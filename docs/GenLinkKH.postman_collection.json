@@ -8265,7 +8265,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/mobile/notifications",
+              "raw": "{{baseUrl}}/api/v1/mobile/notifications?limit=10",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -8274,8 +8274,16 @@
                 "v1",
                 "mobile",
                 "notifications"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Recent preview size; allowed range is 1-20."
+                }
               ]
-            }
+            },
+            "description": "Returns unreadCount, newest-first recentNotifications, and hasMore. The direct /api/v1/notifications endpoints remain the full pagination/read API."
           }
         }
       ]

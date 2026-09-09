@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, and 4A-4F implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, 4A-4F, and Phase 5 implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, Task 4F, and Phase 5, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -86,12 +86,13 @@ needed for reminders and scheduled jobs so a retry cannot create repeated rows.
 
 ### Current integration audit
 
-Community, Finance, Productivity, Entertainment, Security, and Admin broadcast services now call
-the internal `NotificationEmitter` to emit rows after their source transactions. Admin
-notification endpoints enforce `notification:send` and `notification:template:manage`, record
-success/failure audit rows, and cap fan-out at 500 active recipients. The Mobile BFF route
-`/api/v1/mobile/notifications` also remains `NOT_IMPLEMENTED`; Flutter can use the direct
-`/api/v1/notifications` read API until the BFF phase lands.
+Community, Finance, Productivity, Entertainment, Security, and Admin broadcast services now use
+the notification application port; domain/admin actions emit rows after their source
+transactions, while the BFF reads through `NotificationService`. Admin notification endpoints
+enforce `notification:send` and `notification:template:manage`, record success/failure audit
+rows, and cap fan-out at 500 active recipients. The Mobile BFF route
+`/api/v1/mobile/notifications` now returns the unread badge and a bounded recent preview; the
+direct `/api/v1/notifications` route remains the full pagination and mark-read API.
 
 ---
 
@@ -634,12 +635,32 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Deferred: Mobile BFF, preference/quiet-hour enforcement, durable outbox/retry, and external
   push/email delivery remain later phases.
 
-## Phase 5 — Mobile BFF and client contract
+## Phase 5 — Mobile BFF and client contract — DONE
 
-- [ ] Fill `/api/v1/mobile/notifications` with unread count and recent notifications by calling
+- [x] Fill `/api/v1/mobile/notifications` with unread count and recent notifications by calling
   the notification service, not the notification controller.
-- [ ] Keep the direct `/api/v1/notifications` endpoints for pagination and mark-read operations.
-- [ ] Update the Postman collection and feature docs with the final response/reference contract.
+- [x] Keep the direct `/api/v1/notifications` endpoints for pagination and mark-read operations.
+- [x] Update the Postman collection and feature docs with the final response/reference contract.
+
+### Phase 5 implementation report — 2026-09-10
+
+- Changed: replaced the `NOT_IMPLEMENTED` mobile route with `MobileNotificationBffService` and
+  `MobileNotificationBffServiceImpl`. `GET /api/v1/mobile/notifications?limit=10` now returns
+  `unreadCount`, newest-first `recentNotifications`, and `hasMore`. The preview limit is bounded
+  to 1-20; the default is 10.
+- Boundary: the BFF calls `NotificationService.getMine` and `NotificationService.unreadCount`;
+  it does not call the notification controller or repositories directly. Stored rendered text,
+  language, type, and reference metadata are passed through unchanged for Flutter navigation.
+- API/Postman: retained the direct `/api/v1/notifications` list/unread/read/read-all endpoints
+  for full pagination and state changes, and documented the BFF query/response contract in
+  `docs/GenLinkKH.postman_collection.json`.
+- Tests/checks: added BFF service coverage for unread/recent mapping, newest-page sizing and
+  invalid limits, plus controller delegation coverage. Postman JSON parsing and `git diff --check`
+  passed. The user subsequently confirmed full `gradlew test` passed on the development host;
+  this workspace's local Gradle execution remains blocked before compilation by its loopback
+  restriction.
+- Deferred: preferences/quiet hours, durable outbox/retry, and external push/email delivery
+  remain Phase 6 work.
 
 ## Phase 6 — Preferences and delivery expansion
 
