@@ -5,8 +5,7 @@ import java.util.UUID;
 
 /**
  * Small internal port for domain modules that need to request an in-app notification.
- *
- * <p>The implementation publishes an application event. Persistence is deliberately handled by
+ * The implementation publishes an application event. Persistence is deliberately handled by
  * the notification event listener after the source transaction commits.
  */
 public interface NotificationEmitter {
