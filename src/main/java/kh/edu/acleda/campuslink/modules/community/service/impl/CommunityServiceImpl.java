@@ -4,6 +4,7 @@ import java.text.Normalizer;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -431,30 +432,44 @@ public class CommunityServiceImpl implements CommunityService {
     }
 
     private void emitJoinRequestNotification(UUID communityId, Community community, User requester) {
-        User owner = community.getCreatedByUser();
-        if (owner == null || owner.getId() == null || requester == null || requester.getId() == null
-            || owner.getId().equals(requester.getId())) {
+        if (requester == null || requester.getId() == null || isBlank(community.getName()) || communityId == null) {
+            log.warn("Skipping community join-request notification because details are incomplete: community={} user={}",
+                communityId, requester == null ? null : requester.getId());
             return;
         }
-
         String requesterName = requester.getFullName();
         if (isBlank(requesterName)) {
             requesterName = !isBlank(requester.getUsername()) ? requester.getUsername() : requester.getEmail();
         }
-        if (isBlank(requesterName) || isBlank(community.getName()) || communityId == null) {
+        if (isBlank(requesterName)) {
             log.warn("Skipping community join-request notification because details are incomplete: community={} user={}",
                 communityId, requester.getId());
             return;
         }
 
-        notificationEmitter.emit(new NotificationRequest(
-            owner.getId(),
-            JOIN_REQUEST_NOTIFICATION_TEMPLATE,
-            JOIN_REQUEST_NOTIFICATION_TYPE,
-            Map.of("requesterName", requesterName.strip(), "communityName", community.getName()),
-            "COMMUNITY",
-            communityId,
-            "community-join-request:" + communityId + ":" + requester.getId()));
+        Map<String, String> parameters = Map.of(
+            "requesterName", requesterName.strip(),
+            "communityName", community.getName());
+        Set<UUID> recipientIds = new HashSet<>();
+        for (CommunityMember manager : memberRepository.findActiveManagers(
+            communityId, CAN_MANAGE, MemberStatus.ACTIVE)) {
+            User recipient = manager.getUser();
+            if (recipient == null || recipient.getId() == null || recipient.getId().equals(requester.getId())
+                || !recipientIds.add(recipient.getId())) {
+                continue;
+            }
+            notificationEmitter.emit(new NotificationRequest(
+                recipient.getId(),
+                JOIN_REQUEST_NOTIFICATION_TEMPLATE,
+                JOIN_REQUEST_NOTIFICATION_TYPE,
+                parameters,
+                "COMMUNITY",
+                communityId,
+                "community-join-request:" + communityId + ":" + requester.getId()));
+        }
+        if (recipientIds.isEmpty()) {
+            log.warn("No active owner/admin found for community join-request notification: community={}", communityId);
+        }
     }
 
     private void emitJoinRequestAcceptedNotification(UUID communityId, Community community, User requester) {

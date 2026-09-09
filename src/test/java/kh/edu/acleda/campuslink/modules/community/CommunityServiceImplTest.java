@@ -53,6 +53,7 @@ class CommunityServiceImplTest {
     private static final UUID COMMUNITY_ID = UUID.randomUUID();
     private static final UUID REQUESTER_ID = UUID.randomUUID();
     private static final UUID OWNER_ID = UUID.randomUUID();
+    private static final UUID ADMIN_ID = UUID.randomUUID();
 
     @Mock private CommunityRepository communityRepository;
     @Mock private CommunityMemberRepository memberRepository;
@@ -63,6 +64,7 @@ class CommunityServiceImplTest {
     private CommunityServiceImpl service;
     private User user;
     private User owner;
+    private User admin;
     private Community community;
 
     @BeforeEach
@@ -82,6 +84,12 @@ class CommunityServiceImplTest {
         owner.setUsername("owner");
         ReflectionTestUtils.setField(owner, "id", OWNER_ID);
 
+        admin = new User();
+        admin.setEmail("admin@example.com");
+        admin.setFullName("Community Admin");
+        admin.setUsername("admin");
+        ReflectionTestUtils.setField(admin, "id", ADMIN_ID);
+
         community = Community.builder().name("Flutter KH").slug("flutter-kh")
             .privacy(CommunityPrivacy.PUBLIC).createdByUser(owner).memberCount(3).postCount(0).build();
         ReflectionTestUtils.setField(community, "id", COMMUNITY_ID);
@@ -97,6 +105,9 @@ class CommunityServiceImplTest {
             }
             return c;
         });
+        when(memberRepository.findActiveManagers(
+            eq(COMMUNITY_ID), anyCollection(), eq(MemberStatus.ACTIVE)))
+            .thenReturn(List.of(activeManager(owner, CommunityRole.OWNER)));
     }
 
     /**
@@ -253,6 +264,28 @@ class CommunityServiceImplTest {
         assertThat(request.referenceType()).isEqualTo("COMMUNITY");
         assertThat(request.referenceId()).isEqualTo(COMMUNITY_ID);
         assertThat(request.dedupeKey()).isEqualTo("community-join-request:" + COMMUNITY_ID + ":" + USER_ID);
+    }
+
+    @Test
+    void privateJoinRequestNotifiesEveryActiveOwnerAndAdminOnce() {
+        community.setPrivacy(CommunityPrivacy.PRIVATE);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepository.findActiveManagers(eq(COMMUNITY_ID), anyCollection(), eq(MemberStatus.ACTIVE)))
+            .thenReturn(List.of(
+                activeManager(owner, CommunityRole.OWNER),
+                activeManager(admin, CommunityRole.ADMIN)));
+
+        service.join(COMMUNITY_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter, org.mockito.Mockito.times(2)).emit(captor.capture());
+        assertThat(captor.getAllValues().stream()
+            .map(NotificationRequest::recipientUserId)
+            .toList())
+            .containsExactlyInAnyOrder(OWNER_ID, ADMIN_ID);
+        assertThat(captor.getAllValues())
+            .allSatisfy(request -> assertThat(request.dedupeKey())
+                .isEqualTo("community-join-request:" + COMMUNITY_ID + ":" + USER_ID));
     }
 
     @Test
@@ -502,6 +535,11 @@ class CommunityServiceImplTest {
         when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID))
             .thenReturn(Optional.of(CommunityMember.builder()
                 .role(CommunityRole.ADMIN).status(MemberStatus.ACTIVE).build()));
+    }
+
+    private CommunityMember activeManager(User manager, CommunityRole role) {
+        return CommunityMember.builder().community(community).user(manager)
+            .role(role).status(MemberStatus.ACTIVE).build();
     }
 
     private CommunityMember activeMember(UUID userId, CommunityRole role) {

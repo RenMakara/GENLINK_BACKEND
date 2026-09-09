@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B and 2A-2C implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B and 2A-2D implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -174,8 +174,9 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - [x] New event RSVP → notify the event organiser after a successful non-idempotent RSVP,
   including `EVENT + eventId`, attendee name, and a recipient-scoped dedupe key. Organiser
   self-RSVPs and idempotent re-taps do not emit a row.
-- [x] Private community join request → notify the community owner after a new or reopened pending
-  request, including `COMMUNITY + communityId`, requester name, and a recipient-scoped dedupe key.
+- [x] Private community join request → notify every active `OWNER`/`ADMIN` after a new or reopened
+  pending request, including `COMMUNITY + communityId`, requester name, and a recipient-scoped
+  dedupe key.
 - [x] Join-request approval → notify the requester after `PENDING → ACTIVE`, including
   `COMMUNITY + communityId` and a recipient-scoped dedupe key.
 - [ ] Post/discussion moderation action → notify the affected author when the product contract
@@ -197,9 +198,8 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   the previous Gradle test run passed; this environment could not execute the new Gradle run because
   the wrapper stops before compilation with `Unable to establish loopback connection`.
 - API/Postman: no endpoint shape changed, so the collection requires no new request for this task.
-- Deferred: join-request owner/admin fan-out, moderation, reminders, and the remaining Community
-  trigger tests remain for later tasks. Do not deploy until CI or a dev machine runs the full suite
-  for this commit.
+- Deferred: moderation, reminders, and the remaining Community trigger tests remain for later
+  tasks. Do not deploy until CI or a dev machine runs the full suite for this commit.
 
 ### Task 2B implementation report — 2026-09-09
 
@@ -217,8 +217,7 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   test run passed on their host.
 - API/Postman: no endpoint or response shape changed, so the Postman collection is unchanged for
   this task.
-- Deferred: fan-out to community admins, moderation, reminders, durable outbox, and external
-  push/email transports.
+- Deferred: moderation, reminders, durable outbox, and external push/email transports.
 
 ### Task 2C implementation report — 2026-09-09
 
@@ -236,8 +235,24 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   a normal development host because this workspace cannot establish Gradle's loopback connection.
 - API/Postman: no endpoint or response shape changed, so the Postman collection is unchanged for
   this task.
-- Deferred: notification fan-out to community admins, moderation, reminders, durable outbox, and
-  external push/email transports.
+- Deferred: moderation, reminders, durable outbox, and external push/email transports.
+
+### Task 2D implementation report — 2026-09-09
+
+- Changed: private join requests now query active community manager memberships and emit one
+  `COMMUNITY_JOIN_REQUEST_OWNER` notification per `OWNER`/`ADMIN`. Recipient-scoped deduplication
+  keeps the same request from creating repeated rows for each manager, and the lookup follows
+  current roles so ownership transfers are handled correctly.
+- Behavior: public joins and repeated pending requests remain silent. Null/duplicate manager
+  records are skipped safely; the membership request is still the source transaction and the
+  notification writer remains after-commit.
+- Tests/checks: added coverage for owner/admin recipient fan-out and one notification per manager.
+  `git diff --check` is required before commit. The targeted Gradle run is blocked in this workspace
+  before compilation by `Unable to establish loopback connection`; the user confirmed the prior
+  `gradlew test` run passed on their host.
+- API/Postman: no endpoint or response shape changed, so the Postman collection is unchanged for
+  this task.
+- Deferred: moderation, reminders, durable outbox, and external push/email transports.
 
 ## Phase 3 — Finance triggers
 

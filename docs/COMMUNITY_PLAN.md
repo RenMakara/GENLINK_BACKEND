@@ -386,14 +386,14 @@ timeline, not a social product.
   an owner/admin approves via `GET/POST/DELETE /communities/{id}/join-requests[...]`,
   mirroring the Follow PENDING path. Pending users are not counted, not in the member
   list, and not served COMMUNITY-visibility posts until approved.
-- **Private join-request owner notification delivered (2026-09-09).** A new or reopened
-  pending request emits `COMMUNITY_JOIN_REQUEST_OWNER` after the membership row is saved,
-  with requester/community parameters, a `COMMUNITY + communityId` navigation reference,
-  and a recipient-scoped dedupe key.
+- **Private join-request manager notification delivered (2026-09-09).** A new or reopened
+  pending request emits `COMMUNITY_JOIN_REQUEST_OWNER` after the membership row is saved to
+  every active `OWNER`/`ADMIN`, with requester/community parameters, a `COMMUNITY + communityId`
+  navigation reference, and a recipient-scoped dedupe key. Current role membership is used so
+  ownership transfers notify the right managers.
 - **Private join-request approval notification delivered (2026-09-09).** Approving a pending
   request emits `COMMUNITY_JOIN_REQUEST_ACCEPTED` to the requester after the member becomes
   ACTIVE and the count is incremented, with a `COMMUNITY + communityId` reference and dedupe key.
-  Fan-out to community admins remains deferred.
 - `user_settings.allow_follow_request` is still unused — PENDING keys off
   `privacyProfile` instead.
 
@@ -489,12 +489,13 @@ other order takes someone's money and then tells them the event is full. Pinned 
   `COMMUNITY_EVENT_RSVP_ORGANIZER` after the RSVP transaction, with the event
   navigation reference and a recipient-scoped dedupe key. Idempotent re-taps and
   organiser self-RSVPs do not create a notification.
-- **Private join-request owner notification delivered (2026-09-09).** New or reopened
-  pending requests notify the community owner with the community navigation reference and
-  dedupe key; repeated pending requests and public joins stay silent.
+- **Private join-request manager notification delivered (2026-09-09).** New or reopened
+  pending requests notify every active community `OWNER`/`ADMIN` with the community navigation
+  reference and a recipient-scoped dedupe key; repeated pending requests and public joins stay
+  silent.
 - **Private join-request approval notification delivered (2026-09-09).** A valid approval
   notifies the requester with the community navigation reference and dedupe key; repeated
-  approval attempts are not-found and stay silent. Admin fan-out remains deferred.
+  approval attempts are not-found and stay silent.
 - **No free/paid filter** on browse, though the columns now exist.
 - **No QR check-in.** `event_rsvps.checked_in` and `qr_code` exist, unused.
 - **No refund on cancel**, deliberately.
