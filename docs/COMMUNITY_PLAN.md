@@ -378,6 +378,10 @@ timeline, not a social product.
   posts (`POST /community/posts/{id}/report`); moderators review a per-community queue
   (`GET /community/posts/community/{id}/reported`) and remove or dismiss. See
   `POST_REPORTING.md`.
+- **Community post moderation notification delivered (2026-09-09).** A successful moderator
+  removal notifies the post author with `COMMUNITY_POST_MODERATED`, `POST + postId` navigation
+  metadata, community name, action, and a recipient-scoped dedupe key. Dismissal and refused
+  moderation remain silent.
 - **Forum discussion moderation** — **done 2026-07-28** (ROLE_ADMIN queue). The forum is
   category-scoped, so it is an app-admin concern rather than a community-role one. See
   `FORUM_MODERATION.md`. Community moderation is now complete across posts and discussions.

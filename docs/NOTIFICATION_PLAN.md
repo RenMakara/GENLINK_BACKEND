@@ -1,11 +1,11 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B and 2A-2D implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B and 2A-2E implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
-emission foundation and initial template seed; Community Tasks 2A/2B now wire event RSVP and
-private join-request owner triggers.
+emission foundation and initial template seed; Community Tasks 2A-2E now wire event RSVP,
+private join-request, and community-post moderation triggers.
 Last verified: 2026-09-09
 
 Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
@@ -179,8 +179,10 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   dedupe key.
 - [x] Join-request approval → notify the requester after `PENDING → ACTIVE`, including
   `COMMUNITY + communityId` and a recipient-scoped dedupe key.
-- [ ] Post/discussion moderation action → notify the affected author when the product contract
-  defines a user-visible action.
+- [x] Community post removal by a moderator → notify the affected author with `POST + postId`,
+  community name, moderation action, and a recipient-scoped dedupe key.
+- [ ] Forum discussion moderation → notify the affected author when the final product contract
+  defines the user-visible action.
 - [ ] Event reminder → notify attendees through a scheduler only after reminder timing and
   dedupe rules are agreed.
 - [ ] Tests prove recipient selection, idempotency, and that a notification failure does not undo
@@ -253,6 +255,26 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - API/Postman: no endpoint or response shape changed, so the Postman collection is unchanged for
   this task.
 - Deferred: moderation, reminders, durable outbox, and external push/email transports.
+
+### Task 2E implementation report — 2026-09-09
+
+- Changed: `PostServiceImpl.removeAsModerator` now emits `COMMUNITY_POST_MODERATED` after a
+  moderator successfully soft-deletes a community post, decrements the community post count,
+  and clears its hashtags. The author receives `communityName`, `moderationAction=removed`, a
+  `POST + postId` navigation reference, and a stable
+  `community-post-moderated:{postId}:{authorId}` dedupe key.
+- Behavior: author-only deletion, report dismissal, missing posts, non-community posts, and
+  unauthorized moderation do not emit this notification. The source moderation transaction
+  remains separate from after-commit notification persistence.
+- Tests/checks: added coverage for author recipient selection, template/type, parameters,
+  navigation metadata, deduplication data, and no emission when moderation is refused. The
+  targeted Gradle run is blocked in this workspace before compilation by
+  `Unable to establish loopback connection`; the user confirmed the prior `gradlew test` run
+  passed on their host.
+- API/Postman: no endpoint or response shape changed, so the Postman collection is unchanged for
+  this task.
+- Deferred: forum discussion moderation notification, reminders, durable outbox, and external
+  push/email transports.
 
 ## Phase 3 — Finance triggers
 

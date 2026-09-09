@@ -30,6 +30,8 @@ import kh.edu.acleda.campuslink.modules.community.repository.PostReportRepositor
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
 import kh.edu.acleda.campuslink.modules.community.service.PostService;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
 import kh.edu.acleda.campuslink.modules.profile.repository.SavedItemRepository;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
@@ -65,6 +67,9 @@ public class PostServiceImpl implements PostService {
     /** Community roles allowed to remove another member's post. */
     private static final Set<CommunityRole> MODERATOR_ROLES =
         EnumSet.of(CommunityRole.OWNER, CommunityRole.ADMIN, CommunityRole.MODERATOR);
+    private static final String POST_MODERATION_NOTIFICATION_TEMPLATE = "COMMUNITY_POST_MODERATED";
+    private static final String POST_MODERATION_NOTIFICATION_TYPE = "COMMUNITY_POST_MODERATED";
+    private static final String POST_MODERATION_ACTION_REMOVED = "removed";
 
     private final PostRepository postRepository;
     private final PostReactionRepository postReactionRepository;
@@ -79,6 +84,7 @@ public class PostServiceImpl implements PostService {
     private final PollRepository pollRepository;
     private final PollOptionRepository pollOptionRepository;
     private final PollVoteRepository pollVoteRepository;
+    private final NotificationEmitter notificationEmitter;
 
     public PostServiceImpl(PostRepository postRepository,
                            PostReactionRepository postReactionRepository,
@@ -92,7 +98,8 @@ public class PostServiceImpl implements PostService {
                            CurrentUserProvider currentUserProvider,
                            PollRepository pollRepository,
                            PollOptionRepository pollOptionRepository,
-                           PollVoteRepository pollVoteRepository) {
+                           PollVoteRepository pollVoteRepository,
+                           NotificationEmitter notificationEmitter) {
         this.postRepository = postRepository;
         this.postReactionRepository = postReactionRepository;
         this.postReportRepository = postReportRepository;
@@ -106,6 +113,7 @@ public class PostServiceImpl implements PostService {
         this.pollRepository = pollRepository;
         this.pollOptionRepository = pollOptionRepository;
         this.pollVoteRepository = pollVoteRepository;
+        this.notificationEmitter = notificationEmitter;
     }
 
     @Override
@@ -322,6 +330,7 @@ public class PostServiceImpl implements PostService {
         communityRepository.adjustPostCount(community.getId(), -1);
         // Same reason as the author-delete path: stop the removed post's tags counting in trending.
         hashtagService.clearForPost(post);
+        emitPostModerationNotification(post, community);
         log.info("Post {} removed by moderator {} ({}) in community {}",
             postId, currentUserProvider.getCurrentUserId(), membership.getRole(), community.getId());
     }
@@ -388,6 +397,27 @@ public class PostServiceImpl implements PostService {
             throw new NotFoundException("Post not found");
         }
         return membership;
+    }
+
+    private void emitPostModerationNotification(Post post, Community community) {
+        User author = post.getUser();
+        if (author == null || author.getId() == null || post.getId() == null || community == null
+            || community.getId() == null || community.getName() == null || community.getName().isBlank()) {
+            log.warn("Skipping post moderation notification because post details are incomplete: post={}",
+                post.getId());
+            return;
+        }
+
+        notificationEmitter.emit(new NotificationRequest(
+            author.getId(),
+            POST_MODERATION_NOTIFICATION_TEMPLATE,
+            POST_MODERATION_NOTIFICATION_TYPE,
+            Map.of(
+                "communityName", community.getName(),
+                "moderationAction", POST_MODERATION_ACTION_REMOVED),
+            "POST",
+            post.getId(),
+            "community-post-moderated:" + post.getId() + ":" + author.getId()));
     }
 
     /** Caller must be an active OWNER/ADMIN/MODERATOR of the community; not-found otherwise. */
