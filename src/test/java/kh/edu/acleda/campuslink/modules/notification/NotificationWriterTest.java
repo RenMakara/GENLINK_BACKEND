@@ -66,12 +66,16 @@ class NotificationWriterTest {
     void savesRenderedNotificationUsingRecipientLanguage() {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
         when(templateRepository.findByTemplateKey(TEMPLATE_KEY)).thenReturn(Optional.of(template));
+        UUID eventId = UUID.randomUUID();
 
         NotificationRequestedEvent event = new NotificationRequestedEvent(new NotificationRequest(
             USER_ID,
             TEMPLATE_KEY,
             "COMMUNITY_EVENT_RSVP",
-            Map.of("attendeeName", "Sokha", "eventTitle", "Career Day")));
+            Map.of("attendeeName", "Sokha", "eventTitle", "Career Day"),
+            "EVENT",
+            eventId,
+            "event-rsvp:" + eventId));
 
         writer.writeInNewTransaction(event);
 
@@ -84,6 +88,9 @@ class NotificationWriterTest {
         assertThat(saved.getMessage()).isEqualTo("Sokha បានចុះឈ្មោះសម្រាប់ Career Day");
         assertThat(saved.getLanguage()).isEqualTo(Language.KHMER);
         assertThat(saved.getType()).isEqualTo("COMMUNITY_EVENT_RSVP");
+        assertThat(saved.getReferenceType()).isEqualTo("EVENT");
+        assertThat(saved.getReferenceId()).isEqualTo(eventId);
+        assertThat(saved.getDedupeKey()).isEqualTo("event-rsvp:" + eventId);
         assertThat(saved.getReadStatus()).isFalse();
     }
 
@@ -98,6 +105,28 @@ class NotificationWriterTest {
         assertThatThrownBy(() -> writer.writeInNewTransaction(event))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining(TEMPLATE_KEY);
+        verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
+    void skipsAnAlreadyPersistedDedupeKey() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(notificationRepository.existsByUserIdAndDedupeKey(USER_ID, "task-reminder:1"))
+            .thenReturn(true);
+
+        NotificationRequestedEvent event = new NotificationRequestedEvent(new NotificationRequest(
+            USER_ID,
+            "PRODUCTIVITY_TASK_DUE",
+            "PRODUCTIVITY_TASK",
+            Map.of(),
+            "TASK",
+            UUID.randomUUID(),
+            "task-reminder:1"));
+
+        writer.writeInNewTransaction(event);
+
+        verify(notificationRepository).existsByUserIdAndDedupeKey(USER_ID, "task-reminder:1");
+        verify(templateRepository, never()).findByTemplateKey(any());
         verify(notificationRepository, never()).save(any());
     }
 }

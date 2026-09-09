@@ -41,6 +41,11 @@ public class NotificationWriter {
         User recipient = userRepository.findById(request.recipientUserId())
             .orElseThrow(() -> new IllegalStateException(
                 "Notification recipient not found: " + request.recipientUserId()));
+        if (request.dedupeKey() != null
+            && notificationRepository.existsByUserIdAndDedupeKey(
+                request.recipientUserId(), request.dedupeKey())) {
+            return;
+        }
         NotificationTemplate template = templateRepository.findByTemplateKey(request.templateKey())
             .orElseThrow(() -> new IllegalStateException(
                 "Notification template not found: " + request.templateKey()));
@@ -57,6 +62,9 @@ public class NotificationWriter {
             .message(rendered.message())
             .language(language)
             .type(request.type())
+            .referenceType(request.referenceType())
+            .referenceId(request.referenceId())
+            .dedupeKey(request.dedupeKey())
             .readStatus(false)
             .build());
     }

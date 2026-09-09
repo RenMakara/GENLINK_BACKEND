@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Task 1A done with local test execution blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Task 1A done; Task 1B implementation complete with local Gradle execution blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A now provides the internal
@@ -124,12 +124,31 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 
 ### Task 1B — Navigation metadata and dedupe (follow-up task)
 
-- [ ] Add the next additive notification migration (0053 or the next unused changeset) for
+- [x] Add the next additive notification migration (0053 or the next unused changeset) for
   `reference_type`, `reference_id`, and a nullable recipient-scoped `dedupe_key` if the existing
   schema cannot support navigation and retry-safe inserts. Do not reuse migration 0038.
-- [ ] Extend `NotificationResponse` with reference/navigation data only after the migration adds
+- [x] Extend `NotificationResponse` with reference/navigation data only after the migration adds
   it.
-- [ ] Add tests for deduplication and reference metadata.
+- [x] Add tests for deduplication and reference metadata.
+
+### Task 1B implementation report — 2026-09-09
+
+- Changed: added optional `referenceType`/`referenceId` and `dedupeKey` to the internal request,
+  persisted them on `Notification`, and returned the two navigation fields from the direct read
+  API. The writer skips an existing recipient-scoped dedupe key; the database unique partial index
+  remains the concurrency guard.
+- Database: added Liquibase migration `0053-add-notification-navigation-and-dedupe.sql`, including
+  additive columns, a reference lookup index, and a recipient-scoped unique dedupe index.
+- API/Postman: added the four direct notification requests to
+  `docs/GenLinkKH.postman_collection.json` and documented `referenceType`/`referenceId` in the
+  list request. The Mobile BFF route remains a later phase.
+- Tests/checks: Postman JSON parsing and `git diff --check` passed. The targeted Gradle test command
+  was attempted again, but this environment stops before compilation with
+  `Unable to establish loopback connection`; no test failure was observed. The user confirmed the
+  previous Task 1A test run passed on their host.
+- Deferred: Community/Finance trigger wiring, Mobile BFF, preferences, outbox, push, and email
+  remain follow-up tasks. Do not deploy this commit until CI or a dev machine confirms compilation
+  and the complete test suite.
 
 ### Task 1A implementation report — 2026-09-09
 

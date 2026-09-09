@@ -19,4 +19,15 @@ public interface NotificationEmitter {
                       Map<String, String> parameters) {
         emit(new NotificationRequest(recipientUserId, templateKey, type, parameters));
     }
+
+    default void emit(UUID recipientUserId,
+                      String templateKey,
+                      String type,
+                      Map<String, String> parameters,
+                      String referenceType,
+                      UUID referenceId,
+                      String dedupeKey) {
+        emit(new NotificationRequest(
+            recipientUserId, templateKey, type, parameters, referenceType, referenceId, dedupeKey));
+    }
 }

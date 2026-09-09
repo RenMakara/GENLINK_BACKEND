@@ -103,3 +103,5 @@ databaseChangeLog:
       file: db/changelog/changes/0051-add-event-currency.sql
   - include:
       file: db/changelog/changes/0052-seed-notification-templates.sql
+  - include:
+      file: db/changelog/changes/0053-add-notification-navigation-and-dedupe.sql
