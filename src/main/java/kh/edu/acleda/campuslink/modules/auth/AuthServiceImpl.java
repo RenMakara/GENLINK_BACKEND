@@ -46,6 +46,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordPolicyValidator passwordPolicyValidator;
     private final AuthRateLimitService authRateLimitService;
     private final SecurityAuditService securityAuditService;
+    private final SuspiciousLoginNotifier suspiciousLoginNotifier;
 
     @Override
     @Transactional
@@ -86,6 +87,7 @@ public class AuthServiceImpl implements AuthService {
         String token = jwtService.generateAccessToken(user.getEmail(), user.getTokenVersion());
         String refreshToken = refreshTokenService.create(user, deviceInfo, clientIp, userAgent);
         authRateLimitService.clearLoginFailures(request.email(), clientIp);
+        suspiciousLoginNotifier.notifyIfNeeded(user, clientIp, userAgent);
         securityAuditService.logSuccess("LOGIN_SUCCESS", user, request.email());
 
         log.info("User {} successfully authenticated", request.email());
@@ -96,6 +98,9 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse googleLogin(GoogleLoginRequest request) {
         log.info("Attempting Google social login");
+        String clientIp = RequestMetadataUtil.getCurrentClientIp();
+        String userAgent = RequestMetadataUtil.getCurrentUserAgent();
+        String deviceInfo = RequestMetadataUtil.getCurrentDeviceInfo();
         GoogleTokenVerifier.GoogleUser tokenData = googleTokenVerifier.verify(request.idToken());
         String email = tokenData.email();
         String uid = tokenData.sub();
@@ -140,7 +145,9 @@ public class AuthServiceImpl implements AuthService {
             });
 
         String token = jwtService.generateAccessToken(user.getEmail(), user.getTokenVersion());
-        String refreshToken = refreshTokenService.create(user);
+        String refreshToken = refreshTokenService.create(user, deviceInfo, clientIp, userAgent);
+        suspiciousLoginNotifier.notifyIfNeeded(user, clientIp, userAgent);
+        securityAuditService.logSuccess("LOGIN_SUCCESS", user, email);
 
         log.info("User {} successfully authenticated via Social login", email);
         return new AuthResponse(token, refreshToken, "Bearer", userService.toResponse(user));

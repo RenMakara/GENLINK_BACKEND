@@ -13,4 +13,8 @@ public interface SecurityAuditLogRepository extends JpaRepository<SecurityAuditL
 
     /** Recent security activity shown to the user in Settings > Security. */
     List<SecurityAuditLog> findTop50ByUserOrderByCreatedAtDesc(User user);
+
+    /** Successful logins with a complete context are the baseline for new-login detection. */
+    List<SecurityAuditLog> findTop50ByUserAndEventTypeAndSuccessTrueOrderByCreatedAtDesc(
+        User user, String eventType);
 }

@@ -24,6 +24,7 @@ class NotificationTemplateSeedTest {
                 .contains("{challengeName}")
                 .contains("{rewardXp}")
                 .contains("SECURITY_SUSPICIOUS_LOGIN")
+                .contains("{loginLocation}")
                 .contains("ON CONFLICT (template_key) DO NOTHING")
                 .contains("title_km")
                 .contains("message_km");

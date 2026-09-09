@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, and 4A-4D implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, while local Codex Gradle execution remains blocked** (2026-09-09). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, and 4A-4E implementation complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, while local Codex Gradle execution remains blocked** (2026-09-09). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -449,8 +449,9 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   the goal owner’s progress and uses `GOAL + goalId` navigation metadata.
 - [x] Entertainment challenge completed and reward earned: a successful reward claim emits one
   notification after XP award and `CLAIMED` persistence, with `CHALLENGE + challengeId` metadata.
-- [ ] Security suspicious-login notification, only after the security event contract and privacy
-  policy are approved.
+- [x] Security suspicious-login notification: after a prior successful login with complete context,
+  a successful password or Google login from an unseen IP + User-Agent emits one in-app alert with
+  `SECURITY + userId` navigation metadata. First-ever logins and failed logins stay silent.
 - [ ] Admin broadcast and notification-template management only after Admin controllers,
   permission checks, audit records, and recipient limits exist. The existing Admin permission
   constants alone do not satisfy this phase.
@@ -546,15 +547,40 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Behavior: notification persistence remains after-commit through the shared emitter, so a writer
   failure is secondary to the successful reward claim. Invalid challenge/user/reward details are
   skipped safely.
-    - Tests/checks: added claim integration coverage, notifier rendering/metadata/silence coverage,
-      and stronger seed-template placeholder assertions. `git diff --check` passed. The targeted
-      Gradle run was attempted twice, but this workspace stopped before compilation with
-      `Unable to establish loopback connection`; no assertion failure was observed. Run full
-      `gradlew test` on the development host/CI before releasing this commit.
+- Tests/checks: added claim integration coverage, notifier rendering/metadata/silence coverage,
+  and stronger seed-template placeholder assertions. `git diff --check` passed. The targeted
+  Gradle run was attempted twice, but this workspace stopped before compilation with
+  `Unable to establish loopback connection`; no assertion failure was observed. Run full
+  `gradlew test` on the development host/CI before releasing this commit.
 - API/Postman: no endpoint, response shape, migration, or Postman request changed. Existing
   `POST /api/v1/entertainment/challenges/{id}/claim` is reused.
 - Deferred: security alerts, admin broadcast/template management, durable outbox/retry,
   distributed scheduler locking, and external push/email delivery remain later work.
+
+### Task 4E implementation report — 2026-09-09
+
+- Decision/contract: a suspicious-login alert is emitted only after a successful password or
+  Google login when the account already has at least one successful login with complete IP and
+  User-Agent metadata, and the current pair has never been seen. First-ever logins, failed
+  logins, incomplete metadata, and legacy history without a comparable fingerprint stay silent.
+- Changed: added `SuspiciousLoginNotifier` and connected it to both mobile login paths. Google
+  login now records the same `LOGIN_SUCCESS` audit event and stores request metadata on its
+  refresh session, so both providers share one detection baseline.
+- Notification data: reused the bilingual `SECURITY_SUSPICIOUS_LOGIN` template from migration
+  `0052`; emitted rows use type `SECURITY_SUSPICIOUS_LOGIN`, `SECURITY + userId` navigation data,
+  the IP-only `loginLocation` parameter, and a SHA-256 fingerprint dedupe key. The User-Agent
+  remains in the private security audit/activity data rather than the notification message.
+- Privacy/failure behavior: no geolocation is inferred or stored by this feature. Audit lookup,
+  event publication, and notification persistence failures are caught/logged so a valid login
+  is never rejected because an alert could not be produced.
+- Tests/checks: added baseline/known-context/new-context/incomplete-context/failure coverage,
+  password and Google login integration assertions, and a template placeholder assertion.
+  `git diff --check` passed. Run full `gradlew test` on the development host/CI for this commit.
+- API/Postman: no endpoint or response shape changed; the existing `/api/v1/auth/login` and
+  `/api/v1/auth/google` contracts are reused. No migration was needed because `0052` already
+  seeds the bilingual template.
+- Deferred: admin broadcast/template management, durable outbox/retry, preferences/quiet hours,
+  and push/email delivery remain later work.
 
 ## Phase 5 — Mobile BFF and client contract
 

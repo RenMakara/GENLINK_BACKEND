@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.auth;
 
 import kh.edu.acleda.campuslink.modules.auth.dto.LoginRequest;
+import kh.edu.acleda.campuslink.modules.auth.dto.GoogleLoginRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RegisterRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRotation;
@@ -69,6 +70,8 @@ class AuthServiceImplTest {
     private AuthRateLimitService authRateLimitService;
     @Mock
     private SecurityAuditService securityAuditService;
+    @Mock
+    private SuspiciousLoginNotifier suspiciousLoginNotifier;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -333,6 +336,39 @@ class AuthServiceImplTest {
 
         assertThat(user.getPreferredLanguage()).isEqualTo(Language.KHMER);
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void successfulPasswordLoginChecksForSuspiciousContext() {
+        User user = activeUser("context@example.com");
+        user.setPasswordHash("hash");
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getEmail(), "password123");
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(authenticationManager.authenticate(any())).thenReturn(authentication);
+        when(jwtService.generateAccessToken(user.getEmail(), user.getTokenVersion())).thenReturn("access-token");
+        when(refreshTokenService.create(any(User.class), any(), any(), any())).thenReturn("refresh-token");
+
+        authService.login(new LoginRequest(user.getEmail(), "password123"));
+
+        verify(suspiciousLoginNotifier).notifyIfNeeded(user, null, null);
+    }
+
+    @Test
+    void googleLoginChecksForSuspiciousContextAndRecordsLoginSuccess() {
+        User user = activeUser("google@example.com");
+        when(googleTokenVerifier.verify("google-id-token"))
+            .thenReturn(new GoogleTokenVerifier.GoogleUser("google-sub", user.getEmail(), "Google User", null));
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(socialAccountRepository.findByProviderAndProviderUserId(any(), any()))
+            .thenReturn(Optional.empty());
+        when(jwtService.generateAccessToken(user.getEmail(), user.getTokenVersion())).thenReturn("access-token");
+        when(refreshTokenService.create(any(User.class), any(), any(), any())).thenReturn("refresh-token");
+
+        authService.googleLogin(new GoogleLoginRequest("google-id-token"));
+
+        verify(suspiciousLoginNotifier).notifyIfNeeded(user, null, null);
+        verify(securityAuditService).logSuccess("LOGIN_SUCCESS", user, user.getEmail());
     }
 
     @Test
