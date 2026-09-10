@@ -84,6 +84,15 @@ app:
     push:
       # Online STOMP push is safe to expose behind the authenticated WebSocket endpoint.
       enabled: ${NOTIFICATION_PUSH_ENABLED:true}
+    mobile-push:
+      # Disabled until Firebase credentials and the mobile client token flow are configured.
+      # FCM uses Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS in a
+      # non-Google environment, or workload identity on a supported Google runtime).
+      enabled: ${NOTIFICATION_MOBILE_PUSH_ENABLED:false}
+      project-id: ${FIREBASE_PROJECT_ID:}
+      # Optional one-line Base64 service-account JSON for a secret manager. Prefer ADC/workload
+      # identity or GOOGLE_APPLICATION_CREDENTIALS when the runtime supports it.
+      credentials-base64: ${FIREBASE_CREDENTIALS_BASE64:}
     outbox:
       # Polling is enabled only on instances that run the shared scheduler.
       poll-ms: ${NOTIFICATION_OUTBOX_POLL_MS:5000}

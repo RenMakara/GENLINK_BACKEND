@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, 4A-4F, Phase 5, and Phase 6 Tasks 6A-6D complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, Task 4F, Phase 5, and Tasks 6A-6D, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, 4A-4F, Phase 5, and Phase 6 Tasks 6A-6E complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, Task 4F, Phase 5, and Tasks 6A-6E, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -13,9 +13,9 @@ claimed challenge rewards to that path as well. Security Task 4E now alerts on u
 context, and Admin Task 4F now provides audited broadcast and `ADMIN_` template management.
 Last verified: 2026-09-10
 
-Scope: **in-app notifications plus opt-in email and online push adapters** behind the same internal
-contract. SMTP/Brevo email is separate from OTP; the first push adapter is the existing authenticated
-WebSocket channel and does not provide offline FCM/APNs delivery. Cadence: **one phase per turn**,
+Scope: **in-app notifications plus opt-in email, online push, and offline mobile push adapters**
+behind the same internal contract. SMTP/Brevo email is separate from OTP; authenticated WebSocket
+`PUSH` is online delivery, while `MOBILE_PUSH` is the FCM-backed offline channel. Cadence: **one phase per turn**,
 each compiled + tested + documented, same as the finance work. The app can't boot in this workspace,
 so migrations are verified structurally; run them on a dev DB before shipping.
 
@@ -666,7 +666,7 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Deferred: preferences/quiet hours, durable outbox/retry, and external push/email delivery
   remain Phase 6 work.
 
-## Phase 6 — Preferences and delivery expansion — Task 6D DONE
+## Phase 6 — Preferences and delivery expansion — Task 6E DONE
 
 - [x] Task 6A — Add per-type on/off and quiet hours; the emitter must enforce them for eligible
   notifications.
@@ -676,6 +676,10 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   Brevo remains a transport implementation for email and must not be mixed with the OTP flow.
 - [x] Task 6D — Add user channel preferences so explicit `IN_APP`, `EMAIL`, and online `PUSH`
   requests can be enabled or suppressed independently.
+- [x] Task 6E — Add true offline mobile push with a separate `MOBILE_PUSH` channel, authenticated
+  device-token registration, durable per-device FCM delivery, invalid-token cleanup, and production
+  configuration guidance. FCM routes iOS notifications through APNs after the Firebase iOS app is
+  configured; direct APNs credentials/provider code remain a later option if the product needs it.
 
 ### Task 6A plan and contract
 
@@ -834,6 +838,51 @@ Implementation report:
   deployment or push was performed.
 - Deferred: FCM/APNs offline delivery, device-token registration, provider credentials, delivery
   receipts, and automatic channel selection by notification type remain future work.
+
+### Task 6E plan — DONE (2026-09-10)
+
+- Keep the existing `PUSH` meaning unchanged: it is the authenticated WebSocket channel for
+  users currently online. Add `MOBILE_PUSH` for OS-level delivery while the Flutter app is in the
+  background or closed, so existing callers and subscriptions do not change unexpectedly.
+- Add owner-scoped device registration for `ANDROID` and `IOS`. Store a token hash for lookup and
+  a protected token value for provider delivery; never return or log the raw token. Registration is
+  idempotent for the same user/token, updates `last_seen_at`, and supports explicit deactivation.
+- Add a provider boundary rather than coupling the outbox to Firebase classes. The first provider
+  is Firebase Admin FCM, which sends to both Android and iOS registration tokens. iOS requires the
+  Firebase iOS app's APNs configuration; the backend does not commit a service-account key. Direct
+  APNs token/provider support remains a follow-up only if a separate Apple integration is required.
+- Deliver one `MOBILE_PUSH` outbox row to every active device for the recipient. Invalid/unregistered
+  tokens are deactivated and do not cause endless retries. Transient provider failures keep the row
+  retryable; a user with no active devices is treated as a successful no-op because in-app history
+  remains the source of truth.
+- Keep the provider disabled by default in development and production configuration. Enabling it
+  requires Firebase credentials through environment/secret-manager configuration and the FCM HTTP
+  v1 API enabled in the Firebase project. No notification source silently opts into mobile push;
+  existing domain requests remain `IN_APP` unless a caller explicitly includes `MOBILE_PUSH`.
+- Update channel preference validation/migration, Postman, the mobile-push setup document, and
+  tests. The user confirmed the full development-host Gradle test after the Spring constructor
+  injection fix described below. A real Firebase-configured device smoke test and Flutter client
+  registration remain release-validation follow-ups.
+
+### Task 6E implementation report — DONE (2026-09-10)
+
+- Added the `MOBILE_PUSH` channel, `notification_devices` entity/repository, owner-scoped device
+  registration/deactivation API, and Liquibase migration `0063-add-mobile-push-devices.sql`.
+- Added AES-GCM protected FCM-token storage using the existing credential encryptor, SHA-256
+  lookup/dedupe, Firebase Admin initialization through ADC, and a provider-neutral FCM transport.
+- Added outbox fan-out behavior: no-device rows complete as a no-op, `UNREGISTERED` tokens are
+  deactivated, and other provider/decryption failures remain retryable. Existing `PUSH` remains
+  the WebSocket transport.
+- Updated channel preference validation, the Postman collection, `MOBILE_PUSH.md`, and tests.
+  Static Postman JSON parsing and `git diff --check` pass. The first development-host test exposed
+  that `NotificationDeviceServiceImpl` had multiple constructors without an injection annotation;
+  adding `@Autowired` to the production constructor fixed the application-context failure and its
+  cascading integration-test failures. The user then confirmed the full `gradlew test` pass. The
+  Codex workspace cannot run Gradle:
+  the wrapper download is blocked by `Permission denied: getsockopt`, and the cached Gradle run
+  cannot establish its loopback connection. No deployment was made for Task 6E. Firebase device
+  smoke testing remains pending until the Flutter client registers a real token and the provider
+  is enabled with production credentials.
 
 ---
 

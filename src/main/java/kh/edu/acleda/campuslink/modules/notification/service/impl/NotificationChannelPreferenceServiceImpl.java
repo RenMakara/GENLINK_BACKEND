@@ -81,7 +81,8 @@ public class NotificationChannelPreferenceServiceImpl
             return NotificationChannel.valueOf(channel.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             throw new ApiException(
-                "Notification channel must be IN_APP, EMAIL, or PUSH", "VALIDATION_ERROR");
+                "Notification channel must be IN_APP, EMAIL, PUSH, or MOBILE_PUSH",
+                "VALIDATION_ERROR");
         }
     }
 

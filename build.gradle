@@ -35,6 +35,9 @@ dependencies {
 
     // Verifies Google ID tokens for social login using only the OAuth client id.
     implementation 'com.google.api-client:google-api-client:2.7.0'
+    // Offline mobile notifications. FCM routes Android and iOS messages; iOS still requires
+    // the app's APNs configuration in Firebase. Credentials are supplied by ADC at runtime.
+    implementation 'com.google.firebase:firebase-admin:9.10.0'
     implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'

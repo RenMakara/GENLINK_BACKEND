@@ -4,5 +4,7 @@ package kh.edu.acleda.campuslink.modules.notification.service;
 public enum NotificationChannel {
     IN_APP,
     EMAIL,
-    PUSH
+    PUSH,
+    /** OS-level mobile push delivered through FCM while the app is backgrounded or closed. */
+    MOBILE_PUSH
 }

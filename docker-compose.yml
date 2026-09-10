@@ -131,6 +131,12 @@ services:
       MAIL_FROM: ${MAIL_FROM:-${MAIL_USERNAME}}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_PROJECT_ID: ${GOOGLE_PROJECT_ID:-genlinkkh}
+      # Offline mobile push is opt-in. Prefer workload identity/ADC; the Base64 option is for a
+      # secret manager that injects one-line service-account JSON without committing a key.
+      NOTIFICATION_MOBILE_PUSH_ENABLED: ${NOTIFICATION_MOBILE_PUSH_ENABLED:-false}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+      FIREBASE_CREDENTIALS_BASE64: ${FIREBASE_CREDENTIALS_BASE64:-}
       APP_DEFAULT_LANGUAGE: ${APP_DEFAULT_LANGUAGE:-ENGLISH}
       # S3-compatible object storage. Must be listed here, not only in
       # .env: Compose reads .env to interpolate this file, but only the keys named

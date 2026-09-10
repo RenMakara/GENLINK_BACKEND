@@ -58,10 +58,11 @@ class NotificationChannelPreferenceServiceImplTest {
 
         assertThat(response).extracting(NotificationChannelPreferenceResponse::channel)
             .containsExactly(NotificationChannel.IN_APP, NotificationChannel.EMAIL,
-                NotificationChannel.PUSH);
+                NotificationChannel.PUSH, NotificationChannel.MOBILE_PUSH);
         assertThat(response.get(0).enabled()).isTrue();
         assertThat(response.get(1).enabled()).isFalse();
         assertThat(response.get(2).enabled()).isTrue();
+        assertThat(response.get(3).enabled()).isTrue();
     }
 
     @Test
@@ -86,6 +87,6 @@ class NotificationChannelPreferenceServiceImplTest {
         assertThatThrownBy(() -> service.update(
             "sms", new NotificationPreferenceUpdateRequest(false)))
             .isInstanceOf(ApiException.class)
-            .hasMessageContaining("IN_APP, EMAIL, or PUSH");
+            .hasMessageContaining("IN_APP, EMAIL, PUSH, or MOBILE_PUSH");
     }
 }
