@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.notification.entity.NotificationOutbox;
 import kh.edu.acleda.campuslink.modules.notification.entity.NotificationOutboxStatus;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -15,7 +16,8 @@ import jakarta.persistence.LockModeType;
 
 public interface NotificationOutboxRepository extends JpaRepository<NotificationOutbox, UUID> {
 
-    boolean existsByRecipientUserIdAndDedupeKey(UUID recipientUserId, String dedupeKey);
+    boolean existsByRecipientUserIdAndChannelAndDedupeKey(
+        UUID recipientUserId, NotificationChannel channel, String dedupeKey);
 
     /**
      * Claims the oldest due rows while holding database row locks. The surrounding transaction

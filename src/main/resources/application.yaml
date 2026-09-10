@@ -78,6 +78,12 @@ app:
     event-reminder-cron: ${EVENT_REMINDER_CRON:0 */5 * * * *}
 
   notification:
+    email:
+      # Separate from app.mail.enabled: this switch never changes OTP behaviour.
+      enabled: ${NOTIFICATION_EMAIL_ENABLED:false}
+    push:
+      # Online STOMP push is safe to expose behind the authenticated WebSocket endpoint.
+      enabled: ${NOTIFICATION_PUSH_ENABLED:true}
     outbox:
       # Polling is enabled only on instances that run the shared scheduler.
       poll-ms: ${NOTIFICATION_OUTBOX_POLL_MS:5000}

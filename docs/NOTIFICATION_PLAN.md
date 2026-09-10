@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, 4A-4F, Phase 5, and Phase 6 Tasks 6A-6B complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, Task 4F, Phase 5, and Tasks 6A-6B, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, 4A-4F, Phase 5, and Phase 6 Tasks 6A-6C complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, Task 4F, Phase 5, and Tasks 6A-6C, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -13,10 +13,11 @@ claimed challenge rewards to that path as well. Security Task 4E now alerts on u
 context, and Admin Task 4F now provides audited broadcast and `ADMIN_` template management.
 Last verified: 2026-09-10
 
-Scope: **in-app notifications only** — no email/push transport in this plan (that's a future
-transport layer behind the same emit API). Cadence: **one phase per turn**, each compiled + tested +
-documented, same as the finance work. The app can't boot in this workspace, so migrations are
-verified structurally; run them on a dev DB before shipping.
+Scope: **in-app notifications plus opt-in email and online push adapters** behind the same internal
+contract. SMTP/Brevo email is separate from OTP; the first push adapter is the existing authenticated
+WebSocket channel and does not provide offline FCM/APNs delivery. Cadence: **one phase per turn**,
+each compiled + tested + documented, same as the finance work. The app can't boot in this workspace,
+so migrations are verified structurally; run them on a dev DB before shipping.
 
 Conventions (same as other domains): UUID PKs, BaseEntity, DTO in/out, `ApiResponse` envelope,
 `PageResponse` for lists, owner-scoped lookups return not-found, `CurrentUserProvider` for the user,
@@ -38,7 +39,7 @@ Domain service action
   -> domain/application notification event
   -> NotificationEmitter
   -> delivery-policy gate
-  -> after-commit durable notification_outbox row
+  -> after-commit durable notification_outbox row per selected channel
   -> locked outbox worker + retry/backoff
   -> recipient + language resolution
   -> bilingual template rendering with parameters
@@ -84,8 +85,8 @@ needed for reminders and scheduled jobs so a retry cannot create repeated rows.
 - Reads remain owner-scoped and another user's notification id returns not-found.
 - Global `notificationEnabled`, per-type overrides, and quiet hours are enforced by the emitter;
   a preference storage failure fails open so it cannot roll back the source business action.
-- The current scope is in-app only. OTP email through Brevo is a separate mail flow, not an
-  in-app notification.
+- The default channel remains in-app. Email and online push are explicit opt-in transport channels;
+  OTP email through Brevo is a separate auth flow, not a notification transport.
 
 ### Current integration audit
 
@@ -665,14 +666,14 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Deferred: preferences/quiet hours, durable outbox/retry, and external push/email delivery
   remain Phase 6 work.
 
-## Phase 6 — Preferences and delivery expansion — Task 6B IN PROGRESS
+## Phase 6 — Preferences and delivery expansion — Task 6C DONE
 
 - [x] Task 6A — Add per-type on/off and quiet hours; the emitter must enforce them for eligible
   notifications.
-- [ ] Task 6B — Add `notification_outbox`, retry, dedupe, and delivery status before external
-  transports or multiple backend instances. **IN PROGRESS**
-- [ ] Add push/email adapters behind the same internal emit contract. Brevo remains a transport
-  implementation for email and must not be mixed with the OTP flow.
+- [x] Task 6B — Add `notification_outbox`, retry, dedupe, and delivery status before external
+  transports or multiple backend instances.
+- [x] Task 6C — Add opt-in email and online push adapters behind the same internal emit contract.
+  Brevo remains a transport implementation for email and must not be mixed with the OTP flow.
 
 ### Task 6A plan and contract
 
@@ -753,6 +754,50 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   same-transaction outbox is intentionally deferred until source modules opt into that coupling.
 - Deferred: push/email adapters behind the same internal emit contract remain the next task. Brevo
   continues to be an email transport and remains separate from OTP delivery.
+
+### Task 6C plan and implementation report — DONE (2026-09-10)
+
+- Extend `NotificationRequest` with an explicit channel set. Existing domain calls remain backward
+  compatible and default to `IN_APP`; no existing RSVP, payment, moderation, or scheduled trigger
+  silently starts sending external email.
+- Store one outbox row per selected channel, with a unique `(recipient, channel, dedupe_key)` guard.
+  Each channel gets an independent delivery status/retry lifecycle, so an email failure cannot make
+  an already-delivered in-app notification appear failed.
+- Keep `IN_APP` behind the current `NotificationWriter`. Add a generic SMTP email transport that
+  renders the same bilingual notification template, uses the verified `app.mail.from` sender, and
+  has its own `app.notification.email.enabled` switch. It must not call the OTP `EmailService`.
+- Add an authenticated WebSocket push transport to `/user/queue/notifications`, using the same
+  localized title/message and navigation metadata. REST remains the source of truth when a client
+  is offline; FCM/APNs, device tokens, and provider-specific credentials are intentionally deferred.
+- The outbox worker dispatches by channel and keeps retry/backoff/dedupe semantics. Disabled or
+  unavailable opt-in transports are not enqueued; this avoids a permanent retry storm when a
+  provider is intentionally off.
+
+Implementation report:
+
+- Added `NotificationChannel`, `NotificationDelivery`, and `NotificationTransport` as the internal
+  channel boundary. Existing emitters remain backward compatible and continue to default to
+  `IN_APP`.
+- Refactored the durable outbox worker to create independent rows and retry state per requested
+  channel. Added `0061-add-notification-delivery-channels.sql` with the channel column and the
+  `(recipient_user_id, channel, dedupe_key)` unique guard.
+- Added the in-app adapter, generic Brevo/SMTP notification email adapter, and authenticated
+  WebSocket push adapter. Email is controlled by `NOTIFICATION_EMAIL_ENABLED`; online push is
+  controlled by `NOTIFICATION_PUSH_ENABLED` and uses `/user/queue/notifications`.
+- Kept OTP delivery on the existing `MAIL_ENABLED` / `EmailService` path. No existing RSVP,
+  payment, moderation, or scheduled trigger silently sends external email or push.
+- Added transport, outbox fan-out, and WebSocket subscription tests. The first compile exposed
+  duplicate test/application constructor signatures and a missing Mockito `when` import; those
+  were fixed. The next test run exposed three worker fixtures without an outbox ID; the fixtures
+  were corrected. The user then confirmed the full `gradlew test` build passed.
+- Codex local Gradle execution remained unavailable because the wrapper/network environment could
+  not establish its loopback connection; this did not block verification on the user's development
+  host. `git diff --check` passed.
+- Updated `MAIL_SERVICE.md` and this plan. No Postman collection change was needed because Task 6C
+  adds no public REST endpoint. No deployment was performed.
+- Deferred: offline FCM/APNs delivery, device-token registration, provider credentials, delivery
+  receipts, and channel-specific user preference UI remain future work. REST/in-app history remains
+  the source of truth when the client is offline.
 
 ---
 

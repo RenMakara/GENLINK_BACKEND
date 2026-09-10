@@ -160,6 +160,16 @@ class StompAuthChannelInterceptorTest {
     }
 
     @Test
+    void authenticatedSubscribeToNotificationQueueIsAccepted() {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/user/queue/notifications");
+        accessor.setUser(mock(Principal.class));
+        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+
+        assertThat(interceptor.preSend(message, channel)).isSameAs(message);
+    }
+
+    @Test
     void participantCanSubscribeToTheirMatchTopic() {
         UUID userId = UUID.randomUUID();
         UUID matchId = UUID.randomUUID();

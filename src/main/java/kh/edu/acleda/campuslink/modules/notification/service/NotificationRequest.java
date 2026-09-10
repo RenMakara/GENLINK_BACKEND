@@ -2,10 +2,11 @@ package kh.edu.acleda.campuslink.modules.notification.service;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * Internal, non-HTTP request used by domain modules to ask Notification to create an in-app row.
+ * Internal, non-HTTP request used by domain modules to request one or more notification channels.
  *
  * <p>Domain modules provide facts and placeholder values. They do not choose the localized
  * title/message or write notification entities directly.
@@ -17,7 +18,8 @@ public record NotificationRequest(
     Map<String, String> parameters,
     String referenceType,
     UUID referenceId,
-    String dedupeKey
+    String dedupeKey,
+    Set<NotificationChannel> channels
 ) {
 
     private static final int MAX_PARAMETER_COUNT = 20;
@@ -32,7 +34,19 @@ public record NotificationRequest(
                                String templateKey,
                                String type,
                                Map<String, String> parameters) {
-        this(recipientUserId, templateKey, type, parameters, null, null, null);
+        this(recipientUserId, templateKey, type, parameters, null, null, null,
+            Set.of(NotificationChannel.IN_APP));
+    }
+
+    public NotificationRequest(UUID recipientUserId,
+                               String templateKey,
+                               String type,
+                               Map<String, String> parameters,
+                               String referenceType,
+                               UUID referenceId,
+                               String dedupeKey) {
+        this(recipientUserId, templateKey, type, parameters, referenceType, referenceId, dedupeKey,
+            Set.of(NotificationChannel.IN_APP));
     }
 
     public NotificationRequest {
@@ -62,6 +76,14 @@ public record NotificationRequest(
             }
         });
         parameters = Map.copyOf(safeParameters);
+
+        Set<NotificationChannel> safeChannels = channels == null
+            ? Set.of(NotificationChannel.IN_APP)
+            : Set.copyOf(channels);
+        if (safeChannels.isEmpty()) {
+            throw new IllegalArgumentException("At least one notification channel is required");
+        }
+        channels = safeChannels;
     }
 
     private static void requireText(String value, String field, int maxLength) {

@@ -11,9 +11,12 @@ import kh.edu.acleda.campuslink.modules.notification.entity.NotificationOutbox;
 import kh.edu.acleda.campuslink.modules.notification.entity.NotificationOutboxStatus;
 import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
 import kh.edu.acleda.campuslink.modules.notification.repository.NotificationOutboxRepository;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationDeliveryPolicy;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationTransport;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationWriter;
+import kh.edu.acleda.campuslink.modules.notification.service.impl.InAppNotificationTransport;
 import kh.edu.acleda.campuslink.modules.notification.service.impl.NotificationOutboxServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +25,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,11 +39,13 @@ class NotificationOutboxServiceImplTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID EVENT_ID = UUID.randomUUID();
+    private static final UUID OUTBOX_ID = UUID.randomUUID();
     private static final Instant NOW = Instant.parse("2026-09-10T00:00:00Z");
 
     @Mock private NotificationOutboxRepository outboxRepository;
     @Mock private NotificationWriter notificationWriter;
     @Mock private NotificationDeliveryPolicy deliveryPolicy;
+    @Mock private NotificationTransport emailTransport;
 
     private NotificationOutboxServiceImpl service;
 
@@ -71,6 +77,7 @@ class NotificationOutboxServiceImplTest {
         assertThat(saved.getReferenceType()).isEqualTo("EVENT");
         assertThat(saved.getReferenceId()).isEqualTo(EVENT_ID);
         assertThat(saved.getDedupeKey()).isEqualTo("event-rsvp:1");
+        assertThat(saved.getChannel()).isEqualTo(NotificationChannel.IN_APP);
         assertThat(saved.getStatus()).isEqualTo(NotificationOutboxStatus.PENDING);
         assertThat(saved.getAttemptCount()).isZero();
         assertThat(saved.getNextAttemptAt()).isEqualTo(NOW);
@@ -79,13 +86,45 @@ class NotificationOutboxServiceImplTest {
     @Test
     void enqueueSkipsAnAlreadyQueuedDedupeKey() {
         NotificationRequest request = request("event-rsvp:1");
-        when(outboxRepository.existsByRecipientUserIdAndDedupeKey(USER_ID, "event-rsvp:1"))
+        when(outboxRepository.existsByRecipientUserIdAndChannelAndDedupeKey(
+            USER_ID, NotificationChannel.IN_APP, "event-rsvp:1"))
             .thenReturn(true);
 
         service.enqueue(request);
 
-        verify(outboxRepository).existsByRecipientUserIdAndDedupeKey(USER_ID, "event-rsvp:1");
+        verify(outboxRepository).existsByRecipientUserIdAndChannelAndDedupeKey(
+            USER_ID, NotificationChannel.IN_APP, "event-rsvp:1");
         verify(outboxRepository, never()).save(any());
+    }
+
+    @Test
+    void enqueueCreatesIndependentRowsForEnabledRequestedChannels() {
+        when(emailTransport.channel()).thenReturn(NotificationChannel.EMAIL);
+        when(emailTransport.isEnabled()).thenReturn(true);
+        when(outboxRepository.existsByRecipientUserIdAndChannelAndDedupeKey(
+            USER_ID, NotificationChannel.IN_APP, "event-rsvp:1")).thenReturn(false);
+        when(outboxRepository.existsByRecipientUserIdAndChannelAndDedupeKey(
+            USER_ID, NotificationChannel.EMAIL, "event-rsvp:1")).thenReturn(false);
+        NotificationRequest request = new NotificationRequest(
+            USER_ID,
+            "COMMUNITY_EVENT_RSVP_ORGANIZER",
+            "COMMUNITY_EVENT_RSVP",
+            Map.of("attendeeName", "Sokha", "eventTitle", "Career Day"),
+            "EVENT",
+            EVENT_ID,
+            "event-rsvp:1",
+            java.util.Set.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL));
+        NotificationOutboxServiceImpl channelService = new NotificationOutboxServiceImpl(
+            outboxRepository,
+            new ObjectMapper(),
+            deliveryPolicy,
+            List.of(new InAppNotificationTransport(notificationWriter), emailTransport),
+            Clock.fixed(NOW, ZoneOffset.UTC),
+            3);
+
+        channelService.enqueue(request);
+
+        verify(outboxRepository, org.mockito.Mockito.times(2)).save(any(NotificationOutbox.class));
     }
 
     @Test
@@ -177,7 +216,7 @@ class NotificationOutboxServiceImplTest {
     }
 
     private static NotificationOutbox pending(NotificationRequest request) {
-        return NotificationOutbox.builder()
+        NotificationOutbox outbox = NotificationOutbox.builder()
             .recipientUserId(request.recipientUserId())
             .templateKey(request.templateKey())
             .type(request.type())
@@ -189,5 +228,7 @@ class NotificationOutboxServiceImplTest {
             .attemptCount(0)
             .nextAttemptAt(NOW)
             .build();
+        ReflectionTestUtils.setField(outbox, "id", OUTBOX_ID);
+        return outbox;
     }
 }

@@ -119,3 +119,5 @@ databaseChangeLog:
       file: db/changelog/changes/0059-add-notification-preferences-and-quiet-hours.sql
   - include:
       file: db/changelog/changes/0060-create-notification-outbox.sql
+  - include:
+      file: db/changelog/changes/0061-add-notification-delivery-channels.sql

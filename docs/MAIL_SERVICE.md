@@ -141,3 +141,18 @@ sed 's/{{otp}}/582941/g' src/main/resources/templates/email/otp-register-en.html
 ```
 
 For a true client-rendered check, use the Mailpit route in §3B.
+
+## 6. Notification email is a separate transport
+
+Generic notification email is separate from authentication OTP email. It uses the same
+configured SMTP/Brevo connection and verified `app.mail.from` address, but it is controlled by
+its own switch:
+
+```text
+NOTIFICATION_EMAIL_ENABLED=false
+```
+
+When enabled, notification requests that explicitly include the `EMAIL` channel are delivered
+through the notification outbox. OTP delivery still uses `MAIL_ENABLED` and `EmailService`; it
+does not pass through the notification email transport. Keep notification email disabled in dev
+unless an SMTP catcher or a safe test mailbox is configured.

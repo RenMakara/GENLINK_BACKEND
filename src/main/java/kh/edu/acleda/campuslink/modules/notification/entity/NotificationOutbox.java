@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Duration;
 import java.time.Instant;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,11 +17,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Durable, immutable notification facts waiting for the in-app writer.
+ * Durable, immutable notification facts waiting for a channel transport.
  *
  * <p>The row contains the request data rather than a rendered message. Rendering remains in
- * {@code NotificationWriter}, so a retry uses the same template and recipient language rules as
- * the original request.
+ * the channel transport, so a retry uses the same template and recipient language rules as the
+ * original request.
  */
 @Getter
 @Setter
@@ -54,6 +55,11 @@ public class NotificationOutbox extends BaseEntity {
 
     @Column(name = "dedupe_key", length = 160)
     private String dedupeKey;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "channel", nullable = false, length = 20)
+    @Builder.Default
+    private NotificationChannel channel = NotificationChannel.IN_APP;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
