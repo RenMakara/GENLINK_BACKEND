@@ -1,6 +1,6 @@
 # Notification — Domain Build-Out Plan
 
-Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, 4A-4F, Phase 5, and Phase 6 Tasks 6A-6C complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, Task 4F, Phase 5, and Tasks 6A-6C, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
+Status: **Phase 0 done; Tasks 1A/1B, 2A-2H, 3A-3D, 4A-4F, Phase 5, and Phase 6 Tasks 6A-6D complete; the user confirmed `gradlew test` build success for Tasks 4B-4D, Task 4F, Phase 5, and Tasks 6A-6D, while local Codex Gradle execution remains blocked** (2026-09-10). The read side is implemented: entities
 `Notification` + bilingual `NotificationTemplate`, DB tables via migration 0012, a controller,
 repository, service, pagination, unread count, and mark-read operations. The architecture plan
 for emission and cross-module integrations is now prepared. Task 1A provides the internal
@@ -666,7 +666,7 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Deferred: preferences/quiet hours, durable outbox/retry, and external push/email delivery
   remain Phase 6 work.
 
-## Phase 6 — Preferences and delivery expansion — Task 6C DONE
+## Phase 6 — Preferences and delivery expansion — Task 6D DONE
 
 - [x] Task 6A — Add per-type on/off and quiet hours; the emitter must enforce them for eligible
   notifications.
@@ -674,6 +674,8 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   transports or multiple backend instances.
 - [x] Task 6C — Add opt-in email and online push adapters behind the same internal emit contract.
   Brevo remains a transport implementation for email and must not be mixed with the OTP flow.
+- [x] Task 6D — Add user channel preferences so explicit `IN_APP`, `EMAIL`, and online `PUSH`
+  requests can be enabled or suppressed independently.
 
 ### Task 6A plan and contract
 
@@ -798,6 +800,40 @@ Implementation report:
 - Deferred: offline FCM/APNs delivery, device-token registration, provider credentials, delivery
   receipts, and channel-specific user preference UI remain future work. REST/in-app history remains
   the source of truth when the client is offline.
+
+### Task 6D plan and implementation report — DONE (2026-09-10)
+
+- Add a separate per-user `notification_channel_preferences` table for the three channel values.
+  Existing type preferences and the global notification setting remain the higher-level gates;
+  missing channel rows are enabled by default for backward compatibility.
+- Expose authenticated profile-settings endpoints to list channel preferences and update one channel.
+  The request body remains the existing `{ "enabled": true|false }` shape.
+- Apply the channel preference to explicit channel requests at the durable worker boundary. A
+  multi-channel request is evaluated independently per outbox row, so disabling email or push does
+  not suppress an in-app row. Existing four/seven-argument emitter calls remain `IN_APP` only.
+- Keep channel preference failures fail-open like the existing notification policy, so a settings
+  read problem cannot break RSVP, payment, moderation, or another source business action.
+- Update the Postman collection and notification plan. FCM/APNs and device-token registration stay
+  deferred; this task controls the current Brevo email and authenticated WebSocket transports only.
+
+Implementation report:
+
+- Added `NotificationChannelPreference` persistence, repository, service, response DTO, and
+  authenticated profile-settings controller. `GET /api/v1/profile/settings/notifications/channels`
+  returns all three channels with missing rows enabled by default; `PUT .../channels/{channel}`
+  upserts one explicit override.
+- Added and registered Liquibase migration `0062-create-notification-channel-preferences.sql`
+  with a per-user/per-channel unique constraint and an enum-value check.
+- Extended the delivery policy to apply channel overrides to single-channel outbox deliveries.
+  Mixed requests remain independent, so disabling `EMAIL` or `PUSH` does not suppress `IN_APP`;
+  preference read failures fail open like the existing type/global policy.
+- Added service and policy tests for stable defaults, upsert/validation, disabled channels, and
+  mixed-channel eligibility. The user confirmed the full `gradlew test` build passed; Postman JSON
+  parsing and `git diff --check` passed as well.
+- Updated the Postman collection with the new list/update requests and updated this plan. No
+  deployment or push was performed.
+- Deferred: FCM/APNs offline delivery, device-token registration, provider credentials, delivery
+  receipts, and automatic channel selection by notification type remain future work.
 
 ---
 

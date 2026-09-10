@@ -10,8 +10,12 @@ import java.time.ZoneId;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Set;
+import kh.edu.acleda.campuslink.modules.notification.entity.NotificationChannelPreference;
 import kh.edu.acleda.campuslink.modules.notification.entity.NotificationPreference;
+import kh.edu.acleda.campuslink.modules.notification.repository.NotificationChannelPreferenceRepository;
 import kh.edu.acleda.campuslink.modules.notification.repository.NotificationPreferenceRepository;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.notification.service.impl.NotificationDeliveryPolicyImpl;
 import kh.edu.acleda.campuslink.modules.profile.entity.UserSetting;
@@ -29,6 +33,7 @@ class NotificationDeliveryPolicyImplTest {
 
     @Mock private UserSettingRepository userSettingRepository;
     @Mock private NotificationPreferenceRepository preferenceRepository;
+    @Mock private NotificationChannelPreferenceRepository channelPreferenceRepository;
 
     @Test
     void allowsByDefaultWhenTheUserHasNoSettingsOrTypeOverride() {
@@ -81,6 +86,34 @@ class NotificationDeliveryPolicyImplTest {
         assertThat(policy.isAllowed(request("COMMUNITY_EVENT_RSVP"))).isTrue();
     }
 
+    @Test
+    void suppressesAnExplicitChannelWhenThatChannelIsDisabled() {
+        NotificationDeliveryPolicyImpl policy = policyAtWithChannelPreferences(LocalTime.of(12, 0));
+        when(userSettingRepository.findByUserId(USER_ID)).thenReturn(Optional.of(settings(true)));
+        when(preferenceRepository.findByUserIdAndNotificationType(USER_ID, "COMMUNITY_EVENT_RSVP"))
+            .thenReturn(Optional.empty());
+        when(channelPreferenceRepository.findByUserIdAndChannel(USER_ID, NotificationChannel.EMAIL))
+            .thenReturn(Optional.of(NotificationChannelPreference.builder()
+                .channel(NotificationChannel.EMAIL)
+                .enabled(false)
+                .build()));
+
+        assertThat(policy.isAllowed(request(
+            "COMMUNITY_EVENT_RSVP", Set.of(NotificationChannel.EMAIL)))).isFalse();
+    }
+
+    @Test
+    void keepsMixedChannelRequestsEligibleWhenOneChannelIsDisabled() {
+        NotificationDeliveryPolicyImpl policy = policyAtWithChannelPreferences(LocalTime.of(12, 0));
+        when(userSettingRepository.findByUserId(USER_ID)).thenReturn(Optional.of(settings(true)));
+        when(preferenceRepository.findByUserIdAndNotificationType(USER_ID, "COMMUNITY_EVENT_RSVP"))
+            .thenReturn(Optional.empty());
+
+        assertThat(policy.isAllowed(request(
+            "COMMUNITY_EVENT_RSVP",
+            Set.of(NotificationChannel.IN_APP, NotificationChannel.EMAIL)))).isTrue();
+    }
+
     private NotificationDeliveryPolicyImpl policyAt(LocalTime localTime) {
         Clock clock = Clock.fixed(
             LocalDateTime.of(2026, 9, 10, localTime.getHour(), localTime.getMinute())
@@ -88,8 +121,21 @@ class NotificationDeliveryPolicyImplTest {
         return new NotificationDeliveryPolicyImpl(userSettingRepository, preferenceRepository, clock);
     }
 
+    private NotificationDeliveryPolicyImpl policyAtWithChannelPreferences(LocalTime localTime) {
+        Clock clock = Clock.fixed(
+            LocalDateTime.of(2026, 9, 10, localTime.getHour(), localTime.getMinute())
+                .atZone(ZONE).toInstant(), ZONE);
+        return new NotificationDeliveryPolicyImpl(
+            userSettingRepository, preferenceRepository, channelPreferenceRepository, clock);
+    }
+
     private NotificationRequest request(String type) {
         return new NotificationRequest(USER_ID, "TEST_TEMPLATE", type, Map.of());
+    }
+
+    private NotificationRequest request(String type, Set<NotificationChannel> channels) {
+        return new NotificationRequest(
+            USER_ID, "TEST_TEMPLATE", type, Map.of(), null, null, null, channels);
     }
 
     private UserSetting settings(boolean notificationsEnabled) {

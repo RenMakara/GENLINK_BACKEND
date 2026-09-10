@@ -1,6 +1,6 @@
 package kh.edu.acleda.campuslink.modules.notification.service;
 
-/** Decides whether an in-app notification request is eligible for this recipient right now. */
+/** Decides whether a notification request is eligible for this recipient right now. */
 @FunctionalInterface
 public interface NotificationDeliveryPolicy {
 

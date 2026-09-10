@@ -156,3 +156,7 @@ When enabled, notification requests that explicitly include the `EMAIL` channel 
 through the notification outbox. OTP delivery still uses `MAIL_ENABLED` and `EmailService`; it
 does not pass through the notification email transport. Keep notification email disabled in dev
 unless an SMTP catcher or a safe test mailbox is configured.
+
+Users can control the channel with the authenticated profile-settings endpoints:
+`GET /api/v1/profile/settings/notifications/channels` and
+`PUT /api/v1/profile/settings/notifications/channels/EMAIL` with `{ "enabled": false }`.

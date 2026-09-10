@@ -5,8 +5,11 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Locale;
 import java.util.Optional;
+import kh.edu.acleda.campuslink.modules.notification.entity.NotificationChannelPreference;
 import kh.edu.acleda.campuslink.modules.notification.entity.NotificationPreference;
+import kh.edu.acleda.campuslink.modules.notification.repository.NotificationChannelPreferenceRepository;
 import kh.edu.acleda.campuslink.modules.notification.repository.NotificationPreferenceRepository;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationDeliveryPolicy;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.profile.entity.UserSetting;
@@ -25,19 +28,30 @@ public class NotificationDeliveryPolicyImpl implements NotificationDeliveryPolic
 
     private final UserSettingRepository userSettingRepository;
     private final NotificationPreferenceRepository preferenceRepository;
+    private final NotificationChannelPreferenceRepository channelPreferenceRepository;
     private final Clock clock;
 
     @Autowired
     public NotificationDeliveryPolicyImpl(UserSettingRepository userSettingRepository,
-                                          NotificationPreferenceRepository preferenceRepository) {
-        this(userSettingRepository, preferenceRepository, Clock.system(ZONE));
+                                          NotificationPreferenceRepository preferenceRepository,
+                                          NotificationChannelPreferenceRepository channelPreferenceRepository) {
+        this(userSettingRepository, preferenceRepository, channelPreferenceRepository, Clock.system(ZONE));
     }
 
     public NotificationDeliveryPolicyImpl(UserSettingRepository userSettingRepository,
                                           NotificationPreferenceRepository preferenceRepository,
                                           Clock clock) {
+        this(userSettingRepository, preferenceRepository, null, clock);
+    }
+
+    public NotificationDeliveryPolicyImpl(
+        UserSettingRepository userSettingRepository,
+        NotificationPreferenceRepository preferenceRepository,
+        NotificationChannelPreferenceRepository channelPreferenceRepository,
+        Clock clock) {
         this.userSettingRepository = userSettingRepository;
         this.preferenceRepository = preferenceRepository;
+        this.channelPreferenceRepository = channelPreferenceRepository;
         this.clock = clock;
     }
 
@@ -58,7 +72,25 @@ public class NotificationDeliveryPolicyImpl implements NotificationDeliveryPolic
                 return false;
             }
 
-            return !isInsideQuietHours(setting, LocalTime.now(clock));
+            if (isInsideQuietHours(setting, LocalTime.now(clock))) {
+                return false;
+            }
+
+            // A multi-channel request is split into independent outbox rows. The emitter must
+            // remain eligible when only one requested channel is disabled; each single-channel
+            // row is checked again here before its transport runs.
+            if (request.channels().size() == 1 && channelPreferenceRepository != null) {
+                NotificationChannel channel = request.channels().iterator().next();
+                Optional<NotificationChannelPreference> channelPreference =
+                    channelPreferenceRepository.findByUserIdAndChannel(
+                        request.recipientUserId(), channel);
+                if (channelPreference.isPresent()
+                    && Boolean.FALSE.equals(channelPreference.get().getEnabled())) {
+                    return false;
+                }
+            }
+
+            return true;
         } catch (RuntimeException exception) {
             // Preferences are secondary to the source action. A settings read failure must not
             // make RSVP, payment, moderation, or another business transaction fail.

@@ -906,6 +906,60 @@
                 }
               },
               "description": "Upserts one explicit override. notificationType is normalised to uppercase and may contain only A-Z, 0-9, and underscore."
+            },
+            {
+              "name": "List My Notification Channel Preferences",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/settings/notifications/channels",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "settings",
+                    "notifications",
+                    "channels"
+                  ]
+                }
+              },
+              "description": "Returns IN_APP, EMAIL, and PUSH channel overrides. Missing rows are enabled by default."
+            },
+            {
+              "name": "Set Notification Channel Preference",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/profile/settings/notifications/channels/EMAIL",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "profile",
+                    "settings",
+                    "notifications",
+                    "channels",
+                    "EMAIL"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"enabled\": false\n}"
+                }
+              },
+              "description": "Upserts one channel override. channel accepts IN_APP, EMAIL, or PUSH; the path is case-insensitive."
             }
           ]
         },
