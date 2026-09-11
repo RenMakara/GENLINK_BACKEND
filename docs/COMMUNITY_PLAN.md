@@ -132,9 +132,9 @@ The single most visible surface in the app. Also unblocks `/mobile/home`, whose
       **Free/paid filter not done** — the columns exist now, the filter does not.
 - [x] **2.3** RSVP: `POST /events/{id}/rsvp`, `DELETE /events/{id}/rsvp`.
       Capacity check **before** payment (see the corrected paid-RSVP flow),
-      `UNIQUE(event_id, user_id)`, maintain `attendeeCount`, award XP.
-      **Organiser notification not done** — the notification module exists but is
-      not wired to anything, so this would be the first caller.
+      `UNIQUE(event_id, user_id)`, maintain `attendeeCount`, award XP, and notify
+      the organiser after a successful non-idempotent RSVP through the Notification
+      emitter. The notification includes the attendee name and `EVENT + eventId`.
 - [x] **2.4** Paid events route through the demo wallet in the event's selected
       currency (`USD` or `KHR`) — simulation only. Never imply a real KHQR transfer.
 - [x] **2.5** Complete event details: start/end time, `ONLINE`/`IN_PERSON` mode,
@@ -146,8 +146,7 @@ The single most visible surface in the app. Also unblocks `/mobile/home`, whose
       are stored on `events.currency`, displayed in event responses, and matched to
       the corresponding wallet balance during RSVP.
 
-Defer: QR check-in, map search/picker UI, organiser notifications and free/paid
-browse filtering.
+Defer: QR check-in, map search/picker UI and free/paid browse filtering.
 
 ---
 
@@ -379,14 +378,37 @@ timeline, not a social product.
   posts (`POST /community/posts/{id}/report`); moderators review a per-community queue
   (`GET /community/posts/community/{id}/reported`) and remove or dismiss. See
   `POST_REPORTING.md`.
+- **Community post moderation notification delivered (2026-09-09).** A successful moderator
+  removal notifies the post author with `COMMUNITY_POST_MODERATED`, `POST + postId` navigation
+  metadata, community name, action, and a recipient-scoped dedupe key. Dismissal and refused
+  moderation remain silent.
 - **Forum discussion moderation** — **done 2026-07-28** (ROLE_ADMIN queue). The forum is
   category-scoped, so it is an app-admin concern rather than a community-role one. See
   `FORUM_MODERATION.md`. Community moderation is now complete across posts and discussions.
+- **Forum discussion moderation notification delivered (2026-09-09).** A successful ROLE_ADMIN
+  removal notifies the stored discussion author with `FORUM_DISCUSSION_MODERATED`,
+  `DISCUSSION + discussionId` navigation metadata, discussion title, moderation action, and a
+  recipient-scoped dedupe key. Report dismissal and author self-deletion remain silent.
 - ~~**Private community membership is open**~~ — **fixed 2026-07-28.** `join` now
   gates on privacy: a PRIVATE community records a `MemberStatus.PENDING` request that
   an owner/admin approves via `GET/POST/DELETE /communities/{id}/join-requests[...]`,
   mirroring the Follow PENDING path. Pending users are not counted, not in the member
   list, and not served COMMUNITY-visibility posts until approved.
+- **Private join-request manager notification delivered (2026-09-09).** A new or reopened
+  pending request emits `COMMUNITY_JOIN_REQUEST_OWNER` after the membership row is saved to
+  every active `OWNER`/`ADMIN`, with requester/community parameters, a `COMMUNITY + communityId`
+  navigation reference, and a recipient-scoped dedupe key. Current role membership is used so
+  ownership transfers notify the right managers.
+- **Private join-request approval notification delivered (2026-09-09).** Approving a pending
+  request emits `COMMUNITY_JOIN_REQUEST_ACCEPTED` to the requester after the member becomes
+  ACTIVE and the count is incremented, with a `COMMUNITY + communityId` reference and dedupe key.
+- **Event attendee reminder delivered (2026-09-09).** A five-minute Phnom Penh scheduler sweep
+  emits `COMMUNITY_EVENT_REMINDER` to `JOINED` attendees when a published event is approximately
+  24 hours away, with `EVENT + eventId` navigation data and a recipient-scoped dedupe key.
+- **Community notification reliability tests delivered (2026-09-09).** RSVP, private join request,
+  post moderation, and forum discussion moderation now have coverage proving a notification writer
+  failure does not undo the source action; recipient selection, idempotency, dedupe, and reminder
+  failure isolation are covered in the notification test suite.
 - `user_settings.allow_follow_request` is still unused — PENDING keys off
   `privacyProfile` instead.
 
@@ -455,6 +477,10 @@ other order takes someone's money and then tells them the event is full. Pinned 
   `EVENT_PAYMENT` in the event's selected currency. `RsvpResponse.simulatedPayment`
   is true whenever money moved, so the client can label the screen a simulation.
   **Nothing here touches a real payment rail.**
+- A successful paid RSVP also emits `COMMUNITY_EVENT_PAYMENT_RECEIPT` to the attendee after the
+  ledger charge and RSVP transaction complete. It carries `EVENT + eventId`, amount/currency, and
+  a ledger-transaction dedupe key; free, declined, insufficient-funds, and rolled-back RSVPs stay
+  silent.
 - RSVP is idempotent: it backs a button and `(event_id, user_id)` is unique. A
   second tap does not double-count or re-award XP.
 - Cancelling **does not refund** — the demo wallet has no refund flow, and inventing
@@ -478,9 +504,17 @@ other order takes someone's money and then tells them the event is full. Pinned 
 
 ### Known gaps
 
-- **No organiser notification.** The flow says the organiser is told when someone
-  joins. The `notification` module exists but nothing calls it yet — this would be
-  its first caller.
+- **Organiser notification delivered (2026-09-09).** A successful new RSVP emits
+  `COMMUNITY_EVENT_RSVP_ORGANIZER` after the RSVP transaction, with the event
+  navigation reference and a recipient-scoped dedupe key. Idempotent re-taps and
+  organiser self-RSVPs do not create a notification.
+- **Private join-request manager notification delivered (2026-09-09).** New or reopened
+  pending requests notify every active community `OWNER`/`ADMIN` with the community navigation
+  reference and a recipient-scoped dedupe key; repeated pending requests and public joins stay
+  silent.
+- **Private join-request approval notification delivered (2026-09-09).** A valid approval
+  notifies the requester with the community navigation reference and dedupe key; repeated
+  approval attempts are not-found and stay silent.
 - **No free/paid filter** on browse, though the columns now exist.
 - **No QR check-in.** `event_rsvps.checked_in` and `qr_code` exist, unused.
 - **No refund on cancel**, deliberately.

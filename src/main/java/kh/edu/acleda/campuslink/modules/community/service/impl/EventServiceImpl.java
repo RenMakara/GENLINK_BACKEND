@@ -27,10 +27,13 @@ import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository
 import kh.edu.acleda.campuslink.modules.community.service.EventService;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
+import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -49,6 +52,10 @@ public class EventServiceImpl implements EventService {
 
     private static final int RSVP_XP = 10;
     private static final String XP_SOURCE = "EVENT_RSVP";
+    private static final String RSVP_NOTIFICATION_TEMPLATE = "COMMUNITY_EVENT_RSVP_ORGANIZER";
+    private static final String RSVP_NOTIFICATION_TYPE = "COMMUNITY_EVENT_RSVP";
+    private static final String PAYMENT_RECEIPT_TEMPLATE = "COMMUNITY_EVENT_PAYMENT_RECEIPT";
+    private static final String PAYMENT_RECEIPT_TYPE = "COMMUNITY_EVENT_PAYMENT";
 
     private final EventRepository eventRepository;
     private final EventRsvpRepository rsvpRepository;
@@ -57,6 +64,7 @@ public class EventServiceImpl implements EventService {
     private final RewardService rewardService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final NotificationEmitter notificationEmitter;
 
     public EventServiceImpl(EventRepository eventRepository,
                             EventRsvpRepository rsvpRepository,
@@ -64,7 +72,8 @@ public class EventServiceImpl implements EventService {
                             LedgerService ledgerService,
                             RewardService rewardService,
                             UserRepository userRepository,
-                            CurrentUserProvider currentUserProvider) {
+                            CurrentUserProvider currentUserProvider,
+                            NotificationEmitter notificationEmitter) {
         this.eventRepository = eventRepository;
         this.rsvpRepository = rsvpRepository;
         this.demoWalletRepository = demoWalletRepository;
@@ -72,6 +81,7 @@ public class EventServiceImpl implements EventService {
         this.rewardService = rewardService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
+        this.notificationEmitter = notificationEmitter;
     }
 
     @Override
@@ -210,8 +220,9 @@ public class EventServiceImpl implements EventService {
             throw new ApiException("Event is full", "EVENT_FULL");
         }
 
-        BigDecimal charged = settlePayment(event, userId);
+        PaymentSettlement payment = settlePayment(event, userId);
 
+        User attendee = loadCurrentUser();
         if (existing != null) {
             // The unique constraint forbids a second row, so a cancelled RSVP is reused.
             existing.setStatus(RsvpStatus.JOINED);
@@ -220,17 +231,19 @@ public class EventServiceImpl implements EventService {
         } else {
             EventRsvp created = EventRsvp.builder()
                 .event(event)
-                .user(loadCurrentUser())
+                .user(attendee)
                 .status(RsvpStatus.JOINED)
                 .checkedIn(false)
                 .build();
             applyRegistration(created, registration);
             rsvpRepository.save(created);
         }
-        int xp = awardXp(eventId);
+        int xp = awardXp(eventId, attendee);
+        emitRsvpNotification(event, attendee, registration);
+        emitPaymentReceiptNotification(event, attendee, payment);
 
         return new RsvpResponse(eventId, RsvpStatus.JOINED, event.getAttendeeCount() + 1, xp,
-            charged, charged != null);
+            payment == null ? null : payment.amount(), payment != null);
     }
 
     @Override
@@ -261,9 +274,9 @@ public class EventServiceImpl implements EventService {
      * Simulated payment. Deducts the demo wallet and records a demo_transaction; there
      * is no real KHQR transfer anywhere in this path.
      *
-     * @return the amount charged, or null when the event is free
+     * @return the payment settlement, or null when the event is free
      */
-    private BigDecimal settlePayment(Event event, UUID userId) {
+    private PaymentSettlement settlePayment(Event event, UUID userId) {
         if (!Boolean.TRUE.equals(event.getIsPaid()) || event.getPrice() == null) {
             return null;
         }
@@ -281,7 +294,7 @@ public class EventServiceImpl implements EventService {
             // rows to USD, but this keeps the RSVP failure explicit if neither ran.
             throw new ApiException("Paid event currency is missing", "EVENT_CURRENCY_MISSING");
         }
-        ledgerService.debit(wallet, TransactionType.EVENT_PAYMENT, currency, price,
+        DemoTransaction transaction = ledgerService.debit(wallet, TransactionType.EVENT_PAYMENT, currency, price,
             "Simulated payment for event: " + event.getTitle(), "EVENT", event.getId());
 
         // The only place a balance moves outside the finance module. It is simulated,
@@ -290,16 +303,76 @@ public class EventServiceImpl implements EventService {
         // SIMULATED out loud so a log reader never mistakes it for a real payment.
         log.info("SIMULATED wallet debit: user={} event={} currency={} amount={} balanceAfter={}",
             userId, event.getId(), currency, price, balanceFor(wallet, currency));
-        return price;
+        return new PaymentSettlement(price, transaction == null ? null : transaction.getId());
     }
 
     private BigDecimal balanceFor(DemoWallet wallet, Currency currency) {
         return currency == Currency.KHR ? wallet.getBalanceKhr() : wallet.getBalanceUsd();
     }
 
-    private int awardXp(UUID eventId) {
-        rewardService.award(loadCurrentUser(), XP_SOURCE, eventId, RSVP_XP);
+    private int awardXp(UUID eventId, User attendee) {
+        rewardService.award(attendee, XP_SOURCE, eventId, RSVP_XP);
         return RSVP_XP;
+    }
+
+    private void emitPaymentReceiptNotification(Event event, User attendee, PaymentSettlement payment) {
+        if (payment == null) {
+            return;
+        }
+        if (payment.transactionId() == null || attendee == null || attendee.getId() == null
+            || event.getId() == null || event.getTitle() == null || event.getTitle().isBlank()
+            || event.getCurrency() == null) {
+            log.warn("Skipping event payment receipt because payment/event details are incomplete: event={} user={}",
+                event.getId(), attendee == null ? null : attendee.getId());
+            return;
+        }
+
+        notificationEmitter.emit(new NotificationRequest(
+            attendee.getId(),
+            PAYMENT_RECEIPT_TEMPLATE,
+            PAYMENT_RECEIPT_TYPE,
+            Map.of(
+                "amount", formatAmount(payment.amount()),
+                "currency", event.getCurrency().name(),
+                "eventTitle", event.getTitle()),
+            "EVENT",
+            event.getId(),
+            "event-payment-receipt:" + payment.transactionId()));
+    }
+
+    private String formatAmount(BigDecimal amount) {
+        return amount.stripTrailingZeros().toPlainString();
+    }
+
+    /** Notify the organiser only for a newly joined RSVP, not for an idempotent button re-tap. */
+    private void emitRsvpNotification(Event event,
+                                      User attendee,
+                                      EventRegistrationRequest registration) {
+        User organizer = event.getOrganizer();
+        if (organizer == null || organizer.getId() == null || organizer.getId().equals(attendee.getId())) {
+            return;
+        }
+        String attendeeName = registration == null ? attendee.getFullName() : registration.fullName().strip();
+        if (isBlank(attendeeName)) {
+            attendeeName = !isBlank(attendee.getUsername()) ? attendee.getUsername() : attendee.getEmail();
+        }
+        if (isBlank(attendeeName) || isBlank(event.getTitle()) || event.getId() == null) {
+            log.warn("Skipping RSVP notification because attendee/event details are incomplete: event={} user={}",
+                event.getId(), attendee.getId());
+            return;
+        }
+
+        notificationEmitter.emit(new NotificationRequest(
+            organizer.getId(),
+            RSVP_NOTIFICATION_TEMPLATE,
+            RSVP_NOTIFICATION_TYPE,
+            Map.of("attendeeName", attendeeName, "eventTitle", event.getTitle()),
+            "EVENT",
+            event.getId(),
+            "event-rsvp:" + event.getId() + ":" + attendee.getId()));
+    }
+
+    private record PaymentSettlement(BigDecimal amount, UUID transactionId) {
     }
 
     private boolean isFull(Event event) {

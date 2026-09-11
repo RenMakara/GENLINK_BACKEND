@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.community.service.impl;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -24,6 +25,8 @@ import kh.edu.acleda.campuslink.modules.community.repository.ForumCommentReposit
 import kh.edu.acleda.campuslink.modules.community.repository.ForumDiscussionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.service.DiscussionService;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
@@ -40,6 +43,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class DiscussionServiceImpl implements DiscussionService {
 
     private static final String DEFAULT_REACTION = "LIKE";
+    private static final String DISCUSSION_MODERATION_NOTIFICATION_TEMPLATE = "FORUM_DISCUSSION_MODERATED";
+    private static final String DISCUSSION_MODERATION_NOTIFICATION_TYPE = "FORUM_DISCUSSION_MODERATED";
+    private static final String DISCUSSION_MODERATION_ACTION_REMOVED = "removed";
 
     private final ForumDiscussionRepository discussionRepository;
     private final ForumCommentRepository commentRepository;
@@ -48,6 +54,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     private final DiscussionReportRepository reportRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final NotificationEmitter notificationEmitter;
 
     public DiscussionServiceImpl(ForumDiscussionRepository discussionRepository,
                                  ForumCommentRepository commentRepository,
@@ -55,7 +62,8 @@ public class DiscussionServiceImpl implements DiscussionService {
                                  ForumCommentReactionRepository commentReactionRepository,
                                  DiscussionReportRepository reportRepository,
                                  UserRepository userRepository,
-                                 CurrentUserProvider currentUserProvider) {
+                                 CurrentUserProvider currentUserProvider,
+                                 NotificationEmitter notificationEmitter) {
         this.discussionRepository = discussionRepository;
         this.commentRepository = commentRepository;
         this.reactionRepository = reactionRepository;
@@ -63,6 +71,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         this.reportRepository = reportRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
+        this.notificationEmitter = notificationEmitter;
     }
 
     @Override
@@ -334,6 +343,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         ForumDiscussion discussion = loadDiscussion(discussionId);
         discussion.setDeletedAt(Instant.now());
         discussionRepository.save(discussion);
+        emitDiscussionModerationNotification(discussion);
         log.info("Discussion {} removed by admin {}", discussionId, currentUserProvider.getCurrentUserId());
     }
 
@@ -346,6 +356,27 @@ public class DiscussionServiceImpl implements DiscussionService {
         reportRepository.deleteByDiscussionId(discussionId);
         discussionRepository.clearReportCount(discussionId);
         log.info("Reports dismissed on discussion {} by admin {}", discussionId, currentUserProvider.getCurrentUserId());
+    }
+
+    private void emitDiscussionModerationNotification(ForumDiscussion discussion) {
+        User author = discussion.getUser();
+        if (author == null || author.getId() == null || discussion.getId() == null
+            || discussion.getTitle() == null || discussion.getTitle().isBlank()) {
+            log.warn("Skipping discussion moderation notification because discussion details are incomplete: id={}",
+                discussion.getId());
+            return;
+        }
+
+        notificationEmitter.emit(new NotificationRequest(
+            author.getId(),
+            DISCUSSION_MODERATION_NOTIFICATION_TEMPLATE,
+            DISCUSSION_MODERATION_NOTIFICATION_TYPE,
+            Map.of(
+                "discussionTitle", discussion.getTitle(),
+                "moderationAction", DISCUSSION_MODERATION_ACTION_REMOVED),
+            "DISCUSSION",
+            discussion.getId(),
+            "forum-discussion-moderated:" + discussion.getId() + ":" + author.getId()));
     }
 
     /**

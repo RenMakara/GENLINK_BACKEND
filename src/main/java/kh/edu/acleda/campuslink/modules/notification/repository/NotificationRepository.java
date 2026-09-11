@@ -25,6 +25,9 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     /** Badge count. */
     long countByUserIdAndReadStatusFalse(UUID userId);
 
+    /** Fast duplicate check for retryable or scheduled notification requests. */
+    boolean existsByUserIdAndDedupeKey(UUID userId, String dedupeKey);
+
     /** Mark every unread notification for the user as read in one statement; returns rows touched. */
     @Modifying
     @Query("UPDATE Notification n SET n.readStatus = true, n.readAt = :now "

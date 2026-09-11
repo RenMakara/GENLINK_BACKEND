@@ -4,6 +4,7 @@ import java.text.Normalizer;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,6 +24,8 @@ import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository;
 import kh.edu.acleda.campuslink.modules.community.service.CommunityService;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -40,20 +43,27 @@ import org.springframework.transaction.annotation.Transactional;
 public class CommunityServiceImpl implements CommunityService {
 
     private static final Set<CommunityRole> CAN_MANAGE = EnumSet.of(CommunityRole.OWNER, CommunityRole.ADMIN);
+    private static final String JOIN_REQUEST_NOTIFICATION_TEMPLATE = "COMMUNITY_JOIN_REQUEST_OWNER";
+    private static final String JOIN_REQUEST_NOTIFICATION_TYPE = "COMMUNITY_JOIN_REQUEST";
+    private static final String JOIN_REQUEST_ACCEPTED_NOTIFICATION_TEMPLATE = "COMMUNITY_JOIN_REQUEST_ACCEPTED";
+    private static final String JOIN_REQUEST_ACCEPTED_NOTIFICATION_TYPE = "COMMUNITY_JOIN_REQUEST_ACCEPTED";
 
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository memberRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final NotificationEmitter notificationEmitter;
 
     public CommunityServiceImpl(CommunityRepository communityRepository,
                                 CommunityMemberRepository memberRepository,
                                 UserRepository userRepository,
-                                CurrentUserProvider currentUserProvider) {
+                                CurrentUserProvider currentUserProvider,
+                                NotificationEmitter notificationEmitter) {
         this.communityRepository = communityRepository;
         this.memberRepository = memberRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
+        this.notificationEmitter = notificationEmitter;
     }
 
     @Override
@@ -220,8 +230,10 @@ public class CommunityServiceImpl implements CommunityService {
             // PRIVATE community still routes the return through approval.
             member.setRole(CommunityRole.MEMBER);
             if (requiresApproval) {
+                User requester = loadCurrentUser();
                 member.setStatus(MemberStatus.PENDING);
                 memberRepository.save(member);
+                emitJoinRequestNotification(communityId, community, requester);
                 log.info("Join request re-opened (pending approval): community={} user={}", communityId, userId);
                 return toResponse(community, null, true);
             }
@@ -236,14 +248,16 @@ public class CommunityServiceImpl implements CommunityService {
 
         // A pending request is not a membership yet, so memberCount and joinedAt only move
         // once it is approved.
+        User requester = loadCurrentUser();
         memberRepository.save(CommunityMember.builder()
             .community(community)
-            .user(loadCurrentUser())
+            .user(requester)
             .role(CommunityRole.MEMBER)
             .status(requiresApproval ? MemberStatus.PENDING : MemberStatus.ACTIVE)
             .joinedAt(requiresApproval ? null : Instant.now())
             .build());
         if (requiresApproval) {
+            emitJoinRequestNotification(communityId, community, requester);
             log.info("Join request created (pending approval): community={} user={}", communityId, userId);
             return toResponse(community, null, true);
         }
@@ -301,13 +315,14 @@ public class CommunityServiceImpl implements CommunityService {
     @Override
     @Transactional
     public CommunityMemberResponse approveJoinRequest(UUID communityId, UUID userId) {
-        loadManageable(communityId);
+        Community community = loadManageable(communityId);
         CommunityMember member = pendingRequest(communityId, userId);
         member.setStatus(MemberStatus.ACTIVE);
         member.setJoinedAt(Instant.now());
         memberRepository.save(member);
         // The count moves only now: a pending request never incremented it.
         communityRepository.adjustMemberCount(communityId, 1);
+        emitJoinRequestAcceptedNotification(communityId, community, member.getUser());
         log.info("Join request approved: community={} user={} by manager={}",
             communityId, userId, currentUserProvider.getCurrentUserId());
         return toMemberResponse(member);
@@ -414,6 +429,68 @@ public class CommunityServiceImpl implements CommunityService {
     private Community loadCommunity(UUID communityId) {
         return communityRepository.findByIdAndDeletedAtIsNull(communityId)
             .orElseThrow(() -> new NotFoundException("Community not found"));
+    }
+
+    private void emitJoinRequestNotification(UUID communityId, Community community, User requester) {
+        if (requester == null || requester.getId() == null || isBlank(community.getName()) || communityId == null) {
+            log.warn("Skipping community join-request notification because details are incomplete: community={} user={}",
+                communityId, requester == null ? null : requester.getId());
+            return;
+        }
+        String requesterName = requester.getFullName();
+        if (isBlank(requesterName)) {
+            requesterName = !isBlank(requester.getUsername()) ? requester.getUsername() : requester.getEmail();
+        }
+        if (isBlank(requesterName)) {
+            log.warn("Skipping community join-request notification because details are incomplete: community={} user={}",
+                communityId, requester.getId());
+            return;
+        }
+
+        Map<String, String> parameters = Map.of(
+            "requesterName", requesterName.strip(),
+            "communityName", community.getName());
+        Set<UUID> recipientIds = new HashSet<>();
+        for (CommunityMember manager : memberRepository.findActiveManagers(
+            communityId, CAN_MANAGE, MemberStatus.ACTIVE)) {
+            User recipient = manager.getUser();
+            if (recipient == null || recipient.getId() == null || recipient.getId().equals(requester.getId())
+                || !recipientIds.add(recipient.getId())) {
+                continue;
+            }
+            notificationEmitter.emit(new NotificationRequest(
+                recipient.getId(),
+                JOIN_REQUEST_NOTIFICATION_TEMPLATE,
+                JOIN_REQUEST_NOTIFICATION_TYPE,
+                parameters,
+                "COMMUNITY",
+                communityId,
+                "community-join-request:" + communityId + ":" + requester.getId()));
+        }
+        if (recipientIds.isEmpty()) {
+            log.warn("No active owner/admin found for community join-request notification: community={}", communityId);
+        }
+    }
+
+    private void emitJoinRequestAcceptedNotification(UUID communityId, Community community, User requester) {
+        if (requester == null || requester.getId() == null || isBlank(community.getName()) || communityId == null) {
+            log.warn("Skipping community approval notification because details are incomplete: community={} user={}",
+                communityId, requester == null ? null : requester.getId());
+            return;
+        }
+
+        notificationEmitter.emit(new NotificationRequest(
+            requester.getId(),
+            JOIN_REQUEST_ACCEPTED_NOTIFICATION_TEMPLATE,
+            JOIN_REQUEST_ACCEPTED_NOTIFICATION_TYPE,
+            Map.of("communityName", community.getName()),
+            "COMMUNITY",
+            communityId,
+            "community-join-request-accepted:" + communityId + ":" + requester.getId()));
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     /** Not-found rather than forbidden, so the API does not confirm what it holds. */

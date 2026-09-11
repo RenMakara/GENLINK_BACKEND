@@ -41,12 +41,9 @@ public class EmailServiceImpl implements EmailService {
     private final MeterRegistry meterRegistry;
 
     /**
-     * @param fromEmail   the From address, from {@code app.mail.from} — never from
-     *                    {@code spring.mail.username}. With a transactional provider
-     *                    (Brevo, SendGrid, Mailgun) the SMTP username is a generated
-     *                    credential such as b31d5d001@smtp-brevo.com, not a mailbox
-     *                    anyone owns, and the provider rejects any message whose From
-     *                    is not one of its verified senders.
+     * @param fromEmail   the From address from {@code app.mail.from}. For standard SMTP
+     *                    mailboxes it normally matches {@code spring.mail.username}; the
+     *                    configuration falls back to that username when MAIL_FROM is absent.
      * @param mailEnabled when false, the OTP is logged and no SMTP connection is
      *                    attempted. The dev profile defaults this off so local work
      *                    needs no SMTP credentials; it defaults on everywhere else.

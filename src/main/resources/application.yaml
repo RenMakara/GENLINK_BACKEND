@@ -51,15 +51,11 @@ app:
   mail:
     # The "From" address on outgoing mail.
     #
-    # Kept separate from spring.mail.username because with a transactional
-    # provider (Brevo, SendGrid, Mailgun) the SMTP *login* is a generated
-    # credential like 8a1b2c001@smtp-brevo.com — not a mailbox you own. The
-    # provider rejects mail whose From is not a verified sender, so this
-    # must be the address you verified with them.
+    # Standard SMTP providers such as Gmail normally expect the From address
+    # to match the authenticated mailbox. MAIL_FROM is optional so a normal
+    # mailbox configuration works without duplicating MAIL_USERNAME.
     #
-    # Falls back to MAIL_USERNAME, which is correct for Gmail where the
-    # login and the sender address are the same thing.
-    from: ${MAIL_FROM}
+    from: ${MAIL_FROM:${MAIL_USERNAME}}
   admin:
     # ONE-OFF. Promotes an existing, email-verified user to SUPER_ADMIN on startup
     # (SSOT 13.3). Blank in every environment except the moment you use it.
@@ -71,6 +67,38 @@ app:
     # an open door today. It is still a loaded gun pointed at the day someone
     # deactivates the last SUPER_ADMIN, so remove it.
     bootstrap-email: ${ADMIN_BOOTSTRAP_EMAIL:}
+
+  community:
+    # Event reminders run five minutes and look for events roughly 24 hours away.
+    # Set empty scheduling globally with app.scheduling.enabled=false when needed.
+    event-reminder-cron: ${EVENT_REMINDER_CRON:0 */5 * * * *}
+
+  notification:
+    email:
+      # Separate from app.mail.enabled: this switch never changes OTP behaviour.
+      enabled: ${NOTIFICATION_EMAIL_ENABLED:false}
+    push:
+      # Online STOMP push is safe to expose behind the authenticated WebSocket endpoint.
+      enabled: ${NOTIFICATION_PUSH_ENABLED:true}
+    mobile-push:
+      # Disabled until Firebase credentials and the mobile client token flow are configured.
+      # FCM uses Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS in a
+      # non-Google environment, or workload identity on a supported Google runtime).
+      enabled: ${NOTIFICATION_MOBILE_PUSH_ENABLED:false}
+      project-id: ${FIREBASE_PROJECT_ID:}
+      # Optional one-line Base64 service-account JSON for a secret manager. Prefer ADC/workload
+      # identity or GOOGLE_APPLICATION_CREDENTIALS when the runtime supports it.
+      credentials-base64: ${FIREBASE_CREDENTIALS_BASE64:}
+    outbox:
+      # Polling is enabled only on instances that run the shared scheduler.
+      poll-ms: ${NOTIFICATION_OUTBOX_POLL_MS:5000}
+      initial-delay-ms: ${NOTIFICATION_OUTBOX_INITIAL_DELAY_MS:5000}
+      batch-size: ${NOTIFICATION_OUTBOX_BATCH_SIZE:100}
+      max-attempts: ${NOTIFICATION_OUTBOX_MAX_ATTEMPTS:5}
+
+  productivity:
+    # Task reminders scan configured reminder_time values every five minutes.
+    task-reminder-cron: ${TASK_REMINDER_CRON:0 */5 * * * *}
 
   cors:
     # Origins allowed to call /api/v1/admin/** from a browser (SSOT 10.9).

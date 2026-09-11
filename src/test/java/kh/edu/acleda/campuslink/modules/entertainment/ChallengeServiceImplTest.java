@@ -11,6 +11,7 @@ import kh.edu.acleda.campuslink.modules.entertainment.enums.ChallengeStatus;
 import kh.edu.acleda.campuslink.modules.entertainment.enums.ChallengeType;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.DailyChallengeRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.UserChallengeRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.ChallengeRewardNotifier;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.entertainment.service.impl.ChallengeServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
@@ -47,6 +48,7 @@ class ChallengeServiceImplTest {
     @Mock private DailyChallengeRepository challengeRepository;
     @Mock private UserChallengeRepository userChallengeRepository;
     @Mock private RewardService rewardService;
+    @Mock private ChallengeRewardNotifier challengeRewardNotifier;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -57,7 +59,7 @@ class ChallengeServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new ChallengeServiceImpl(challengeRepository, userChallengeRepository, rewardService,
-            userRepository, currentUserProvider);
+            challengeRewardNotifier, userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
         challenge = DailyChallenge.builder().titleEn("Take a quiz").descriptionEn("d")
@@ -116,12 +118,14 @@ class ChallengeServiceImplTest {
 
     @Test
     void claimAwardsXpOnceAndMarksClaimed() {
+        UserChallenge completed = userChallenge(ChallengeStatus.COMPLETED);
         when(userChallengeRepository.findByUserIdAndChallengeId(USER_ID, CH_ID))
-            .thenReturn(Optional.of(userChallenge(ChallengeStatus.COMPLETED)));
+            .thenReturn(Optional.of(completed));
 
         ChallengeResponse r = service.claim(CH_ID, EN);
 
         verify(rewardService).award(eq(user), eq("CHALLENGE"), eq(CH_ID), eq(20));
+        verify(challengeRewardNotifier).notifyForClaimedChallenge(completed, "Take a quiz");
         assertThat(r.status()).isEqualTo(ChallengeStatus.CLAIMED);
     }
 

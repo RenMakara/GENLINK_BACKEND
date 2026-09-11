@@ -16,12 +16,18 @@ import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.EventServiceImpl;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
+import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationEventListener;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationWriter;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -43,6 +49,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -52,6 +60,7 @@ class EventServiceImplTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID EVENT_ID = UUID.randomUUID();
+    private static final UUID ORGANIZER_ID = UUID.randomUUID();
 
     @Mock private EventRepository eventRepository;
     @Mock private EventRsvpRepository rsvpRepository;
@@ -60,15 +69,18 @@ class EventServiceImplTest {
     @Mock private RewardService rewardService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private NotificationEmitter notificationEmitter;
+    @Mock private NotificationWriter notificationWriter;
 
     private EventServiceImpl service;
     private User user;
+    private User organizer;
     private Event event;
 
     @BeforeEach
     void setUp() {
         service = new EventServiceImpl(eventRepository, rsvpRepository, demoWalletRepository,
-            ledgerService, rewardService, userRepository, currentUserProvider);
+            ledgerService, rewardService, userRepository, currentUserProvider, notificationEmitter);
 
         user = new User();
         user.setEmail("user@example.com");
@@ -77,7 +89,12 @@ class EventServiceImplTest {
         user.setTotalXp(50);
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
-        event = Event.builder().organizer(user).title("Flutter Workshop")
+        organizer = new User();
+        organizer.setFullName("Event Organizer");
+        organizer.setUsername("organizer");
+        ReflectionTestUtils.setField(organizer, "id", ORGANIZER_ID);
+
+        event = Event.builder().organizer(organizer).title("Flutter Workshop")
             .dateTime(LocalDateTime.now().plusDays(7))
             .attendeeCount(3).attendeeLimit(50)
             .status(EventStatus.PUBLISHED).isPaid(false).build();
@@ -106,6 +123,33 @@ class EventServiceImplTest {
         assertThat(response.xpAwarded()).isEqualTo(10);
         verify(eventRepository).reserveSeat(EVENT_ID);
         verify(rewardService).award(any(), eq("EVENT_RSVP"), eq(EVENT_ID), eq(10));
+    }
+
+    @Test
+    void successfulRsvpNotifiesTheOrganizerWithNavigationAndDedupeData() {
+        service.rsvp(EVENT_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        NotificationRequest request = captor.getValue();
+        assertThat(request.recipientUserId()).isEqualTo(ORGANIZER_ID);
+        assertThat(request.templateKey()).isEqualTo("COMMUNITY_EVENT_RSVP_ORGANIZER");
+        assertThat(request.type()).isEqualTo("COMMUNITY_EVENT_RSVP");
+        assertThat(request.parameters())
+            .containsEntry("attendeeName", "User")
+            .containsEntry("eventTitle", "Flutter Workshop");
+        assertThat(request.referenceType()).isEqualTo("EVENT");
+        assertThat(request.referenceId()).isEqualTo(EVENT_ID);
+        assertThat(request.dedupeKey()).isEqualTo("event-rsvp:" + EVENT_ID + ":" + USER_ID);
+    }
+
+    @Test
+    void organizerSelfRsvpDoesNotCreateAnOrganizerNotification() {
+        event.setOrganizer(user);
+
+        service.rsvp(EVENT_ID);
+
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     @Test
@@ -152,6 +196,21 @@ class EventServiceImplTest {
         assertThat(response.xpAwarded()).isZero();
         verify(eventRepository, never()).reserveSeat(any());
         verify(rewardService, never()).award(any(), any(), any(), anyInt());
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
+    }
+
+    @Test
+    void notificationWriterFailureDoesNotUndoRsvpState() {
+        service = new EventServiceImpl(eventRepository, rsvpRepository, demoWalletRepository,
+            ledgerService, rewardService, userRepository, currentUserProvider,
+            emitterWithWriterFailure());
+
+        RsvpResponse response = service.rsvp(EVENT_ID);
+
+        assertThat(response.status()).isEqualTo(RsvpStatus.JOINED);
+        verify(rsvpRepository).save(any(EventRsvp.class));
+        verify(rewardService).award(any(), eq("EVENT_RSVP"), eq(EVENT_ID), eq(10));
+        verify(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
     }
 
     @Test
@@ -203,6 +262,40 @@ class EventServiceImplTest {
     }
 
     @Test
+    void paidRsvpEmitsAPaymentReceiptForTheLedgerCharge() {
+        event.setIsPaid(true);
+        event.setPrice(new BigDecimal("5.00"));
+        event.setCurrency(Currency.USD);
+        DemoWallet wallet = DemoWallet.builder().user(user)
+            .balanceUsd(new BigDecimal("20.00"))
+            .balanceKhr(new BigDecimal("0.00"))
+            .build();
+        UUID transactionId = UUID.randomUUID();
+        DemoTransaction transaction = DemoTransaction.builder().wallet(wallet).build();
+        ReflectionTestUtils.setField(transaction, "id", transactionId);
+        when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
+        when(ledgerService.debit(eq(wallet), eq(TransactionType.EVENT_PAYMENT), eq(Currency.USD),
+            eq(new BigDecimal("5.00")), any(), eq("EVENT"), eq(EVENT_ID))).thenReturn(transaction);
+
+        service.rsvp(EVENT_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter, times(2)).emit(captor.capture());
+        NotificationRequest receipt = captor.getAllValues().stream()
+            .filter(request -> "COMMUNITY_EVENT_PAYMENT_RECEIPT".equals(request.templateKey()))
+            .findFirst().orElseThrow();
+        assertThat(receipt.recipientUserId()).isEqualTo(USER_ID);
+        assertThat(receipt.type()).isEqualTo("COMMUNITY_EVENT_PAYMENT");
+        assertThat(receipt.parameters())
+            .containsEntry("amount", "5")
+            .containsEntry("currency", "USD")
+            .containsEntry("eventTitle", "Flutter Workshop");
+        assertThat(receipt.referenceType()).isEqualTo("EVENT");
+        assertThat(receipt.referenceId()).isEqualTo(EVENT_ID);
+        assertThat(receipt.dedupeKey()).isEqualTo("event-payment-receipt:" + transactionId);
+    }
+
+    @Test
     void paidRsvpDebitsTheKhrWalletWhenTheEventUsesKhr() {
         event.setIsPaid(true);
         event.setPrice(new BigDecimal("5000"));
@@ -239,6 +332,7 @@ class EventServiceImplTest {
             .hasMessageContaining("balance is too low");
 
         verify(rsvpRepository, never()).save(any(EventRsvp.class));
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     @Test
@@ -399,5 +493,12 @@ class EventServiceImplTest {
         assertThatThrownBy(() -> service.update(EVENT_ID, new EventCreateRequest(
             "Hijack", null, null, null, LocalDateTime.now().plusDays(1), null, null, null, null, false, null)))
             .isInstanceOf(NotFoundException.class);
+    }
+
+    private NotificationEmitter emitterWithWriterFailure() {
+        NotificationEventListener listener = new NotificationEventListener(notificationWriter);
+        doThrow(new IllegalStateException("notification store unavailable"))
+            .when(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
+        return request -> listener.onNotificationRequested(new NotificationRequestedEvent(request));
     }
 }

@@ -10,6 +10,8 @@ public record NotificationResponse(
     String message,
     Language language,
     String type,
+    String referenceType,
+    UUID referenceId,
     Boolean readStatus,
     LocalDateTime readAt
 ) {

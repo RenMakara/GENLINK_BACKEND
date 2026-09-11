@@ -13,6 +13,11 @@ import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.CommunityServiceImpl;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationEventListener;
+import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationWriter;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -40,6 +45,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,19 +56,26 @@ class CommunityServiceImplTest {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID COMMUNITY_ID = UUID.randomUUID();
     private static final UUID REQUESTER_ID = UUID.randomUUID();
+    private static final UUID OWNER_ID = UUID.randomUUID();
+    private static final UUID ADMIN_ID = UUID.randomUUID();
 
     @Mock private CommunityRepository communityRepository;
     @Mock private CommunityMemberRepository memberRepository;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private NotificationEmitter notificationEmitter;
+    @Mock private NotificationWriter notificationWriter;
 
     private CommunityServiceImpl service;
     private User user;
+    private User owner;
+    private User admin;
     private Community community;
 
     @BeforeEach
     void setUp() {
-        service = new CommunityServiceImpl(communityRepository, memberRepository, userRepository, currentUserProvider);
+        service = new CommunityServiceImpl(
+            communityRepository, memberRepository, userRepository, currentUserProvider, notificationEmitter);
 
         user = new User();
         user.setEmail("user@example.com");
@@ -70,8 +83,20 @@ class CommunityServiceImplTest {
         user.setUsername("user");
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
+        owner = new User();
+        owner.setEmail("owner@example.com");
+        owner.setFullName("Community Owner");
+        owner.setUsername("owner");
+        ReflectionTestUtils.setField(owner, "id", OWNER_ID);
+
+        admin = new User();
+        admin.setEmail("admin@example.com");
+        admin.setFullName("Community Admin");
+        admin.setUsername("admin");
+        ReflectionTestUtils.setField(admin, "id", ADMIN_ID);
+
         community = Community.builder().name("Flutter KH").slug("flutter-kh")
-            .privacy(CommunityPrivacy.PUBLIC).memberCount(3).postCount(0).build();
+            .privacy(CommunityPrivacy.PUBLIC).createdByUser(owner).memberCount(3).postCount(0).build();
         ReflectionTestUtils.setField(community, "id", COMMUNITY_ID);
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
@@ -85,6 +110,9 @@ class CommunityServiceImplTest {
             }
             return c;
         });
+        when(memberRepository.findActiveManagers(
+            eq(COMMUNITY_ID), anyCollection(), eq(MemberStatus.ACTIVE)))
+            .thenReturn(List.of(activeManager(owner, CommunityRole.OWNER)));
     }
 
     /**
@@ -197,6 +225,7 @@ class CommunityServiceImplTest {
         assertThat(response.myRole()).isEqualTo(CommunityRole.MEMBER);
         assertThat(response.requestPending()).isFalse();
         verify(communityRepository).adjustMemberCount(COMMUNITY_ID, 1);
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     /**
@@ -222,6 +251,67 @@ class CommunityServiceImplTest {
     }
 
     @Test
+    void privateJoinRequestNotifiesCommunityOwnerWithReferenceAndDedupeData() {
+        community.setPrivacy(CommunityPrivacy.PRIVATE);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.empty());
+
+        service.join(COMMUNITY_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        NotificationRequest request = captor.getValue();
+        assertThat(request.recipientUserId()).isEqualTo(OWNER_ID);
+        assertThat(request.templateKey()).isEqualTo("COMMUNITY_JOIN_REQUEST_OWNER");
+        assertThat(request.type()).isEqualTo("COMMUNITY_JOIN_REQUEST");
+        assertThat(request.parameters())
+            .containsEntry("requesterName", "User")
+            .containsEntry("communityName", "Flutter KH");
+        assertThat(request.referenceType()).isEqualTo("COMMUNITY");
+        assertThat(request.referenceId()).isEqualTo(COMMUNITY_ID);
+        assertThat(request.dedupeKey()).isEqualTo("community-join-request:" + COMMUNITY_ID + ":" + USER_ID);
+    }
+
+    @Test
+    void privateJoinRequestNotifiesEveryActiveOwnerAndAdminOnce() {
+        community.setPrivacy(CommunityPrivacy.PRIVATE);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.empty());
+        when(memberRepository.findActiveManagers(eq(COMMUNITY_ID), anyCollection(), eq(MemberStatus.ACTIVE)))
+            .thenReturn(List.of(
+                activeManager(owner, CommunityRole.OWNER),
+                activeManager(admin, CommunityRole.ADMIN)));
+
+        service.join(COMMUNITY_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter, org.mockito.Mockito.times(2)).emit(captor.capture());
+        assertThat(captor.getAllValues().stream()
+            .map(NotificationRequest::recipientUserId)
+            .toList())
+            .containsExactlyInAnyOrder(OWNER_ID, ADMIN_ID);
+        assertThat(captor.getAllValues())
+            .allSatisfy(request -> assertThat(request.dedupeKey())
+                .isEqualTo("community-join-request:" + COMMUNITY_ID + ":" + USER_ID));
+    }
+
+    @Test
+    void notificationWriterFailureDoesNotUndoPrivateJoinRequest() {
+        community.setPrivacy(CommunityPrivacy.PRIVATE);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID)).thenReturn(Optional.empty());
+        service = new CommunityServiceImpl(
+            communityRepository, memberRepository, userRepository, currentUserProvider,
+            emitterWithWriterFailure());
+
+        CommunityResponse response = service.join(COMMUNITY_ID);
+
+        assertThat(response.requestPending()).isTrue();
+        ArgumentCaptor<CommunityMember> captor = ArgumentCaptor.forClass(CommunityMember.class);
+        verify(memberRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(MemberStatus.PENDING);
+        verify(communityRepository, never()).adjustMemberCount(any(), anyInt());
+        verify(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
+    }
+
+    @Test
     void requestingToJoinAPrivateCommunityTwiceDoesNotDuplicateTheRequest() {
         community.setPrivacy(CommunityPrivacy.PRIVATE);
         when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, USER_ID))
@@ -234,6 +324,7 @@ class CommunityServiceImplTest {
         assertThat(response.joined()).isFalse();
         verify(memberRepository, never()).save(any(CommunityMember.class));
         verify(communityRepository, never()).adjustMemberCount(any(), anyInt());
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     /** A previously-removed user re-requesting a PRIVATE community goes back through approval. */
@@ -266,6 +357,27 @@ class CommunityServiceImplTest {
     }
 
     @Test
+    void approvingAPendingRequestNotifiesTheRequesterWithCommunityReferenceAndDedupeData() {
+        givenCurrentUserIsOwner();
+        CommunityMember pending = pendingRequestFrom(REQUESTER_ID);
+        when(memberRepository.findByCommunityIdAndUserId(COMMUNITY_ID, REQUESTER_ID)).thenReturn(Optional.of(pending));
+
+        service.approveJoinRequest(COMMUNITY_ID, REQUESTER_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        NotificationRequest request = captor.getValue();
+        assertThat(request.recipientUserId()).isEqualTo(REQUESTER_ID);
+        assertThat(request.templateKey()).isEqualTo("COMMUNITY_JOIN_REQUEST_ACCEPTED");
+        assertThat(request.type()).isEqualTo("COMMUNITY_JOIN_REQUEST_ACCEPTED");
+        assertThat(request.parameters()).containsEntry("communityName", "Flutter KH");
+        assertThat(request.referenceType()).isEqualTo("COMMUNITY");
+        assertThat(request.referenceId()).isEqualTo(COMMUNITY_ID);
+        assertThat(request.dedupeKey())
+            .isEqualTo("community-join-request-accepted:" + COMMUNITY_ID + ":" + REQUESTER_ID);
+    }
+
+    @Test
     void rejectingAPendingRequestMarksItRemovedWithoutCounting() {
         givenCurrentUserIsOwner();
         CommunityMember pending = pendingRequestFrom(REQUESTER_ID);
@@ -288,6 +400,7 @@ class CommunityServiceImplTest {
         assertThatThrownBy(() -> service.approveJoinRequest(COMMUNITY_ID, REQUESTER_ID))
             .isInstanceOf(NotFoundException.class);
         verify(communityRepository, never()).adjustMemberCount(any(), anyInt());
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     /** Managing join requests is owner/admin only; a plain member is told not-found, not forbidden. */
@@ -447,6 +560,11 @@ class CommunityServiceImplTest {
                 .role(CommunityRole.ADMIN).status(MemberStatus.ACTIVE).build()));
     }
 
+    private CommunityMember activeManager(User manager, CommunityRole role) {
+        return CommunityMember.builder().community(community).user(manager)
+            .role(role).status(MemberStatus.ACTIVE).build();
+    }
+
     private CommunityMember activeMember(UUID userId, CommunityRole role) {
         User member = new User();
         member.setFullName("Member");
@@ -519,5 +637,12 @@ class CommunityServiceImplTest {
                 .role(CommunityRole.ADMIN).status(MemberStatus.ACTIVE).build()));
 
         assertThatThrownBy(() -> service.delete(COMMUNITY_ID)).isInstanceOf(NotFoundException.class);
+    }
+
+    private NotificationEmitter emitterWithWriterFailure() {
+        NotificationEventListener listener = new NotificationEventListener(notificationWriter);
+        doThrow(new IllegalStateException("notification store unavailable"))
+            .when(notificationWriter).writeInNewTransaction(any(NotificationRequestedEvent.class));
+        return request -> listener.onNotificationRequested(new NotificationRequestedEvent(request));
     }
 }

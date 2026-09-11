@@ -11,9 +11,11 @@ import kh.edu.acleda.campuslink.modules.finance.dto.response.ExpenseResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.MonthlySummaryResponse;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.entity.Expense;
+import kh.edu.acleda.campuslink.modules.finance.enums.BudgetStatus;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.ExpenseRepository;
+import kh.edu.acleda.campuslink.modules.finance.service.BudgetAlertService;
 import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
 import kh.edu.acleda.campuslink.modules.finance.service.ExpenseService;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
@@ -35,17 +37,20 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final ExpenseRepository expenseRepository;
     private final DemoWalletService demoWalletService;
     private final LedgerService ledgerService;
+    private final BudgetAlertService budgetAlertService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public ExpenseServiceImpl(ExpenseRepository expenseRepository,
                               DemoWalletService demoWalletService,
                               LedgerService ledgerService,
+                              BudgetAlertService budgetAlertService,
                               UserRepository userRepository,
                               CurrentUserProvider currentUserProvider) {
         this.expenseRepository = expenseRepository;
         this.demoWalletService = demoWalletService;
         this.ledgerService = ledgerService;
+        this.budgetAlertService = budgetAlertService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -55,6 +60,8 @@ public class ExpenseServiceImpl implements ExpenseService {
     public ExpenseResponse create(ExpenseCreateRequest request) {
         User user = loadCurrentUser();
         Currency currency = request.currency() == null ? Currency.USD : request.currency();
+        BudgetStatus statusBefore = budgetAlertService.statusBeforeExpenseMutation(
+            user.getId(), request.expenseDate(), currency);
         Expense expense = expenseRepository.save(Expense.builder()
             .user(user)
             .title(request.title().strip())
@@ -75,6 +82,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             ledgerService.debit(wallet, TransactionType.EXPENSE, currency, expense.getAmount(),
                 "Expense: " + expense.getTitle(), "EXPENSE", expense.getId());
         }
+        budgetAlertService.evaluateAfterExpenseMutation(expense, statusBefore);
         return toResponse(expense);
     }
 
@@ -108,6 +116,8 @@ public class ExpenseServiceImpl implements ExpenseService {
         Expense expense = loadOwnedForUpdate(id);
         Currency oldCurrency = expense.getCurrency();
         Currency newCurrency = request.currency() == null ? oldCurrency : request.currency();
+        BudgetStatus statusBefore = budgetAlertService.statusBeforeExpenseMutation(
+            expense.getUser().getId(), request.expenseDate(), newCurrency);
         boolean newPaidFromWallet = request.paidFromWallet() == null
             ? expense.isPaidFromWallet()
             : request.paidFromWallet();
@@ -122,7 +132,9 @@ public class ExpenseServiceImpl implements ExpenseService {
         expense.setExpenseDate(request.expenseDate());
         expense.setPaymentMethod(request.paymentMethod());
         expense.setPaidFromWallet(newPaidFromWallet);
-        return toResponse(expenseRepository.save(expense));
+        Expense savedExpense = expenseRepository.save(expense);
+        budgetAlertService.evaluateAfterExpenseMutation(savedExpense, statusBefore);
+        return toResponse(savedExpense);
     }
 
     @Override

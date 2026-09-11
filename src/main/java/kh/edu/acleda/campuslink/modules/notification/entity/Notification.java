@@ -51,6 +51,15 @@ public class Notification extends BaseEntity {
     @Column(name = "type", length = 80)
     private String type;
 
+    @Column(name = "reference_type", length = 40)
+    private String referenceType;
+
+    @Column(name = "reference_id")
+    private java.util.UUID referenceId;
+
+    @Column(name = "dedupe_key", length = 160)
+    private String dedupeKey;
+
     @Column(name = "read_status", nullable = false)
     private Boolean readStatus;
 

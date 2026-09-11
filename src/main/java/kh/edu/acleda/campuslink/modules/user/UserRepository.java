@@ -28,6 +28,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByUsername(String username);
     boolean existsByPhoneNumber(String phoneNumber);
 
+    /** Active, non-deleted users for bounded admin broadcasts. */
+    List<User> findByAccountStatusAndDeletedAtIsNullOrderById(
+        AccountStatus accountStatus, Pageable pageable);
+
     /**
      * Soft-deleted accounts whose grace period has run out, oldest first.
      *

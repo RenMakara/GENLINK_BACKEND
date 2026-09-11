@@ -1,5 +1,6 @@
 package kh.edu.acleda.campuslink.modules.profile;
 
+import java.time.LocalTime;
 import java.util.Optional;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.profile.dto.request.UserSettingUpdateRequest;
@@ -65,6 +66,7 @@ class UserSettingServiceImplTest {
         assertThat(response.theme()).isEqualTo(Theme.SYSTEM_DEFAULT);
         assertThat(response.privacyProfile()).isEqualTo("PUBLIC");
         assertThat(response.notificationEnabled()).isTrue();
+        assertThat(response.quietHoursEnabled()).isFalse();
         assertThat(response.biometricEnabled()).isFalse();
     }
 
@@ -105,6 +107,29 @@ class UserSettingServiceImplTest {
             null, null, null, "private", null, null, null));
 
         assertThat(response.privacyProfile()).isEqualTo("PRIVATE");
+    }
+
+    @Test
+    void updateStoresAnOvernightQuietHoursWindow() {
+        when(userSettingRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existingSetting()));
+
+        UserSettingResponse response = service.update(new UserSettingUpdateRequest(
+            null, null, null, true, LocalTime.of(22, 0), LocalTime.of(7, 0),
+            null, null, null, null));
+
+        assertThat(response.quietHoursEnabled()).isTrue();
+        assertThat(response.quietHoursStart()).isEqualTo(LocalTime.of(22, 0));
+        assertThat(response.quietHoursEnd()).isEqualTo(LocalTime.of(7, 0));
+    }
+
+    @Test
+    void rejectsEnabledQuietHoursWithoutBothBounds() {
+        when(userSettingRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existingSetting()));
+
+        assertThatThrownBy(() -> service.update(new UserSettingUpdateRequest(
+            null, null, null, true, null, null, null, null, null, null)))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("both quietHoursStart and quietHoursEnd");
     }
 
     @Test

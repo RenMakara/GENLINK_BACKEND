@@ -17,6 +17,7 @@ import kh.edu.acleda.campuslink.modules.productivity.repository.HabitCheckInRepo
 import kh.edu.acleda.campuslink.modules.productivity.repository.HabitRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.productivity.service.HabitService;
+import kh.edu.acleda.campuslink.modules.productivity.service.HabitStreakNotifier;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
@@ -35,17 +36,20 @@ public class HabitServiceImpl implements HabitService {
     private final HabitRepository habitRepository;
     private final HabitCheckInRepository checkInRepository;
     private final RewardService rewardService;
+    private final HabitStreakNotifier habitStreakNotifier;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public HabitServiceImpl(HabitRepository habitRepository,
                             HabitCheckInRepository checkInRepository,
                             RewardService rewardService,
+                            HabitStreakNotifier habitStreakNotifier,
                             UserRepository userRepository,
                             CurrentUserProvider currentUserProvider) {
         this.habitRepository = habitRepository;
         this.checkInRepository = checkInRepository;
         this.rewardService = rewardService;
+        this.habitStreakNotifier = habitStreakNotifier;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -124,7 +128,11 @@ public class HabitServiceImpl implements HabitService {
             // re-completing the same date therefore cannot award XP twice.
             rewardService.award(loadCurrentUser(), XP_SOURCE, checkIn.getId(), CHECK_IN_XP);
         }
-        return toResponse(habit);
+        HabitResponse response = toResponse(habit);
+        if (completed && !wasCompleted) {
+            habitStreakNotifier.notifyForCompletedCheckIn(habit, date, response.streakCount());
+        }
+        return response;
     }
 
     /** Builds the response with streak and rate derived live from check-ins. */

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import kh.edu.acleda.campuslink.modules.bff.dto.MobileProfileSummaryResponse;
 import kh.edu.acleda.campuslink.modules.bff.service.MobileFinanceBffService;
 import kh.edu.acleda.campuslink.modules.bff.service.MobileHomeBffService;
+import kh.edu.acleda.campuslink.modules.bff.service.MobileNotificationBffService;
 import kh.edu.acleda.campuslink.modules.bff.service.MobileProductivityBffService;
 import kh.edu.acleda.campuslink.modules.bff.service.MobileProfileBffService;
 import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileEventDetailResponse;
@@ -37,17 +38,20 @@ public class MobileController {
     private final MobileProfileBffService mobileProfileBffService;
     private final MobileHomeBffService mobileHomeBffService;
     private final MobileFinanceBffService mobileFinanceBffService;
+    private final MobileNotificationBffService mobileNotificationBffService;
     private final MobileProductivityBffService mobileProductivityBffService;
     private final LanguageResolver languageResolver;
 
     public MobileController(MobileProfileBffService mobileProfileBffService,
                             MobileHomeBffService mobileHomeBffService,
                             MobileFinanceBffService mobileFinanceBffService,
+                            MobileNotificationBffService mobileNotificationBffService,
                             MobileProductivityBffService mobileProductivityBffService,
                             LanguageResolver languageResolver) {
         this.mobileProfileBffService = mobileProfileBffService;
         this.mobileHomeBffService = mobileHomeBffService;
         this.mobileFinanceBffService = mobileFinanceBffService;
+        this.mobileNotificationBffService = mobileNotificationBffService;
         this.mobileProductivityBffService = mobileProductivityBffService;
         this.languageResolver = languageResolver;
     }
@@ -91,7 +95,9 @@ public class MobileController {
     }
 
     @GetMapping("/notifications")
-    public ResponseEntity<ApiResponse<MobileNotificationsResponse>> notifications() {
-        throw new ApiException("Mobile notifications aggregation is currently not available.", "NOT_IMPLEMENTED");
+    public ResponseEntity<ApiResponse<MobileNotificationsResponse>> notifications(
+        @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(ApiResponse.success("Mobile notifications retrieved",
+            mobileNotificationBffService.getNotifications(limit)));
     }
 }

@@ -20,6 +20,7 @@ import kh.edu.acleda.campuslink.modules.finance.repository.SavingDepositReposito
 import kh.edu.acleda.campuslink.modules.finance.repository.SavingGoalRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.finance.service.SavingGoalCompletionNotifier;
 import kh.edu.acleda.campuslink.modules.finance.service.SavingGoalService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -36,6 +37,7 @@ public class SavingGoalServiceImpl implements SavingGoalService {
     private final SavingDepositRepository savingDepositRepository;
     private final DemoWalletService demoWalletService;
     private final LedgerService ledgerService;
+    private final SavingGoalCompletionNotifier savingGoalCompletionNotifier;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
@@ -43,12 +45,14 @@ public class SavingGoalServiceImpl implements SavingGoalService {
                                  SavingDepositRepository savingDepositRepository,
                                  DemoWalletService demoWalletService,
                                  LedgerService ledgerService,
+                                 SavingGoalCompletionNotifier savingGoalCompletionNotifier,
                                  UserRepository userRepository,
                                  CurrentUserProvider currentUserProvider) {
         this.savingGoalRepository = savingGoalRepository;
         this.savingDepositRepository = savingDepositRepository;
         this.demoWalletService = demoWalletService;
         this.ledgerService = ledgerService;
+        this.savingGoalCompletionNotifier = savingGoalCompletionNotifier;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -87,6 +91,7 @@ public class SavingGoalServiceImpl implements SavingGoalService {
     @Transactional
     public SavingGoalResponse update(UUID id, SavingGoalCreateRequest request) {
         SavingGoal goal = loadOwned(id);
+        SavingGoalStatus statusBefore = goal.getStatus();
         goal.setTitle(request.title());
         goal.setTargetAmount(request.targetAmount());
         goal.setTargetDate(request.targetDate());
@@ -95,8 +100,9 @@ public class SavingGoalServiceImpl implements SavingGoalService {
         if (goal.getStatus() != SavingGoalStatus.CANCELLED) {
             goal.setStatus(reachedTarget(goal) ? SavingGoalStatus.COMPLETED : SavingGoalStatus.IN_PROGRESS);
         }
-        savingGoalRepository.save(goal);
-        return toResponse(goal);
+        SavingGoal savedGoal = savingGoalRepository.save(goal);
+        savingGoalCompletionNotifier.notifyIfCompleted(savedGoal, statusBefore);
+        return toResponse(savedGoal);
     }
 
     @Override
@@ -114,6 +120,7 @@ public class SavingGoalServiceImpl implements SavingGoalService {
         if (goal.getStatus() == SavingGoalStatus.CANCELLED) {
             throw new ApiException("Cannot deposit into a cancelled goal", "GOAL_CANCELLED");
         }
+        SavingGoalStatus statusBefore = goal.getStatus();
 
         // Opt-in: a "from wallet" deposit actually moves money out of the wallet into the goal.
         // Debit first so a too-low balance rejects before any deposit/goal change (rolled back
@@ -138,8 +145,9 @@ public class SavingGoalServiceImpl implements SavingGoalService {
         if (reachedTarget(goal)) {
             goal.setStatus(SavingGoalStatus.COMPLETED);
         }
-        savingGoalRepository.save(goal);
-        return toResponse(goal);
+        SavingGoal savedGoal = savingGoalRepository.save(goal);
+        savingGoalCompletionNotifier.notifyIfCompleted(savedGoal, statusBefore);
+        return toResponse(savedGoal);
     }
 
     @Override

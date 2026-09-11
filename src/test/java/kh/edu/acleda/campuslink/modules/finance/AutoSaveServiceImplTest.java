@@ -21,6 +21,9 @@ import kh.edu.acleda.campuslink.modules.finance.repository.SavingDepositReposito
 import kh.edu.acleda.campuslink.modules.finance.repository.SavingGoalRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.finance.service.SavingGoalCompletionNotifier;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.finance.service.impl.AutoSaveServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -30,6 +33,7 @@ import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -60,6 +64,8 @@ class AutoSaveServiceImplTest {
     @Mock private ExpenseRepository expenseRepository;
     @Mock private DemoWalletService demoWalletService;
     @Mock private LedgerService ledgerService;
+    @Mock private SavingGoalCompletionNotifier savingGoalCompletionNotifier;
+    @Mock private NotificationEmitter notificationEmitter;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -69,7 +75,9 @@ class AutoSaveServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new AutoSaveServiceImpl(autoSaveRuleRepository, savingGoalRepository, savingDepositRepository,
-            incomeRepository, expenseRepository, demoWalletService, ledgerService, userRepository,
+            incomeRepository, expenseRepository, demoWalletService, ledgerService, savingGoalCompletionNotifier,
+            notificationEmitter,
+            userRepository,
             currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
@@ -168,6 +176,20 @@ class AutoSaveServiceImplTest {
         verify(savingDepositRepository).save(any(SavingDeposit.class));
         assertThat(g.getCurrentAmount()).isEqualByComparingTo("10.00");
         assertThat(r.getNextRunDate()).isEqualTo(LocalDate.of(2026, 9, 1));
+
+        ArgumentCaptor<NotificationRequest> notificationCaptor =
+            ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(notificationCaptor.capture());
+        NotificationRequest notification = notificationCaptor.getValue();
+        assertThat(notification.templateKey()).isEqualTo("FINANCE_AUTO_SAVE_APPLIED");
+        assertThat(notification.type()).isEqualTo("FINANCE_AUTO_SAVE");
+        assertThat(notification.parameters()).containsEntry("amount", "10")
+            .containsEntry("currency", "USD")
+            .containsEntry("goalName", "Laptop");
+        assertThat(notification.referenceType()).isEqualTo("AUTO_SAVE_RULE");
+        assertThat(notification.referenceId()).isEqualTo(r.getId());
+        assertThat(notification.dedupeKey())
+            .isEqualTo("auto-save-applied:" + r.getId() + ":2026-08-01");
     }
 
     @Test
@@ -203,6 +225,19 @@ class AutoSaveServiceImplTest {
         assertThat(g.getCurrentAmount()).isEqualByComparingTo("0.00");
         assertThat(r.getNextRunDate()).isEqualTo(LocalDate.of(2026, 9, 1)); // still advances
         assertThat(r.isActive()).isTrue();
+
+        ArgumentCaptor<NotificationRequest> notificationCaptor =
+            ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(notificationCaptor.capture());
+        NotificationRequest notification = notificationCaptor.getValue();
+        assertThat(notification.templateKey()).isEqualTo("FINANCE_AUTO_SAVE_SKIPPED");
+        assertThat(notification.parameters()).containsEntry("amount", "10")
+            .containsEntry("currency", "USD")
+            .containsEntry("goalName", "Laptop");
+        assertThat(notification.referenceType()).isEqualTo("AUTO_SAVE_RULE");
+        assertThat(notification.referenceId()).isEqualTo(r.getId());
+        assertThat(notification.dedupeKey())
+            .isEqualTo("auto-save-skipped:" + r.getId() + ":2026-08-01");
     }
 
     @Test
@@ -218,6 +253,7 @@ class AutoSaveServiceImplTest {
 
         assertThat(g.getStatus()).isEqualTo(SavingGoalStatus.COMPLETED);
         assertThat(r.isActive()).isFalse();
+        verify(savingGoalCompletionNotifier).notifyIfCompleted(g, SavingGoalStatus.IN_PROGRESS);
     }
 
     @Test
@@ -232,6 +268,7 @@ class AutoSaveServiceImplTest {
 
         assertThat(count).isZero();
         verify(ledgerService, never()).debit(any(), any(), any(), any(), any(), any(), any());
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
         assertThat(r.getNextRunDate()).isEqualTo(LocalDate.of(2026, 9, 1));
     }
 }

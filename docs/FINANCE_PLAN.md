@@ -4,7 +4,7 @@ Status: Phases 1-6 all done. Owner: Sela (Finance, per Team Assignment v5).
 Order note: 5 and 6 were done before 4 (5 unblocks Community paid RSVP; 6 only needs
 the finished phases). Phase 4 detail lives in backend/docs/FINANCE_LITERACY_PLAN.md.
 Scope: backend only. Payments are simulation only — no real banking, no real KHQR.
-Last verified: 2026-09-06
+Last verified: 2026-09-09
 
 ---
 
@@ -60,6 +60,11 @@ No dependencies. Everything else reads from expenses.
       (ExpenseRepository.sumForMonth for total, sumByCategory per category).
 - [x] Budget alert = status SAFE / WARNING / LIMIT_REACHED from spent vs total
       (WARNING at >= 80%, LIMIT_REACHED at >= 100%).
+- [x] **Budget threshold notifications** (2026-09-09): expense create/update evaluates live
+      same-currency spend and emits a deduplicated in-app alert when the budget crosses 80% or
+      100%. The alert is after the successful expense/wallet operation, so a rejected wallet debit
+      cannot create a false notification. Budget state remains live and the existing 0052 bilingual
+      notification templates are reused.
 - [x] `GET /budgets` list (light, no categories); `GET /budgets/current?currency=`,
       `GET /budgets/{id}` (with category breakdown). Tests.
 
@@ -76,6 +81,14 @@ No dependencies. Everything else reads from expenses.
 - [x] Deposit history (`GET /savings/{id}/deposits`), most recent first.
 - [x] Progress bar data: response carries remainingAmount (floored at 0) and
       progressPercent (0-100, capped) alongside current/target. Tests.
+- [x] Saving-goal completion notification (2026-09-09): manual deposits, target updates, and
+      auto-save deposits use the shared notification port when a goal transitions to `COMPLETED`.
+      The bilingual 0052 template, owner recipient, `SAVING_GOAL` reference, and goal-scoped
+      dedupe key are reused; no finance endpoint or migration changed.
+- [x] Auto-save outcome notifications (2026-09-09): each positive auto-save run notifies the
+      owner when applied or skipped for insufficient funds. The bilingual 0056 templates use
+      `AUTO_SAVE_RULE` metadata and a rule/run-date dedupe key; zero-amount and inactive-goal runs
+      remain quiet.
 
 ## Phase 4 — Financial Literacy — DONE
 
@@ -103,6 +116,10 @@ Full detail in backend/docs/FINANCE_LITERACY_PLAN.md.
       DemoTransaction and logs "SIMULATED" - never implies a real transfer.
       Insufficient balance throws before any write (no FAILED row), matching the
       paid-RSVP debit path.
+- [x] Payment receipts (2026-09-09): successful paid RSVP and simulated wallet payments emit
+      bilingual in-app confirmation notifications after their ledger transaction succeeds.
+      Receipts include currency/amount and ledger-linked dedupe metadata; declined or rolled-back
+      payments remain silent.
 - [x] Unblocks Community paid RSVP: a user can now open a wallet and top up, so
       settlePayment no longer dead-ends at DEMO_WALLET_NOT_FOUND. Tests.
 

@@ -62,4 +62,22 @@ public final class AdminErrorCode {
      * 400. Re-enrolment is an MFA reset (SSOT §10.8), which needs {@code rbac:manage}.
      */
     public static final String ADMIN_MFA_ALREADY_ENROLLED = "ADMIN_MFA_ALREADY_ENROLLED";
+
+    /** 400. An admin broadcast would exceed the server-side recipient cap. */
+    public static final String ADMIN_NOTIFICATION_RECIPIENT_LIMIT = "ADMIN_NOTIFICATION_RECIPIENT_LIMIT";
+
+    /** 400. A selected broadcast recipient is absent, inactive, deleted, or duplicated. */
+    public static final String ADMIN_NOTIFICATION_INVALID_RECIPIENTS = "ADMIN_NOTIFICATION_INVALID_RECIPIENTS";
+
+    /** 400. A broadcast has no eligible recipients. */
+    public static final String ADMIN_NOTIFICATION_NO_RECIPIENTS = "ADMIN_NOTIFICATION_NO_RECIPIENTS";
+
+    /** 400. The template key is not an admin-managed key or its localized content is invalid. */
+    public static final String ADMIN_NOTIFICATION_TEMPLATE_INVALID = "ADMIN_NOTIFICATION_TEMPLATE_INVALID";
+
+    /** 404. The requested admin-managed template does not exist. */
+    public static final String ADMIN_NOTIFICATION_TEMPLATE_NOT_FOUND = "ADMIN_NOTIFICATION_TEMPLATE_NOT_FOUND";
+
+    /** 400. An admin-managed template key is already in use. */
+    public static final String ADMIN_NOTIFICATION_TEMPLATE_DUPLICATE = "ADMIN_NOTIFICATION_TEMPLATE_DUPLICATE";
 }

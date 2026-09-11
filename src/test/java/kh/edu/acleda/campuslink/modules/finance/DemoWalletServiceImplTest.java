@@ -18,6 +18,8 @@ import kh.edu.acleda.campuslink.modules.finance.repository.DemoTransactionReposi
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.finance.service.impl.DemoWalletServiceImpl;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -53,6 +55,7 @@ class DemoWalletServiceImplTest {
     @Mock private DemoTransactionRepository demoTransactionRepository;
     @Mock private LedgerService ledgerService;
     @Mock private PaymentProvider paymentProvider;
+    @Mock private NotificationEmitter notificationEmitter;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -63,7 +66,7 @@ class DemoWalletServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new DemoWalletServiceImpl(demoWalletRepository, demoTransactionRepository,
-            ledgerService, paymentProvider, userRepository, currentUserProvider);
+            ledgerService, paymentProvider, notificationEmitter, userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
@@ -131,12 +134,34 @@ class DemoWalletServiceImplTest {
     @Test
     void payChargesTheProviderThenDebitsWithProviderInfo() {
         when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
+        DemoTransaction transaction = DemoTransaction.builder().wallet(wallet).build();
+        UUID transactionId = UUID.randomUUID();
+        ReflectionTestUtils.setField(transaction, "id", transactionId);
+        when(ledgerService.debit(eq(wallet), eq(TransactionType.KHQR_PAYMENT), eq(Currency.KHR),
+            eq(new BigDecimal("20.00")), any(), any(), any(), eq("MOCK_KHQR"), eq("MOCK-TEST1234")))
+            .thenReturn(transaction);
 
         service.pay(new WalletPaymentRequest(new BigDecimal("20.00"), "Brown Coffee", null, Currency.KHR));
 
         // Provider-neutral type; the provider identity + reference ride along on the ledger row.
         verify(ledgerService).debit(eq(wallet), eq(TransactionType.KHQR_PAYMENT), eq(Currency.KHR),
             eq(new BigDecimal("20.00")), any(), any(), any(), eq("MOCK_KHQR"), eq("MOCK-TEST1234"));
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        NotificationRequest receipt = captor.getValue();
+        assertThat(receipt.recipientUserId()).isEqualTo(USER_ID);
+        assertThat(receipt.templateKey()).isEqualTo("FINANCE_WALLET_PAYMENT_RECEIPT");
+        assertThat(receipt.type()).isEqualTo("FINANCE_WALLET_PAYMENT");
+        assertThat(receipt.parameters())
+            .containsEntry("amount", "20")
+            .containsEntry("currency", "KHR")
+            .containsEntry("merchant", "Brown Coffee")
+            .containsEntry("provider", "MOCK_KHQR")
+            .containsEntry("providerRef", "MOCK-TEST1234");
+        assertThat(receipt.referenceType()).isEqualTo("TRANSACTION");
+        assertThat(receipt.referenceId()).isEqualTo(transactionId);
+        assertThat(receipt.dedupeKey()).isEqualTo("wallet-payment-receipt:" + transactionId);
     }
 
     /** A provider decline is a business error; the ledger is never touched. */
@@ -151,6 +176,7 @@ class DemoWalletServiceImplTest {
             .hasMessageContaining("declined");
 
         verify(ledgerService, never()).debit(any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     /** The insufficient-funds guard lives in the ledger now; the wallet service just propagates. */
@@ -164,6 +190,7 @@ class DemoWalletServiceImplTest {
         assertThatThrownBy(() -> service.pay(new WalletPaymentRequest(new BigDecimal("20.00"), "shop", null, null)))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("too low");
+        verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     @Test

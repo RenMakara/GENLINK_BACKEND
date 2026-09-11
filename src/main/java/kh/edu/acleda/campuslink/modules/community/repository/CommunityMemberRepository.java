@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.community.repository;
 
 import kh.edu.acleda.campuslink.modules.community.entity.CommunityMember;
+import kh.edu.acleda.campuslink.modules.community.enums.CommunityRole;
 import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,12 @@ public interface CommunityMemberRepository extends JpaRepository<CommunityMember
     List<CommunityMember> findByUserIdAndCommunityIdInAndStatus(UUID userId,
                                                                Collection<UUID> communityIds,
                                                                MemberStatus status);
+
+    @Query("SELECT m FROM CommunityMember m JOIN FETCH m.user "
+        + "WHERE m.community.id = :communityId AND m.status = :status AND m.role IN :roles")
+    List<CommunityMember> findActiveManagers(@Param("communityId") UUID communityId,
+                                             @Param("roles") Collection<CommunityRole> roles,
+                                             @Param("status") MemberStatus status);
 
     boolean existsByCommunityIdAndUserId(UUID communityId, UUID userId);
 

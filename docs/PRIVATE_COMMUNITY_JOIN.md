@@ -94,8 +94,11 @@ Rejoining reuses the existing row — `UNIQUE(community_id, user_id)` forbids a 
 ### Approve (`POST /{id}/join-requests/{userId}/approve`)
 
 Sets the pending member to `ACTIVE`, stamps `joinedAt`, and increments `memberCount`
-(the count moves only now — a pending request never incremented it). Returns the new
-member as a `CommunityMemberResponse`. If there is no pending request for that user, 404.
+(the count moves only now — a pending request never incremented it). It then emits the
+`COMMUNITY_JOIN_REQUEST_ACCEPTED` in-app notification to the requester with a
+`COMMUNITY + communityId` reference and dedupe key. Returns the new member as a
+`CommunityMemberResponse`. If there is no pending request for that user, 404 and no
+notification is emitted.
 
 ### Reject (`DELETE /{id}/join-requests/{userId}`)
 
@@ -121,10 +124,14 @@ second request:
 
 ## 7. Known limits / not built
 
-- **No request notification.** The owner is not told a request arrived; they must open the
-  join-requests list. Wiring the notification module here would be its first caller.
+- **Manager request notification delivered (2026-09-09).** A new or reopened PRIVATE join
+  request notifies every active community `OWNER`/`ADMIN` after the pending membership row is
+  saved. Each notification includes requester/community details, a `COMMUNITY + communityId`
+  reference, and a recipient-scoped dedupe key. Existing pending requests and public joins do
+  not create duplicates.
+- **Approval notification delivered (2026-09-09).** A valid approval notifies the requester
+  after they become an ACTIVE member, with the community navigation reference and dedupe key.
 - **Rejection is not a block.** A rejected user can request again. A sticky blocklist would
   be a separate feature.
 - **Role promotion and ownership transfer are implemented** — see `COMMUNITY_ROLES.md`.
-  The remaining join-flow limits are the missing request notification and the fact that
-  rejection is not a sticky block.
+  The remaining join-flow limit is that rejection is not a sticky block.

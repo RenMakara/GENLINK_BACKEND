@@ -17,27 +17,24 @@ Two config keys control it, both read via `@Value` with safe defaults:
 | Key | Default | Meaning |
 |---|---|---|
 | `app.mail.enabled` | `true` | When `false`, log-only mode — the OTP is logged and no SMTP connection is made. |
-| `app.mail.from` | `${spring.mail.username}` → `no-reply@campuslinkkh.edu.kh` | The From header. A **verified sender**, deliberately separate from the SMTP login. |
+| `app.mail.from` | `${MAIL_USERNAME}` (or `MAIL_FROM` when set) | The From header. Standard mailbox setups normally use the authenticated mailbox. |
 
 `app.mail.enabled` defaults to **`false` in the `dev` profile** (`application-dev.yaml`),
 so a fresh dev checkout tests OTP flows with no mail server at all.
 
 ---
 
-## 2. The bug this fixed
+## 2. Standard SMTP configuration
 
-The From header used to be `spring.mail.username` (the SMTP login). That works for Gmail,
-where the From must equal the authenticated account, but **breaks with Brevo**: a Brevo SMTP
-login (e.g. `8xxxxxx@smtp-brevo.com`, or a value with characters not legal in a From header)
-is not a valid sender address. `MimeMessageHelper.setFrom(login)` then threw
+The application uses Spring Boot's standard `JavaMailSender`; there is no provider-specific
+mail client in the OTP path. The default production configuration targets Gmail SMTP on port
+587 with STARTTLS. `MAIL_FROM` is optional and falls back to `MAIL_USERNAME`, which keeps the
+authenticated mailbox and the From header aligned for a normal Gmail account.
 
-```
-jakarta.mail.internet.AddressException: Domain contains illegal character
-```
-
-**before any network call** — so it looked like a Brevo/SMTP failure but was actually
-address parsing. The From is now its own property (`app.mail.from`) that falls back to the
-login only when unset, so a bad or provider-shaped login can no longer corrupt the header.
+For Gmail, use a Google App Password rather than the account password. The account must have
+2-Step Verification enabled. If the deployment environment still blocks port 587, standard
+SMTP cannot connect until that network restriction is removed or a permitted SMTP submission
+port is configured by the mail provider.
 
 ---
 
@@ -79,17 +76,17 @@ Note: Mailpit accepts mail without STARTTLS. `application.yaml` sets
 catcher (`MAIL_HOST=localhost` with a profile that relaxes it). Every message, including the
 bilingual HTML template, is then visible at http://localhost:8025.
 
-### C. Real Brevo from dev
+### C. Real Gmail SMTP from dev
 
-Use the production-style Brevo settings but point From at a verified sender:
+Use the standard Gmail SMTP settings with a Google App Password:
 
 ```
 MAIL_ENABLED=true
-MAIL_HOST=smtp-relay.brevo.com
+MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
-MAIL_USERNAME=8xxxxxx@smtp-brevo.com   # your Brevo SMTP login
-MAIL_PASSWORD=your-brevo-smtp-key
-MAIL_FROM=no-reply@your-verified-domain.kh   # verified in Brevo, NOT the login
+MAIL_USERNAME=your-account@gmail.com
+MAIL_PASSWORD=your-16-character-app-password
+MAIL_FROM=your-account@gmail.com
 ```
 
 ---
@@ -97,9 +94,10 @@ MAIL_FROM=no-reply@your-verified-domain.kh   # verified in Brevo, NOT the login
 ## 4. Failure behaviour
 
 Even with sending enabled, a send failure is caught and logged (`Failed to send email to
-...`) and **not** rethrown — the OTP was already persisted and logged, so the auth flow
-continues and the user/dev can still complete verification. `rootCauseMessage(...)` unwraps
-the provider's real reply (e.g. Gmail's `535-5.7.8`) instead of Spring's generic wrapper.
+...`) and **not** rethrown, so an SMTP outage does not roll back the persisted OTP. In real-send
+mode the OTP is never written to logs; the user must request another code after delivery is
+restored. `rootCauseMessage(...)` unwraps the SMTP server's reply (for example Gmail's
+`535-5.7.8`) instead of only reporting Spring's generic wrapper.
 
 ---
 
@@ -141,3 +139,22 @@ sed 's/{{otp}}/582941/g' src/main/resources/templates/email/otp-register-en.html
 ```
 
 For a true client-rendered check, use the Mailpit route in §3B.
+
+## 6. Notification email is a separate transport
+
+Generic notification email is separate from authentication OTP email. It uses the same
+configured standard SMTP connection and `app.mail.from` address, but it is controlled by
+its own switch:
+
+```text
+NOTIFICATION_EMAIL_ENABLED=false
+```
+
+When enabled, notification requests that explicitly include the `EMAIL` channel are delivered
+through the notification outbox. OTP delivery still uses `MAIL_ENABLED` and `EmailService`; it
+does not pass through the notification email transport. Keep notification email disabled in dev
+unless an SMTP catcher or a safe test mailbox is configured.
+
+Users can control the channel with the authenticated profile-settings endpoints:
+`GET /api/v1/profile/settings/notifications/channels` and
+`PUT /api/v1/profile/settings/notifications/channels/EMAIL` with `{ "enabled": false }`.

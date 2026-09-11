@@ -17,6 +17,7 @@ import kh.edu.acleda.campuslink.modules.finance.repository.SavingDepositReposito
 import kh.edu.acleda.campuslink.modules.finance.repository.SavingGoalRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.DemoWalletService;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.finance.service.SavingGoalCompletionNotifier;
 import kh.edu.acleda.campuslink.modules.finance.service.impl.SavingGoalServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -49,6 +50,7 @@ class SavingGoalServiceImplTest {
     @Mock private SavingDepositRepository savingDepositRepository;
     @Mock private DemoWalletService demoWalletService;
     @Mock private LedgerService ledgerService;
+    @Mock private SavingGoalCompletionNotifier savingGoalCompletionNotifier;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -59,7 +61,7 @@ class SavingGoalServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new SavingGoalServiceImpl(savingGoalRepository, savingDepositRepository,
-            demoWalletService, ledgerService, userRepository, currentUserProvider);
+            demoWalletService, ledgerService, savingGoalCompletionNotifier, userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
 
@@ -127,6 +129,8 @@ class SavingGoalServiceImplTest {
         assertThat(r.status()).isEqualTo(SavingGoalStatus.COMPLETED);
         assertThat(r.remainingAmount()).isEqualByComparingTo("0");
         assertThat(r.progressPercent()).isEqualTo(100);
+        verify(savingGoalCompletionNotifier)
+            .notifyIfCompleted(goal, SavingGoalStatus.IN_PROGRESS);
     }
 
     @Test
@@ -157,6 +161,8 @@ class SavingGoalServiceImplTest {
             new SavingGoalCreateRequest("Laptop", new BigDecimal("50.00"), null, null));
 
         assertThat(r.status()).isEqualTo(SavingGoalStatus.COMPLETED);
+        verify(savingGoalCompletionNotifier)
+            .notifyIfCompleted(goal, SavingGoalStatus.IN_PROGRESS);
     }
 
     @Test

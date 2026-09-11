@@ -164,7 +164,7 @@ Everyday campus and community utilities.
 | Integration | Purpose |
 |---|---|
 | **Google Identity** | Google Sign-In (verified via OAuth client ID, no Firebase) |
-| **Brevo SMTP** | Transactional email delivery (OTP) |
+| **Standard SMTP** | Email delivery for authentication OTPs |
 | **Telegram Bot API** | Deployment success/failure notifications |
 
 ---

@@ -101,3 +101,27 @@ databaseChangeLog:
       file: db/changelog/changes/0050-expand-event-details-and-registration.sql
   - include:
       file: db/changelog/changes/0051-add-event-currency.sql
+  - include:
+      file: db/changelog/changes/0052-seed-notification-templates.sql
+  - include:
+      file: db/changelog/changes/0053-add-notification-navigation-and-dedupe.sql
+  - include:
+      file: db/changelog/changes/0054-seed-forum-notification-template.sql
+  - include:
+      file: db/changelog/changes/0055-seed-event-reminder-template.sql
+  - include:
+      file: db/changelog/changes/0056-seed-auto-save-notification-templates.sql
+  - include:
+      file: db/changelog/changes/0057-seed-payment-receipt-notification-templates.sql
+  - include:
+      file: db/changelog/changes/0058-seed-goal-milestone-notification-template.sql
+  - include:
+      file: db/changelog/changes/0059-add-notification-preferences-and-quiet-hours.sql
+  - include:
+      file: db/changelog/changes/0060-create-notification-outbox.sql
+  - include:
+      file: db/changelog/changes/0061-add-notification-delivery-channels.sql
+  - include:
+      file: db/changelog/changes/0062-create-notification-channel-preferences.sql
+  - include:
+      file: db/changelog/changes/0063-add-mobile-push-devices.sql

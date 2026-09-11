@@ -84,7 +84,9 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     }
 
     private boolean isAllowedSubscription(String destination, String username) {
-        if ("/user/queue/chat".equals(destination) || "/user/queue/match".equals(destination)) {
+        if ("/user/queue/chat".equals(destination)
+            || "/user/queue/match".equals(destination)
+            || "/user/queue/notifications".equals(destination)) {
             return true;
         }
         if (destination == null) {
