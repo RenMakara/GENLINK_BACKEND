@@ -350,13 +350,13 @@ public class AuthServiceImpl implements AuthService {
     public void forgotPassword(ForgotPasswordRequest request) {
         log.info("Starting password reset for: {}", request.email());
         securityAuditService.logSuccess("FORGOT_PASSWORD_REQUEST", null, request.email());
-        User user = userRepository.findByEmail(request.email()).orElse(null);
+        User user = userRepository.findByEmailIgnoreCase(request.email()).orElse(null);
 
         if (user == null
             || user.getAccountStatus() == AccountStatus.BANNED
             || user.getAccountStatus() == AccountStatus.DELETED
-            || user.getDeletedAt() != null
-            || user.getPasswordHash() == null) {
+            || user.getDeletedAt() != null) {
+            log.info("Password reset request is not eligible for {}", request.email());
             return;
         }
 
@@ -374,7 +374,7 @@ public class AuthServiceImpl implements AuthService {
     public void resetPassword(ResetPasswordRequest request) {
         log.info("Resetting password for: {}", request.email());
         passwordPolicyValidator.validate(request.newPassword());
-        User user = userRepository.findByEmail(request.email())
+        User user = userRepository.findByEmailIgnoreCase(request.email())
             .orElseThrow(() -> new ApiException("User not found", AuthErrorCode.USER_NOT_FOUND));
 
         try {

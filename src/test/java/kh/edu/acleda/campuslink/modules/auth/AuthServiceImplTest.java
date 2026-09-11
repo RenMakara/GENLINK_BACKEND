@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.modules.auth;
 
 import kh.edu.acleda.campuslink.modules.auth.dto.LoginRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.GoogleLoginRequest;
+import kh.edu.acleda.campuslink.modules.auth.dto.ForgotPasswordRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RegisterRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRequest;
 import kh.edu.acleda.campuslink.modules.auth.dto.RefreshTokenRotation;
@@ -369,6 +370,18 @@ class AuthServiceImplTest {
 
         verify(suspiciousLoginNotifier).notifyIfNeeded(user, null, null);
         verify(securityAuditService).logSuccess("LOGIN_SUCCESS", user, user.getEmail());
+    }
+
+    @Test
+    void forgotPasswordIssuesOtpForGoogleOnlyAccountWithoutPassword() {
+        User user = activeUser("google-only@example.com");
+        user.setAuthProvider(AuthProvider.GOOGLE);
+        when(userRepository.findByEmailIgnoreCase(user.getEmail())).thenReturn(Optional.of(user));
+
+        authService.forgotPassword(new ForgotPasswordRequest(user.getEmail()));
+
+        verify(otpService).issue(user, OtpPurpose.FORGOT_PASSWORD);
+        verify(securityAuditService).logSuccess("FORGOT_PASSWORD_REQUEST", user, user.getEmail());
     }
 
     @Test
