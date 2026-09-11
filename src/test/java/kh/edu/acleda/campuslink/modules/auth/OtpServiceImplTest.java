@@ -21,6 +21,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -80,6 +81,24 @@ class OtpServiceImplTest {
 
         assertThat(otpCode.getVerifiedAt()).isNotNull();
         verify(otpCodeRepository).save(otpCode);
+    }
+
+    @Test
+    void validateOtpAcceptsValidOtpWithoutConsumingIt() {
+        OtpServiceImpl otpService = new OtpServiceImpl(otpCodeRepository, List.of(otpDeliveryService));
+        User user = user("student@example.com");
+        OtpCode otpCode = new OtpCode();
+        otpCode.setUser(user);
+        otpCode.setOtpHash(hash("123456"));
+        otpCode.setPurpose(OtpPurpose.FORGOT_PASSWORD);
+        otpCode.setExpiresAt(Instant.now().plusSeconds(60));
+        when(otpCodeRepository.findTopByUserAndPurposeOrderByCreatedAtDesc(
+            user, OtpPurpose.FORGOT_PASSWORD)).thenReturn(Optional.of(otpCode));
+
+        otpService.validateOtp(user, "123456", OtpPurpose.FORGOT_PASSWORD);
+
+        assertThat(otpCode.getVerifiedAt()).isNull();
+        verify(otpCodeRepository, never()).save(otpCode);
     }
 
     @Test

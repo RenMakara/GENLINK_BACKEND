@@ -60,7 +60,19 @@ public class OtpServiceImpl implements OtpService {
 
     @Override
     @Transactional
+    public void validateOtp(User user, String code, OtpPurpose purpose, OtpPurpose... fallbackPurposes) {
+        validateCode(user, code, purpose, fallbackPurposes);
+    }
+
+    @Override
+    @Transactional
     public void verify(User user, String code, OtpPurpose purpose, OtpPurpose... fallbackPurposes) {
+        OtpCode otpCode = validateCode(user, code, purpose, fallbackPurposes);
+        otpCode.setVerifiedAt(Instant.now());
+        otpCodeRepository.save(otpCode);
+    }
+
+    private OtpCode validateCode(User user, String code, OtpPurpose purpose, OtpPurpose... fallbackPurposes) {
         OtpCode otpCode = findLatestOtp(user, purpose, fallbackPurposes)
             .orElseThrow(() -> new ApiException("Invalid verification code", AuthErrorCode.OTP_INVALID));
 
@@ -84,9 +96,7 @@ public class OtpServiceImpl implements OtpService {
             }
             throw new ApiException("Invalid verification code", AuthErrorCode.OTP_INVALID);
         }
-
-        otpCode.setVerifiedAt(Instant.now());
-        otpCodeRepository.save(otpCode);
+        return otpCode;
     }
 
     private String generateCode() {

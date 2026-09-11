@@ -78,6 +78,13 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("If this email exists, a password reset OTP has been sent.", null));
     }
 
+    @PostMapping("/verify-reset-otp")
+    public ResponseEntity<ApiResponse<String>> verifyResetOtp(@Valid @RequestBody VerifyEmailRequest request) {
+        log.info("REST request to verify password reset OTP: {}", request.email());
+        authService.verifyResetOtp(request);
+        return ResponseEntity.ok(ApiResponse.success("Password reset OTP verified.", null));
+    }
+
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         log.info("REST request to reset password for: {}", request.email());

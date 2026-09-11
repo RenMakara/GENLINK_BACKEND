@@ -69,6 +69,7 @@ public class SecurityConfig {
                     "/api/v1/auth/refresh",
                     "/api/v1/auth/refresh-token",
                     "/api/v1/auth/forgot-password",
+                    "/api/v1/auth/verify-reset-otp",
                     "/api/v1/auth/reset-password",
                     // An admin arriving at the portal has no token yet. Only the password
                     // step is open: it issues an MFA challenge that authenticates nothing,

@@ -352,10 +352,7 @@ public class AuthServiceImpl implements AuthService {
         securityAuditService.logSuccess("FORGOT_PASSWORD_REQUEST", null, request.email());
         User user = userRepository.findByEmailIgnoreCase(request.email()).orElse(null);
 
-        if (user == null
-            || user.getAccountStatus() == AccountStatus.BANNED
-            || user.getAccountStatus() == AccountStatus.DELETED
-            || user.getDeletedAt() != null) {
+        if (!isPasswordResetEligible(user)) {
             log.info("Password reset request is not eligible for {}", request.email());
             return;
         }
@@ -367,6 +364,25 @@ public class AuthServiceImpl implements AuthService {
             securityAuditService.logFailure("FORGOT_PASSWORD_REQUEST", user, request.email(), ex.getErrorCode());
         }
         log.info("Password reset OTP sent to {}", request.email());
+    }
+
+    @Override
+    @Transactional
+    public void verifyResetOtp(VerifyEmailRequest request) {
+        log.info("Verifying password reset OTP for: {}", request.email());
+        User user = userRepository.findByEmailIgnoreCase(request.email()).orElse(null);
+        if (!isPasswordResetEligible(user)) {
+            throw new ApiException("Invalid verification code", AuthErrorCode.OTP_INVALID);
+        }
+
+        try {
+            otpService.validateOtp(user, request.otp(), OtpPurpose.FORGOT_PASSWORD);
+            securityAuditService.logSuccess("FORGOT_PASSWORD_OTP_VERIFIED", user, request.email());
+        } catch (ApiException ex) {
+            securityAuditService.logFailure(
+                "FORGOT_PASSWORD_OTP_VERIFY_FAILED", user, request.email(), ex.getErrorCode());
+            throw ex;
+        }
     }
 
     @Override
@@ -389,6 +405,13 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenService.revoke(user);
         securityAuditService.logSuccess("RESET_PASSWORD_SUCCESS", user, request.email());
         log.info("Password reset successfully for {}", request.email());
+    }
+
+    private boolean isPasswordResetEligible(User user) {
+        return user != null
+            && user.getAccountStatus() != AccountStatus.BANNED
+            && user.getAccountStatus() != AccountStatus.DELETED
+            && user.getDeletedAt() == null;
     }
 
     @Override

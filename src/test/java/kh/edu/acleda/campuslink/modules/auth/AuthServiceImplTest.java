@@ -385,6 +385,17 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void verifyResetOtpValidatesGoogleOnlyAccount() {
+        User user = activeUser("google-only@example.com");
+        user.setAuthProvider(AuthProvider.GOOGLE);
+        when(userRepository.findByEmailIgnoreCase(user.getEmail())).thenReturn(Optional.of(user));
+
+        authService.verifyResetOtp(new VerifyEmailRequest(user.getEmail(), "123456"));
+
+        verify(otpService).validateOtp(user, "123456", OtpPurpose.FORGOT_PASSWORD);
+    }
+
+    @Test
     void refreshTokenDoesNotOverwritePreferredLanguage() {
         User user = activeUser("active@example.com");
         user.setPreferredLanguage(Language.KHMER);
