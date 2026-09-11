@@ -99,7 +99,7 @@ class NotificationEmailTransportTest {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
         when(templateRepository.findByTemplateKey(TEMPLATE_KEY)).thenReturn(Optional.of(template));
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
-        doThrow(new RuntimeException("Brevo unavailable"))
+        doThrow(new RuntimeException("SMTP unavailable"))
             .when(mailSender).send(any(MimeMessage.class));
 
         assertThatThrownBy(() -> transport.deliver(delivery))

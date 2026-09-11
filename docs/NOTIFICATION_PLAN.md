@@ -14,7 +14,7 @@ context, and Admin Task 4F now provides audited broadcast and `ADMIN_` template 
 Last verified: 2026-09-10
 
 Scope: **in-app notifications plus opt-in email, online push, and offline mobile push adapters**
-behind the same internal contract. SMTP/Brevo email is separate from OTP; authenticated WebSocket
+behind the same internal contract. Standard SMTP email is separate from OTP; authenticated WebSocket
 `PUSH` is online delivery, while `MOBILE_PUSH` is the FCM-backed offline channel. Cadence: **one phase per turn**,
 each compiled + tested + documented, same as the finance work. The app can't boot in this workspace,
 so migrations are verified structurally; run them on a dev DB before shipping.
@@ -86,7 +86,7 @@ needed for reminders and scheduled jobs so a retry cannot create repeated rows.
 - Global `notificationEnabled`, per-type overrides, and quiet hours are enforced by the emitter;
   a preference storage failure fails open so it cannot roll back the source business action.
 - The default channel remains in-app. Email and online push are explicit opt-in transport channels;
-  OTP email through Brevo is a separate auth flow, not a notification transport.
+  OTP email through standard SMTP is a separate auth flow, not a notification transport.
 
 ### Current integration audit
 
@@ -673,7 +673,7 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - [x] Task 6B — Add `notification_outbox`, retry, dedupe, and delivery status before external
   transports or multiple backend instances.
 - [x] Task 6C — Add opt-in email and online push adapters behind the same internal emit contract.
-  Brevo remains a transport implementation for email and must not be mixed with the OTP flow.
+  Standard SMTP remains a transport implementation for email and must not be mixed with the OTP flow.
 - [x] Task 6D — Add user channel preferences so explicit `IN_APP`, `EMAIL`, and online `PUSH`
   requests can be enabled or suppressed independently.
 - [x] Task 6E — Add true offline mobile push with a separate `MOBILE_PUSH` channel, authenticated
@@ -714,7 +714,7 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   fixtures were corrected. The user subsequently confirmed full `gradlew test` passed. Postman
   JSON parsing and `git diff --check` passed; local Codex Gradle execution remains blocked by its
   network/loopback restriction before compilation.
-- Deferred: push/email adapters remain later work. Brevo remains separate from OTP delivery.
+- Deferred: push/email adapters remain later work. Standard SMTP remains separate from OTP delivery.
 
 ### Task 6B plan and contract — DONE
 
@@ -734,7 +734,7 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
   gap before enqueue; an atomic same-transaction outbox is intentionally deferred until the source
   modules can opt into that stronger coupling.
 - This task adds no public endpoint and therefore requires no Postman request. Push/email adapters
-  remain deferred; Brevo stays an email transport concern separate from OTP.
+  remain deferred; standard SMTP stays an email transport concern separate from OTP.
 
 ### Task 6B implementation report — 2026-09-10
 
@@ -758,7 +758,7 @@ DB tables already existed (migration 0012), so Phase 0 added no migration.
 - Release status: committed and pushed to `origin/dev`; no deployment was performed. The short
   process-crash gap between source commit and after-commit enqueue remains documented; an atomic
   same-transaction outbox is intentionally deferred until source modules opt into that coupling.
-- Deferred: push/email adapters behind the same internal emit contract remain the next task. Brevo
+- Deferred: push/email adapters behind the same internal emit contract remain the next task. Standard SMTP
   continues to be an email transport and remains separate from OTP delivery.
 
 ### Task 6C plan and implementation report — DONE (2026-09-10)
@@ -787,7 +787,7 @@ Implementation report:
 - Refactored the durable outbox worker to create independent rows and retry state per requested
   channel. Added `0061-add-notification-delivery-channels.sql` with the channel column and the
   `(recipient_user_id, channel, dedupe_key)` unique guard.
-- Added the in-app adapter, generic Brevo/SMTP notification email adapter, and authenticated
+- Added the in-app adapter, generic SMTP notification email adapter, and authenticated
   WebSocket push adapter. Email is controlled by `NOTIFICATION_EMAIL_ENABLED`; online push is
   controlled by `NOTIFICATION_PUSH_ENABLED` and uses `/user/queue/notifications`.
 - Kept OTP delivery on the existing `MAIL_ENABLED` / `EmailService` path. No existing RSVP,
@@ -818,7 +818,7 @@ Implementation report:
 - Keep channel preference failures fail-open like the existing notification policy, so a settings
   read problem cannot break RSVP, payment, moderation, or another source business action.
 - Update the Postman collection and notification plan. FCM/APNs and device-token registration stay
-  deferred; this task controls the current Brevo email and authenticated WebSocket transports only.
+  deferred; this task controls the current SMTP email and authenticated WebSocket transports only.
 
 Implementation report:
 

@@ -17,6 +17,10 @@ spring:
     password: ${MAIL_PASSWORD}
 
 app:
+  mail:
+    # Real SMTP delivery is enabled in production unless explicitly disabled.
+    enabled: ${MAIL_ENABLED:true}
+    from: ${MAIL_FROM:${MAIL_USERNAME}}
   jwt:
     issuer: ${JWT_ISSUER:genlink_kh}
     secret: ${JWT_SECRET:}

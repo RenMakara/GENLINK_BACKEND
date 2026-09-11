@@ -32,17 +32,9 @@ app:
     client-id: test-google-client-id
 
   mail:
-    # REQUIRED for the context to start. EmailServiceImpl injects
-    # @Value("${app.mail.from}") and application.yaml declares it as a bare
-    # ${MAIL_FROM} with no default, so without a value here every @SpringBootTest
-    # fails with "Could not resolve placeholder 'MAIL_FROM'".
-    #
-    # The comment in application.yaml describes a fallback to MAIL_USERNAME, but
-    # that fallback lives in docker-compose, not in the application.
-    #
-    # Deliberately not fixed by adding a default in application.yaml: a default
-    # sender would let production boot misconfigured and fail at the first email
-    # instead of at startup.
+    # Keep an explicit sender in tests so message construction is deterministic.
+    # Production and dev configurations fall back to MAIL_USERNAME when
+    # MAIL_FROM is not supplied.
     from: test-sender@genlink.local
     # Log-only. No SMTP server exists in tests, and a real send attempt would
     # block on connect timeouts.

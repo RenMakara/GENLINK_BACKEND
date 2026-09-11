@@ -87,7 +87,7 @@ class EmailServiceImplTest {
     @Test
     void swallowsSendFailureSoRegistrationIsNotBlocked() {
         // A dead SMTP host must not break the calling flow: the OTP is already
-        // persisted and logged, so the user can still complete verification.
+        // persisted, and the failure is observable through the error log/metric.
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
         doThrow(new MailAuthenticationException("535 Authentication failed"))
             .when(mailSender).send(any(MimeMessage.class));
