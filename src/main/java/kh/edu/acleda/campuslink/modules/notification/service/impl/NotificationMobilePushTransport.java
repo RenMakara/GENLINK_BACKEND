@@ -20,6 +20,7 @@ import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.crypto.FieldEncryptor;
 import kh.edu.acleda.campuslink.shared.enums.Language;
+import org.springframework.beans.factory.annotation.Autowired;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -39,6 +40,7 @@ public class NotificationMobilePushTransport implements NotificationTransport {
     private final MobilePushProvider provider;
     private final Clock clock;
 
+    @Autowired
     public NotificationMobilePushTransport(
         NotificationDeviceRepository deviceRepository,
         UserRepository userRepository,
