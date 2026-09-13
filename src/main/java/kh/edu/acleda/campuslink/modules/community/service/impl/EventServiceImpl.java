@@ -32,6 +32,7 @@ import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
@@ -369,7 +370,8 @@ public class EventServiceImpl implements EventService {
             Map.of("attendeeName", attendeeName, "eventTitle", event.getTitle()),
             "EVENT",
             event.getId(),
-            "event-rsvp:" + event.getId() + ":" + attendee.getId()));
+            "event-rsvp:" + event.getId() + ":" + attendee.getId(),
+            Set.of(NotificationChannel.IN_APP, NotificationChannel.MOBILE_PUSH)));
     }
 
     private record PaymentSettlement(BigDecimal amount, UUID transactionId) {

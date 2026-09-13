@@ -859,10 +859,12 @@ Implementation report:
   requires Firebase credentials through environment/secret-manager configuration and the FCM HTTP
   v1 API enabled in the Firebase project. No notification source silently opts into mobile push;
   existing domain requests remain `IN_APP` unless a caller explicitly includes `MOBILE_PUSH`.
+  Event RSVP is the first selected trigger and explicitly requests both `IN_APP` and `MOBILE_PUSH`
+  for the organiser.
 - Update channel preference validation/migration, Postman, the mobile-push setup document, and
   tests. The user confirmed the full development-host Gradle test after the Spring constructor
-  injection fix described below. A real Firebase-configured device smoke test and Flutter client
-  registration remain release-validation follow-ups.
+  injection fix described below. Flutter client registration is implemented; a real
+  Firebase-configured device smoke test remains a release-validation follow-up.
 
 ### Task 6E implementation report — DONE (2026-09-10)
 
@@ -880,9 +882,21 @@ Implementation report:
   cascading integration-test failures. The user then confirmed the full `gradlew test` pass. The
   Codex workspace cannot run Gradle:
   the wrapper download is blocked by `Permission denied: getsockopt`, and the cached Gradle run
-  cannot establish its loopback connection. No deployment was made for Task 6E. Firebase device
-  smoke testing remains pending until the Flutter client registers a real token and the provider
-  is enabled with production credentials.
+  cannot establish its loopback connection. No deployment was made for Task 6E. Flutter
+  device-token registration is now implemented; Firebase device smoke testing remains pending
+  until a real token is registered and the provider is enabled with matching credentials.
+
+### Event RSVP mobile-push opt-in — IMPLEMENTED (2026-09-13)
+
+- Changed the successful RSVP organiser notification to request both `IN_APP` and `MOBILE_PUSH`.
+  The existing idempotency key and `EVENT` navigation metadata are unchanged.
+- Extended `EventServiceImplTest` to assert the two requested channels, so outbox fan-out can
+  create one in-app row and one mobile-push row for a new RSVP.
+- No Postman change is required because this is an internal trigger-channel change, not a public
+  HTTP contract change.
+- Verification is pending: the workspace Gradle wrapper cannot establish its loopback connection.
+  Run `./gradlew test --tests kh.edu.acleda.campuslink.modules.community.EventServiceImplTest` on
+  the development host, then perform the Firebase-configured Android smoke test.
 
 ---
 

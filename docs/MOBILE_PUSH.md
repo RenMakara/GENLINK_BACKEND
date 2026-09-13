@@ -59,7 +59,8 @@ for the current account. Re-registering the token later activates it again.
 ## Delivery flow
 
 1. A domain module explicitly requests `MOBILE_PUSH` through `NotificationEmitter`; existing
-   domain calls remain `IN_APP` only until they are deliberately opted in.
+   domain calls remain `IN_APP` only until they are deliberately opted in. Event RSVP is now the
+   first selected trigger and requests both `IN_APP` and `MOBILE_PUSH` for the event organiser.
 2. The after-commit listener writes a channel-specific row to `notification_outbox`.
 3. The worker re-checks global/type/channel preferences and renders the user's bilingual template.
 4. The mobile transport loads active devices and sends the same navigation-aware payload to each
@@ -79,11 +80,16 @@ screen, while the notification center remains authoritative.
 
 ## Client responsibilities
 
-- Add the Flutter Firebase Messaging setup for Android and iOS.
-- Request OS notification permission where required (especially iOS).
-- Retrieve the FCM registration token after authentication and call the registration endpoint.
-- Subscribe to token refresh and call the same endpoint with the new token.
-- Call device deactivation on logout, and register again after the next login.
+- Flutter Firebase Core/Messaging setup, initialization, permission request, token retrieval,
+  authenticated registration, token-refresh registration, and logout deactivation are implemented
+  in the mobile client.
+- The Event RSVP path is the first end-to-end candidate for mobile push; the backend test and a
+  real Firebase-configured Android smoke test must still confirm delivery in this environment.
+- Keep the real Android/iOS device smoke test in release validation: authenticate, verify the
+  `PUT /api/v1/profile/settings/notifications/devices` request, trigger a `MOBILE_PUSH`, and test
+  foreground/background/terminated app states.
+- Add foreground notification presentation and tap-to-navigation handling when the mobile UI is
+  ready to consume the FCM `data` keys listed above.
 - Configure the iOS APNs key/certificate in Firebase before expecting iOS background delivery.
 
 FCM/APNs delivery is supplemental. It does not replace `GET /api/v1/notifications` or the mobile

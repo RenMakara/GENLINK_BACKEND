@@ -25,6 +25,7 @@ import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
 import kh.edu.acleda.campuslink.modules.notification.event.NotificationEventListener;
 import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationWriter;
@@ -141,6 +142,8 @@ class EventServiceImplTest {
         assertThat(request.referenceType()).isEqualTo("EVENT");
         assertThat(request.referenceId()).isEqualTo(EVENT_ID);
         assertThat(request.dedupeKey()).isEqualTo("event-rsvp:" + EVENT_ID + ":" + USER_ID);
+        assertThat(request.channels()).containsExactlyInAnyOrder(
+            NotificationChannel.IN_APP, NotificationChannel.MOBILE_PUSH);
     }
 
     @Test
