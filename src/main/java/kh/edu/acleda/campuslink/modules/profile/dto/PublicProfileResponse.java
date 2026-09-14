@@ -26,6 +26,7 @@ public record PublicProfileResponse(
     Instant joinedAt,
     List<PortfolioItemResponse> portfolio,
     List<InterestResponse> interests,
-    List<SocialLinkResponse> socialLinks
+    List<SocialLinkResponse> socialLinks,
+    int coverPreset
 ) {
 }

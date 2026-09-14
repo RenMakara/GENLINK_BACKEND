@@ -78,7 +78,8 @@ public class ProfileServiceImpl implements ProfileService {
             target.getCreatedAt(),
             portfolioService.getByUserId(target.getId()),
             interestService.getByUserId(target.getId(), language),
-            socialLinkService.getByUserId(target.getId())
+            socialLinkService.getByUserId(target.getId()),
+            target.getCoverPreset()
         );
     }
 
@@ -154,6 +155,12 @@ public class ProfileServiceImpl implements ProfileService {
         if (request.preferredLanguage() != null) {
             user.setPreferredLanguage(request.preferredLanguage());
         }
+        if (request.coverPreset() != null) {
+            if (request.coverPreset() < 0 || request.coverPreset() > 9) {
+                throw new ApiException("Cover preset must be between 0 and 9");
+            }
+            user.setCoverPreset(request.coverPreset());
+        }
 
         return toResponse(userRepository.save(user));
     }
@@ -201,7 +208,8 @@ public class ProfileServiceImpl implements ProfileService {
             user.getAccountStatus(),
             user.getTotalXp(),
             user.getLevel(),
-            user.getPreferredLanguage()
+            user.getPreferredLanguage(),
+            user.getCoverPreset()
         );
     }
 }

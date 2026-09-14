@@ -88,6 +88,11 @@ public class User extends BaseEntity {
     @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
 
+    /** ID of an app-bundled profile cover preset (0 through 9). */
+    @Setter
+    @Column(name = "cover_preset", nullable = false)
+    private int coverPreset = 0;
+
     @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

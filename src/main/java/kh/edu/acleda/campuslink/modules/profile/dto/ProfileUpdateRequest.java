@@ -1,5 +1,7 @@
 package kh.edu.acleda.campuslink.modules.profile.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import kh.edu.acleda.campuslink.modules.user.entity.Gender;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
@@ -18,6 +20,7 @@ public record ProfileUpdateRequest(
     @Size(max = 180) String universityName,
     WorkStatus workStatus,
     @Size(max = 120) String location,
-    Language preferredLanguage
+    Language preferredLanguage,
+    @Min(0) @Max(9) Integer coverPreset
 ) {
 }

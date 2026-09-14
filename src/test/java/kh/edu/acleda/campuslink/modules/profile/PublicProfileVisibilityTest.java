@@ -73,10 +73,12 @@ class PublicProfileVisibilityTest {
     @Test
     void publicProfileIsVisibleToAnyone() {
         privacy("PUBLIC");
+        target.setCoverPreset(4);
 
         PublicProfileResponse response = service.getPublicProfile("target", Language.ENGLISH);
 
         assertThat(response.username()).isEqualTo("target");
+        assertThat(response.coverPreset()).isEqualTo(4);
     }
 
     @Test

@@ -38,7 +38,8 @@ class MobileProfileBffServiceImplTest {
             AccountStatus.ACTIVE,
             1240,
             4,
-            Language.KHMER
+            Language.KHMER,
+            0
         ));
 
         MobileProfileSummaryResponse response = bffService.getProfileSummary("student@example.com");

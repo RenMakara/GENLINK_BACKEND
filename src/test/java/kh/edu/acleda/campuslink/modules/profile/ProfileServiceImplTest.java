@@ -69,7 +69,8 @@ class ProfileServiceImplTest {
             "ACLEDA University",
             WorkStatus.STUDENT,
             "Phnom Penh",
-            Language.KHMER
+            Language.KHMER,
+            6
         ));
 
         assertThat(user.getFullName()).isEqualTo("Updated Name");
@@ -80,6 +81,7 @@ class ProfileServiceImplTest {
         assertThat(user.getTotalXp()).isZero();
         assertThat(user.getLevel()).isEqualTo(1);
         assertThat(user.getPreferredLanguage()).isEqualTo(Language.KHMER);
+        assertThat(user.getCoverPreset()).isEqualTo(6);
         verify(userRepository).save(user);
     }
 
@@ -92,7 +94,7 @@ class ProfileServiceImplTest {
         when(userRepository.save(user)).thenReturn(user);
 
         profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
-            null, null, null, null, null, null, null, null, null, null, Language.ENGLISH
+            null, null, null, null, null, null, null, null, null, null, Language.ENGLISH, null
         ));
 
         assertThat(user.getPreferredLanguage()).isEqualTo(Language.ENGLISH);
@@ -117,7 +119,7 @@ class ProfileServiceImplTest {
         when(userRepository.existsByUsername("taken")).thenReturn(true);
 
         assertThatThrownBy(() -> profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
-            null, "taken", null, null, null, null, null, null, null, null, null
+            null, "taken", null, null, null, null, null, null, null, null, null, null
         )))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("Username");
@@ -131,10 +133,23 @@ class ProfileServiceImplTest {
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
 
         assertThatThrownBy(() -> profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
-            "Updated", null, null, null, null, null, null, null, null, null, null
+            "Updated", null, null, null, null, null, null, null, null, null, null, null
         )))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("banned");
+    }
+
+    @Test
+    void updateCurrentProfileRejectsAnOutOfRangeCoverPreset() {
+        ProfileServiceImpl profileService = newProfileService();
+        User user = activeUser("student@example.com");
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
+            null, null, null, null, null, null, null, null, null, null, null, 10
+        )))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("Cover preset");
     }
 
     private User activeUser(String email) {

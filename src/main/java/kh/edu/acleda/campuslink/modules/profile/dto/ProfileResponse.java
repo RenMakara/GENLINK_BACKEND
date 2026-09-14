@@ -25,6 +25,7 @@ public record ProfileResponse(
     AccountStatus accountStatus,
     int totalXp,
     int level,
-    Language preferredLanguage
+    Language preferredLanguage,
+    int coverPreset
 ) {
 }
