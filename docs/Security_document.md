@@ -659,6 +659,25 @@ SecurityContext: created only after JWT validation
 
 ---
 
+## 20.1 Admin Backend Implementation Status
+
+Verified 2026-09-09. The backend currently provides the Admin security foundation:
+
+- Admin password login with a short-lived MFA challenge
+- TOTP enrolment/confirmation, recovery codes, MFA verification, sessions, logout and `/me`
+- RBAC permissions, `SUPER_ADMIN` safeguards, sudo re-authentication, audit writing and first-admin bootstrap
+
+The current Admin HTTP surface is authentication only, under `/api/v1/admin/auth`. User
+management, ban/unban and sanctions, Admin role management, analytics/dashboard aggregates,
+content moderation, and Admin audit-log viewing do not yet have frontend-facing Admin API
+controllers. Related entities or repositories may exist, but they are not complete product
+features until service boundaries, permission checks, controllers and tests are added.
+
+See the local Admin authentication notes in `docs/ADMIN_AUTH.md` for the detailed endpoint
+contract and security decisions.
+
+---
+
 ## 21. Future Improvements
 
 ```text

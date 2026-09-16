@@ -19,6 +19,7 @@ public record PostResponse(
     AuthorSummary author,
     String contentText,
     String imageUrl,
+    String videoUrl,
     PostType postType,
     Visibility visibility,
     Language language,
@@ -30,6 +31,29 @@ public record PostResponse(
     PollResponse poll,
     Instant createdAt
 ) {
+
+    /**
+     * Backward-compatible constructor for existing callers and tests omitting videoUrl.
+     */
+    public PostResponse(
+        UUID postId,
+        AuthorSummary author,
+        String contentText,
+        String imageUrl,
+        PostType postType,
+        Visibility visibility,
+        Language language,
+        Integer likeCount,
+        Integer commentCount,
+        boolean likedByMe,
+        boolean savedByMe,
+        List<String> hashtags,
+        PollResponse poll,
+        Instant createdAt
+    ) {
+        this(postId, author, contentText, imageUrl, null, postType, visibility,
+            language, likeCount, commentCount, likedByMe, savedByMe, hashtags, poll, createdAt);
+    }
 
     /** Public-safe author fields only: no email, no phone. */
     public record AuthorSummary(

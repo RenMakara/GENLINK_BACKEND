@@ -92,11 +92,24 @@ class MediaServiceImplTest {
         when(currentUserProvider.getCurrentUserId()).thenReturn(ownerId);
 
         assertThatThrownBy(() -> service.presignUpload(
-            new PresignRequest("video/mp4", 1_000_000, MediaPurpose.POST, CHECKSUM)))
+            new PresignRequest("video/mp4", 1_000_000, MediaPurpose.AVATAR, CHECKSUM)))
             .isInstanceOf(ApiException.class)
             .extracting(e -> ((ApiException) e).getErrorCode())
             .isEqualTo("MEDIA_VIDEO_NOT_ALLOWED");
         verify(repository, never()).save(any());
+    }
+
+    @Test
+    void presignAllowsVideoForPost() {
+        when(currentUserProvider.getCurrentUserId()).thenReturn(ownerId);
+        when(repository.save(any(MediaFile.class))).thenAnswer(inv -> withId(inv.getArgument(0)));
+        when(storage.presignUpload(anyString(), anyString(), isNull(), any(Duration.class)))
+            .thenReturn(new StorageService.PresignedUpload("https://signed", java.util.Map.of()));
+
+        PresignResponse response = service.presignUpload(
+            new PresignRequest("video/mp4", 10_000_000, MediaPurpose.POST, CHECKSUM));
+
+        assertThat(response.storageKey()).startsWith("posts/").endsWith(".mp4");
     }
 
     @Test

@@ -165,6 +165,63 @@ class PostServiceImplTest {
     }
 
     @Test
+    void createVideoPostPersistsVideoTypeAndVideoUrl() {
+        PostResponse response = service.create(new PostCreateRequest(
+            "Check this video #flutter", null, "https://example.com/demo.mp4",
+            PostType.VIDEO, Visibility.PUBLIC, Language.ENGLISH, null));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Post.class);
+        verify(postRepository).save(captor.capture());
+        Post saved = captor.getValue();
+        assertThat(saved.getPostType()).isEqualTo(PostType.VIDEO);
+        assertThat(saved.getVideoUrl()).isEqualTo("https://example.com/demo.mp4");
+        assertThat(response.postType()).isEqualTo(PostType.VIDEO);
+        assertThat(response.videoUrl()).isEqualTo("https://example.com/demo.mp4");
+        verify(hashtagService).syncForPost(any(Post.class), eq("Check this video #flutter"));
+    }
+
+    @Test
+    void createVideoPostInfersVideoTypeWhenPostTypeOmitted() {
+        service.create(new PostCreateRequest(
+            "Video without explicit type", null, "https://example.com/inferred.mp4",
+            null, Visibility.PUBLIC, Language.ENGLISH, null));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Post.class);
+        verify(postRepository).save(captor.capture());
+        assertThat(captor.getValue().getPostType()).isEqualTo(PostType.VIDEO);
+        assertThat(captor.getValue().getVideoUrl()).isEqualTo("https://example.com/inferred.mp4");
+    }
+
+    @Test
+    void createVideoOnlyPostWithoutCaption() {
+        PostResponse response = service.create(new PostCreateRequest(
+            null, null, "https://example.com/nocaption.mp4",
+            PostType.VIDEO, Visibility.PUBLIC, Language.ENGLISH, null));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Post.class);
+        verify(postRepository).save(captor.capture());
+        assertThat(captor.getValue().getPostType()).isEqualTo(PostType.VIDEO);
+        assertThat(captor.getValue().getVideoUrl()).isEqualTo("https://example.com/nocaption.mp4");
+        assertThat(captor.getValue().getContentText()).isNull();
+        assertThat(response.videoUrl()).isEqualTo("https://example.com/nocaption.mp4");
+    }
+
+    @Test
+    void updatePostWithVideoUrlAndType() {
+        when(postRepository.findByIdAndUserIdAndDeletedAtIsNull(POST_ID, USER_ID)).thenReturn(Optional.of(post));
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+
+        PostResponse response = service.update(POST_ID, new PostCreateRequest(
+            "Updated video post", null, "https://example.com/updated.mp4",
+            PostType.VIDEO, Visibility.PUBLIC, Language.ENGLISH, null));
+
+        assertThat(post.getVideoUrl()).isEqualTo("https://example.com/updated.mp4");
+        assertThat(post.getPostType()).isEqualTo(PostType.VIDEO);
+        assertThat(response.videoUrl()).isEqualTo("https://example.com/updated.mp4");
+        assertThat(response.postType()).isEqualTo(PostType.VIDEO);
+    }
+
+    @Test
     void feedRowsCarryAuthorAndFlags() {
         when(postRepository.findVisibleFeed(eq(USER_ID), anyCollection(), anyCollection(), any()))
             .thenReturn(new PageImpl<>(List.of(post)));

@@ -7,7 +7,7 @@ package kh.edu.acleda.campuslink.modules.media.entity;
  */
 public enum MediaPurpose {
     AVATAR("avatars", MediaVisibility.PUBLIC, false),
-    POST("posts", MediaVisibility.PUBLIC, false),
+    POST("posts", MediaVisibility.PUBLIC, true),
     STORY("stories", MediaVisibility.PUBLIC, true),
     SHORT("short", MediaVisibility.PUBLIC, true),
     EVENT_COVER("events", MediaVisibility.PUBLIC, false),

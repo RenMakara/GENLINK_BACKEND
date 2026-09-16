@@ -83,14 +83,20 @@ screen, while the notification center remains authoritative.
 - Flutter Firebase Core/Messaging setup, initialization, permission request, token retrieval,
   authenticated registration, token-refresh registration, and logout deactivation are implemented
   in the mobile client.
+- Flutter foreground display and background/terminated tap handling are implemented in
+  `lib/features/notification/data/firebase_mobile_notification_service.dart`. Foreground FCM
+  messages are shown through the local notification channel `genlink_mobile_push`; taps use
+  `referenceType`/`referenceId` and `type` to route to an existing GenLink screen, with the
+  notification center as the safe fallback.
 - The Event RSVP path is the first end-to-end candidate for mobile push; the backend test and a
   real Firebase-configured Android smoke test must still confirm delivery in this environment.
 - Keep the real Android/iOS device smoke test in release validation: authenticate, verify the
   `PUT /api/v1/profile/settings/notifications/devices` request, trigger a `MOBILE_PUSH`, and test
   foreground/background/terminated app states.
-- Add foreground notification presentation and tap-to-navigation handling when the mobile UI is
-  ready to consume the FCM `data` keys listed above.
-- Configure the iOS APNs key/certificate in Firebase before expecting iOS background delivery.
+- Android 13+ notification permission and the default FCM notification channel are declared in
+  the Android manifest. iOS still requires the APNs key/certificate in Firebase before expecting
+  iOS background delivery; the iOS AppDelegate also wires the notification-center delegate and
+  local-notification plugin registrant callback.
 
 FCM/APNs delivery is supplemental. It does not replace `GET /api/v1/notifications` or the mobile
 notification BFF as the durable read source.

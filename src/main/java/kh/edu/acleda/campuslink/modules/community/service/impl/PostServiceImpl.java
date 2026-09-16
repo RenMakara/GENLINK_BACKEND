@@ -122,12 +122,29 @@ public class PostServiceImpl implements PostService {
         User author = loadCurrentUser();
         Community community = resolveCommunity(request.communityId());
 
+        PostType resolvedType = request.postType();
+        if (resolvedType == null) {
+            if (request.videoUrl() != null && !request.videoUrl().isBlank()) {
+                resolvedType = PostType.VIDEO;
+            } else if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
+                resolvedType = PostType.IMAGE;
+            } else {
+                resolvedType = PostType.TEXT;
+            }
+        }
+
+        String videoUrl = request.videoUrl();
+        if (videoUrl == null && resolvedType == PostType.VIDEO) {
+            videoUrl = request.imageUrl();
+        }
+
         Post post = Post.builder()
             .user(author)
             .community(community)
             .contentText(request.contentText())
             .imageUrl(request.imageUrl())
-            .postType(request.postType() == null ? PostType.TEXT : request.postType())
+            .videoUrl(videoUrl)
+            .postType(resolvedType)
             .visibility(request.visibility() == null ? Visibility.PUBLIC : request.visibility())
             .language(request.language())
             .likeCount(0)
@@ -141,7 +158,9 @@ public class PostServiceImpl implements PostService {
         if (community != null) {
             communityRepository.adjustPostCount(community.getId(), 1);
         }
-        hashtagService.syncForPost(saved, saved.getContentText());
+        if (saved.getContentText() != null && !saved.getContentText().isBlank()) {
+            hashtagService.syncForPost(saved, saved.getContentText());
+        }
         return toResponse(saved, false, false, hashtagsFor(saved.getId()));
     }
 
@@ -289,6 +308,9 @@ public class PostServiceImpl implements PostService {
         Post post = loadOwned(id);
         post.setContentText(request.contentText());
         post.setImageUrl(request.imageUrl());
+        if (request.videoUrl() != null) {
+            post.setVideoUrl(request.videoUrl());
+        }
         if (request.postType() != null) {
             post.setPostType(request.postType());
         }
@@ -301,7 +323,11 @@ public class PostServiceImpl implements PostService {
 
         Post saved = postRepository.save(post);
         // Editing the text can add or remove tags, so links are rebuilt, not appended.
-        hashtagService.syncForPost(saved, saved.getContentText());
+        if (saved.getContentText() != null && !saved.getContentText().isBlank()) {
+            hashtagService.syncForPost(saved, saved.getContentText());
+        } else {
+            hashtagService.clearForPost(saved);
+        }
         return getById(saved.getId());
     }
 
@@ -439,6 +465,7 @@ public class PostServiceImpl implements PostService {
                 author.getId(), author.getFullName(), author.getUsername(), author.getAvatarUrl()),
             post.getContentText(),
             post.getImageUrl(),
+            post.getVideoUrl(),
             post.getReportCount() == null ? 0 : post.getReportCount(),
             post.getCreatedAt());
     }
@@ -535,6 +562,7 @@ public class PostServiceImpl implements PostService {
                 author.getId(), author.getFullName(), author.getUsername(), author.getAvatarUrl()),
             post.getContentText(),
             post.getImageUrl(),
+            post.getVideoUrl(),
             post.getPostType(),
             post.getVisibility(),
             post.getLanguage(),

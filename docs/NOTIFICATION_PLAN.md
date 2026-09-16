@@ -11,7 +11,7 @@ Productivity Tasks 4A-4C now wire configured task reminders, completed habit str
 goal milestone completion to the same in-app notification path. Entertainment Task 4D now wires
 claimed challenge rewards to that path as well. Security Task 4E now alerts on unfamiliar login
 context, and Admin Task 4F now provides audited broadcast and `ADMIN_` template management.
-Last verified: 2026-09-10
+Last verified: 2026-09-13
 
 Scope: **in-app notifications plus opt-in email, online push, and offline mobile push adapters**
 behind the same internal contract. Standard SMTP email is separate from OTP; authenticated WebSocket
@@ -897,6 +897,26 @@ Implementation report:
 - Verification is pending: the workspace Gradle wrapper cannot establish its loopback connection.
   Run `./gradlew test --tests kh.edu.acleda.campuslink.modules.community.EventServiceImplTest` on
   the development host, then perform the Firebase-configured Android smoke test.
+
+### Flutter notification display and tap handling — IMPLEMENTED (2026-09-13)
+
+- Added the Flutter `FirebaseMobileNotificationService` to show foreground FCM messages through
+  a high-importance local notification channel and to handle taps from foreground-created local
+  notifications, background FCM messages, and terminated-app launches.
+- Added navigation mapping from backend `type`, `referenceType`, and `referenceId` metadata to
+  existing Events, Friend Requests, Finance, Budget, Saving Goals, Productivity, Habit, Task,
+  Focus, Quiz, and Achievement screens. Unknown metadata safely opens the notification center.
+- Added Android 13+ notification permission/channel metadata, Java desugaring, a release resource
+  keep rule for the notification icon, and iOS notification-center/plugin registration hooks.
+- Added payload/router tests and composition-root coverage. Focused Flutter verification passed:
+  `flutter analyze` reported no issues and `flutter test` passed all 13 selected tests, including
+  notification, binding, and auth coverage.
+- Android debug APK verification was attempted but this Codex environment could not establish
+  Gradle's loopback connection; this is an environment limitation, so a normal development host
+  still needs to run the Android build and real-device smoke test. No backend API or Postman
+  collection change was needed for this client-only task.
+- Remaining release check: verify foreground, background, and terminated states on a Firebase-
+  configured Android device, then configure iOS APNs and repeat the iOS smoke test.
 
 ---
 

@@ -45,6 +45,9 @@ public class Post extends BaseEntity {
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
 
+    @Column(name = "video_url", columnDefinition = "TEXT")
+    private String videoUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "post_type", nullable = false, length = 50)
     private PostType postType;
