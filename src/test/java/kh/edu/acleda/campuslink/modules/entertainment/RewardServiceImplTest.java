@@ -46,8 +46,9 @@ class RewardServiceImplTest {
     void awardAddsXpRecomputesLevelWritesHistoryAndChecksBadges() {
         UUID source = UUID.randomUUID();
 
-        service.award(user, "QUIZ", source, 150);
+        int awarded = service.award(user, "QUIZ", source, 150);
 
+        assertThat(awarded).isEqualTo(150);
         assertThat(user.getTotalXp()).isEqualTo(150);
         assertThat(user.getLevel()).isEqualTo(2); // 1 + 150/100
         verify(userRepository).save(user);
@@ -66,8 +67,9 @@ class RewardServiceImplTest {
 
     @Test
     void nonPositiveXpIsANoOp() {
-        service.award(user, "TASK", UUID.randomUUID(), 0);
+        int awarded = service.award(user, "TASK", UUID.randomUUID(), 0);
 
+        assertThat(awarded).isZero();
         assertThat(user.getTotalXp()).isZero();
         verify(userRepository, never()).save(any());
         verify(xpHistoryRepository, never()).save(any());
@@ -80,8 +82,9 @@ class RewardServiceImplTest {
         when(xpHistoryRepository.existsByUserIdAndSourceTypeAndSourceId(user.getId(), "TASK", source))
             .thenReturn(true);
 
-        service.award(user, "TASK", source, 10);
+        int awarded = service.award(user, "TASK", source, 10);
 
+        assertThat(awarded).isZero();
         assertThat(user.getTotalXp()).isZero();
         verify(userRepository, never()).save(any());
         verify(xpHistoryRepository, never()).save(any());

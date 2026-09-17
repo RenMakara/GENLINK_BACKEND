@@ -35,9 +35,9 @@ public class RewardServiceImpl implements RewardService {
 
     @Override
     @Transactional
-    public void award(User user, String sourceType, UUID sourceId, int xp) {
+    public int award(User user, String sourceType, UUID sourceId, int xp) {
         if (xp <= 0) {
-            return;
+            return 0;
         }
         User lockedUser = userRepository.findByIdForUpdate(user.getId())
             .orElseThrow(() -> new NotFoundException("User not found"));
@@ -45,7 +45,7 @@ public class RewardServiceImpl implements RewardService {
                 .existsByUserIdAndSourceTypeAndSourceId(lockedUser.getId(), sourceType, sourceId)) {
             log.debug("Skipped duplicate XP award: user={} sourceType={} sourceId={}",
                 lockedUser.getId(), sourceType, sourceId);
-            return;
+            return 0;
         }
 
         int newTotal = lockedUser.getTotalXp() + xp;
@@ -65,5 +65,6 @@ public class RewardServiceImpl implements RewardService {
         if (leveledUp) {
             log.info("Level up: user={} level={} totalXp={}", lockedUser.getId(), newLevel, newTotal);
         }
+        return xp;
     }
 }

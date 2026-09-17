@@ -38,6 +38,11 @@ public class NotificationEventListener {
         try {
             if (notificationOutboxService != null) {
                 notificationOutboxService.enqueue(event.request());
+                try {
+                    notificationOutboxService.processPending(20);
+                } catch (RuntimeException ex) {
+                    log.debug("Immediate outbox drain will be retried by scheduled job: {}", ex.getMessage());
+                }
             } else {
                 legacyNotificationWriter.writeInNewTransaction(event);
             }

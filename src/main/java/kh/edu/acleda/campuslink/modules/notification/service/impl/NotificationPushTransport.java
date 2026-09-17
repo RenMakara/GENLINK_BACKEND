@@ -82,7 +82,8 @@ public class NotificationPushTransport implements NotificationTransport {
                 delivery.request().type(),
                 delivery.request().referenceType(),
                 delivery.request().referenceId(),
-                delivery.request().dedupeKey()));
+                delivery.request().dedupeKey(),
+                java.time.Instant.now()));
         log.debug("Pushed notification outbox={} type={} to authenticated user queue",
             delivery.outboxId(), delivery.request().type());
     }
@@ -95,6 +96,19 @@ public class NotificationPushTransport implements NotificationTransport {
         String type,
         String referenceType,
         UUID referenceId,
-        String dedupeKey) {
+        String dedupeKey,
+        java.time.Instant createdAt) {
+
+        public NotificationPushPayload(
+            UUID deliveryId,
+            String title,
+            String message,
+            Language language,
+            String type,
+            String referenceType,
+            UUID referenceId,
+            String dedupeKey) {
+            this(deliveryId, title, message, language, type, referenceType, referenceId, dedupeKey, java.time.Instant.now());
+        }
     }
 }

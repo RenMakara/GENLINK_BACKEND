@@ -99,6 +99,7 @@ class QuizServiceImplTest {
         when(answerRepository.saveAll(anyList())).thenAnswer(i -> i.getArgument(0));
         when(attemptRepository.existsByQuizIdAndUserIdAndXpEarnedGreaterThan(eq(QUIZ_ID), eq(USER_ID), eq(0)))
             .thenReturn(false);
+        when(rewardService.award(any(), any(), any(), anyInt())).thenAnswer(i -> i.getArgument(3));
     }
 
     private QuizQuestion question(UUID id) {
@@ -159,6 +160,16 @@ class QuizServiceImplTest {
     }
 
     @Test
+    void zeroCorrectScoresZeroAndEarnsNoXp() {
+        QuizAttemptResponse r = service.submit(QUIZ_ID, answers(Q1_WRONG, Q2_WRONG));
+
+        assertThat(r.score()).isZero();
+        assertThat(r.correctCount()).isZero();
+        assertThat(r.xpEarned()).isZero();
+        verify(rewardService, never()).award(any(), any(), any(), anyInt());
+    }
+
+    @Test
     void replayAfterEarningPaysNoMoreXp() {
         when(attemptRepository.existsByQuizIdAndUserIdAndXpEarnedGreaterThan(QUIZ_ID, USER_ID, 0)).thenReturn(true);
 
@@ -185,6 +196,58 @@ class QuizServiceImplTest {
 
         assertThatThrownBy(() -> service.submit(QUIZ_ID, answers(Q1_RIGHT, Q2_RIGHT)))
             .isInstanceOf(ApiException.class).hasMessageContaining("no questions");
+    }
+
+    @Test
+    void submittingWithAllQuestionsSkippedIsAcceptedAndEarnsNoXp() {
+        QuizAttemptResponse r = service.submit(QUIZ_ID, new QuizSubmitRequest(List.of()));
+
+        assertThat(r.score()).isZero();
+        assertThat(r.correctCount()).isZero();
+        assertThat(r.totalQuestions()).isEqualTo(2);
+        assertThat(r.xpEarned()).isZero();
+        assertThat(r.results()).allSatisfy(result -> {
+            assertThat(result.selectedOptionId()).isNull();
+            assertThat(result.correct()).isFalse();
+        });
+        verify(rewardService, never()).award(any(), any(), any(), anyInt());
+    }
+
+    @Test
+    void invalidQuestionIdIsRejected() {
+        UUID unknownQuestion = UUID.randomUUID();
+
+        assertThatThrownBy(() -> service.submit(
+            QUIZ_ID,
+            new QuizSubmitRequest(List.of(new Answer(unknownQuestion, Q1_RIGHT)))))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("outside this quiz")
+            .satisfies(error -> assertThat(((ApiException) error).getErrorCode())
+                .isEqualTo("INVALID_QUESTION"));
+        verify(attemptRepository, never()).save(any());
+    }
+
+    @Test
+    void invalidOptionIdIsRejected() {
+        UUID unknownOption = UUID.randomUUID();
+
+        assertThatThrownBy(() -> service.submit(
+            QUIZ_ID,
+            new QuizSubmitRequest(List.of(new Answer(Q1, unknownOption)))))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("outside this question")
+            .satisfies(error -> assertThat(((ApiException) error).getErrorCode())
+                .isEqualTo("INVALID_OPTION"));
+        verify(attemptRepository, never()).save(any());
+    }
+
+    @Test
+    void submitReportsXpActuallyAcceptedByIdempotentRewardPipeline() {
+        when(rewardService.award(any(), eq("QUIZ"), eq(QUIZ_ID), eq(30))).thenReturn(0);
+
+        QuizAttemptResponse r = service.submit(QUIZ_ID, answers(Q1_RIGHT, Q2_RIGHT));
+
+        assertThat(r.xpEarned()).isZero();
     }
 
     @Test

@@ -63,34 +63,17 @@ public class SecurityConfig {
                     "/api/v1/auth/verify-email",
                     "/api/v1/auth/verify-otp",
                     "/api/v1/auth/resend-otp",
-                    // A PENDING user has no token yet, so this must be reachable
-                    // unauthenticated; it is written not to disclose account existence.
                     "/api/v1/auth/resend-verification-otp",
                     "/api/v1/auth/refresh",
                     "/api/v1/auth/refresh-token",
                     "/api/v1/auth/forgot-password",
                     "/api/v1/auth/verify-reset-otp",
                     "/api/v1/auth/reset-password",
-                    // An admin arriving at the portal has no token yet. Only the password
-                    // step is open: it issues an MFA challenge that authenticates nothing,
-                    // so opening it grants no access on its own. Every other
-                    // /api/v1/admin/** route stays behind the rule below.
+
                     "/api/v1/admin/auth/login",
-                    // Enrolment is authorised by the 5-minute challenge token from /login,
-                    // which the JWT filter refuses by design - so these cannot be
-                    // "authenticated" routes. AdminMfaEnrolmentService validates the token
-                    // itself and is the only guard in front of them. An admin token is only
-                    // issued after TOTP, so requiring one here would mean needing TOTP to set
-                    // up TOTP, and the bootstrap admin could never sign in.
                     "/api/v1/admin/auth/mfa/enrol",
                     "/api/v1/admin/auth/mfa/confirm",
-                    // Public because the caller's access token has expired - that is what
-                    // they are here to replace. The refresh token in the body is the
-                    // credential, and AdminSessionService re-checks that the account is
-                    // still an active, enrolled admin before minting anything.
                     "/api/v1/admin/auth/refresh",
-                    // Also challenge-authorised: the caller has proved a password but holds
-                    // no session yet, which is precisely what this endpoint issues.
                     "/api/v1/admin/auth/mfa/verify",
                     "/api/v1/search",
                     "/api/v1/search/**",
