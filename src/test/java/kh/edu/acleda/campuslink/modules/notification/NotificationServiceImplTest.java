@@ -56,6 +56,7 @@ class NotificationServiceImplTest {
             .user(user).title("Budget alert").message("You are near your limit")
             .language(Language.ENGLISH).type("FINANCE_BUDGET").readStatus(read).build();
         ReflectionTestUtils.setField(n, "id", NOTIF_ID);
+        ReflectionTestUtils.setField(n, "createdAt", java.time.Instant.now());
         return n;
     }
 
@@ -69,6 +70,7 @@ class NotificationServiceImplTest {
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).title()).isEqualTo("Budget alert");
         assertThat(page.content().get(0).readStatus()).isFalse();
+        assertThat(page.content().get(0).createdAt()).isNotNull();
     }
 
     @Test
