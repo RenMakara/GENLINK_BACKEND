@@ -464,8 +464,10 @@ public class ChatServiceImpl implements ChatService {
         ChatMessageResponse.ReplyPreview preview = replyTo == null ? null
             : new ChatMessageResponse.ReplyPreview(
                 replyTo.getId(), displayName(replyTo.getSender()), replyTo.getMessageType(), snippet(replyTo));
+        UUID roomId = message.getChatRoom() != null ? message.getChatRoom().getId() : null;
         return new ChatMessageResponse(
             message.getId(),
+            roomId,
             toParticipant(message.getSender()),
             message.getMessageType(),
             message.getContent(),
