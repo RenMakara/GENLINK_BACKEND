@@ -86,6 +86,10 @@ class SuspiciousLoginNotifierImplTest {
         assertThat(request.referenceType()).isEqualTo("SECURITY");
         assertThat(request.referenceId()).isEqualTo(USER_ID);
         assertThat(request.dedupeKey()).startsWith("suspicious-login:");
+        assertThat(request.channels()).containsExactlyInAnyOrder(
+            kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel.IN_APP,
+            kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel.MOBILE_PUSH,
+            kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel.EMAIL);
     }
 
     @Test

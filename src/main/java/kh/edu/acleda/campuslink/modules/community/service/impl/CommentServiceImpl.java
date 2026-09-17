@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.community.service.impl;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -16,12 +17,16 @@ import kh.edu.acleda.campuslink.modules.community.repository.PostCommentReaction
 import kh.edu.acleda.campuslink.modules.community.repository.PostCommentRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.CommentService;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -38,17 +43,29 @@ public class CommentServiceImpl implements CommentService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final NotificationEmitter notificationEmitter;
+
+    @Autowired
+    public CommentServiceImpl(PostCommentRepository commentRepository,
+                              PostCommentReactionRepository commentReactionRepository,
+                              PostRepository postRepository,
+                              UserRepository userRepository,
+                              CurrentUserProvider currentUserProvider,
+                              NotificationEmitter notificationEmitter) {
+        this.commentRepository = commentRepository;
+        this.commentReactionRepository = commentReactionRepository;
+        this.postRepository = postRepository;
+        this.userRepository = userRepository;
+        this.currentUserProvider = currentUserProvider;
+        this.notificationEmitter = notificationEmitter;
+    }
 
     public CommentServiceImpl(PostCommentRepository commentRepository,
                               PostCommentReactionRepository commentReactionRepository,
                               PostRepository postRepository,
                               UserRepository userRepository,
                               CurrentUserProvider currentUserProvider) {
-        this.commentRepository = commentRepository;
-        this.commentReactionRepository = commentReactionRepository;
-        this.postRepository = postRepository;
-        this.userRepository = userRepository;
-        this.currentUserProvider = currentUserProvider;
+        this(commentRepository, commentReactionRepository, postRepository, userRepository, currentUserProvider, null);
     }
 
     @Override
@@ -73,6 +90,8 @@ public class CommentServiceImpl implements CommentService {
         postRepository.adjustCommentCount(postId, 1);
 
         log.info("Comment added: id={} by user={}", saved.getId(), author.getId());
+
+        emitCommentNotifications(post, saved, author, parent);
 
         // A freshly posted comment is not liked by its author yet.
         return toResponse(saved, author.getId(), false);
@@ -197,5 +216,76 @@ public class CommentServiceImpl implements CommentService {
             author != null && author.getId().equals(viewerId),
             comment.getCreatedAt()
         );
+    }
+
+    private void emitCommentNotifications(Post post, PostComment comment, User author, PostComment parent) {
+        if (notificationEmitter == null || post == null || comment == null || author == null) {
+            return;
+        }
+
+        String authorName = resolveAuthorName(author);
+        String snippet = truncateSnippet(comment.getContent());
+
+        try {
+            // If replying to an existing comment, notify the parent comment's author
+            if (parent != null && parent.getUser() != null
+                && !parent.getUser().getId().equals(author.getId())) {
+                notificationEmitter.emit(new NotificationRequest(
+                    parent.getUser().getId(),
+                    "COMMUNITY_COMMENT_REPLY",
+                    "COMMUNITY",
+                    Map.of("replierName", authorName, "replySnippet", snippet),
+                    "POST",
+                    post.getId(),
+                    "comment-reply:" + comment.getId() + ":" + parent.getUser().getId(),
+                    Set.of(NotificationChannel.IN_APP, NotificationChannel.MOBILE_PUSH)
+                ));
+            }
+
+            // Notify post author (unless author is commenter or parent author is already post author)
+            User postAuthor = post.getUser();
+            if (postAuthor != null && !postAuthor.getId().equals(author.getId())) {
+                boolean parentAuthorIsPostAuthor = parent != null && parent.getUser() != null
+                    && parent.getUser().getId().equals(postAuthor.getId());
+                if (!parentAuthorIsPostAuthor) {
+                    notificationEmitter.emit(new NotificationRequest(
+                        postAuthor.getId(),
+                        "COMMUNITY_POST_COMMENT",
+                        "COMMUNITY",
+                        Map.of("commenterName", authorName, "commentSnippet", snippet),
+                        "POST",
+                        post.getId(),
+                        "post-comment:" + comment.getId() + ":" + postAuthor.getId(),
+                        Set.of(NotificationChannel.IN_APP, NotificationChannel.MOBILE_PUSH)
+                    ));
+                }
+            }
+        } catch (RuntimeException exception) {
+            log.warn("Failed to emit comment notification for comment {}: {}", comment.getId(), exception.getMessage());
+        }
+    }
+
+    private String resolveAuthorName(User user) {
+        if (user == null) {
+            return "Someone";
+        }
+        if (user.getFullName() != null && !user.getFullName().isBlank()) {
+            return user.getFullName().strip();
+        }
+        if (user.getUsername() != null && !user.getUsername().isBlank()) {
+            return user.getUsername().strip();
+        }
+        return "Someone";
+    }
+
+    private String truncateSnippet(String content) {
+        if (content == null || content.isBlank()) {
+            return "...";
+        }
+        String stripped = content.strip();
+        if (stripped.length() <= 60) {
+            return stripped;
+        }
+        return stripped.substring(0, 57) + "...";
     }
 }

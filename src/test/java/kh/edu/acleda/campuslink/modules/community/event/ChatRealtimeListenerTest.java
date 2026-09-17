@@ -4,8 +4,11 @@ import kh.edu.acleda.campuslink.modules.community.dto.response.ChatMessageRespon
 import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.ChatRoomMemberIdentity;
 import kh.edu.acleda.campuslink.modules.community.repository.ChatRoomMemberRepository;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -14,6 +17,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -26,6 +30,7 @@ class ChatRealtimeListenerTest {
 
     @Mock private SimpMessagingTemplate messagingTemplate;
     @Mock private ChatRoomMemberRepository memberRepository;
+    @Mock private NotificationEmitter notificationEmitter;
 
     @InjectMocks private ChatRealtimeListener listener;
 
@@ -88,5 +93,16 @@ class ChatRealtimeListenerTest {
                 any(),
                 any()
         );
+
+        // Verify notifications emitted to active members (excluding sender)
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter, times(2)).emit(captor.capture());
+        List<NotificationRequest> emitted = captor.getAllValues();
+        assertThat(emitted).extracting(NotificationRequest::recipientUserId)
+                .containsExactlyInAnyOrder(activeMember1Id, activeMember2Id);
+        assertThat(emitted.get(0).templateKey()).isEqualTo("CHAT_NEW_MESSAGE");
+        assertThat(emitted.get(0).referenceType()).isEqualTo("CHAT_ROOM");
+        assertThat(emitted.get(0).referenceId()).isEqualTo(roomId);
     }
 }
+

@@ -129,3 +129,5 @@ databaseChangeLog:
       file: db/changelog/changes/0064-add-profile-cover-preset.sql
   - include:
       file: db/changelog/changes/0065-add-post-video-url.sql
+  - include:
+      file: db/changelog/changes/0066-seed-chat-and-social-notification-templates.sql

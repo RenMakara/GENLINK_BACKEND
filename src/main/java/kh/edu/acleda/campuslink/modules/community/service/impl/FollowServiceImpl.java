@@ -1,5 +1,7 @@
 package kh.edu.acleda.campuslink.modules.community.service.impl;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.dto.response.FollowResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.FollowStatsResponse;
@@ -8,6 +10,9 @@ import kh.edu.acleda.campuslink.modules.community.entity.Follow;
 import kh.edu.acleda.campuslink.modules.community.enums.FollowStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.community.service.FollowService;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.profile.entity.UserSetting;
 import kh.edu.acleda.campuslink.modules.profile.repository.UserSettingRepository;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
@@ -17,6 +22,7 @@ import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,15 +36,26 @@ public class FollowServiceImpl implements FollowService {
     private final UserSettingRepository userSettingRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final NotificationEmitter notificationEmitter;
+
+    @Autowired
+    public FollowServiceImpl(FollowRepository followRepository,
+                             UserSettingRepository userSettingRepository,
+                             UserRepository userRepository,
+                             CurrentUserProvider currentUserProvider,
+                             NotificationEmitter notificationEmitter) {
+        this.followRepository = followRepository;
+        this.userSettingRepository = userSettingRepository;
+        this.userRepository = userRepository;
+        this.currentUserProvider = currentUserProvider;
+        this.notificationEmitter = notificationEmitter;
+    }
 
     public FollowServiceImpl(FollowRepository followRepository,
                              UserSettingRepository userSettingRepository,
                              UserRepository userRepository,
                              CurrentUserProvider currentUserProvider) {
-        this.followRepository = followRepository;
-        this.userSettingRepository = userSettingRepository;
-        this.userRepository = userRepository;
-        this.currentUserProvider = currentUserProvider;
+        this(followRepository, userSettingRepository, userRepository, currentUserProvider, null);
     }
 
     @Override
@@ -58,11 +75,13 @@ public class FollowServiceImpl implements FollowService {
         return followRepository.findByFollowerIdAndFollowingId(followerId, targetUserId)
             .map(existing -> new FollowResponse(summary(target), existing.getStatus()))
             .orElseGet(() -> {
+                User follower = loadCurrentUser();
                 Follow follow = followRepository.save(Follow.builder()
-                    .follower(loadCurrentUser())
+                    .follower(follower)
                     .following(target)
                     .status(status)
                     .build());
+                emitFollowNotification(target, follower, followerId, status);
                 return new FollowResponse(summary(target), follow.getStatus());
             });
     }
@@ -103,8 +122,76 @@ public class FollowServiceImpl implements FollowService {
         Follow follow = pendingRequest(followerUserId);
         follow.setStatus(FollowStatus.ACCEPTED);
         followRepository.save(follow);
+        emitFollowAcceptedNotification(followerUserId);
         return new FollowResponse(summary(follow.getFollower()), FollowStatus.ACCEPTED);
     }
+
+    private void emitFollowNotification(User target, User follower, UUID followerId, FollowStatus status) {
+        if (notificationEmitter == null || target == null || target.getId() == null) {
+            return;
+        }
+        String followerName = follower.getFullName() != null && !follower.getFullName().isBlank()
+            ? follower.getFullName().strip() : follower.getUsername();
+        if (followerName == null || followerName.isBlank()) {
+            followerName = "Someone";
+        }
+
+        try {
+            if (status == FollowStatus.PENDING) {
+                notificationEmitter.emit(new NotificationRequest(
+                    target.getId(),
+                    "COMMUNITY_FOLLOW_REQUEST",
+                    "COMMUNITY",
+                    Map.of("followerName", followerName),
+                    "USER",
+                    followerId,
+                    "follow-req:" + followerId + ":" + target.getId(),
+                    Set.of(NotificationChannel.IN_APP, NotificationChannel.MOBILE_PUSH)
+                ));
+            } else if (status == FollowStatus.ACCEPTED) {
+                notificationEmitter.emit(new NotificationRequest(
+                    target.getId(),
+                    "COMMUNITY_NEW_FOLLOWER",
+                    "COMMUNITY",
+                    Map.of("followerName", followerName),
+                    "USER",
+                    followerId,
+                    "new-follow:" + followerId + ":" + target.getId(),
+                    Set.of(NotificationChannel.IN_APP, NotificationChannel.MOBILE_PUSH)
+                ));
+            }
+        } catch (RuntimeException exception) {
+            // Notification emission must never fail the follow transaction
+        }
+    }
+
+    private void emitFollowAcceptedNotification(UUID followerUserId) {
+        if (notificationEmitter == null || followerUserId == null) {
+            return;
+        }
+        User me = loadCurrentUser();
+        String userName = me.getFullName() != null && !me.getFullName().isBlank()
+            ? me.getFullName().strip() : me.getUsername();
+        if (userName == null || userName.isBlank()) {
+            userName = "Someone";
+        }
+
+        try {
+            notificationEmitter.emit(new NotificationRequest(
+                followerUserId,
+                "COMMUNITY_FOLLOW_ACCEPTED",
+                "COMMUNITY",
+                Map.of("userName", userName),
+                "USER",
+                me.getId(),
+                "follow-acc:" + me.getId() + ":" + followerUserId,
+                Set.of(NotificationChannel.IN_APP, NotificationChannel.MOBILE_PUSH)
+            ));
+        } catch (RuntimeException exception) {
+            // Notification emission must never fail the accept transaction
+        }
+    }
+
 
     @Override
     @Transactional

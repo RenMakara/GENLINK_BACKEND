@@ -42,13 +42,14 @@ class FollowServiceImplTest {
     @Mock private UserSettingRepository userSettingRepository;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter notificationEmitter;
 
     private FollowServiceImpl service;
     private User target;
 
     @BeforeEach
     void setUp() {
-        service = new FollowServiceImpl(followRepository, userSettingRepository, userRepository, currentUserProvider);
+        service = new FollowServiceImpl(followRepository, userSettingRepository, userRepository, currentUserProvider, notificationEmitter);
 
         User me = user(ME, "me");
         target = user(TARGET, "target");
@@ -140,6 +141,54 @@ class FollowServiceImplTest {
 
         assertThat(service.acceptRequest(TARGET).status()).isEqualTo(FollowStatus.ACCEPTED);
         assertThat(pending.getStatus()).isEqualTo(FollowStatus.ACCEPTED);
+    }
+
+    @Test
+    void followingAnOpenProfileEmitsNewFollowerNotification() {
+        service.follow(TARGET);
+
+        org.mockito.ArgumentCaptor<kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest> captor =
+            org.mockito.ArgumentCaptor.forClass(kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest req = captor.getValue();
+        assertThat(req.recipientUserId()).isEqualTo(TARGET);
+        assertThat(req.templateKey()).isEqualTo("COMMUNITY_NEW_FOLLOWER");
+        assertThat(req.dedupeKey()).isEqualTo("new-follow:" + ME + ":" + TARGET);
+        assertThat(req.channels()).containsExactlyInAnyOrder(
+            kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel.IN_APP,
+            kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel.MOBILE_PUSH);
+    }
+
+    @Test
+    void followingAPrivateProfileEmitsFollowRequestNotification() {
+        when(userSettingRepository.findByUserId(TARGET))
+            .thenReturn(Optional.of(UserSetting.builder().privacyProfile("PRIVATE").build()));
+
+        service.follow(TARGET);
+
+        org.mockito.ArgumentCaptor<kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest> captor =
+            org.mockito.ArgumentCaptor.forClass(kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest req = captor.getValue();
+        assertThat(req.recipientUserId()).isEqualTo(TARGET);
+        assertThat(req.templateKey()).isEqualTo("COMMUNITY_FOLLOW_REQUEST");
+        assertThat(req.dedupeKey()).isEqualTo("follow-req:" + ME + ":" + TARGET);
+    }
+
+    @Test
+    void acceptingAPendingRequestEmitsFollowAcceptedNotification() {
+        Follow pending = Follow.builder().follower(target).status(FollowStatus.PENDING).build();
+        when(followRepository.findByFollowerIdAndFollowingId(TARGET, ME)).thenReturn(Optional.of(pending));
+
+        service.acceptRequest(TARGET);
+
+        org.mockito.ArgumentCaptor<kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest> captor =
+            org.mockito.ArgumentCaptor.forClass(kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest req = captor.getValue();
+        assertThat(req.recipientUserId()).isEqualTo(TARGET);
+        assertThat(req.templateKey()).isEqualTo("COMMUNITY_FOLLOW_ACCEPTED");
+        assertThat(req.dedupeKey()).isEqualTo("follow-acc:" + ME + ":" + TARGET);
     }
 
     private User user(UUID id, String name) {

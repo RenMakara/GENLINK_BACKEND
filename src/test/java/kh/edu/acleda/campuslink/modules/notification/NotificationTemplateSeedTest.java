@@ -123,4 +123,35 @@ class NotificationTemplateSeedTest {
                 .contains("message_km");
         }
     }
+
+    @Test
+    void chatAndSocialTemplatesAreBilingualAndRerunSafe() throws IOException {
+        try (InputStream stream = getClass().getResourceAsStream(
+            "/db/changelog/changes/0066-seed-chat-and-social-notification-templates.sql")) {
+            assertThat(stream).as("chat and social notification template migration").isNotNull();
+            String sql = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(sql)
+                .contains("CHAT_NEW_MESSAGE")
+                .contains("COMMUNITY_FOLLOW_REQUEST")
+                .contains("COMMUNITY_NEW_FOLLOWER")
+                .contains("COMMUNITY_FOLLOW_ACCEPTED")
+                .contains("COMMUNITY_POST_COMMENT")
+                .contains("COMMUNITY_COMMENT_REPLY")
+                .contains("COMMUNITY_POST_LIKE")
+                .contains("{senderName}")
+                .contains("{preview}")
+                .contains("{followerName}")
+                .contains("{userName}")
+                .contains("{commenterName}")
+                .contains("{commentSnippet}")
+                .contains("{replierName}")
+                .contains("{replySnippet}")
+                .contains("{likerName}")
+                .contains("ON CONFLICT (template_key) DO NOTHING")
+                .contains("title_km")
+                .contains("message_km");
+        }
+    }
 }
+

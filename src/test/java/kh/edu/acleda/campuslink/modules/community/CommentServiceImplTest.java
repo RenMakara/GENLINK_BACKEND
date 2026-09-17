@@ -51,6 +51,7 @@ class CommentServiceImplTest {
     @Mock private PostRepository postRepository;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter notificationEmitter;
 
     private CommentServiceImpl service;
     private User author;
@@ -59,7 +60,7 @@ class CommentServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new CommentServiceImpl(commentRepository, commentReactionRepository,
-            postRepository, userRepository, currentUserProvider);
+            postRepository, userRepository, currentUserProvider, notificationEmitter);
 
         author = new User();
         author.setFullName("Author");
@@ -175,5 +176,64 @@ class CommentServiceImplTest {
         ReflectionTestUtils.setField(comment, "id", UUID.randomUUID());
         when(commentRepository.findByIdAndDeletedAtIsNull(comment.getId())).thenReturn(Optional.of(comment));
         return comment;
+    }
+
+    @Test
+    void addingCommentEmitsPostCommentNotificationToPostAuthor() {
+        UUID postAuthorId = UUID.randomUUID();
+        User postAuthor = new User();
+        postAuthor.setFullName("Post Author");
+        ReflectionTestUtils.setField(postAuthor, "id", postAuthorId);
+        post.setUser(postAuthor);
+
+        service.add(POST_ID, new CommentCreateRequest("Great insight!", null, Language.ENGLISH));
+
+        org.mockito.ArgumentCaptor<kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest> captor =
+            org.mockito.ArgumentCaptor.forClass(kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest req = captor.getValue();
+        assertThat(req.recipientUserId()).isEqualTo(postAuthorId);
+        assertThat(req.templateKey()).isEqualTo("COMMUNITY_POST_COMMENT");
+        assertThat(req.referenceType()).isEqualTo("POST");
+        assertThat(req.referenceId()).isEqualTo(POST_ID);
+        assertThat(req.channels()).containsExactlyInAnyOrder(
+            kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel.IN_APP,
+            kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel.MOBILE_PUSH);
+    }
+
+    @Test
+    void replyingToCommentEmitsCommentReplyNotification() {
+        UUID postAuthorId = UUID.randomUUID();
+        User postAuthor = new User();
+        ReflectionTestUtils.setField(postAuthor, "id", postAuthorId);
+        post.setUser(postAuthor);
+
+        UUID parentAuthorId = UUID.randomUUID();
+        User parentAuthor = new User();
+        parentAuthor.setFullName("Parent Author");
+        ReflectionTestUtils.setField(parentAuthor, "id", parentAuthorId);
+
+        UUID parentId = UUID.randomUUID();
+        PostComment parent = PostComment.builder().post(post).user(parentAuthor).content("Original").likeCount(0).build();
+        ReflectionTestUtils.setField(parent, "id", parentId);
+        when(commentRepository.findByIdAndDeletedAtIsNull(parentId)).thenReturn(Optional.of(parent));
+
+        service.add(POST_ID, new CommentCreateRequest("I agree!", parentId, Language.ENGLISH));
+
+        org.mockito.ArgumentCaptor<kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest> captor =
+            org.mockito.ArgumentCaptor.forClass(kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest.class);
+        verify(notificationEmitter, org.mockito.Mockito.atLeastOnce()).emit(captor.capture());
+        List<kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest> emitted = captor.getAllValues();
+        assertThat(emitted).anyMatch(r -> r.recipientUserId().equals(parentAuthorId)
+            && "COMMUNITY_COMMENT_REPLY".equals(r.templateKey()));
+    }
+
+    @Test
+    void commentingOnOwnPostDoesNotEmitNotification() {
+        post.setUser(author);
+
+        service.add(POST_ID, new CommentCreateRequest("Self comment", null, Language.ENGLISH));
+
+        verify(notificationEmitter, never()).emit(any());
     }
 }

@@ -287,6 +287,34 @@ class PostServiceImplTest {
     }
 
     @Test
+    void likeByAnotherUserEmitsPostLikeNotification() {
+        UUID otherUserId = UUID.randomUUID();
+        User otherAuthor = new User();
+        otherAuthor.setFullName("Post Author");
+        ReflectionTestUtils.setField(otherAuthor, "id", otherUserId);
+        post.setUser(otherAuthor);
+
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(postReactionRepository.findByPostIdAndUserId(POST_ID, USER_ID)).thenReturn(Optional.empty());
+
+        int count = service.like(POST_ID);
+
+        assertThat(count).isEqualTo(5);
+        org.mockito.ArgumentCaptor<NotificationRequest> captor =
+            org.mockito.ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+        NotificationRequest req = captor.getValue();
+        assertThat(req.recipientUserId()).isEqualTo(otherUserId);
+        assertThat(req.templateKey()).isEqualTo("COMMUNITY_POST_LIKE");
+        assertThat(req.referenceType()).isEqualTo("POST");
+        assertThat(req.referenceId()).isEqualTo(POST_ID);
+        assertThat(req.dedupeKey()).isEqualTo("post-like:" + POST_ID + ":" + USER_ID);
+        assertThat(req.channels()).containsExactlyInAnyOrder(
+            kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel.IN_APP,
+            kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel.MOBILE_PUSH);
+    }
+
+    @Test
     void unlikingSomethingNeverLikedIsANoOp() {
         when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
         when(postReactionRepository.findByPostIdAndUserId(POST_ID, USER_ID)).thenReturn(Optional.empty());

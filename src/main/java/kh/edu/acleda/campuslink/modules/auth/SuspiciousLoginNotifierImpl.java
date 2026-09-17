@@ -6,8 +6,10 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import kh.edu.acleda.campuslink.modules.auth.entity.SecurityAuditLog;
 import kh.edu.acleda.campuslink.modules.auth.repository.SecurityAuditLogRepository;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -59,7 +61,8 @@ public class SuspiciousLoginNotifierImpl implements SuspiciousLoginNotifier {
                 Map.of("loginLocation", "IP address " + currentIp),
                 "SECURITY",
                 user.getId(),
-                "suspicious-login:" + fingerprint(currentIp, currentUserAgent)));
+                "suspicious-login:" + fingerprint(currentIp, currentUserAgent),
+                Set.of(NotificationChannel.IN_APP, NotificationChannel.MOBILE_PUSH, NotificationChannel.EMAIL)));
         } catch (RuntimeException exception) {
             // A security alert is useful, but it must never turn a valid login into a failure.
             log.warn("Suspicious login notification failed for user {}", user.getId(), exception);

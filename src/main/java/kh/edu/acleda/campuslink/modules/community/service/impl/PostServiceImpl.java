@@ -30,6 +30,7 @@ import kh.edu.acleda.campuslink.modules.community.repository.PostReportRepositor
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
 import kh.edu.acleda.campuslink.modules.community.service.PostService;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
@@ -483,12 +484,14 @@ public class PostServiceImpl implements PostService {
             return post.getLikeCount();
         }
 
+        User liker = loadCurrentUser();
         postReactionRepository.save(PostReaction.builder()
             .post(post)
-            .user(loadCurrentUser())
+            .user(liker)
             .reactionType(DEFAULT_REACTION)
             .build());
         postRepository.adjustLikeCount(postId, 1);
+        emitPostLikeNotification(post, liker);
         return post.getLikeCount() + 1;
     }
 
@@ -612,5 +615,32 @@ public class PostServiceImpl implements PostService {
 
     private int voteCountOf(PollOption option) {
         return option.getVoteCount() == null ? 0 : option.getVoteCount();
+    }
+
+    private void emitPostLikeNotification(Post post, User liker) {
+        User author = post.getUser();
+        if (notificationEmitter == null || author == null || author.getId() == null
+            || liker == null || author.getId().equals(liker.getId())) {
+            return;
+        }
+        String likerName = liker.getFullName() != null && !liker.getFullName().isBlank()
+            ? liker.getFullName().strip() : liker.getUsername();
+        if (likerName == null || likerName.isBlank()) {
+            likerName = "Someone";
+        }
+        try {
+            notificationEmitter.emit(new NotificationRequest(
+                author.getId(),
+                "COMMUNITY_POST_LIKE",
+                "COMMUNITY",
+                Map.of("likerName", likerName),
+                "POST",
+                post.getId(),
+                "post-like:" + post.getId() + ":" + liker.getId(),
+                Set.of(NotificationChannel.IN_APP, NotificationChannel.MOBILE_PUSH)
+            ));
+        } catch (RuntimeException exception) {
+            log.warn("Failed to emit post like notification for post {}: {}", post.getId(), exception.getMessage());
+        }
     }
 }
