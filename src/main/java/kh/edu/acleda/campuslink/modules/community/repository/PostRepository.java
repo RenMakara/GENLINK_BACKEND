@@ -101,4 +101,22 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     @Modifying
     @Query("UPDATE Post p SET p.reportCount = 0 WHERE p.id = :postId")
     void clearReportCount(@Param("postId") UUID postId);
+
+    /**
+     * Search public, non-deleted posts by content text. Eagerly fetches author.
+     */
+    @Query(value = """
+        SELECT p FROM Post p LEFT JOIN FETCH p.user
+        WHERE p.deletedAt IS NULL
+          AND p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC
+          AND LOWER(p.contentText) LIKE LOWER(CONCAT('%', :query, '%'))
+        ORDER BY p.createdAt DESC
+        """,
+        countQuery = """
+        SELECT COUNT(p) FROM Post p
+        WHERE p.deletedAt IS NULL
+          AND p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC
+          AND LOWER(p.contentText) LIKE LOWER(CONCAT('%', :query, '%'))
+        """)
+    Page<Post> searchPublicPosts(@Param("query") String query, Pageable pageable);
 }

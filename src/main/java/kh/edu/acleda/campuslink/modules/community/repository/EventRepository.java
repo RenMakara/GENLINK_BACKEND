@@ -57,4 +57,32 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     @Query("UPDATE Event e SET e.attendeeCount = e.attendeeCount + 1 "
         + "WHERE e.id = :eventId AND (e.attendeeLimit IS NULL OR e.attendeeCount < e.attendeeLimit)")
     int reserveSeat(@Param("eventId") UUID eventId);
+
+    /**
+     * Search published, non-deleted events by title, description, location, or category.
+     */
+    @Query(value = """
+        SELECT e FROM Event e LEFT JOIN FETCH e.organizer
+        WHERE e.deletedAt IS NULL
+          AND e.status = kh.edu.acleda.campuslink.modules.community.enums.EventStatus.PUBLISHED
+          AND (
+               LOWER(e.title) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(e.description) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(e.locationName) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(e.category) LIKE LOWER(CONCAT('%', :query, '%'))
+          )
+        ORDER BY e.dateTime ASC
+        """,
+        countQuery = """
+        SELECT COUNT(e) FROM Event e
+        WHERE e.deletedAt IS NULL
+          AND e.status = kh.edu.acleda.campuslink.modules.community.enums.EventStatus.PUBLISHED
+          AND (
+               LOWER(e.title) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(e.description) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(e.locationName) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(e.category) LIKE LOWER(CONCAT('%', :query, '%'))
+          )
+        """)
+    Page<Event> searchEvents(@Param("query") String query, Pageable pageable);
 }

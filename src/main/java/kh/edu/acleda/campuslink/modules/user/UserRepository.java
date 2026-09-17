@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.modules.user;
 
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -46,4 +47,44 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     default boolean existsByPhone(String phone) {
         return existsByPhoneNumber(phone);
     }
+
+    /**
+     * Case-insensitive, partial-match search across username, full name, and university.
+     * Soft-deleted and banned accounts are excluded. Matches are ranked: exact username match
+     * first, then prefix username match, then prefix name match, then alphabetical.
+     */
+    @Query(value = """
+        SELECT u FROM User u
+        WHERE u.deletedAt IS NULL
+          AND (u.accountStatus IS NULL OR (u.accountStatus != kh.edu.acleda.campuslink.modules.user.entity.AccountStatus.DELETED
+                                      AND u.accountStatus != kh.edu.acleda.campuslink.modules.user.entity.AccountStatus.BANNED))
+          AND (
+               LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR (u.universityName IS NOT NULL AND LOWER(u.universityName) LIKE LOWER(CONCAT('%', :query, '%')))
+            OR (u.bio IS NOT NULL AND LOWER(u.bio) LIKE LOWER(CONCAT('%', :query, '%')))
+          )
+        ORDER BY
+          CASE
+            WHEN LOWER(u.username) = LOWER(:query) THEN 1
+            WHEN LOWER(u.username) LIKE LOWER(CONCAT(:query, '%')) THEN 2
+            WHEN LOWER(u.fullName) = LOWER(:query) THEN 3
+            WHEN LOWER(u.fullName) LIKE LOWER(CONCAT(:query, '%')) THEN 4
+            ELSE 5
+          END,
+          u.fullName ASC
+        """,
+        countQuery = """
+        SELECT COUNT(u) FROM User u
+        WHERE u.deletedAt IS NULL
+          AND (u.accountStatus IS NULL OR (u.accountStatus != kh.edu.acleda.campuslink.modules.user.entity.AccountStatus.DELETED
+                                      AND u.accountStatus != kh.edu.acleda.campuslink.modules.user.entity.AccountStatus.BANNED))
+          AND (
+               LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR (u.universityName IS NOT NULL AND LOWER(u.universityName) LIKE LOWER(CONCAT('%', :query, '%')))
+            OR (u.bio IS NOT NULL AND LOWER(u.bio) LIKE LOWER(CONCAT('%', :query, '%')))
+          )
+        """)
+    Page<User> searchUsers(@Param("query") String query, Pageable pageable);
 }

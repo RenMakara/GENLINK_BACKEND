@@ -92,6 +92,8 @@ public class SecurityConfig {
                     // Also challenge-authorised: the caller has proved a password but holds
                     // no session yet, which is precisely what this endpoint issues.
                     "/api/v1/admin/auth/mfa/verify",
+                    "/api/v1/search",
+                    "/api/v1/search/**",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
                     "/actuator/health",

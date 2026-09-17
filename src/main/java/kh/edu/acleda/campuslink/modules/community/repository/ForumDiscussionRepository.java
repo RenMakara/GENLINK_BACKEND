@@ -60,4 +60,28 @@ public interface ForumDiscussionRepository extends JpaRepository<ForumDiscussion
     @Modifying
     @Query("UPDATE ForumDiscussion d SET d.reportCount = 0 WHERE d.id = :discussionId")
     void clearReportCount(@Param("discussionId") UUID discussionId);
+
+    /**
+     * Search non-deleted forum discussions by title, content, or category.
+     */
+    @Query(value = """
+        SELECT d FROM ForumDiscussion d LEFT JOIN FETCH d.user
+        WHERE d.deletedAt IS NULL
+          AND (
+               LOWER(d.title) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(d.content) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(d.category) LIKE LOWER(CONCAT('%', :query, '%'))
+          )
+        ORDER BY d.createdAt DESC
+        """,
+        countQuery = """
+        SELECT COUNT(d) FROM ForumDiscussion d
+        WHERE d.deletedAt IS NULL
+          AND (
+               LOWER(d.title) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(d.content) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(d.category) LIKE LOWER(CONCAT('%', :query, '%'))
+          )
+        """)
+    Page<ForumDiscussion> searchDiscussions(@Param("query") String query, Pageable pageable);
 }
