@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.community;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -426,6 +427,85 @@ class ChatServiceImplTest {
         when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.deleteConversation(ROOM_ID))
+            .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void toggleMuteMutesWhenUnmuted() {
+        ChatRoomMember callerMember = activeMember(me);
+        callerMember.setMutedUntil(null);
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.of(callerMember));
+
+        boolean isMuted = service.toggleMute(ROOM_ID);
+
+        assertThat(isMuted).isTrue();
+        assertThat(callerMember.getMutedUntil()).isNotNull();
+        assertThat(callerMember.getMutedUntil()).isAfter(LocalDateTime.now());
+        verify(memberRepository).save(callerMember);
+    }
+
+    @Test
+    void toggleMuteUnmutesWhenCurrentlyMuted() {
+        ChatRoomMember callerMember = activeMember(me);
+        callerMember.setMutedUntil(LocalDateTime.now().plusHours(2));
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.of(callerMember));
+
+        boolean isMuted = service.toggleMute(ROOM_ID);
+
+        assertThat(isMuted).isFalse();
+        assertThat(callerMember.getMutedUntil()).isNull();
+        verify(memberRepository).save(callerMember);
+    }
+
+    @Test
+    void unmuteRoomClearsMutedUntil() {
+        ChatRoomMember callerMember = activeMember(me);
+        callerMember.setMutedUntil(LocalDateTime.now().plusHours(2));
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.of(callerMember));
+
+        service.unmuteRoom(ROOM_ID);
+
+        assertThat(callerMember.getMutedUntil()).isNull();
+        verify(memberRepository).save(callerMember);
+    }
+
+    @Test
+    void archiveRoomSetsArchivedAt() {
+        ChatRoomMember callerMember = activeMember(me);
+        callerMember.setArchivedAt(null);
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.of(callerMember));
+
+        service.archiveRoom(ROOM_ID);
+
+        assertThat(callerMember.getArchivedAt()).isNotNull();
+        verify(memberRepository).save(callerMember);
+    }
+
+    @Test
+    void unarchiveRoomClearsArchivedAt() {
+        ChatRoomMember callerMember = activeMember(me);
+        callerMember.setArchivedAt(LocalDateTime.now());
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.of(callerMember));
+
+        service.unarchiveRoom(ROOM_ID);
+
+        assertThat(callerMember.getArchivedAt()).isNull();
+        verify(memberRepository).save(callerMember);
+    }
+
+    @Test
+    void toggleMuteThrowsNotFoundWhenNotActiveMember() {
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.toggleMute(ROOM_ID))
+            .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void archiveRoomThrowsNotFoundWhenNotActiveMember() {
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.archiveRoom(ROOM_ID))
             .isInstanceOf(NotFoundException.class);
     }
 

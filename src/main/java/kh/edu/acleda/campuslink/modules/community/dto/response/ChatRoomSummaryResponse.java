@@ -1,5 +1,6 @@
 package kh.edu.acleda.campuslink.modules.community.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.enums.ChatType;
@@ -19,6 +20,8 @@ public record ChatRoomSummaryResponse(
     ChatParticipant counterpart,
     ChatMessageResponse lastMessage,
     long unreadCount,
-    Instant lastActivityAt
+    Instant lastActivityAt,
+    @JsonProperty("isMuted") boolean isMuted,
+    @JsonProperty("isArchived") boolean isArchived
 ) {
 }

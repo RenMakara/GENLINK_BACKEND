@@ -1,5 +1,6 @@
 package kh.edu.acleda.campuslink.modules.community.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -15,6 +16,8 @@ public record ChatRoomResponse(
     String name,
     List<ChatMemberResponse> members,
     ChatMessageResponse pinnedMessage,
-    Instant createdAt
+    Instant createdAt,
+    @JsonProperty("isMuted") boolean isMuted,
+    @JsonProperty("isArchived") boolean isArchived
 ) {
 }
