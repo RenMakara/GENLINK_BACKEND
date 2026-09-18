@@ -1,6 +1,5 @@
 package kh.edu.acleda.campuslink.modules.search.service.impl;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,11 +13,9 @@ import kh.edu.acleda.campuslink.modules.community.dto.response.EventResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PollResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Event;
-import kh.edu.acleda.campuslink.modules.community.entity.EventRsvp;
 import kh.edu.acleda.campuslink.modules.community.entity.ForumDiscussion;
 import kh.edu.acleda.campuslink.modules.community.entity.Poll;
 import kh.edu.acleda.campuslink.modules.community.entity.PollOption;
-import kh.edu.acleda.campuslink.modules.community.entity.PollVote;
 import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.enums.RsvpStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
