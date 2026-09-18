@@ -10,8 +10,11 @@ import org.springframework.data.domain.Pageable;
 
 public interface ShortContentService {
 
-    /** Create a short (metadata only); the creator is the current user. */
+    /** Create a short after the shared media upload; the creator is the current user. */
     ShortContentResponse create(ShortContentCreateRequest request, Language language);
+
+    /** Soft-delete a short owned by the current user. */
+    void delete(UUID id);
 
     /** The feed, optionally by category, with the user's liked/saved flags. */
     PageResponse<ShortContentResponse> getFeed(String category, Pageable pageable, Language language);

@@ -12,6 +12,7 @@ import kh.edu.acleda.campuslink.modules.entertainment.repository.ShortContentLik
 import kh.edu.acleda.campuslink.modules.entertainment.repository.ShortContentRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.ShortContentSaveRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.service.impl.ShortContentServiceImpl;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -20,6 +21,7 @@ import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -46,6 +48,7 @@ class ShortContentServiceImplTest {
     @Mock private ShortContentRepository shortContentRepository;
     @Mock private ShortContentLikeRepository likeRepository;
     @Mock private ShortContentSaveRepository saveRepository;
+    @Mock private MediaService mediaService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
 
@@ -56,9 +59,12 @@ class ShortContentServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new ShortContentServiceImpl(shortContentRepository, likeRepository, saveRepository,
-            userRepository, currentUserProvider);
+            mediaService, userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
+        user.setFullName("Ren Makara");
+        user.setUsername("renmakara");
+        user.setAvatarUrl("https://cdn.example.com/avatar.jpg");
         content = ShortContent.builder().titleEn("Study tips").category("EDUCATION").creator(user)
             .likeCount(0).saveCount(0).shareCount(0).build();
         ReflectionTestUtils.setField(content, "id", CID);
@@ -84,11 +90,52 @@ class ShortContentServiceImplTest {
     @Test
     void createStartsWithZeroCountsAndTheCreatorSet() {
         ShortContentResponse r = service.create(
-            new ShortContentCreateRequest("Study tips", "d", "EDUCATION", "v", "t"), EN);
+            new ShortContentCreateRequest("Study tips", "d", "EDUCATION", "v", "t", null, null), EN);
 
         assertThat(r.likeCount()).isZero();
         assertThat(r.creatorId()).isEqualTo(USER_ID);
+        assertThat(r.creatorFullName()).isEqualTo("Ren Makara");
+        assertThat(r.creatorUsername()).isEqualTo("renmakara");
+        assertThat(r.creatorAvatarUrl()).isEqualTo("https://cdn.example.com/avatar.jpg");
         assertThat(r.liked()).isFalse();
+    }
+
+    @Test
+    void createResolvesOwnedConfirmedMediaUrls() {
+        UUID videoMediaId = UUID.randomUUID();
+        UUID thumbnailMediaId = UUID.randomUUID();
+        when(mediaService.resolveConfirmedUrl(videoMediaId)).thenReturn("https://cdn.example.com/video.mp4");
+        when(mediaService.resolveConfirmedUrl(thumbnailMediaId)).thenReturn("https://cdn.example.com/thumb.jpg");
+
+        service.create(new ShortContentCreateRequest(
+            "Study tips", "d", "EDUCATION", "untrusted-video", "untrusted-thumbnail",
+            videoMediaId, thumbnailMediaId), EN);
+
+        verify(mediaService).resolveConfirmedUrl(videoMediaId);
+        verify(mediaService).resolveConfirmedUrl(thumbnailMediaId);
+        ArgumentCaptor<ShortContent> captor = ArgumentCaptor.forClass(ShortContent.class);
+        verify(shortContentRepository).save(captor.capture());
+        assertThat(captor.getValue().getVideoUrl()).isEqualTo("https://cdn.example.com/video.mp4");
+        assertThat(captor.getValue().getThumbnailUrl()).isEqualTo("https://cdn.example.com/thumb.jpg");
+    }
+
+    @Test
+    void deleteSoftDeletesContentOwnedByCurrentUser() {
+        service.delete(CID);
+
+        assertThat(content.getDeletedAt()).isNotNull();
+        verify(shortContentRepository).save(content);
+    }
+
+    @Test
+    void deleteDoesNotRevealContentOwnedByAnotherUser() {
+        User otherUser = new User();
+        ReflectionTestUtils.setField(otherUser, "id", UUID.randomUUID());
+        content.setCreator(otherUser);
+
+        assertThatThrownBy(() -> service.delete(CID)).isInstanceOf(NotFoundException.class);
+
+        verify(shortContentRepository, never()).save(content);
     }
 
     @Test

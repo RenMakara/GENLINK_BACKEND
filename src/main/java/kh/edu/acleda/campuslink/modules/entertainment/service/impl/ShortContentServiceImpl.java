@@ -1,5 +1,6 @@
 package kh.edu.acleda.campuslink.modules.entertainment.service.impl;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -13,6 +14,7 @@ import kh.edu.acleda.campuslink.modules.entertainment.repository.ShortContentLik
 import kh.edu.acleda.campuslink.modules.entertainment.repository.ShortContentRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.ShortContentSaveRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.service.ShortContentService;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -32,17 +34,20 @@ public class ShortContentServiceImpl implements ShortContentService {
     private final ShortContentRepository shortContentRepository;
     private final ShortContentLikeRepository likeRepository;
     private final ShortContentSaveRepository saveRepository;
+    private final MediaService mediaService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
 
     public ShortContentServiceImpl(ShortContentRepository shortContentRepository,
                                    ShortContentLikeRepository likeRepository,
                                    ShortContentSaveRepository saveRepository,
+                                   MediaService mediaService,
                                    UserRepository userRepository,
                                    CurrentUserProvider currentUserProvider) {
         this.shortContentRepository = shortContentRepository;
         this.likeRepository = likeRepository;
         this.saveRepository = saveRepository;
+        this.mediaService = mediaService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
     }
@@ -50,16 +55,35 @@ public class ShortContentServiceImpl implements ShortContentService {
     @Override
     @Transactional
     public ShortContentResponse create(ShortContentCreateRequest request, Language language) {
+        String videoUrl = request.videoMediaId() == null
+            ? request.videoUrl()
+            : mediaService.resolveConfirmedUrl(request.videoMediaId());
+        String thumbnailUrl = request.thumbnailMediaId() == null
+            ? request.thumbnailUrl()
+            : mediaService.resolveConfirmedUrl(request.thumbnailMediaId());
         ShortContent content = shortContentRepository.save(ShortContent.builder()
             .titleEn(request.title())
             .descriptionEn(request.description())
             .category(request.category())
-            .videoUrl(request.videoUrl())
-            .thumbnailUrl(request.thumbnailUrl())
+            .videoUrl(videoUrl)
+            .thumbnailUrl(thumbnailUrl)
             .creator(loadCurrentUser())
             .likeCount(0).saveCount(0).shareCount(0)
             .build());
         return toResponse(content, false, false, language);
+    }
+
+    @Override
+    @Transactional
+    public void delete(UUID id) {
+        ShortContent content = loadContent(id);
+        UUID currentUserId = currentUserProvider.getCurrentUserId();
+        if (content.getCreator() == null || !currentUserId.equals(content.getCreator().getId())) {
+            // Do not reveal whether another user's content exists.
+            throw new NotFoundException("Short content not found");
+        }
+        content.setDeletedAt(Instant.now());
+        shortContentRepository.save(content);
     }
 
     @Override
@@ -199,6 +223,9 @@ public class ShortContentServiceImpl implements ShortContentService {
             LocalizedTextSelector.select(c.getDescriptionEn(), c.getDescriptionKm(), language),
             c.getCategory(), c.getVideoUrl(), c.getThumbnailUrl(),
             c.getCreator() == null ? null : c.getCreator().getId(),
+            c.getCreator() == null ? null : c.getCreator().getFullName(),
+            c.getCreator() == null ? null : c.getCreator().getUsername(),
+            c.getCreator() == null ? null : c.getCreator().getAvatarUrl(),
             orZero(c.getLikeCount()), orZero(c.getSaveCount()), orZero(c.getShareCount()), liked, saved);
     }
 

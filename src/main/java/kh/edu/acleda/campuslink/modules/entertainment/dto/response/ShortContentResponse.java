@@ -2,10 +2,6 @@ package kh.edu.acleda.campuslink.modules.entertainment.dto.response;
 
 import java.util.UUID;
 
-/**
- * @param liked whether the current user liked this
- * @param saved whether the current user saved this
- */
 public record ShortContentResponse(
     UUID shortContentId,
     String title,
@@ -14,6 +10,9 @@ public record ShortContentResponse(
     String videoUrl,
     String thumbnailUrl,
     UUID creatorId,
+    String creatorFullName,
+    String creatorUsername,
+    String creatorAvatarUrl,
     int likeCount,
     int saveCount,
     int shareCount,
