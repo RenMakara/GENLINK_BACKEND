@@ -64,6 +64,12 @@ public class ChatController {
         return ResponseEntity.ok(ApiResponse.success("Chat retrieved", chatService.getRoom(roomId)));
     }
 
+    @DeleteMapping("/{roomId}")
+    public ResponseEntity<ApiResponse<Void>> deleteConversation(@PathVariable UUID roomId) {
+        chatService.leaveRoom(roomId);
+        return ResponseEntity.ok(ApiResponse.success("Conversation deleted", null));
+    }
+
     @DeleteMapping("/{roomId}/leave")
     public ResponseEntity<ApiResponse<Void>> leave(@PathVariable UUID roomId) {
         chatService.leaveRoom(roomId);

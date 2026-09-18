@@ -178,6 +178,15 @@ public class ChatServiceImpl implements ChatService {
             .mediaUrl(request.mediaUrl())
             .replyToMessage(replyTo)
             .build());
+        // If this is a private chat and the other member had left, re-activate them so the thread reappears in their chats.
+        if (room.getChatType() == ChatType.PRIVATE) {
+            for (ChatRoomMember leftMember : memberRepository.findByChatRoomIdAndStatus(roomId, MemberStatus.LEFT)) {
+                leftMember.setStatus(MemberStatus.ACTIVE);
+                leftMember.setLeftAt(null);
+                memberRepository.save(leftMember);
+            }
+        }
+
         // Bump last-activity so this room rises in every member's chat list.
         roomRepository.touch(roomId, Instant.now());
         
