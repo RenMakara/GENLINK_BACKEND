@@ -34,6 +34,9 @@ public interface ChatService {
     /** Leave a room. */
     void leaveRoom(UUID roomId);
 
+    /** Delete a conversation and clear its message history. */
+    void deleteConversation(UUID roomId);
+
     /** Post a message (TEXT / IMAGE / VOICE, optional reply). */
     ChatMessageResponse sendMessage(UUID roomId, SendMessageRequest request);
 

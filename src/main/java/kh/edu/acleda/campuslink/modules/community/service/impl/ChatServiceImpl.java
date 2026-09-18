@@ -157,6 +157,41 @@ public class ChatServiceImpl implements ChatService {
         log.info("User {} left chat room {}", meId, roomId);
     }
 
+    @Override
+    @Transactional
+    public void deleteConversation(UUID roomId) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        ChatRoomMember membership = requireActiveMember(roomId, meId);
+        ChatRoom room = membership.getChatRoom();
+
+        // 1. Soft-delete all messages in the conversation to clear history
+        messageRepository.softDeleteAllByChatRoomId(roomId, Instant.now());
+
+        // 2. Clear any pinned message on the room
+        if (room.getPinnedMessage() != null) {
+            room.setPinnedMessage(null);
+            roomRepository.save(room);
+        }
+
+        // 3. Mark caller as LEFT so the conversation is removed from their active chat list
+        membership.setStatus(MemberStatus.LEFT);
+        membership.setLeftAt(LocalDateTime.now());
+        memberRepository.save(membership);
+
+        // 4. For 1:1 private chats, mark the other member as LEFT as well so the empty conversation doesn't linger
+        if (room.getChatType() == ChatType.PRIVATE) {
+            for (ChatRoomMember otherMember : memberRepository.findByChatRoomIdAndStatus(roomId, MemberStatus.ACTIVE)) {
+                if (!otherMember.getUser().getId().equals(meId)) {
+                    otherMember.setStatus(MemberStatus.LEFT);
+                    otherMember.setLeftAt(LocalDateTime.now());
+                    memberRepository.save(otherMember);
+                }
+            }
+        }
+
+        log.info("Conversation {} and history deleted by user {}", roomId, meId);
+    }
+
     // -------------------------------------------------------------- messages
 
     @Override

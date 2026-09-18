@@ -31,12 +31,12 @@ class ChatControllerTest {
     }
 
     @Test
-    void deleteConversationDelegatesToLeaveRoomAndReturnsSuccess() {
+    void deleteConversationDelegatesToDeleteConversationAndReturnsSuccess() {
         UUID roomId = UUID.randomUUID();
 
         ResponseEntity<ApiResponse<Void>> response = controller.deleteConversation(roomId);
 
-        verify(chatService).leaveRoom(roomId);
+        verify(chatService).deleteConversation(roomId);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
@@ -46,7 +46,7 @@ class ChatControllerTest {
     @Test
     void deleteConversationPropagatesNotFoundExceptionWhenRoomMissingOrNotActiveMember() {
         UUID roomId = UUID.randomUUID();
-        doThrow(new NotFoundException("Chat not found")).when(chatService).leaveRoom(roomId);
+        doThrow(new NotFoundException("Chat not found")).when(chatService).deleteConversation(roomId);
 
         assertThatThrownBy(() -> controller.deleteConversation(roomId))
             .isInstanceOf(NotFoundException.class)

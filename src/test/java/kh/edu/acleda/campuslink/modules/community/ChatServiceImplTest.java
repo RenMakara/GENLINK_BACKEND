@@ -406,6 +406,29 @@ class ChatServiceImplTest {
         assertThatThrownBy(() -> service.pinMessage(GROUP_ID, MSG_ID)).isInstanceOf(NotFoundException.class);
     }
 
+    @Test
+    void deleteConversationClearsMessagesAndMarksMembersLeft() {
+        activeMembership();
+        ChatRoomMember otherMember = ChatRoomMember.builder()
+            .chatRoom(room).user(other).status(MemberStatus.ACTIVE).role(ChatRole.MEMBER).build();
+        when(memberRepository.findByChatRoomIdAndStatus(ROOM_ID, MemberStatus.ACTIVE))
+            .thenReturn(List.of(otherMember));
+
+        service.deleteConversation(ROOM_ID);
+
+        verify(messageRepository).softDeleteAllByChatRoomId(eq(ROOM_ID), any(Instant.class));
+        verify(memberRepository).save(org.mockito.ArgumentMatchers.argThat(m -> m.getUser().getId().equals(ME_ID) && m.getStatus() == MemberStatus.LEFT));
+        verify(memberRepository).save(org.mockito.ArgumentMatchers.argThat(m -> m.getUser().getId().equals(OTHER_ID) && m.getStatus() == MemberStatus.LEFT));
+    }
+
+    @Test
+    void deleteConversationThrowsNotFoundWhenCallerNotActiveMember() {
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.deleteConversation(ROOM_ID))
+            .isInstanceOf(NotFoundException.class);
+    }
+
     /** Stub the caller as an ACTIVE member of the room. */
     private void activeMembership() {
         when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID))

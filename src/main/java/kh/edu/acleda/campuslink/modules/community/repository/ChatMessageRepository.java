@@ -7,6 +7,9 @@ import kh.edu.acleda.campuslink.modules.community.entity.ChatMessage;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> {
 
@@ -22,4 +25,9 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> 
     /** Unread = live messages from other people newer than the viewer's read high-water. */
     long countByChatRoomIdAndDeletedAtIsNullAndSenderIdNotAndCreatedAtAfter(
         UUID chatRoomId, UUID senderId, Instant after);
+
+    /** Soft delete all active messages in a room (clearing conversation history). */
+    @Modifying
+    @Query("UPDATE ChatMessage m SET m.deletedAt = :deletedAt WHERE m.chatRoom.id = :chatRoomId AND m.deletedAt IS NULL")
+    int softDeleteAllByChatRoomId(@Param("chatRoomId") UUID chatRoomId, @Param("deletedAt") Instant deletedAt);
 }
