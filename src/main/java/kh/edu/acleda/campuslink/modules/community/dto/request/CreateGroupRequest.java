@@ -1,6 +1,6 @@
 package kh.edu.acleda.campuslink.modules.community.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -15,6 +15,16 @@ import java.util.UUID;
  */
 public record CreateGroupRequest(
     @NotBlank @Size(max = 120) String name,
-    @JsonProperty("memberIds") @JsonAlias({"memberUserIds", "memberIds"}) @NotEmpty List<@NotNull UUID> memberIds
+    @NotEmpty List<@NotNull UUID> memberIds
 ) {
+    @JsonCreator
+    public CreateGroupRequest(
+        @JsonProperty("name") String name,
+        @JsonProperty("memberIds") List<UUID> memberIds,
+        @JsonProperty("memberUserIds") List<UUID> memberUserIds
+    ) {
+        this(name, (memberIds != null && !memberIds.isEmpty())
+            ? memberIds
+            : (memberUserIds != null ? memberUserIds : List.of()));
+    }
 }
