@@ -137,7 +137,7 @@ class MobileProductivityBffServiceImplTest {
         Goal g = Goal.builder().user(user).title("Ship app")
             .progressPercentage(new BigDecimal("50.00")).status("IN_PROGRESS").build();
         ReflectionTestUtils.setField(g, "id", UUID.randomUUID());
-        when(goalRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(g));
+        when(goalRepository.findTop5ByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(g));
 
         MobileProductivityDashboardResponse.GoalProgress gp = service.getDashboard(EMAIL, EN).goals().get(0);
 
