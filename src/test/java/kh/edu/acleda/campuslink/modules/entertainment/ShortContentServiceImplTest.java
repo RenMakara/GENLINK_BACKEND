@@ -7,12 +7,13 @@ import kh.edu.acleda.campuslink.modules.entertainment.dto.request.ShortContentCr
 import kh.edu.acleda.campuslink.modules.entertainment.dto.response.ShortContentResponse;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.ShortContent;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.ShortContentLike;
-import kh.edu.acleda.campuslink.modules.entertainment.entity.ShortContentSave;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.ShortContentLikeRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.ShortContentRepository;
-import kh.edu.acleda.campuslink.modules.entertainment.repository.ShortContentSaveRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.service.impl.ShortContentServiceImpl;
 import kh.edu.acleda.campuslink.modules.media.MediaService;
+import kh.edu.acleda.campuslink.modules.profile.entity.SavedItem;
+import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
+import kh.edu.acleda.campuslink.modules.profile.repository.SavedItemRepository;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -47,7 +48,7 @@ class ShortContentServiceImplTest {
 
     @Mock private ShortContentRepository shortContentRepository;
     @Mock private ShortContentLikeRepository likeRepository;
-    @Mock private ShortContentSaveRepository saveRepository;
+    @Mock private SavedItemRepository savedItemRepository;
     @Mock private MediaService mediaService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
@@ -58,7 +59,7 @@ class ShortContentServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new ShortContentServiceImpl(shortContentRepository, likeRepository, saveRepository,
+        service = new ShortContentServiceImpl(shortContentRepository, likeRepository, savedItemRepository,
             mediaService, userRepository, currentUserProvider);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
@@ -80,11 +81,11 @@ class ShortContentServiceImplTest {
             return c;
         });
         when(likeRepository.saveAndFlush(any(ShortContentLike.class))).thenAnswer(i -> i.getArgument(0));
-        when(saveRepository.saveAndFlush(any(ShortContentSave.class))).thenAnswer(i -> i.getArgument(0));
         when(likeRepository.findByUserIdAndShortContentId(USER_ID, CID)).thenReturn(Optional.empty());
-        when(saveRepository.findByUserIdAndShortContentId(USER_ID, CID)).thenReturn(Optional.empty());
         when(likeRepository.findByUserIdAndShortContentIdIn(any(), any())).thenReturn(List.of());
-        when(saveRepository.findByUserIdAndShortContentIdIn(any(), any())).thenReturn(List.of());
+        when(savedItemRepository.existsByUserIdAndItemTypeAndItemId(
+            USER_ID, SavedItemType.SHORT_CONTENT, CID)).thenReturn(false);
+        when(savedItemRepository.findSavedItemIds(any(), any(), any())).thenReturn(List.of());
     }
 
     @Test
@@ -174,9 +175,33 @@ class ShortContentServiceImplTest {
     void saveInsertsAndIncrements() {
         ShortContentResponse r = service.save(CID, EN);
 
-        verify(saveRepository).saveAndFlush(any(ShortContentSave.class));
+        ArgumentCaptor<SavedItem> captor = ArgumentCaptor.forClass(SavedItem.class);
+        verify(savedItemRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getItemType()).isEqualTo(SavedItemType.SHORT_CONTENT);
+        assertThat(captor.getValue().getItemId()).isEqualTo(CID);
         verify(shortContentRepository).incrementSave(CID);
         assertThat(r.saved()).isTrue();
+    }
+
+    @Test
+    void savedContentReadsFromTheSharedProfileStore() {
+        SavedItem savedItem = SavedItem.builder()
+            .user(user)
+            .itemType(SavedItemType.SHORT_CONTENT)
+            .itemId(CID)
+            .build();
+        when(savedItemRepository.findByUserIdAndItemTypeOrderBySavedAtDesc(
+            USER_ID, SavedItemType.SHORT_CONTENT)).thenReturn(List.of(savedItem));
+        when(shortContentRepository.findAllById(List.of(CID))).thenReturn(List.of(content));
+        when(savedItemRepository.findSavedItemIds(USER_ID, SavedItemType.SHORT_CONTENT, List.of(CID)))
+            .thenReturn(List.of(CID));
+
+        var saved = service.getSaved(EN);
+
+        assertThat(saved).singleElement().satisfies(item -> {
+            assertThat(item.shortContentId()).isEqualTo(CID);
+            assertThat(item.saved()).isTrue();
+        });
     }
 
     @Test

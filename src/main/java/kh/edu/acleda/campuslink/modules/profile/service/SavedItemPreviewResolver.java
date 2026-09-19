@@ -81,8 +81,10 @@ public class SavedItemPreviewResolver {
                 LocalizedTextSelector.select(m.getTitleEn(), m.getTitleKm(), language), null, null));
             case LESSON -> index(financialLessonRepository.findAllById(ids), l -> new SavedItemPreview(
                 LocalizedTextSelector.select(l.getTitleEn(), l.getTitleKm(), language), null, null));
-            case SHORT_CONTENT -> index(shortContentRepository.findAllById(ids), s -> new SavedItemPreview(
-                LocalizedTextSelector.select(s.getTitleEn(), s.getTitleKm(), language), null, s.getThumbnailUrl()));
+            case SHORT_CONTENT -> index(shortContentRepository.findAllById(ids), s -> s.getDeletedAt() != null ? null
+                : new SavedItemPreview(
+                    LocalizedTextSelector.select(s.getTitleEn(), s.getTitleKm(), language),
+                    null, s.getThumbnailUrl()));
         };
     }
 
