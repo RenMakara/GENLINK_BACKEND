@@ -133,4 +133,5 @@ databaseChangeLog:
       file: db/changelog/changes/0066-seed-chat-and-social-notification-templates.sql
   - include:
       file: db/changelog/changes/0067-add-chat-member-archived-at.sql
-
+  - include:
+      file: db/changelog/changes/0068-seed-entertainment-achievement-notification-templates.sql

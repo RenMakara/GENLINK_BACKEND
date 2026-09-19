@@ -11,6 +11,7 @@ import kh.edu.acleda.campuslink.modules.entertainment.repository.BadgeRepository
 import kh.edu.acleda.campuslink.modules.entertainment.repository.UserBadgeRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.service.BadgeAwarder;
+import kh.edu.acleda.campuslink.modules.entertainment.service.BadgeAwardNotifier;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,13 +32,16 @@ public class BadgeAwarderImpl implements BadgeAwarder {
     private final BadgeRepository badgeRepository;
     private final UserBadgeRepository userBadgeRepository;
     private final XpHistoryRepository xpHistoryRepository;
+    private final BadgeAwardNotifier badgeAwardNotifier;
 
     public BadgeAwarderImpl(BadgeRepository badgeRepository,
                             UserBadgeRepository userBadgeRepository,
-                            XpHistoryRepository xpHistoryRepository) {
+                            XpHistoryRepository xpHistoryRepository,
+                            BadgeAwardNotifier badgeAwardNotifier) {
         this.badgeRepository = badgeRepository;
         this.userBadgeRepository = userBadgeRepository;
         this.xpHistoryRepository = xpHistoryRepository;
+        this.badgeAwardNotifier = badgeAwardNotifier;
     }
 
     @Override
@@ -82,6 +86,14 @@ public class BadgeAwarderImpl implements BadgeAwarder {
             userBadgeRepository.saveAndFlush(UserBadge.builder()
                 .user(user).badge(badge).unlockedAt(LocalDateTime.now()).build());
             log.info("Badge unlocked: user={} badge={}", user.getId(), badge.getCode());
+            try {
+                badgeAwardNotifier.notifyForAwardedBadge(user, badge);
+            } catch (RuntimeException notificationFailure) {
+                // Badge state is primary; notification delivery is retried by the notification
+                // pipeline and must not roll back the reward transaction.
+                log.warn("Could not request badge notification: user={} badge={}",
+                    user.getId(), badge.getId(), notificationFailure);
+            }
         } catch (DataIntegrityViolationException concurrentUnlock) {
             // A concurrent award won the UNIQUE(user, badge) race; nothing to do.
         }

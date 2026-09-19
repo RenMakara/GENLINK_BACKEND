@@ -7,6 +7,7 @@ import kh.edu.acleda.campuslink.modules.entertainment.entity.UserBadge;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.BadgeRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.UserBadgeRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.service.BadgeAwardNotifier;
 import kh.edu.acleda.campuslink.modules.entertainment.service.impl.BadgeAwarderImpl;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,13 +35,15 @@ class BadgeAwarderImplTest {
     @Mock private BadgeRepository badgeRepository;
     @Mock private UserBadgeRepository userBadgeRepository;
     @Mock private XpHistoryRepository xpHistoryRepository;
+    @Mock private BadgeAwardNotifier badgeAwardNotifier;
 
     private BadgeAwarderImpl awarder;
     private User user;
 
     @BeforeEach
     void setUp() {
-        awarder = new BadgeAwarderImpl(badgeRepository, userBadgeRepository, xpHistoryRepository);
+        awarder = new BadgeAwarderImpl(
+            badgeRepository, userBadgeRepository, xpHistoryRepository, badgeAwardNotifier);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
         ReflectionTestUtils.setField(user, "totalXp", 0);
@@ -60,12 +63,14 @@ class BadgeAwarderImplTest {
 
     @Test
     void unlocksQuizChampionAtThreeQuizzes() {
-        catalog(badge("QUIZ_CHAMPION"));
+        Badge quizChampion = badge("QUIZ_CHAMPION");
+        catalog(quizChampion);
         when(xpHistoryRepository.countByUserIdAndSourceType(USER_ID, "QUIZ")).thenReturn(3L);
 
         awarder.evaluate(user, "QUIZ");
 
         verify(userBadgeRepository).saveAndFlush(any(UserBadge.class));
+        verify(badgeAwardNotifier).notifyForAwardedBadge(user, quizChampion);
     }
 
     @Test

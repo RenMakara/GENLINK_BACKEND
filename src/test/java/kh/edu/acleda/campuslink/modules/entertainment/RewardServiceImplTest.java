@@ -4,6 +4,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.XpHistory;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.service.BadgeAwarder;
+import kh.edu.acleda.campuslink.modules.entertainment.service.LevelUpNotifier;
 import kh.edu.acleda.campuslink.modules.entertainment.service.impl.RewardServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -28,13 +29,15 @@ class RewardServiceImplTest {
     @Mock private XpHistoryRepository xpHistoryRepository;
     @Mock private UserRepository userRepository;
     @Mock private BadgeAwarder badgeAwarder;
+    @Mock private LevelUpNotifier levelUpNotifier;
 
     private RewardServiceImpl service;
     private User user;
 
     @BeforeEach
     void setUp() {
-        service = new RewardServiceImpl(xpHistoryRepository, userRepository, badgeAwarder);
+        service = new RewardServiceImpl(
+            xpHistoryRepository, userRepository, badgeAwarder, levelUpNotifier);
         user = new User();
         ReflectionTestUtils.setField(user, "id", UUID.randomUUID());
         ReflectionTestUtils.setField(user, "totalXp", 0);
@@ -54,6 +57,7 @@ class RewardServiceImplTest {
         verify(userRepository).save(user);
         verify(xpHistoryRepository).save(any(XpHistory.class));
         verify(badgeAwarder).evaluate(user, "QUIZ");
+        verify(levelUpNotifier).notifyForLevelUp(user, 2, 150);
     }
 
     @Test
@@ -63,6 +67,7 @@ class RewardServiceImplTest {
         service.award(user, "TASK", UUID.randomUUID(), 50); // 310 -> level 4
 
         assertThat(user.getLevel()).isEqualTo(4);
+        verify(levelUpNotifier).notifyForLevelUp(user, 4, 310);
     }
 
     @Test
