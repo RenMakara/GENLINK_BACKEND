@@ -4,24 +4,23 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.bff.service.MobileProductivityBffServiceImpl;
 import kh.edu.acleda.campuslink.modules.mobile.dto.response.MobileProductivityDashboardResponse;
-import kh.edu.acleda.campuslink.modules.productivity.entity.FocusSession;
 import kh.edu.acleda.campuslink.modules.productivity.entity.Goal;
 import kh.edu.acleda.campuslink.modules.productivity.entity.Habit;
 import kh.edu.acleda.campuslink.modules.productivity.entity.HabitCheckIn;
 import kh.edu.acleda.campuslink.modules.productivity.entity.MotivationContent;
-import kh.edu.acleda.campuslink.modules.productivity.entity.Task;
+import kh.edu.acleda.campuslink.modules.productivity.repository.FocusDashboardSummary;
 import kh.edu.acleda.campuslink.modules.productivity.repository.FocusSessionRepository;
 import kh.edu.acleda.campuslink.modules.productivity.repository.GoalRepository;
 import kh.edu.acleda.campuslink.modules.productivity.repository.HabitCheckInRepository;
 import kh.edu.acleda.campuslink.modules.productivity.repository.HabitRepository;
 import kh.edu.acleda.campuslink.modules.productivity.repository.MotivationContentRepository;
+import kh.edu.acleda.campuslink.modules.productivity.repository.TaskDashboardCounts;
 import kh.edu.acleda.campuslink.modules.productivity.repository.TaskRepository;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -50,7 +49,6 @@ class MobileProductivityBffServiceImplTest {
     private static final String EMAIL = "dara@example.com";
     private static final UUID USER_ID = UUID.randomUUID();
     private static final LocalDate TODAY = LocalDate.of(2026, 9, 1);
-    private static final LocalDateTime NOW = TODAY.atTime(10, 0);
     private static final Clock TEST_CLOCK = Clock.fixed(Instant.parse("2026-09-01T10:00:00Z"), ZoneOffset.UTC);
 
     @Mock private UserRepository userRepository;
@@ -75,10 +73,12 @@ class MobileProductivityBffServiceImplTest {
         when(habitRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of());
         when(habitCheckInRepository.findByUserIdAndCheckInDateAndCompletedTrue(eq(USER_ID), any()))
             .thenReturn(List.of());
-        when(taskRepository.findByUserIdAndDeletedAtIsNullOrderByCompletedAscDueDateAsc(USER_ID))
+        when(taskRepository.summarizeForDashboard(eq(USER_ID), any(), any(), any()))
+            .thenReturn(new TaskDashboardCounts(0L, 0L, 0L, 0L));
+        when(goalRepository.findTop5ByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(USER_ID))
             .thenReturn(List.of());
-        when(goalRepository.findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of());
-        when(focusSessionRepository.findByUserIdAndCompletedTrue(USER_ID)).thenReturn(List.of());
+        when(focusSessionRepository.summarizeForDashboard(eq(USER_ID), any(), any()))
+            .thenReturn(new FocusDashboardSummary(0L, 0L, 0L));
         when(motivationRepository.findByDeletedAtIsNull()).thenReturn(List.of());
     }
 
@@ -121,13 +121,8 @@ class MobileProductivityBffServiceImplTest {
 
     @Test
     void tasksSummaryCountsCompletedDueTodayAndOverdue() {
-        Task done = Task.builder().user(user).title("a").completed(true).build();
-        Task dueToday = Task.builder().user(user).title("b").completed(false)
-            .dueDate(TODAY.atTime(18, 0)).build();
-        Task overdue = Task.builder().user(user).title("c").completed(false)
-            .dueDate(NOW.minusDays(1)).build();
-        when(taskRepository.findByUserIdAndDeletedAtIsNullOrderByCompletedAscDueDateAsc(USER_ID))
-            .thenReturn(List.of(done, dueToday, overdue));
+        when(taskRepository.summarizeForDashboard(eq(USER_ID), any(), any(), any()))
+            .thenReturn(new TaskDashboardCounts(3L, 1L, 1L, 1L));
 
         MobileProductivityDashboardResponse.TasksSummary tasks = service.getDashboard(EMAIL, EN).tasks();
 
@@ -152,11 +147,8 @@ class MobileProductivityBffServiceImplTest {
 
     @Test
     void focusAggregatesTodayMinutesAndTotalXp() {
-        FocusSession today = FocusSession.builder().user(user).durationMinutes(25).completed(true)
-            .xpEarned(5).startedAt(NOW).build();
-        FocusSession past = FocusSession.builder().user(user).durationMinutes(50).completed(true)
-            .xpEarned(10).startedAt(NOW.minusDays(2)).build();
-        when(focusSessionRepository.findByUserIdAndCompletedTrue(USER_ID)).thenReturn(List.of(today, past));
+        when(focusSessionRepository.summarizeForDashboard(eq(USER_ID), any(), any()))
+            .thenReturn(new FocusDashboardSummary(1L, 25L, 15L));
 
         MobileProductivityDashboardResponse.FocusSummary focus = service.getDashboard(EMAIL, EN).focus();
 

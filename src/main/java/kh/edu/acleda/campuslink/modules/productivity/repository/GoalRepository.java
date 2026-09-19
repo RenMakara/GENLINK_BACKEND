@@ -11,4 +11,7 @@ public interface GoalRepository extends JpaRepository<Goal, UUID> {
     Optional<Goal> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
 
     List<Goal> findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID userId);
+
+    /** The dashboard only exposes the five most recently created goals. */
+    List<Goal> findTop5ByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID userId);
 }
