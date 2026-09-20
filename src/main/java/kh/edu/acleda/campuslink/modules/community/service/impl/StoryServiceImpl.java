@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.community.service.impl;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -16,12 +17,16 @@ import kh.edu.acleda.campuslink.modules.community.dto.response.StoryResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.StoryViewerResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Story;
 import kh.edu.acleda.campuslink.modules.community.entity.StoryView;
+import kh.edu.acleda.campuslink.modules.community.enums.FollowStatus;
+import kh.edu.acleda.campuslink.modules.community.enums.StoryReplyPermission;
+import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.StoryRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.StoryViewRepository;
 import kh.edu.acleda.campuslink.modules.community.service.StoryService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +39,8 @@ public class StoryServiceImpl implements StoryService {
 
     /** Stories live 24h from creation, then drop out of the feed. */
     private static final Duration STORY_TTL = Duration.ofHours(24);
+    /** Stands in for an empty IN list, which is invalid SQL. Matches nothing. */
+    private static final UUID PLACEHOLDER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
 
     private final StoryRepository storyRepository;
     private final StoryViewRepository storyViewRepository;
@@ -57,15 +64,29 @@ public class StoryServiceImpl implements StoryService {
     @Transactional
     public StoryResponse createStory(StoryCreateRequest request) {
         User me = loadCurrentUser();
+        Visibility visibility = request.visibility() != null ? request.visibility() : Visibility.PUBLIC;
+        if (visibility == Visibility.COMMUNITY) {
+            throw new ApiException("Community visibility is not supported for stories", "INVALID_STORY_VISIBILITY");
+        }
+
+        StoryReplyPermission replyPermission = request.replyPermission() != null
+            ? request.replyPermission()
+            : StoryReplyPermission.EVERYONE;
+        boolean allowReactions = request.allowReactions() != null ? request.allowReactions() : true;
+
         Instant now = Instant.now();
         Story story = storyRepository.save(Story.builder()
             .user(me)
             .mediaUrl(request.mediaUrl())
             .mediaType(request.mediaType())
             .caption(request.caption())
+            .visibility(visibility)
+            .replyPermission(replyPermission)
+            .allowReactions(allowReactions)
             .expiresAt(now.plus(STORY_TTL))
             .build());
-        log.info("Story created: id={} by user={} expires={}", story.getId(), me.getId(), story.getExpiresAt());
+        log.info("Story created: id={} by user={} visibility={} expires={}",
+            story.getId(), me.getId(), story.getVisibility(), story.getExpiresAt());
         // The author's own story always reads as seen.
         return toStoryResponse(story, true);
     }
@@ -77,7 +98,10 @@ public class StoryServiceImpl implements StoryService {
         Set<UUID> authorIds = new HashSet<>(followRepository.findFollowingIds(meId));
         authorIds.add(meId);
 
-        List<Story> stories = storyRepository.findActiveByAuthors(authorIds, Instant.now());
+        List<UUID> rawFriendIds = followRepository.findFriendIds(meId);
+        Collection<UUID> friendIds = orPlaceholder(rawFriendIds);
+
+        List<Story> stories = storyRepository.findVisibleActiveStories(authorIds, meId, friendIds, Instant.now());
         if (stories.isEmpty()) {
             return List.of();
         }
@@ -127,10 +151,25 @@ public class StoryServiceImpl implements StoryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public StoryResponse getStoryById(UUID storyId) {
+        Story story = loadActiveStory(storyId);
+        UUID meId = currentUserProvider.getCurrentUserId();
+        if (!canViewStory(story, meId)) {
+            throw new NotFoundException("Story not found");
+        }
+        boolean seen = story.getUser().getId().equals(meId) || storyViewRepository.existsByStoryIdAndViewerId(storyId, meId);
+        return toStoryResponse(story, seen);
+    }
+
+    @Override
     @Transactional
     public void viewStory(UUID storyId) {
         Story story = loadActiveStory(storyId);
         UUID meId = currentUserProvider.getCurrentUserId();
+        if (!canViewStory(story, meId)) {
+            throw new NotFoundException("Story not found");
+        }
         // Viewing your own story does not create a view row, so the viewer list stays honest.
         if (story.getUser().getId().equals(meId)) {
             return;
@@ -178,6 +217,35 @@ public class StoryServiceImpl implements StoryService {
         storyRepository.save(story);
     }
 
+    /**
+     * Checks if the viewer is authorized to view the story according to its visibility.
+     * Owner is always authorized.
+     * PUBLIC is open to authenticated users.
+     * FRIENDS requires a mutual accepted follow relationship.
+     * COMMUNITY is non-owner forbidden.
+     */
+    private boolean canViewStory(Story story, UUID viewerId) {
+        UUID ownerId = story.getUser().getId();
+        if (ownerId.equals(viewerId)) {
+            return true;
+        }
+        return switch (story.getVisibility()) {
+            case PUBLIC -> true;
+            case FRIENDS -> isFriend(ownerId, viewerId);
+            case COMMUNITY -> false;
+        };
+    }
+
+    private boolean isFriend(UUID userId1, UUID userId2) {
+        return followRepository.existsByFollowerIdAndFollowingIdAndStatus(userId1, userId2, FollowStatus.ACCEPTED)
+            && followRepository.existsByFollowerIdAndFollowingIdAndStatus(userId2, userId1, FollowStatus.ACCEPTED);
+    }
+
+    /** "IN ()" is invalid SQL, so an empty list becomes a placeholder that matches nothing. */
+    private Collection<UUID> orPlaceholder(List<UUID> ids) {
+        return ids.isEmpty() ? List.of(PLACEHOLDER_ID) : ids;
+    }
+
     /** A story that is deleted or expired is gone for everyone, so both read as not-found. */
     private Story loadActiveStory(UUID storyId) {
         Story story = storyRepository.findByIdAndDeletedAtIsNull(storyId)
@@ -196,7 +264,10 @@ public class StoryServiceImpl implements StoryService {
             story.getCaption(),
             seen,
             story.getCreatedAt(),
-            story.getExpiresAt());
+            story.getExpiresAt(),
+            story.getVisibility(),
+            story.getReplyPermission(),
+            story.isAllowReactions());
     }
 
     private User loadCurrentUser() {

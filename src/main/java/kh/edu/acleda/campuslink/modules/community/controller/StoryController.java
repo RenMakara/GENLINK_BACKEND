@@ -42,6 +42,12 @@ public class StoryController {
         return ResponseEntity.ok(ApiResponse.success("Stories retrieved", storyService.getStoriesFeed()));
     }
 
+    /** Retrieve a single active story if authorized. */
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<StoryResponse>> getStory(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success("Story retrieved", storyService.getStoryById(id)));
+    }
+
     /** Mark a story seen. Idempotent; viewing your own story records nothing. */
     @PostMapping("/{id}/view")
     public ResponseEntity<ApiResponse<Void>> view(@PathVariable UUID id) {
