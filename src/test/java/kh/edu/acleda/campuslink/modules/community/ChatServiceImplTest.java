@@ -1,10 +1,10 @@
 package kh.edu.acleda.campuslink.modules.community;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import kh.edu.acleda.campuslink.modules.community.dto.request.AddMembersRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.ChangeChatRoleRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CreateGroupRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.RenameGroupRequest;
@@ -59,13 +59,20 @@ class ChatServiceImplTest {
     private static final UUID GROUP_ID = UUID.randomUUID();
     private static final UUID MSG_ID = UUID.randomUUID();
 
-    @Mock private ChatRoomRepository roomRepository;
-    @Mock private ChatRoomMemberRepository memberRepository;
-    @Mock private ChatMessageRepository messageRepository;
-    @Mock private MessageReadRepository messageReadRepository;
-    @Mock private UserRepository userRepository;
-    @Mock private CurrentUserProvider currentUserProvider;
-    @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private ChatRoomRepository roomRepository;
+    @Mock
+    private ChatRoomMemberRepository memberRepository;
+    @Mock
+    private ChatMessageRepository messageRepository;
+    @Mock
+    private MessageReadRepository messageReadRepository;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private CurrentUserProvider currentUserProvider;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private ChatServiceImpl service;
     private User me;
@@ -76,7 +83,7 @@ class ChatServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new ChatServiceImpl(roomRepository, memberRepository, messageRepository,
-            messageReadRepository, userRepository, currentUserProvider, eventPublisher);
+                messageReadRepository, userRepository, currentUserProvider, eventPublisher);
 
         me = userWithId(ME_ID, "me");
         other = userWithId(OTHER_ID, "other");
@@ -97,9 +104,9 @@ class ChatServiceImplTest {
         });
         when(memberRepository.save(any(ChatRoomMember.class))).thenAnswer(i -> i.getArgument(0));
         when(memberRepository.findByChatRoomIdAndStatus(ROOM_ID, MemberStatus.ACTIVE))
-            .thenReturn(List.of(activeMember(me), activeMember(other)));
+                .thenReturn(List.of(activeMember(me), activeMember(other)));
         when(memberRepository.findByChatRoomIdAndStatus(GROUP_ID, MemberStatus.ACTIVE))
-            .thenReturn(List.of(member(groupRoom, me, ChatRole.OWNER), member(groupRoom, other, ChatRole.MEMBER)));
+                .thenReturn(List.of(member(groupRoom, me, ChatRole.OWNER), member(groupRoom, other, ChatRole.MEMBER)));
     }
 
     private User userWithId(UUID id, String name) {
@@ -121,7 +128,7 @@ class ChatServiceImplTest {
     /** Stub the caller as an ACTIVE group member with the given role. */
     private void groupRole(ChatRole role) {
         when(memberRepository.findByChatRoomIdAndUserId(GROUP_ID, ME_ID))
-            .thenReturn(Optional.of(member(groupRoom, me, role)));
+                .thenReturn(Optional.of(member(groupRoom, me, role)));
     }
 
     // ---------------------------------------------------------- private chat
@@ -129,7 +136,7 @@ class ChatServiceImplTest {
     @Test
     void openPrivateChatCreatesRoomAndBothMembersWhenNoneExists() {
         when(roomRepository.findPrivateRoomBetween(ChatType.PRIVATE, ME_ID, OTHER_ID))
-            .thenReturn(Optional.empty());
+                .thenReturn(Optional.empty());
 
         ChatRoomResponse response = service.openPrivateChat(OTHER_ID);
 
@@ -142,9 +149,9 @@ class ChatServiceImplTest {
     @Test
     void openPrivateChatReusesTheExistingRoom() {
         when(roomRepository.findPrivateRoomBetween(ChatType.PRIVATE, ME_ID, OTHER_ID))
-            .thenReturn(Optional.of(room));
+                .thenReturn(Optional.of(room));
         when(memberRepository.findByChatRoomIdAndUserId(eq(ROOM_ID), any()))
-            .thenReturn(Optional.of(activeMember(me)));
+                .thenReturn(Optional.of(activeMember(me)));
 
         service.openPrivateChat(OTHER_ID);
 
@@ -154,8 +161,8 @@ class ChatServiceImplTest {
     @Test
     void cannotOpenAPrivateChatWithYourself() {
         assertThatThrownBy(() -> service.openPrivateChat(ME_ID))
-            .isInstanceOf(ApiException.class)
-            .hasFieldOrPropertyWithValue("errorCode", "CHAT_SELF");
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "CHAT_SELF");
     }
 
     // ----------------------------------------------------------------- group
@@ -177,8 +184,8 @@ class ChatServiceImplTest {
         when(userRepository.findAllById(any())).thenReturn(List.of());
 
         assertThatThrownBy(() -> service.createGroup(new CreateGroupRequest("Solo", List.of(ME_ID))))
-            .isInstanceOf(ApiException.class)
-            .hasFieldOrPropertyWithValue("errorCode", "CHAT_GROUP_EMPTY");
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "CHAT_GROUP_EMPTY");
     }
 
     // -------------------------------------------------------- send: security
@@ -187,8 +194,9 @@ class ChatServiceImplTest {
     void sendingToARoomYouAreNotInIsNotFound() {
         when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.sendMessage(ROOM_ID, new SendMessageRequest(MessageType.TEXT, "hi", null, null)))
-            .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(
+                () -> service.sendMessage(ROOM_ID, new SendMessageRequest(MessageType.TEXT, "hi", null, null)))
+                .isInstanceOf(NotFoundException.class);
         verify(messageRepository, never()).save(any());
     }
 
@@ -197,25 +205,28 @@ class ChatServiceImplTest {
     @Test
     void textMessageWithoutContentIsRejected() {
         activeMembership();
-        assertThatThrownBy(() -> service.sendMessage(ROOM_ID, new SendMessageRequest(MessageType.TEXT, "  ", null, null)))
-            .isInstanceOf(ApiException.class)
-            .hasFieldOrPropertyWithValue("errorCode", "VALIDATION_ERROR");
+        assertThatThrownBy(
+                () -> service.sendMessage(ROOM_ID, new SendMessageRequest(MessageType.TEXT, "  ", null, null)))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "VALIDATION_ERROR");
     }
 
     @Test
     void imageMessageWithoutMediaUrlIsRejected() {
         activeMembership();
-        assertThatThrownBy(() -> service.sendMessage(ROOM_ID, new SendMessageRequest(MessageType.IMAGE, null, null, null)))
-            .isInstanceOf(ApiException.class)
-            .hasFieldOrPropertyWithValue("errorCode", "VALIDATION_ERROR");
+        assertThatThrownBy(
+                () -> service.sendMessage(ROOM_ID, new SendMessageRequest(MessageType.IMAGE, null, null, null)))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "VALIDATION_ERROR");
     }
 
     @Test
     void systemMessagesCannotBeSentByClients() {
         activeMembership();
-        assertThatThrownBy(() -> service.sendMessage(ROOM_ID, new SendMessageRequest(MessageType.SYSTEM, "x", null, null)))
-            .isInstanceOf(ApiException.class)
-            .hasFieldOrPropertyWithValue("errorCode", "CHAT_MESSAGE_TYPE_INVALID");
+        assertThatThrownBy(
+                () -> service.sendMessage(ROOM_ID, new SendMessageRequest(MessageType.SYSTEM, "x", null, null)))
+                .isInstanceOf(ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "CHAT_MESSAGE_TYPE_INVALID");
     }
 
     @Test
@@ -225,8 +236,8 @@ class ChatServiceImplTest {
         when(messageRepository.findByIdAndChatRoomIdAndDeletedAtIsNull(replyId, ROOM_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.sendMessage(ROOM_ID,
-            new SendMessageRequest(MessageType.TEXT, "re", null, replyId)))
-            .isInstanceOf(NotFoundException.class);
+                new SendMessageRequest(MessageType.TEXT, "re", null, replyId)))
+                .isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -240,7 +251,7 @@ class ChatServiceImplTest {
         });
 
         ChatMessageResponse response = service.sendMessage(ROOM_ID,
-            new SendMessageRequest(MessageType.TEXT, "hello #genlink", null, null));
+                new SendMessageRequest(MessageType.TEXT, "hello #genlink", null, null));
 
         assertThat(response.messageId()).isEqualTo(MSG_ID);
         assertThat(response.content()).isEqualTo("hello #genlink");
@@ -254,9 +265,10 @@ class ChatServiceImplTest {
     void youCannotDeleteSomeoneElsesMessage() {
         activeMembership();
         ChatMessage theirs = ChatMessage.builder().chatRoom(room).sender(other).messageType(MessageType.TEXT)
-            .content("theirs").build();
+                .content("theirs").build();
         ReflectionTestUtils.setField(theirs, "id", MSG_ID);
-        when(messageRepository.findByIdAndChatRoomIdAndDeletedAtIsNull(MSG_ID, ROOM_ID)).thenReturn(Optional.of(theirs));
+        when(messageRepository.findByIdAndChatRoomIdAndDeletedAtIsNull(MSG_ID, ROOM_ID))
+                .thenReturn(Optional.of(theirs));
 
         assertThatThrownBy(() -> service.deleteMessage(ROOM_ID, MSG_ID)).isInstanceOf(NotFoundException.class);
         assertThat(theirs.getDeletedAt()).isNull();
@@ -266,7 +278,7 @@ class ChatServiceImplTest {
     void deletingYourOwnMessageSoftDeletesIt() {
         activeMembership();
         ChatMessage mine = ChatMessage.builder().chatRoom(room).sender(me).messageType(MessageType.TEXT)
-            .content("mine").build();
+                .content("mine").build();
         ReflectionTestUtils.setField(mine, "id", MSG_ID);
         when(messageRepository.findByIdAndChatRoomIdAndDeletedAtIsNull(MSG_ID, ROOM_ID)).thenReturn(Optional.of(mine));
 
@@ -279,10 +291,10 @@ class ChatServiceImplTest {
     void markReadRecordsTheLatestMessageWhenItIsFromSomeoneElse() {
         activeMembership();
         ChatMessage latest = ChatMessage.builder().chatRoom(room).sender(other).messageType(MessageType.TEXT)
-            .content("newest").build();
+                .content("newest").build();
         ReflectionTestUtils.setField(latest, "id", MSG_ID);
         when(messageRepository.findFirstByChatRoomIdAndDeletedAtIsNullOrderByCreatedAtDesc(ROOM_ID))
-            .thenReturn(Optional.of(latest));
+                .thenReturn(Optional.of(latest));
         when(messageReadRepository.existsByMessageIdAndUserId(MSG_ID, ME_ID)).thenReturn(false);
 
         service.markRead(ROOM_ID);
@@ -303,8 +315,8 @@ class ChatServiceImplTest {
     void renamingAGroupRequiresAnAdminRole() {
         groupRole(ChatRole.MEMBER);
         assertThatThrownBy(() -> service.renameGroup(GROUP_ID, new RenameGroupRequest("New name")))
-            .isInstanceOf(ForbiddenException.class)
-            .hasFieldOrPropertyWithValue("errorCode", "CHAT_ADMIN_ONLY");
+                .isInstanceOf(ForbiddenException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "CHAT_ADMIN_ONLY");
     }
 
     @Test
@@ -319,58 +331,60 @@ class ChatServiceImplTest {
     void groupManagementOnAPrivateRoomIsRejected() {
         activeMembership(); // caller is a MEMBER of the PRIVATE room
         assertThatThrownBy(() -> service.renameGroup(ROOM_ID, new RenameGroupRequest("x")))
-            .isInstanceOf(kh.edu.acleda.campuslink.shared.exception.ApiException.class)
-            .hasFieldOrPropertyWithValue("errorCode", "CHAT_NOT_GROUP");
+                .isInstanceOf(kh.edu.acleda.campuslink.shared.exception.ApiException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "CHAT_NOT_GROUP");
     }
 
     @Test
     void theOwnerCannotBeRemoved() {
         groupRole(ChatRole.OWNER);
         when(memberRepository.findByChatRoomIdAndUserId(GROUP_ID, OTHER_ID))
-            .thenReturn(Optional.of(member(groupRoom, other, ChatRole.OWNER)));
+                .thenReturn(Optional.of(member(groupRoom, other, ChatRole.OWNER)));
         assertThatThrownBy(() -> service.removeMember(GROUP_ID, OTHER_ID))
-            .hasFieldOrPropertyWithValue("errorCode", "CHAT_REMOVE_OWNER");
+                .hasFieldOrPropertyWithValue("errorCode", "CHAT_REMOVE_OWNER");
     }
 
     @Test
     void youCannotRemoveYourselfViaRemoveMember() {
         groupRole(ChatRole.OWNER);
         assertThatThrownBy(() -> service.removeMember(GROUP_ID, ME_ID))
-            .hasFieldOrPropertyWithValue("errorCode", "CHAT_REMOVE_SELF");
+                .hasFieldOrPropertyWithValue("errorCode", "CHAT_REMOVE_SELF");
     }
 
     @Test
     void anAdminCannotRemoveAnotherAdmin() {
         groupRole(ChatRole.ADMIN);
         when(memberRepository.findByChatRoomIdAndUserId(GROUP_ID, OTHER_ID))
-            .thenReturn(Optional.of(member(groupRoom, other, ChatRole.ADMIN)));
+                .thenReturn(Optional.of(member(groupRoom, other, ChatRole.ADMIN)));
         assertThatThrownBy(() -> service.removeMember(GROUP_ID, OTHER_ID))
-            .isInstanceOf(ForbiddenException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
     void changingRolesIsOwnerOnly() {
         groupRole(ChatRole.ADMIN);
-        assertThatThrownBy(() -> service.changeMemberRole(GROUP_ID, OTHER_ID, new ChangeChatRoleRequest(ChatRole.ADMIN)))
-            .isInstanceOf(ForbiddenException.class)
-            .hasFieldOrPropertyWithValue("errorCode", "CHAT_OWNER_ONLY");
+        assertThatThrownBy(
+                () -> service.changeMemberRole(GROUP_ID, OTHER_ID, new ChangeChatRoleRequest(ChatRole.ADMIN)))
+                .isInstanceOf(ForbiddenException.class)
+                .hasFieldOrPropertyWithValue("errorCode", "CHAT_OWNER_ONLY");
     }
 
     @Test
     void ownershipCannotBeAssignedThroughRoleChange() {
         groupRole(ChatRole.OWNER);
-        assertThatThrownBy(() -> service.changeMemberRole(GROUP_ID, OTHER_ID, new ChangeChatRoleRequest(ChatRole.OWNER)))
-            .hasFieldOrPropertyWithValue("errorCode", "CHAT_ROLE_INVALID");
+        assertThatThrownBy(
+                () -> service.changeMemberRole(GROUP_ID, OTHER_ID, new ChangeChatRoleRequest(ChatRole.OWNER)))
+                .hasFieldOrPropertyWithValue("errorCode", "CHAT_ROLE_INVALID");
     }
 
     @Test
     void ownerCanPromoteAMemberToAdmin() {
         groupRole(ChatRole.OWNER);
         when(memberRepository.findByChatRoomIdAndUserId(GROUP_ID, OTHER_ID))
-            .thenReturn(Optional.of(member(groupRoom, other, ChatRole.MEMBER)));
+                .thenReturn(Optional.of(member(groupRoom, other, ChatRole.MEMBER)));
 
         ChatMemberResponse response = service.changeMemberRole(
-            GROUP_ID, OTHER_ID, new ChangeChatRoleRequest(ChatRole.ADMIN));
+                GROUP_ID, OTHER_ID, new ChangeChatRoleRequest(ChatRole.ADMIN));
 
         assertThat(response.role()).isEqualTo(ChatRole.ADMIN);
         assertThat(response.user().userId()).isEqualTo(OTHER_ID);
@@ -380,18 +394,18 @@ class ChatServiceImplTest {
     void pinningRequiresAnAdminRole() {
         groupRole(ChatRole.MEMBER);
         assertThatThrownBy(() -> service.pinMessage(GROUP_ID, MSG_ID))
-            .isInstanceOf(ForbiddenException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
     void ownerCanPinAMessageThatIsInTheRoom() {
         groupRole(ChatRole.OWNER);
         ChatMessage msg = ChatMessage.builder().chatRoom(groupRoom).sender(other)
-            .messageType(MessageType.TEXT).content("pin me").build();
+                .messageType(MessageType.TEXT).content("pin me").build();
         ReflectionTestUtils.setField(msg, "id", MSG_ID);
         ReflectionTestUtils.setField(msg, "createdAt", Instant.now());
         when(messageRepository.findByIdAndChatRoomIdAndDeletedAtIsNull(MSG_ID, GROUP_ID))
-            .thenReturn(Optional.of(msg));
+                .thenReturn(Optional.of(msg));
 
         service.pinMessage(GROUP_ID, MSG_ID);
 
@@ -402,13 +416,117 @@ class ChatServiceImplTest {
     void cannotPinAMessageThatIsNotInTheRoom() {
         groupRole(ChatRole.OWNER);
         when(messageRepository.findByIdAndChatRoomIdAndDeletedAtIsNull(MSG_ID, GROUP_ID))
-            .thenReturn(Optional.empty());
+                .thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.pinMessage(GROUP_ID, MSG_ID)).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void deleteConversationClearsMessagesAndMarksMembersLeft() {
+        activeMembership();
+        ChatRoomMember otherMember = ChatRoomMember.builder()
+                .chatRoom(room).user(other).status(MemberStatus.ACTIVE).role(ChatRole.MEMBER).build();
+        when(memberRepository.findByChatRoomIdAndStatus(ROOM_ID, MemberStatus.ACTIVE))
+                .thenReturn(List.of(otherMember));
+
+        service.deleteConversation(ROOM_ID);
+
+        verify(messageRepository).softDeleteAllByChatRoomId(eq(ROOM_ID), any(Instant.class));
+        verify(memberRepository).save(org.mockito.ArgumentMatchers
+                .argThat(m -> m.getUser().getId().equals(ME_ID) && m.getStatus() == MemberStatus.LEFT));
+        verify(memberRepository).save(org.mockito.ArgumentMatchers
+                .argThat(m -> m.getUser().getId().equals(OTHER_ID) && m.getStatus() == MemberStatus.LEFT));
+    }
+
+    @Test
+    void deleteConversationThrowsNotFoundWhenCallerNotActiveMember() {
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.deleteConversation(ROOM_ID))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void toggleMuteMutesWhenUnmuted() {
+        ChatRoomMember callerMember = activeMember(me);
+        callerMember.setMutedUntil(null);
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.of(callerMember));
+
+        boolean isMuted = service.toggleMute(ROOM_ID);
+
+        assertThat(isMuted).isTrue();
+        assertThat(callerMember.getMutedUntil()).isNotNull();
+        assertThat(callerMember.getMutedUntil()).isAfter(LocalDateTime.now());
+        verify(memberRepository).save(callerMember);
+    }
+
+    @Test
+    void toggleMuteUnmutesWhenCurrentlyMuted() {
+        ChatRoomMember callerMember = activeMember(me);
+        callerMember.setMutedUntil(LocalDateTime.now().plusHours(2));
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.of(callerMember));
+
+        boolean isMuted = service.toggleMute(ROOM_ID);
+
+        assertThat(isMuted).isFalse();
+        assertThat(callerMember.getMutedUntil()).isNull();
+        verify(memberRepository).save(callerMember);
+    }
+
+    @Test
+    void unmuteRoomClearsMutedUntil() {
+        ChatRoomMember callerMember = activeMember(me);
+        callerMember.setMutedUntil(LocalDateTime.now().plusHours(2));
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.of(callerMember));
+
+        service.unmuteRoom(ROOM_ID);
+
+        assertThat(callerMember.getMutedUntil()).isNull();
+        verify(memberRepository).save(callerMember);
+    }
+
+    @Test
+    void archiveRoomSetsArchivedAt() {
+        ChatRoomMember callerMember = activeMember(me);
+        callerMember.setArchivedAt(null);
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.of(callerMember));
+
+        service.archiveRoom(ROOM_ID);
+
+        assertThat(callerMember.getArchivedAt()).isNotNull();
+        verify(memberRepository).save(callerMember);
+    }
+
+    @Test
+    void unarchiveRoomClearsArchivedAt() {
+        ChatRoomMember callerMember = activeMember(me);
+        callerMember.setArchivedAt(LocalDateTime.now());
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.of(callerMember));
+
+        service.unarchiveRoom(ROOM_ID);
+
+        assertThat(callerMember.getArchivedAt()).isNull();
+        verify(memberRepository).save(callerMember);
+    }
+
+    @Test
+    void toggleMuteThrowsNotFoundWhenNotActiveMember() {
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.toggleMute(ROOM_ID))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void archiveRoomThrowsNotFoundWhenNotActiveMember() {
+        when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.archiveRoom(ROOM_ID))
+                .isInstanceOf(NotFoundException.class);
     }
 
     /** Stub the caller as an ACTIVE member of the room. */
     private void activeMembership() {
         when(memberRepository.findByChatRoomIdAndUserId(ROOM_ID, ME_ID))
-            .thenReturn(Optional.of(activeMember(me)));
+                .thenReturn(Optional.of(activeMember(me)));
     }
 }

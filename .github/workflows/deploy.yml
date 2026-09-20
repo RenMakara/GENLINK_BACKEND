@@ -173,7 +173,7 @@ jobs:
             link_text="View test logs →"
           elif [ "$DEPLOY_STATUS" = "success" ]; then
             header="<b>CI/CD Successfully🙏😒🐸</b>"
-            footer="🟢 Live · http://18.143.33.191"
+            footer="🟢 Live · https://api.genlink.enat.online"
             link_text="View workflow run →"
           else
             header="❌ <b>Fail to deploy</b>"

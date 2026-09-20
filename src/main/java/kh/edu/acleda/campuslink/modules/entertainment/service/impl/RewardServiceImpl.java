@@ -4,6 +4,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.XpHistory;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.service.BadgeAwarder;
+import kh.edu.acleda.campuslink.modules.entertainment.service.LevelUpNotifier;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -24,20 +25,23 @@ public class RewardServiceImpl implements RewardService {
     private final XpHistoryRepository xpHistoryRepository;
     private final UserRepository userRepository;
     private final BadgeAwarder badgeAwarder;
+    private final LevelUpNotifier levelUpNotifier;
 
     public RewardServiceImpl(XpHistoryRepository xpHistoryRepository,
                              UserRepository userRepository,
-                             BadgeAwarder badgeAwarder) {
+                             BadgeAwarder badgeAwarder,
+                             LevelUpNotifier levelUpNotifier) {
         this.xpHistoryRepository = xpHistoryRepository;
         this.userRepository = userRepository;
         this.badgeAwarder = badgeAwarder;
+        this.levelUpNotifier = levelUpNotifier;
     }
 
     @Override
     @Transactional
-    public void award(User user, String sourceType, UUID sourceId, int xp) {
+    public int award(User user, String sourceType, UUID sourceId, int xp) {
         if (xp <= 0) {
-            return;
+            return 0;
         }
         User lockedUser = userRepository.findByIdForUpdate(user.getId())
             .orElseThrow(() -> new NotFoundException("User not found"));
@@ -45,7 +49,7 @@ public class RewardServiceImpl implements RewardService {
                 .existsByUserIdAndSourceTypeAndSourceId(lockedUser.getId(), sourceType, sourceId)) {
             log.debug("Skipped duplicate XP award: user={} sourceType={} sourceId={}",
                 lockedUser.getId(), sourceType, sourceId);
-            return;
+            return 0;
         }
 
         int newTotal = lockedUser.getTotalXp() + xp;
@@ -64,6 +68,14 @@ public class RewardServiceImpl implements RewardService {
 
         if (leveledUp) {
             log.info("Level up: user={} level={} totalXp={}", lockedUser.getId(), newLevel, newTotal);
+            try {
+                levelUpNotifier.notifyForLevelUp(lockedUser, newLevel, newTotal);
+            } catch (RuntimeException notificationFailure) {
+                // Level state is primary; notification delivery is secondary and retry-safe.
+                log.warn("Could not request level-up notification: user={} level={}",
+                    lockedUser.getId(), newLevel, notificationFailure);
+            }
         }
+        return xp;
     }
 }

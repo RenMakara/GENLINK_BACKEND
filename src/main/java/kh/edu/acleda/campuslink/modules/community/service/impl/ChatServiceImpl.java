@@ -135,7 +135,7 @@ public class ChatServiceImpl implements ChatService {
         UUID meId = currentUserProvider.getCurrentUserId();
         return PageResponse.from(
             memberRepository.findMyRooms(meId, MemberStatus.ACTIVE, pageable),
-            membership -> toSummary(membership.getChatRoom(), meId));
+            membership -> toSummary(membership, meId));
     }
 
     @Override
@@ -155,6 +155,87 @@ public class ChatServiceImpl implements ChatService {
         membership.setLeftAt(LocalDateTime.now());
         memberRepository.save(membership);
         log.info("User {} left chat room {}", meId, roomId);
+    }
+
+    @Override
+    @Transactional
+    public void deleteConversation(UUID roomId) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        ChatRoomMember membership = requireActiveMember(roomId, meId);
+        ChatRoom room = membership.getChatRoom();
+
+        // 1. Soft-delete all messages in the conversation to clear history
+        messageRepository.softDeleteAllByChatRoomId(roomId, Instant.now());
+
+        // 2. Clear any pinned message on the room
+        if (room.getPinnedMessage() != null) {
+            room.setPinnedMessage(null);
+            roomRepository.save(room);
+        }
+
+        // 3. Mark caller as LEFT so the conversation is removed from their active chat list
+        membership.setStatus(MemberStatus.LEFT);
+        membership.setLeftAt(LocalDateTime.now());
+        memberRepository.save(membership);
+
+        // 4. For 1:1 private chats, mark the other member as LEFT as well so the empty conversation doesn't linger
+        if (room.getChatType() == ChatType.PRIVATE) {
+            for (ChatRoomMember otherMember : memberRepository.findByChatRoomIdAndStatus(roomId, MemberStatus.ACTIVE)) {
+                if (!otherMember.getUser().getId().equals(meId)) {
+                    otherMember.setStatus(MemberStatus.LEFT);
+                    otherMember.setLeftAt(LocalDateTime.now());
+                    memberRepository.save(otherMember);
+                }
+            }
+        }
+
+        log.info("Conversation {} and history deleted by user {}", roomId, meId);
+    }
+
+    @Override
+    @Transactional
+    public boolean toggleMute(UUID roomId) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        ChatRoomMember member = requireActiveMember(roomId, meId);
+        boolean currentlyMuted = member.getMutedUntil() != null && member.getMutedUntil().isAfter(LocalDateTime.now());
+        if (currentlyMuted) {
+            member.setMutedUntil(null);
+        } else {
+            member.setMutedUntil(LocalDateTime.now().plusYears(100));
+        }
+        memberRepository.save(member);
+        log.info("Chat room {} mute toggled to {} by user {}", roomId, !currentlyMuted, meId);
+        return !currentlyMuted;
+    }
+
+    @Override
+    @Transactional
+    public void unmuteRoom(UUID roomId) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        ChatRoomMember member = requireActiveMember(roomId, meId);
+        member.setMutedUntil(null);
+        memberRepository.save(member);
+        log.info("Chat room {} unmuted by user {}", roomId, meId);
+    }
+
+    @Override
+    @Transactional
+    public void archiveRoom(UUID roomId) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        ChatRoomMember member = requireActiveMember(roomId, meId);
+        member.setArchivedAt(LocalDateTime.now());
+        memberRepository.save(member);
+        log.info("Chat room {} archived by user {}", roomId, meId);
+    }
+
+    @Override
+    @Transactional
+    public void unarchiveRoom(UUID roomId) {
+        UUID meId = currentUserProvider.getCurrentUserId();
+        ChatRoomMember member = requireActiveMember(roomId, meId);
+        member.setArchivedAt(null);
+        memberRepository.save(member);
+        log.info("Chat room {} unarchived by user {}", roomId, meId);
     }
 
     // -------------------------------------------------------------- messages
@@ -178,6 +259,15 @@ public class ChatServiceImpl implements ChatService {
             .mediaUrl(request.mediaUrl())
             .replyToMessage(replyTo)
             .build());
+        // If this is a private chat and the other member had left, re-activate them so the thread reappears in their chats.
+        if (room.getChatType() == ChatType.PRIVATE) {
+            for (ChatRoomMember leftMember : memberRepository.findByChatRoomIdAndStatus(roomId, MemberStatus.LEFT)) {
+                leftMember.setStatus(MemberStatus.ACTIVE);
+                leftMember.setLeftAt(null);
+                memberRepository.save(leftMember);
+            }
+        }
+
         // Bump last-activity so this room rises in every member's chat list.
         roomRepository.touch(roomId, Instant.now());
         
@@ -433,11 +523,17 @@ public class ChatServiceImpl implements ChatService {
             .toList();
         ChatMessageResponse pinned = room.getPinnedMessage() == null ? null
             : toMessageResponse(room.getPinnedMessage(), meId);
+        ChatRoomMember myMember = memberRepository.findByChatRoomIdAndUserId(room.getId(), meId).orElse(null);
+        boolean isMuted = myMember != null && myMember.getMutedUntil() != null && myMember.getMutedUntil().isAfter(LocalDateTime.now());
+        boolean isArchived = myMember != null && myMember.getArchivedAt() != null;
         return new ChatRoomResponse(room.getId(), room.getChatType(), room.getName(),
-            members, pinned, room.getCreatedAt());
+            members, pinned, room.getCreatedAt(), isMuted, isArchived);
     }
 
-    private ChatRoomSummaryResponse toSummary(ChatRoom room, UUID meId) {
+    private ChatRoomSummaryResponse toSummary(ChatRoomMember membership, UUID meId) {
+        ChatRoom room = membership.getChatRoom();
+        boolean isMuted = membership.getMutedUntil() != null && membership.getMutedUntil().isAfter(LocalDateTime.now());
+        boolean isArchived = membership.getArchivedAt() != null;
         ChatMessageResponse last = messageRepository
             .findFirstByChatRoomIdAndDeletedAtIsNullOrderByCreatedAtDesc(room.getId())
             .map(message -> toMessageResponse(message, meId))
@@ -447,7 +543,25 @@ public class ChatServiceImpl implements ChatService {
         String title = room.getChatType() == ChatType.GROUP ? room.getName() : null;
         return new ChatRoomSummaryResponse(
             room.getId(), room.getChatType(), title, counterpart, last,
-            unreadFor(room.getId(), meId), room.getUpdatedAt());
+            unreadFor(room.getId(), meId), room.getUpdatedAt(),
+            isMuted, isArchived);
+    }
+
+    private ChatRoomSummaryResponse toSummary(ChatRoom room, UUID meId) {
+        ChatRoomMember myMember = memberRepository.findByChatRoomIdAndUserId(room.getId(), meId).orElse(null);
+        boolean isMuted = myMember != null && myMember.getMutedUntil() != null && myMember.getMutedUntil().isAfter(LocalDateTime.now());
+        boolean isArchived = myMember != null && myMember.getArchivedAt() != null;
+        ChatMessageResponse last = messageRepository
+            .findFirstByChatRoomIdAndDeletedAtIsNullOrderByCreatedAtDesc(room.getId())
+            .map(message -> toMessageResponse(message, meId))
+            .orElse(null);
+        ChatParticipant counterpart = room.getChatType() == ChatType.PRIVATE
+            ? otherMember(room.getId(), meId) : null;
+        String title = room.getChatType() == ChatType.GROUP ? room.getName() : null;
+        return new ChatRoomSummaryResponse(
+            room.getId(), room.getChatType(), title, counterpart, last,
+            unreadFor(room.getId(), meId), room.getUpdatedAt(),
+            isMuted, isArchived);
     }
 
     private ChatParticipant otherMember(UUID roomId, UUID meId) {
@@ -464,8 +578,10 @@ public class ChatServiceImpl implements ChatService {
         ChatMessageResponse.ReplyPreview preview = replyTo == null ? null
             : new ChatMessageResponse.ReplyPreview(
                 replyTo.getId(), displayName(replyTo.getSender()), replyTo.getMessageType(), snippet(replyTo));
+        UUID roomId = message.getChatRoom() != null ? message.getChatRoom().getId() : null;
         return new ChatMessageResponse(
             message.getId(),
+            roomId,
             toParticipant(message.getSender()),
             message.getMessageType(),
             message.getContent(),

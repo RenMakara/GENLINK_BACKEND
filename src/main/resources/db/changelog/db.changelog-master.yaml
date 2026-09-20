@@ -131,5 +131,12 @@ databaseChangeLog:
       file: db/changelog/changes/0065-add-post-video-url.sql
   - include:
       file: db/changelog/changes/0066-seed-chat-and-social-notification-templates.sql
+      file: db/changelog/changes/0067-add-chat-member-archived-at.sql
+  - include:
+      file: db/changelog/changes/0068-seed-entertainment-achievement-notification-templates.sql
+  - include:
+      file: db/changelog/changes/0069-add-productivity-dashboard-aggregate-indexes.sql
   - include:
       file: db/changelog/changes/0069-add-story-privacy-settings.sql
+  - include:
+      file: db/changelog/changes/0070-add-khmer-motivation-content.sql

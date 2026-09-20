@@ -109,14 +109,31 @@ public class QuizServiceImpl implements QuizService {
 
         Map<UUID, UUID> chosen = new HashMap<>();
         for (QuizSubmitRequest.Answer a : request.answers()) {
-            chosen.put(a.questionId(), a.selectedOptionId());
+            if (questions.stream().map(QuizQuestion::getId).noneMatch(a.questionId()::equals)) {
+                throw new ApiException("Answer references a question outside this quiz", "INVALID_QUESTION");
+            }
+            if (chosen.put(a.questionId(), a.selectedOptionId()) != null) {
+                throw new ApiException("Each quiz question may be answered only once", "INVALID_ANSWER");
+            }
+        }
+
+        Map<UUID, List<QuizOption>> optionsByQuestion = new HashMap<>();
+        for (QuizQuestion q : questions) {
+            optionsByQuestion.put(q.getId(), optionRepository.findByQuestionIdOrderByCreatedAtAsc(q.getId()));
+        }
+        for (QuizSubmitRequest.Answer a : request.answers()) {
+            boolean optionBelongsToQuestion = optionsByQuestion.get(a.questionId()).stream()
+                .anyMatch(option -> option.getId().equals(a.selectedOptionId()));
+            if (!optionBelongsToQuestion) {
+                throw new ApiException("Answer references an option outside this question", "INVALID_OPTION");
+            }
         }
 
         int correctCount = 0;
         List<AnswerResult> results = new ArrayList<>();
         List<QuizAttemptAnswer> answerRows = new ArrayList<>();
         for (QuizQuestion q : questions) {
-            List<QuizOption> options = optionRepository.findByQuestionIdOrderByCreatedAtAsc(q.getId());
+            List<QuizOption> options = optionsByQuestion.get(q.getId());
             UUID correctOptionId = options.stream()
                 .filter(o -> Boolean.TRUE.equals(o.getCorrect())).map(QuizOption::getId).findFirst().orElse(null);
             UUID selectedId = chosen.get(q.getId());
@@ -141,16 +158,17 @@ public class QuizServiceImpl implements QuizService {
             attemptRepository.existsByQuizIdAndUserIdAndXpEarnedGreaterThan(quizId, user.getId(), 0);
         int xpEarned = alreadyEarned ? 0 : (int) Math.round((double) quiz.getXpReward() * correctCount / total);
 
+        int awardedXp = xpEarned > 0
+            ? rewardService.award(user, XP_SOURCE, quizId, xpEarned)
+            : 0;
+
         QuizAttempt attempt = attemptRepository.save(QuizAttempt.builder()
             .quiz(quiz).user(user).score(score).correctCount(correctCount).totalQuestions(total)
-            .xpEarned(xpEarned).completedAt(LocalDateTime.now()).build());
+            .xpEarned(awardedXp).completedAt(LocalDateTime.now()).build());
         answerRows.forEach(row -> row.setAttempt(attempt));
         answerRepository.saveAll(answerRows);
 
-        if (xpEarned > 0) {
-            rewardService.award(user, XP_SOURCE, quizId, xpEarned);
-        }
-        return new QuizAttemptResponse(attempt.getId(), score, correctCount, total, xpEarned, results);
+        return new QuizAttemptResponse(attempt.getId(), score, correctCount, total, awardedXp, results);
     }
 
     @Override

@@ -64,10 +64,40 @@ public class ChatController {
         return ResponseEntity.ok(ApiResponse.success("Chat retrieved", chatService.getRoom(roomId)));
     }
 
+    @DeleteMapping("/{roomId}")
+    public ResponseEntity<ApiResponse<Void>> deleteConversation(@PathVariable UUID roomId) {
+        chatService.deleteConversation(roomId);
+        return ResponseEntity.ok(ApiResponse.success("Conversation deleted", null));
+    }
+
     @DeleteMapping("/{roomId}/leave")
     public ResponseEntity<ApiResponse<Void>> leave(@PathVariable UUID roomId) {
         chatService.leaveRoom(roomId);
         return ResponseEntity.ok(ApiResponse.success("Left chat", null));
+    }
+
+    @PostMapping("/{roomId}/mute")
+    public ResponseEntity<ApiResponse<Map<String, Boolean>>> mute(@PathVariable UUID roomId) {
+        boolean muted = chatService.toggleMute(roomId);
+        return ResponseEntity.ok(ApiResponse.success(muted ? "Chat muted" : "Chat unmuted", Map.of("isMuted", muted)));
+    }
+
+    @PostMapping("/{roomId}/unmute")
+    public ResponseEntity<ApiResponse<Map<String, Boolean>>> unmute(@PathVariable UUID roomId) {
+        chatService.unmuteRoom(roomId);
+        return ResponseEntity.ok(ApiResponse.success("Chat unmuted", Map.of("isMuted", false)));
+    }
+
+    @PostMapping("/{roomId}/archive")
+    public ResponseEntity<ApiResponse<Void>> archive(@PathVariable UUID roomId) {
+        chatService.archiveRoom(roomId);
+        return ResponseEntity.ok(ApiResponse.success("Chat archived", null));
+    }
+
+    @PostMapping("/{roomId}/unarchive")
+    public ResponseEntity<ApiResponse<Void>> unarchive(@PathVariable UUID roomId) {
+        chatService.unarchiveRoom(roomId);
+        return ResponseEntity.ok(ApiResponse.success("Chat unarchived", null));
     }
 
     @PostMapping("/{roomId}/messages")

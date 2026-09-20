@@ -49,6 +49,13 @@ public class ShortContentController {
             shortContentService.create(request, language(userDetails, acceptLanguage))));
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> delete(
+        @PathVariable UUID id) {
+        shortContentService.delete(id);
+        return ResponseEntity.ok(ApiResponse.success("Short content deleted", null));
+    }
+
     /** The feed, newest first; optional ?category. */
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<ShortContentResponse>>> feed(

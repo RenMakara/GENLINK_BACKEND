@@ -8,6 +8,7 @@ import kh.edu.acleda.campuslink.modules.notification.repository.NotificationRepo
 import kh.edu.acleda.campuslink.modules.notification.service.impl.NotificationServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.enums.Language;
+import kh.edu.acleda.campuslink.shared.exception.ForbiddenException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.junit.jupiter.api.BeforeEach;
@@ -125,5 +126,44 @@ class NotificationServiceImplTest {
         when(notificationRepository.markAllReadForUser(eq(USER_ID), any())).thenReturn(3);
 
         assertThat(service.markAllRead()).isEqualTo(3);
+    }
+
+    @Test
+    void deleteRemovesOwnedNotification() {
+        Notification n = notification(false);
+        when(notificationRepository.findById(NOTIF_ID)).thenReturn(Optional.of(n));
+
+        service.delete(NOTIF_ID);
+
+        verify(notificationRepository).delete(n);
+    }
+
+    @Test
+    void deleteMissingNotificationThrowsNotFoundException() {
+        when(notificationRepository.findById(NOTIF_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.delete(NOTIF_ID))
+            .isInstanceOf(NotFoundException.class)
+            .hasMessage("Notification not found");
+
+        verify(notificationRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteOtherUsersNotificationThrowsForbiddenException() {
+        User otherUser = new User();
+        ReflectionTestUtils.setField(otherUser, "id", UUID.randomUUID());
+        Notification n = Notification.builder()
+            .user(otherUser).title("Other user's alert").message("Not yours")
+            .language(Language.ENGLISH).type("FINANCE_BUDGET").readStatus(false).build();
+        ReflectionTestUtils.setField(n, "id", NOTIF_ID);
+
+        when(notificationRepository.findById(NOTIF_ID)).thenReturn(Optional.of(n));
+
+        assertThatThrownBy(() -> service.delete(NOTIF_ID))
+            .isInstanceOf(ForbiddenException.class)
+            .hasFieldOrPropertyWithValue("errorCode", "NOTIFICATION_FORBIDDEN");
+
+        verify(notificationRepository, never()).delete(any());
     }
 }

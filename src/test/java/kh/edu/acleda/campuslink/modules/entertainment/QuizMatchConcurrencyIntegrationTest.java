@@ -93,6 +93,32 @@ class QuizMatchConcurrencyIntegrationTest {
         assertThat(xpHistoryRepository.countByUserIdAndSourceType(user.getId(), "HABIT")).isEqualTo(1);
     }
 
+    @Test
+    void concurrentQuizRewardsForTheSameSourceAwardXpOnlyOnce() throws Exception {
+        String suffix = java.util.UUID.randomUUID().toString();
+        User user = userRepository.save(user("quiz-xp-" + suffix, "Quiz XP " + suffix));
+        java.util.UUID quizId = java.util.UUID.randomUUID();
+
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<Integer> first = executor.submit(() -> awardTogether(user, quizId, ready, start));
+            Future<Integer> second = executor.submit(() -> awardTogether(user, quizId, ready, start));
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            assertThat(java.util.List.of(
+                first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS)))
+                .containsExactlyInAnyOrder(0, 30);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertThat(userRepository.findById(user.getId()).orElseThrow().getTotalXp()).isEqualTo(30);
+        assertThat(xpHistoryRepository.countByUserIdAndSourceType(user.getId(), "QUIZ")).isEqualTo(1);
+    }
+
     private void finishTogether(QuizMatch match, User player, CountDownLatch ready, CountDownLatch start) {
         try {
             ready.countDown();
@@ -100,6 +126,20 @@ class QuizMatchConcurrencyIntegrationTest {
                 throw new IllegalStateException("Concurrent test did not start");
             }
             matchService.finishMatch(match.getId(), player.getId());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(ex);
+        }
+    }
+
+    private int awardTogether(User user, java.util.UUID quizId,
+                              CountDownLatch ready, CountDownLatch start) {
+        try {
+            ready.countDown();
+            if (!start.await(5, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Concurrent XP test did not start");
+            }
+            return rewardService.award(user, "QUIZ", quizId, 30);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(ex);

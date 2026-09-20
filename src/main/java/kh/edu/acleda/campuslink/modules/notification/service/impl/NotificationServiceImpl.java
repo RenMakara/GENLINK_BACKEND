@@ -6,6 +6,7 @@ import kh.edu.acleda.campuslink.modules.notification.dto.response.NotificationRe
 import kh.edu.acleda.campuslink.modules.notification.entity.Notification;
 import kh.edu.acleda.campuslink.modules.notification.repository.NotificationRepository;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationService;
+import kh.edu.acleda.campuslink.shared.exception.ForbiddenException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
@@ -61,6 +62,18 @@ public class NotificationServiceImpl implements NotificationService {
     public int markAllRead() {
         return notificationRepository.markAllReadForUser(
             currentUserProvider.getCurrentUserId(), LocalDateTime.now());
+    }
+
+    @Override
+    @Transactional
+    public void delete(UUID notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+            .orElseThrow(() -> new NotFoundException("Notification not found"));
+        UUID currentUserId = currentUserProvider.getCurrentUserId();
+        if (notification.getUser() == null || !currentUserId.equals(notification.getUser().getId())) {
+            throw new ForbiddenException("You do not have permission to delete this notification", "NOTIFICATION_FORBIDDEN");
+        }
+        notificationRepository.delete(notification);
     }
 
     private NotificationResponse toResponse(Notification n) {

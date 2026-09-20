@@ -65,9 +65,6 @@ public class StoryServiceImpl implements StoryService {
     public StoryResponse createStory(StoryCreateRequest request) {
         User me = loadCurrentUser();
         Visibility visibility = request.visibility() != null ? request.visibility() : Visibility.PUBLIC;
-        if (visibility == Visibility.CUSTOM) {
-            throw new ApiException("Custom visibility is not currently supported", "CUSTOM_VISIBILITY_NOT_SUPPORTED");
-        }
         if (visibility == Visibility.COMMUNITY) {
             throw new ApiException("Community visibility is not supported for stories", "INVALID_STORY_VISIBILITY");
         }
@@ -225,7 +222,7 @@ public class StoryServiceImpl implements StoryService {
      * Owner is always authorized.
      * PUBLIC is open to authenticated users.
      * FRIENDS requires a mutual accepted follow relationship.
-     * ONLY_ME / CUSTOM / COMMUNITY are non-owner forbidden.
+     * COMMUNITY is non-owner forbidden.
      */
     private boolean canViewStory(Story story, UUID viewerId) {
         UUID ownerId = story.getUser().getId();
@@ -235,7 +232,7 @@ public class StoryServiceImpl implements StoryService {
         return switch (story.getVisibility()) {
             case PUBLIC -> true;
             case FRIENDS -> isFriend(ownerId, viewerId);
-            case ONLY_ME, CUSTOM, COMMUNITY -> false;
+            case COMMUNITY -> false;
         };
     }
 

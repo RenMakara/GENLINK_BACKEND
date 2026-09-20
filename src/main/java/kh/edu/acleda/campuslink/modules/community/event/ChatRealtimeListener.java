@@ -54,7 +54,7 @@ public class ChatRealtimeListener {
                 messagingTemplate.convertAndSendToUser(
                         destinationEmail,
                         "/queue/chat",
-                        event.message().withMine(false)
+                        event.message().withMine(false).withRoomId(event.roomId())
                 );
 
                 try {

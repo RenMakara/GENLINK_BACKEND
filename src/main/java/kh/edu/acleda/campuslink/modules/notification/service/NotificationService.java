@@ -19,4 +19,7 @@ public interface NotificationService {
 
     /** Mark all of the user's unread notifications as read; returns how many were changed. */
     int markAllRead();
+
+    /** Delete a notification owned by the current user. */
+    void delete(UUID notificationId);
 }

@@ -14,7 +14,8 @@ public interface RewardService {
     /**
      * Adds xp to the user, recomputes their level, records an xp_history row, and checks
      * for badge unlocks. A non-positive xp is a no-op. Mutates and saves the given
-     * (managed) user, so the caller's instance reflects the new total/level.
+     * (managed) user, so the caller's instance reflects the new total/level. Returns
+     * the XP actually awarded; duplicate logical sources return zero.
      */
-    void award(User user, String sourceType, UUID sourceId, int xp);
+    int award(User user, String sourceType, UUID sourceId, int xp);
 }

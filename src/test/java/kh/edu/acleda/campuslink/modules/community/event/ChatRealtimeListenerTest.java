@@ -71,7 +71,7 @@ class ChatRealtimeListenerTest {
         listener.onMessageSaved(event);
 
         // Assert
-        ChatMessageResponse expectedRecipientMessage = senderPerspectiveMessage.withMine(false);
+        ChatMessageResponse expectedRecipientMessage = senderPerspectiveMessage.withMine(false).withRoomId(roomId);
 
         // Should send to member1 using EMAIL
         verify(messagingTemplate, times(1)).convertAndSendToUser(

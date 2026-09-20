@@ -34,6 +34,21 @@ public interface ChatService {
     /** Leave a room. */
     void leaveRoom(UUID roomId);
 
+    /** Delete a conversation and clear its message history. */
+    void deleteConversation(UUID roomId);
+
+    /** Toggle mute state for caller. Returns true if now muted, false if unmuted. */
+    boolean toggleMute(UUID roomId);
+
+    /** Explicitly unmute the room for the caller. */
+    void unmuteRoom(UUID roomId);
+
+    /** Archive the room for the caller. */
+    void archiveRoom(UUID roomId);
+
+    /** Unarchive the room for the caller. */
+    void unarchiveRoom(UUID roomId);
+
     /** Post a message (TEXT / IMAGE / VOICE, optional reply). */
     ChatMessageResponse sendMessage(UUID roomId, SendMessageRequest request);
 

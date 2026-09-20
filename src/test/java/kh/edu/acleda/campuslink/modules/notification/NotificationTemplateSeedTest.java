@@ -125,6 +125,25 @@ class NotificationTemplateSeedTest {
     }
 
     @Test
+    void entertainmentAchievementTemplatesAreBilingualAndRerunSafe() throws IOException {
+        try (InputStream stream = getClass().getResourceAsStream(
+            "/db/changelog/changes/0068-seed-entertainment-achievement-notification-templates.sql")) {
+            assertThat(stream).as("entertainment achievement notification template migration").isNotNull();
+            String sql = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertThat(sql)
+                .contains("ENTERTAINMENT_BADGE_AWARDED")
+                .contains("ENTERTAINMENT_LEVEL_UP")
+                .contains("{badgeName}")
+                .contains("{level}")
+                .contains("{totalXp}")
+                .contains("ON CONFLICT (template_key) DO NOTHING")
+                .contains("title_km")
+                .contains("message_km");
+        }
+    }
+
+    @Test
     void chatAndSocialTemplatesAreBilingualAndRerunSafe() throws IOException {
         try (InputStream stream = getClass().getResourceAsStream(
             "/db/changelog/changes/0066-seed-chat-and-social-notification-templates.sql")) {

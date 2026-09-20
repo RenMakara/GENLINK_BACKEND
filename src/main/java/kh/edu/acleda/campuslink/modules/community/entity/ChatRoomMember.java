@@ -51,6 +51,9 @@ public class ChatRoomMember extends BaseEntity {
     @Column(name = "muted_until")
     private LocalDateTime mutedUntil;
 
+    @Column(name = "archived_at")
+    private LocalDateTime archivedAt;
+
     @Column(name = "joined_at")
     private LocalDateTime joinedAt;
 

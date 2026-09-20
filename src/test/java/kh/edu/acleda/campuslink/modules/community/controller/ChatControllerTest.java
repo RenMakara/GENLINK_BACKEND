@@ -1,0 +1,162 @@
+package kh.edu.acleda.campuslink.modules.community.controller;
+
+import java.util.Map;
+import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.community.dto.request.AddMembersRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.CreateGroupRequest;
+import kh.edu.acleda.campuslink.modules.community.service.ChatService;
+import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
+import kh.edu.acleda.campuslink.shared.response.ApiResponse;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class ChatControllerTest {
+
+    @Mock
+    private ChatService chatService;
+
+    private ChatController controller;
+
+    @BeforeEach
+    void setUp() {
+        controller = new ChatController(chatService);
+    }
+
+    @Test
+    void deleteConversationDelegatesToDeleteConversationAndReturnsSuccess() {
+        UUID roomId = UUID.randomUUID();
+
+        ResponseEntity<ApiResponse<Void>> response = controller.deleteConversation(roomId);
+
+        verify(chatService).deleteConversation(roomId);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getMessage()).isEqualTo("Conversation deleted");
+    }
+
+    @Test
+    void deleteConversationPropagatesNotFoundExceptionWhenRoomMissingOrNotActiveMember() {
+        UUID roomId = UUID.randomUUID();
+        doThrow(new NotFoundException("Chat not found")).when(chatService).deleteConversation(roomId);
+
+        assertThatThrownBy(() -> controller.deleteConversation(roomId))
+            .isInstanceOf(NotFoundException.class)
+            .hasMessage("Chat not found");
+    }
+
+    @Test
+    void leaveDelegatesToLeaveRoomAndReturnsSuccess() {
+        UUID roomId = UUID.randomUUID();
+
+        ResponseEntity<ApiResponse<Void>> response = controller.leave(roomId);
+
+        verify(chatService).leaveRoom(roomId);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getMessage()).isEqualTo("Left chat");
+    }
+
+    @Test
+    void muteDelegatesToToggleMuteAndReturnsCurrentStatus() {
+        UUID roomId = UUID.randomUUID();
+        when(chatService.toggleMute(roomId)).thenReturn(true);
+
+        ResponseEntity<ApiResponse<Map<String, Boolean>>> response = controller.mute(roomId);
+
+        verify(chatService).toggleMute(roomId);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getMessage()).isEqualTo("Chat muted");
+        assertThat(response.getBody().getData()).containsEntry("isMuted", true);
+    }
+
+    @Test
+    void unmuteDelegatesToUnmuteRoomAndReturnsSuccess() {
+        UUID roomId = UUID.randomUUID();
+
+        ResponseEntity<ApiResponse<Map<String, Boolean>>> response = controller.unmute(roomId);
+
+        verify(chatService).unmuteRoom(roomId);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getMessage()).isEqualTo("Chat unmuted");
+        assertThat(response.getBody().getData()).containsEntry("isMuted", false);
+    }
+
+    @Test
+    void archiveDelegatesToArchiveRoomAndReturnsSuccess() {
+        UUID roomId = UUID.randomUUID();
+
+        ResponseEntity<ApiResponse<Void>> response = controller.archive(roomId);
+
+        verify(chatService).archiveRoom(roomId);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getMessage()).isEqualTo("Chat archived");
+    }
+
+    @Test
+    void unarchiveDelegatesToUnarchiveRoomAndReturnsSuccess() {
+        UUID roomId = UUID.randomUUID();
+
+        ResponseEntity<ApiResponse<Void>> response = controller.unarchive(roomId);
+
+        verify(chatService).unarchiveRoom(roomId);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isTrue();
+        assertThat(response.getBody().getMessage()).isEqualTo("Chat unarchived");
+    }
+
+    @Test
+    void createGroupRequestDeserializesWithMemberIdsOrMemberUserIdsOrBoth() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        UUID user1 = UUID.randomUUID();
+        UUID user2 = UUID.randomUUID();
+
+        // 1. Only memberIds
+        String json1 = String.format("{\"name\":\"Group A\",\"memberIds\":[\"%s\"]}", user1);
+        CreateGroupRequest req1 = objectMapper.readValue(json1, CreateGroupRequest.class);
+        assertThat(req1.name()).isEqualTo("Group A");
+        assertThat(req1.memberIds()).containsExactly(user1);
+
+        // 2. Only memberUserIds
+        String json2 = String.format("{\"name\":\"Group B\",\"memberUserIds\":[\"%s\"]}", user2);
+        CreateGroupRequest req2 = objectMapper.readValue(json2, CreateGroupRequest.class);
+        assertThat(req2.name()).isEqualTo("Group B");
+        assertThat(req2.memberIds()).containsExactly(user2);
+
+        // 3. Both memberIds and memberUserIds (does NOT throw SetterlessProperty exception)
+        String json3 = String.format("{\"name\":\"Group C\",\"memberIds\":[\"%s\"],\"memberUserIds\":[\"%s\"]}", user1, user1);
+        CreateGroupRequest req3 = objectMapper.readValue(json3, CreateGroupRequest.class);
+        assertThat(req3.name()).isEqualTo("Group C");
+        assertThat(req3.memberIds()).containsExactly(user1);
+    }
+
+    @Test
+    void addMembersRequestDeserializesWithAnyAliasWithoutSetterlessPropertyException() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        UUID user1 = UUID.randomUUID();
+
+        String json = String.format("{\"userIds\":[\"%s\"],\"memberIds\":[\"%s\"],\"memberUserIds\":[\"%s\"]}", user1, user1, user1);
+        AddMembersRequest req = objectMapper.readValue(json, AddMembersRequest.class);
+        assertThat(req.userIds()).containsExactly(user1);
+    }
+}

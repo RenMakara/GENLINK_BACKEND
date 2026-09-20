@@ -124,12 +124,12 @@ class StoryServiceImplTest {
     }
 
     @Test
-    void createStoryWithOnlyMeSavesCorrectly() {
+    void createStoryWithPublicVisibilitySavesCorrectly() {
         StoryCreateRequest request = new StoryCreateRequest(
             "https://cdn/x.jpg",
             StoryMediaType.VIDEO,
             "Private story",
-            Visibility.ONLY_ME,
+            Visibility.PUBLIC,
             StoryReplyPermission.OFF,
             true
         );
@@ -140,29 +140,29 @@ class StoryServiceImplTest {
         verify(storyRepository).save(storyCaptor.capture());
         Story saved = storyCaptor.getValue();
 
-        assertThat(saved.getVisibility()).isEqualTo(Visibility.ONLY_ME);
+        assertThat(saved.getVisibility()).isEqualTo(Visibility.PUBLIC);
         assertThat(saved.getReplyPermission()).isEqualTo(StoryReplyPermission.OFF);
         assertThat(saved.isAllowReactions()).isTrue();
 
-        assertThat(response.visibility()).isEqualTo(Visibility.ONLY_ME);
+        assertThat(response.visibility()).isEqualTo(Visibility.PUBLIC);
         assertThat(response.replyPermission()).isEqualTo(StoryReplyPermission.OFF);
         assertThat(response.allowReactions()).isTrue();
     }
 
     @Test
-    void createStoryRejectsCustomVisibility() {
+    void createStoryRejectsCommunityVisibilityWhenExplicitlyRequested() {
         StoryCreateRequest request = new StoryCreateRequest(
             "https://cdn/x.jpg",
             StoryMediaType.IMAGE,
-            "Custom audience",
-            Visibility.CUSTOM,
+            "Community audience",
+            Visibility.COMMUNITY,
             StoryReplyPermission.EVERYONE,
             true
         );
 
         assertThatThrownBy(() -> service.createStory(request))
             .isInstanceOf(ApiException.class)
-            .hasMessageContaining("Custom visibility is not currently supported");
+            .hasMessageContaining("Community visibility is not supported");
         verify(storyRepository, never()).save(any(Story.class));
     }
 
@@ -207,14 +207,14 @@ class StoryServiceImplTest {
 
     @Test
     void getStoryByIdAllowsOwnerRegardlessOfVisibility() {
-        Story mine = story(STORY_ID, me, Instant.now().plus(Duration.ofHours(1)), Visibility.ONLY_ME);
+        Story mine = story(STORY_ID, me, Instant.now().plus(Duration.ofHours(1)), Visibility.COMMUNITY);
         when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(mine));
 
         StoryResponse response = service.getStoryById(STORY_ID);
 
         assertThat(response).isNotNull();
         assertThat(response.storyId()).isEqualTo(STORY_ID);
-        assertThat(response.visibility()).isEqualTo(Visibility.ONLY_ME);
+        assertThat(response.visibility()).isEqualTo(Visibility.COMMUNITY);
         assertThat(response.seen()).isTrue();
     }
 
@@ -261,7 +261,7 @@ class StoryServiceImplTest {
 
     @Test
     void getStoryByIdRejectsOnlyMeStoryForNonOwner() {
-        Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.ONLY_ME);
+        Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.COMMUNITY);
         when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
 
         assertThatThrownBy(() -> service.getStoryById(STORY_ID))
@@ -319,7 +319,7 @@ class StoryServiceImplTest {
 
     @Test
     void viewStoryRejectsOnlyMeForNonOwnerWithoutRecordingView() {
-        Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.ONLY_ME);
+        Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.COMMUNITY);
         when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
 
         assertThatThrownBy(() -> service.viewStory(STORY_ID))
