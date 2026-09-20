@@ -5,6 +5,8 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.security.dto.request.ChangePasswordRequest;
+import kh.edu.acleda.campuslink.modules.security.dto.request.SetPasswordRequest;
+import kh.edu.acleda.campuslink.modules.security.dto.response.PasswordStatusResponse;
 import kh.edu.acleda.campuslink.modules.security.dto.response.SecurityActivityResponse;
 import kh.edu.acleda.campuslink.modules.security.dto.response.SessionResponse;
 import kh.edu.acleda.campuslink.modules.security.service.AccountSecurityService;
@@ -33,6 +35,13 @@ public class AccountSecurityController {
     public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         accountSecurityService.changePassword(request);
         return ResponseEntity.ok(ApiResponse.success("Password changed. Please sign in again.", null));
+    }
+
+    @PostMapping("/password/setup")
+    public ResponseEntity<ApiResponse<PasswordStatusResponse>> setPassword(
+        @Valid @RequestBody SetPasswordRequest request) {
+        PasswordStatusResponse response = accountSecurityService.setPassword(request);
+        return ResponseEntity.ok(ApiResponse.success("Password set successfully", response));
     }
 
     @GetMapping("/sessions")

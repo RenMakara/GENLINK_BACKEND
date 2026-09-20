@@ -158,6 +158,14 @@ public class User extends BaseEntity {
         return accountStatus == AccountStatus.ACTIVE;
     }
 
+    /**
+     * Exposes only whether a local password is configured. The hash itself must
+     * never leave the backend or be included in an API response.
+     */
+    public boolean hasPassword() {
+        return passwordHash != null && !passwordHash.isBlank();
+    }
+
     public void setActive(boolean active) {
         this.accountStatus = active ? AccountStatus.ACTIVE : AccountStatus.PENDING;
     }

@@ -23,5 +23,6 @@ public record UserResponse(
     int level,
     Language preferredLanguage,
     Role role,
-    boolean active
+    boolean active,
+    boolean hasPassword
 ) {}

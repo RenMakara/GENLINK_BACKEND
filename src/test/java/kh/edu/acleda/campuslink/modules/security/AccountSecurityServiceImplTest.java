@@ -12,6 +12,7 @@ import kh.edu.acleda.campuslink.modules.auth.repository.SecurityAuditLogReposito
 import kh.edu.acleda.campuslink.modules.auth.security.AuthRateLimitService;
 import kh.edu.acleda.campuslink.modules.security.dto.request.ChangePasswordRequest;
 import kh.edu.acleda.campuslink.modules.security.dto.request.DeleteAccountRequest;
+import kh.edu.acleda.campuslink.modules.security.dto.request.SetPasswordRequest;
 import kh.edu.acleda.campuslink.modules.security.service.impl.AccountSecurityServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
@@ -132,6 +133,45 @@ class AccountSecurityServiceImplTest {
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("must be different");
 
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void setPasswordHashesThePasswordWithoutRevokingTheCurrentGoogleSession() {
+        user.setPasswordHash(null);
+        when(passwordEncoder.encode("NewPassword123")).thenReturn("$2a$hashed");
+
+        var response = service.setPassword(new SetPasswordRequest("NewPassword123"));
+
+        assertThat(user.getPasswordHash()).isEqualTo("$2a$hashed");
+        assertThat(response.hasPassword()).isTrue();
+        assertThat(user.getTokenVersion()).isZero();
+        verify(userRepository).save(user);
+        verify(securityAuditService).logSuccess(eq("PASSWORD_SET"), eq(user), eq("user@example.com"));
+        verify(refreshTokenRepository, never()).revokeByUser(any(User.class), any(Instant.class));
+    }
+
+    @Test
+    void setPasswordRejectsAnAccountThatAlreadyHasOne() {
+        assertThatThrownBy(() -> service.setPassword(new SetPasswordRequest("NewPassword123")))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("already has a password");
+
+        verify(passwordEncoder, never()).encode(any(String.class));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void setPasswordRunsTheSharedPasswordPolicy() {
+        user.setPasswordHash(null);
+        org.mockito.Mockito.doThrow(new ApiException("Weak password", "AUTH_WEAK_PASSWORD"))
+            .when(passwordPolicyValidator).validate("weakpassword");
+
+        assertThatThrownBy(() -> service.setPassword(new SetPasswordRequest("weakpassword")))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("Weak password");
+
+        verify(passwordEncoder, never()).encode(any(String.class));
         verify(userRepository, never()).save(any(User.class));
     }
 

@@ -12,6 +12,8 @@ import kh.edu.acleda.campuslink.modules.auth.repository.SecurityAuditLogReposito
 import kh.edu.acleda.campuslink.modules.auth.security.AuthRateLimitService;
 import kh.edu.acleda.campuslink.modules.security.dto.request.ChangePasswordRequest;
 import kh.edu.acleda.campuslink.modules.security.dto.request.DeleteAccountRequest;
+import kh.edu.acleda.campuslink.modules.security.dto.request.SetPasswordRequest;
+import kh.edu.acleda.campuslink.modules.security.dto.response.PasswordStatusResponse;
 import kh.edu.acleda.campuslink.modules.security.dto.response.SecurityActivityResponse;
 import kh.edu.acleda.campuslink.modules.security.dto.response.SessionResponse;
 import kh.edu.acleda.campuslink.modules.security.service.AccountSecurityService;
@@ -99,6 +101,26 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         authRateLimitService.clearPasswordChangeFailures(user.getEmail(), clientIp);
         securityAuditService.logSuccess("PASSWORD_CHANGE", user, user.getEmail());
         log.info("Password changed and all sessions revoked for user {}", user.getId());
+    }
+
+    @Override
+    @Transactional
+    public PasswordStatusResponse setPassword(SetPasswordRequest request) {
+        User user = loadCurrentUser();
+
+        if (user.hasPassword()) {
+            throw new ApiException(
+                "This account already has a password set",
+                "AUTH_PASSWORD_ALREADY_SET");
+        }
+
+        passwordPolicyValidator.validate(request.password());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        userRepository.save(user);
+        securityAuditService.logSuccess("PASSWORD_SET", user, user.getEmail());
+        log.info("Password set for user {}", user.getId());
+
+        return new PasswordStatusResponse(user.hasPassword());
     }
 
     @Override
