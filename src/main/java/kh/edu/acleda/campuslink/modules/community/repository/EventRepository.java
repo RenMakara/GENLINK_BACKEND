@@ -2,8 +2,10 @@ package kh.edu.acleda.campuslink.modules.community.repository;
 
 import kh.edu.acleda.campuslink.modules.community.entity.Event;
 import kh.edu.acleda.campuslink.modules.community.enums.EventStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -16,6 +18,21 @@ import java.util.UUID;
 public interface EventRepository extends JpaRepository<Event, UUID> {
 
     Optional<Event> findByIdAndDeletedAtIsNull(UUID id);
+
+    /**
+     * Locks the event row while RSVP state and the attendee counter are changed.
+     * Without the lock, two requests for the same event can both observe the same
+     * RSVP state and one of them can race the unique RSVP constraint or decrement
+     * the counter after a second cancellation.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM Event e WHERE e.id = :id AND e.deletedAt IS NULL")
+    Optional<Event> findByIdAndDeletedAtIsNullForUpdate(@Param("id") UUID id);
+
+    /** Locks an existing event row for cancellation, including a soft-deleted row. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM Event e WHERE e.id = :id")
+    Optional<Event> findByIdForUpdate(@Param("id") UUID id);
 
     /** Scoped by organizer, so another user's id reads as not found. */
     Optional<Event> findByIdAndOrganizerIdAndDeletedAtIsNull(UUID id, UUID organizerId);
@@ -40,10 +57,11 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
         countQuery = "SELECT COUNT(e) FROM Event e WHERE e.deletedAt IS NULL AND e.organizer.id = :organizerId")
     Page<Event> findByOrganizer(@Param("organizerId") UUID organizerId, Pageable pageable);
 
-    /** Releasing a seat on cancel; no capacity constraint applies going down. */
+    /** Releasing a seat on cancel, without allowing a corrupted negative count. */
     @Modifying
-    @Query("UPDATE Event e SET e.attendeeCount = e.attendeeCount - 1 WHERE e.id = :eventId")
-    void releaseSeat(@Param("eventId") UUID eventId);
+    @Query("UPDATE Event e SET e.attendeeCount = e.attendeeCount - 1 "
+        + "WHERE e.id = :eventId AND e.attendeeCount > 0")
+    int releaseSeat(@Param("eventId") UUID eventId);
 
     /**
      * Reserves one seat atomically. The WHERE clause is the capacity guard: reading the

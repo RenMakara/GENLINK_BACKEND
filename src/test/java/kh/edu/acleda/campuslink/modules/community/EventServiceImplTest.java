@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.modules.community;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.dto.request.EventCreateRequest;
@@ -31,8 +32,10 @@ import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationWriter;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
+import kh.edu.acleda.campuslink.shared.exception.UnauthorizedException;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +45,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,6 +54,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
@@ -104,6 +110,8 @@ class EventServiceImplTest {
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
         when(eventRepository.findByIdAndDeletedAtIsNull(EVENT_ID)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdAndDeletedAtIsNullForUpdate(EVENT_ID)).thenReturn(Optional.of(event));
+        when(eventRepository.findByIdForUpdate(EVENT_ID)).thenReturn(Optional.of(event));
         when(eventRepository.save(any(Event.class))).thenAnswer(i -> {
             Event e = i.getArgument(0);
             if (e.getId() == null) {
@@ -116,8 +124,219 @@ class EventServiceImplTest {
     }
 
     @Test
+    void eventDetailHidesMeetingUrlForNonAttendee() {
+        event.setMeetingUrl("https://meet.example/event");
+
+        assertThat(service.getById(EVENT_ID).meetingUrl()).isNull();
+    }
+
+    @Test
+    void eventDetailShowsMeetingUrlForJoinedAttendee() {
+        event.setMeetingUrl("https://meet.example/event");
+        when(rsvpRepository.findByEventIdAndUserId(EVENT_ID, USER_ID))
+            .thenReturn(Optional.of(EventRsvp.builder().status(RsvpStatus.JOINED).build()));
+
+        assertThat(service.getById(EVENT_ID).meetingUrl()).isEqualTo("https://meet.example/event");
+    }
+
+    @Test
+    void eventDetailHidesMeetingUrlForCancelledRsvp() {
+        event.setMeetingUrl("https://meet.example/event");
+        when(rsvpRepository.findByEventIdAndUserId(EVENT_ID, USER_ID))
+            .thenReturn(Optional.of(EventRsvp.builder().status(RsvpStatus.CANCELLED).build()));
+
+        assertThat(service.getById(EVENT_ID).meetingUrl()).isNull();
+    }
+
+    @Test
+    void eventDetailShowsMeetingUrlForOwner() {
+        event.setMeetingUrl("https://meet.example/event");
+        event.setOrganizer(user);
+
+        assertThat(service.getById(EVENT_ID).meetingUrl()).isEqualTo("https://meet.example/event");
+    }
+
+    @Test
+    void eventOwnerCanAccessOwnDraft() {
+        event.setStatus(EventStatus.DRAFT);
+        event.setOrganizer(user);
+
+        assertThat(service.getById(EVENT_ID).title()).isEqualTo("Flutter Workshop");
+    }
+
+    @Test
+    void nonOwnerCannotAccessDraft() {
+        event.setStatus(EventStatus.DRAFT);
+
+        assertThatThrownBy(() -> service.getById(EVENT_ID))
+            .isInstanceOf(NotFoundException.class);
+        verify(rsvpRepository, never()).findByEventIdAndUserId(EVENT_ID, USER_ID);
+    }
+
+    @Test
+    void nonOwnerCannotAccessCancelledEvent() {
+        event.setStatus(EventStatus.CANCELLED);
+
+        assertThatThrownBy(() -> service.getById(EVENT_ID))
+            .isInstanceOf(NotFoundException.class);
+        verify(rsvpRepository, never()).findByEventIdAndUserId(EVENT_ID, USER_ID);
+    }
+
+    @Test
+    void eventOwnerCanAccessOwnCancelledEvent() {
+        event.setStatus(EventStatus.CANCELLED);
+        event.setOrganizer(user);
+
+        assertThat(service.getById(EVENT_ID).status()).isEqualTo(EventStatus.CANCELLED);
+    }
+
+    @Test
+    void deletedEventCannotBeAccessedByDirectUuid() {
+        when(eventRepository.findByIdAndDeletedAtIsNull(EVENT_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getById(EVENT_ID))
+            .isInstanceOf(NotFoundException.class);
+        verify(rsvpRepository, never()).findByEventIdAndUserId(EVENT_ID, USER_ID);
+    }
+
+    @Test
+    void eventBrowseHidesMeetingUrlForNonAttendee() {
+        event.setMeetingUrl("https://meet.example/event");
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(eventRepository.findUpcoming(eq(EventStatus.PUBLISHED), any(LocalDateTime.class), isNull(), eq(pageable)))
+            .thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+        when(rsvpRepository.findByUserIdAndEventIdIn(eq(USER_ID), any())).thenReturn(List.of());
+
+        assertThat(service.browse(null, pageable).content().get(0).meetingUrl()).isNull();
+    }
+
+    @Test
+    void eventBrowseShowsMeetingUrlForJoinedAttendee() {
+        event.setMeetingUrl("https://meet.example/event");
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(eventRepository.findUpcoming(eq(EventStatus.PUBLISHED), any(LocalDateTime.class), isNull(), eq(pageable)))
+            .thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+        when(rsvpRepository.findByUserIdAndEventIdIn(eq(USER_ID), any()))
+            .thenReturn(List.of(EventRsvp.builder().event(event).status(RsvpStatus.JOINED).build()));
+
+        assertThat(service.browse(null, pageable).content().get(0).meetingUrl())
+            .isEqualTo("https://meet.example/event");
+    }
+
+    @Test
+    void eventBrowseShowsMeetingUrlForOwner() {
+        event.setMeetingUrl("https://meet.example/event");
+        event.setOrganizer(user);
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(eventRepository.findUpcoming(eq(EventStatus.PUBLISHED), any(LocalDateTime.class), isNull(), eq(pageable)))
+            .thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+        when(rsvpRepository.findByUserIdAndEventIdIn(eq(USER_ID), any())).thenReturn(List.of());
+
+        assertThat(service.browse(null, pageable).content().get(0).meetingUrl())
+            .isEqualTo("https://meet.example/event");
+    }
+
+    @Test
+    void myEventsShowsMeetingUrlForOwner() {
+        event.setMeetingUrl("https://meet.example/event");
+        event.setOrganizer(user);
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(eventRepository.findByOrganizer(eq(USER_ID), eq(pageable)))
+            .thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+        when(rsvpRepository.findByUserIdAndEventIdIn(eq(USER_ID), any())).thenReturn(List.of());
+
+        assertThat(service.getMine(pageable).content().get(0).meetingUrl())
+            .isEqualTo("https://meet.example/event");
+    }
+
+    @Test
+    void myEventsIncludesOwnerDrafts() {
+        event.setStatus(EventStatus.DRAFT);
+        event.setOrganizer(user);
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(eventRepository.findByOrganizer(eq(USER_ID), eq(pageable)))
+            .thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+        when(rsvpRepository.findByUserIdAndEventIdIn(eq(USER_ID), any())).thenReturn(List.of());
+
+        assertThat(service.getMine(pageable).content().get(0).status()).isEqualTo(EventStatus.DRAFT);
+    }
+
+    @Test
+    void eventOwnerCanReadPaginatedAttendees() {
+        event.setOrganizer(user);
+        PageRequest pageable = PageRequest.of(1, 2);
+        EventRsvp attendee = EventRsvp.builder()
+            .event(event)
+            .user(organizer)
+            .status(RsvpStatus.JOINED)
+            .build();
+        when(eventRepository.findByIdAndOrganizerIdAndDeletedAtIsNull(EVENT_ID, USER_ID))
+            .thenReturn(Optional.of(event));
+        when(rsvpRepository.findAttendees(EVENT_ID, RsvpStatus.JOINED, pageable))
+            .thenReturn(new PageImpl<>(List.of(attendee), pageable, 3));
+
+        var response = service.attendees(EVENT_ID, pageable);
+
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.content().get(0).user().userId()).isEqualTo(ORGANIZER_ID);
+        assertThat(response.page()).isEqualTo(1);
+        assertThat(response.size()).isEqualTo(2);
+        assertThat(response.totalElements()).isEqualTo(3);
+        verify(eventRepository).findByIdAndOrganizerIdAndDeletedAtIsNull(EVENT_ID, USER_ID);
+        verify(rsvpRepository).findAttendees(EVENT_ID, RsvpStatus.JOINED, pageable);
+    }
+
+    @Test
+    void nonOwnerCannotReadAttendeesAndAttendeeQueryIsNotExecuted() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(eventRepository.findByIdAndOrganizerIdAndDeletedAtIsNull(EVENT_ID, USER_ID))
+            .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.attendees(EVENT_ID, pageable))
+            .isInstanceOf(NotFoundException.class);
+
+        verify(rsvpRepository, never()).findAttendees(EVENT_ID, RsvpStatus.JOINED, pageable);
+    }
+
+    @Test
+    void unauthenticatedUserCannotReadAttendees() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(currentUserProvider.getCurrentUserId())
+            .thenThrow(new UnauthorizedException("Authentication is required"));
+
+        assertThatThrownBy(() -> service.attendees(EVENT_ID, pageable))
+            .isInstanceOf(UnauthorizedException.class);
+
+        verify(rsvpRepository, never()).findAttendees(EVENT_ID, RsvpStatus.JOINED, pageable);
+    }
+
+    @Test
+    void deletedEventCannotReadAttendees() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(eventRepository.findByIdAndOrganizerIdAndDeletedAtIsNull(EVENT_ID, USER_ID))
+            .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.attendees(EVENT_ID, pageable))
+            .isInstanceOf(NotFoundException.class);
+
+        verify(rsvpRepository, never()).findAttendees(EVENT_ID, RsvpStatus.JOINED, pageable);
+    }
+
+    @Test
+    void nonExistentEventCannotReadAttendees() {
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(eventRepository.findByIdAndOrganizerIdAndDeletedAtIsNull(EVENT_ID, USER_ID))
+            .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.attendees(EVENT_ID, pageable))
+            .isInstanceOf(NotFoundException.class);
+
+        verify(rsvpRepository, never()).findAttendees(EVENT_ID, RsvpStatus.JOINED, pageable);
+    }
+
+    @Test
     void rsvpJoinsIncrementsTheCountAndAwardsXp() {
-        RsvpResponse response = service.rsvp(EVENT_ID);
+        RsvpResponse response = service.rsvp(EVENT_ID, validRegistration());
 
         assertThat(response.status()).isEqualTo(RsvpStatus.JOINED);
         assertThat(response.attendeeCount()).isEqualTo(4);
@@ -127,8 +346,16 @@ class EventServiceImplTest {
     }
 
     @Test
+    void rsvpWithoutRegistrationDetailsIsRejected() {
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID))
+            .isInstanceOf(ApiException.class)
+            .hasFieldOrPropertyWithValue("errorCode", "VALIDATION_ERROR")
+            .hasMessageContaining("registration is required");
+    }
+
+    @Test
     void successfulRsvpNotifiesTheOrganizerWithNavigationAndDedupeData() {
-        service.rsvp(EVENT_ID);
+        service.rsvp(EVENT_ID, validRegistration());
 
         ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
         verify(notificationEmitter).emit(captor.capture());
@@ -137,7 +364,7 @@ class EventServiceImplTest {
         assertThat(request.templateKey()).isEqualTo("COMMUNITY_EVENT_RSVP_ORGANIZER");
         assertThat(request.type()).isEqualTo("COMMUNITY_EVENT_RSVP");
         assertThat(request.parameters())
-            .containsEntry("attendeeName", "User")
+            .containsEntry("attendeeName", "Registered User")
             .containsEntry("eventTitle", "Flutter Workshop");
         assertThat(request.referenceType()).isEqualTo("EVENT");
         assertThat(request.referenceId()).isEqualTo(EVENT_ID);
@@ -150,13 +377,14 @@ class EventServiceImplTest {
     void organizerSelfRsvpDoesNotCreateAnOrganizerNotification() {
         event.setOrganizer(user);
 
-        service.rsvp(EVENT_ID);
+        service.rsvp(EVENT_ID, validRegistration());
 
         verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
     @Test
     void rsvpPersistsTheFullRegistrationForm() {
+        user.setWorkStatus(WorkStatus.STUDENT);
         EventRegistrationRequest registration = new EventRegistrationRequest(
             "Registered Student", "registered@example.com", "012345678",
             "ACLEDA University of Business", "Computer Science", "Year 3", true);
@@ -173,6 +401,47 @@ class EventServiceImplTest {
         assertThat(saved.getFaculty()).isEqualTo("Computer Science");
         assertThat(saved.getStudyYear()).isEqualTo("Year 3");
         assertThat(saved.getTermsAccepted()).isTrue();
+    }
+
+    @Test
+    void studentMustProvideStudyYear() {
+        user.setWorkStatus(WorkStatus.STUDENT);
+
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, registration(null, true)))
+            .isInstanceOf(ApiException.class)
+            .hasFieldOrPropertyWithValue("errorCode", "VALIDATION_ERROR")
+            .hasMessageContaining("Study year");
+    }
+
+    @Test
+    void studentMustProvideNonBlankStudyYear() {
+        user.setWorkStatus(WorkStatus.STUDENT);
+
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, registration("   ", true)))
+            .isInstanceOf(ApiException.class)
+            .hasFieldOrPropertyWithValue("errorCode", "VALIDATION_ERROR")
+            .hasMessageContaining("Study year");
+    }
+
+    @Test
+    void nonStudentMayProvideStudyYear() {
+        user.setWorkStatus(WorkStatus.OTHER);
+
+        RsvpResponse response = service.rsvp(EVENT_ID, registration("Year 3", true));
+
+        assertThat(response.status()).isEqualTo(RsvpStatus.JOINED);
+    }
+
+    @Test
+    void nonStudentMayOmitStudyYear() {
+        user.setWorkStatus(WorkStatus.OTHER);
+
+        service.rsvp(EVENT_ID, registration(null, true));
+
+        ArgumentCaptor<EventRsvp> captor = ArgumentCaptor.forClass(EventRsvp.class);
+        verify(rsvpRepository).save(captor.capture());
+        assertThat(captor.getValue().getStudyYear()).isNull();
+        assertThat(captor.getValue().getTermsAccepted()).isTrue();
     }
 
     @Test
@@ -193,7 +462,7 @@ class EventServiceImplTest {
         when(rsvpRepository.findByEventIdAndUserId(EVENT_ID, USER_ID))
             .thenReturn(Optional.of(EventRsvp.builder().status(RsvpStatus.JOINED).build()));
 
-        RsvpResponse response = service.rsvp(EVENT_ID);
+        RsvpResponse response = service.rsvp(EVENT_ID, validRegistration());
 
         assertThat(response.attendeeCount()).isEqualTo(3);
         assertThat(response.xpAwarded()).isZero();
@@ -203,12 +472,26 @@ class EventServiceImplTest {
     }
 
     @Test
+    void duplicateRsvpAfterFirstJoinDoesNotReserveAnotherSeat() {
+        EventRsvp joined = EventRsvp.builder().status(RsvpStatus.JOINED).build();
+        when(rsvpRepository.findByEventIdAndUserId(EVENT_ID, USER_ID))
+            .thenReturn(Optional.empty(), Optional.of(joined));
+
+        service.rsvp(EVENT_ID, validRegistration());
+        service.rsvp(EVENT_ID, validRegistration());
+
+        verify(eventRepository, times(1)).reserveSeat(EVENT_ID);
+        verify(rewardService, times(1)).award(any(), eq("EVENT_RSVP"), eq(EVENT_ID), eq(10));
+        verify(notificationEmitter, times(1)).emit(any(NotificationRequest.class));
+    }
+
+    @Test
     void notificationWriterFailureDoesNotUndoRsvpState() {
         service = new EventServiceImpl(eventRepository, rsvpRepository, demoWalletRepository,
             ledgerService, rewardService, userRepository, currentUserProvider,
             emitterWithWriterFailure());
 
-        RsvpResponse response = service.rsvp(EVENT_ID);
+        RsvpResponse response = service.rsvp(EVENT_ID, validRegistration());
 
         assertThat(response.status()).isEqualTo(RsvpStatus.JOINED);
         verify(rsvpRepository).save(any(EventRsvp.class));
@@ -220,7 +503,7 @@ class EventServiceImplTest {
     void rsvpIsRejectedWhenTheEventIsFull() {
         when(eventRepository.reserveSeat(EVENT_ID)).thenReturn(0);
 
-        assertThatThrownBy(() -> service.rsvp(EVENT_ID))
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, validRegistration()))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("full");
     }
@@ -236,7 +519,7 @@ class EventServiceImplTest {
         event.setCurrency(Currency.USD);
         when(eventRepository.reserveSeat(EVENT_ID)).thenReturn(0);
 
-        assertThatThrownBy(() -> service.rsvp(EVENT_ID)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, validRegistration())).isInstanceOf(ApiException.class);
 
         verify(demoWalletRepository, never()).save(any(DemoWallet.class));
         verify(ledgerService, never()).debit(any(), any(), any(), any(), any(), any(), any());
@@ -253,7 +536,7 @@ class EventServiceImplTest {
             .build();
         when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
 
-        RsvpResponse response = service.rsvp(EVENT_ID);
+        RsvpResponse response = service.rsvp(EVENT_ID, validRegistration());
 
         assertThat(response.amountPaid()).isEqualByComparingTo("5.00");
         // The client must be able to label the screen as a simulation.
@@ -280,7 +563,7 @@ class EventServiceImplTest {
         when(ledgerService.debit(eq(wallet), eq(TransactionType.EVENT_PAYMENT), eq(Currency.USD),
             eq(new BigDecimal("5.00")), any(), eq("EVENT"), eq(EVENT_ID))).thenReturn(transaction);
 
-        service.rsvp(EVENT_ID);
+        service.rsvp(EVENT_ID, validRegistration());
 
         ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
         verify(notificationEmitter, times(2)).emit(captor.capture());
@@ -309,7 +592,7 @@ class EventServiceImplTest {
             .build();
         when(demoWalletRepository.findByUserId(USER_ID)).thenReturn(Optional.of(wallet));
 
-        RsvpResponse response = service.rsvp(EVENT_ID);
+        RsvpResponse response = service.rsvp(EVENT_ID, validRegistration());
 
         assertThat(response.amountPaid()).isEqualByComparingTo("5000");
         verify(ledgerService).debit(eq(wallet), eq(TransactionType.EVENT_PAYMENT), eq(Currency.KHR),
@@ -330,7 +613,7 @@ class EventServiceImplTest {
                 "DEMO_WALLET_INSUFFICIENT_BALANCE"))
             .when(ledgerService).debit(any(), any(), any(), any(), any(), any(), any());
 
-        assertThatThrownBy(() -> service.rsvp(EVENT_ID))
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, validRegistration()))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("balance is too low");
 
@@ -340,7 +623,7 @@ class EventServiceImplTest {
 
     @Test
     void freeRsvpNeverTouchesTheWallet() {
-        service.rsvp(EVENT_ID);
+        service.rsvp(EVENT_ID, validRegistration());
 
         verify(demoWalletRepository, never()).findByUserId(any());
         verify(ledgerService, never()).debit(any(), any(), any(), any(), any(), any(), any());
@@ -350,16 +633,58 @@ class EventServiceImplTest {
     void rsvpIsRejectedForACancelledEvent() {
         event.setStatus(EventStatus.CANCELLED);
 
-        assertThatThrownBy(() -> service.rsvp(EVENT_ID))
-            .isInstanceOf(ApiException.class)
-            .hasMessageContaining("cancelled");
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, validRegistration()))
+            .isInstanceOf(NotFoundException.class);
+        verify(eventRepository, never()).reserveSeat(any());
+        verify(rsvpRepository, never()).save(any(EventRsvp.class));
+    }
+
+    @Test
+    void nonOwnerCannotRsvpToADraftEventEvenWithItsUuid() {
+        event.setStatus(EventStatus.DRAFT);
+
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, validRegistration()))
+            .isInstanceOf(NotFoundException.class);
+        verify(eventRepository, never()).reserveSeat(any());
+        verify(rsvpRepository, never()).save(any(EventRsvp.class));
+    }
+
+    @Test
+    void ownerCannotRsvpToOwnDraftEventBecauseDraftsAreNotRegistrationEligible() {
+        event.setStatus(EventStatus.DRAFT);
+        event.setOrganizer(user);
+
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, validRegistration()))
+            .isInstanceOf(NotFoundException.class);
+        verify(eventRepository, never()).reserveSeat(any());
+        verify(rsvpRepository, never()).save(any(EventRsvp.class));
+    }
+
+    @Test
+    void rsvpIsRejectedForACompletedEvent() {
+        event.setStatus(EventStatus.COMPLETED);
+
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, validRegistration()))
+            .isInstanceOf(NotFoundException.class);
+        verify(eventRepository, never()).reserveSeat(any());
+        verify(rsvpRepository, never()).save(any(EventRsvp.class));
+    }
+
+    @Test
+    void rsvpIsRejectedForADeletedEvent() {
+        when(eventRepository.findByIdAndDeletedAtIsNullForUpdate(EVENT_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, validRegistration()))
+            .isInstanceOf(NotFoundException.class);
+        verify(eventRepository, never()).reserveSeat(any());
+        verify(rsvpRepository, never()).save(any(EventRsvp.class));
     }
 
     @Test
     void rsvpIsRejectedForAnEventInThePast() {
         event.setDateTime(LocalDateTime.now().minusDays(1));
 
-        assertThatThrownBy(() -> service.rsvp(EVENT_ID))
+        assertThatThrownBy(() -> service.rsvp(EVENT_ID, validRegistration()))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("already taken place");
     }
@@ -370,7 +695,7 @@ class EventServiceImplTest {
         EventRsvp cancelled = EventRsvp.builder().status(RsvpStatus.CANCELLED).build();
         when(rsvpRepository.findByEventIdAndUserId(EVENT_ID, USER_ID)).thenReturn(Optional.of(cancelled));
 
-        service.rsvp(EVENT_ID);
+        service.rsvp(EVENT_ID, validRegistration());
 
         assertThat(cancelled.getStatus()).isEqualTo(RsvpStatus.JOINED);
         verify(eventRepository).reserveSeat(EVENT_ID);
@@ -388,12 +713,15 @@ class EventServiceImplTest {
 
     @Test
     void cancellingTwiceDoesNotDecrementTwice() {
+        EventRsvp joined = EventRsvp.builder().status(RsvpStatus.JOINED).build();
         when(rsvpRepository.findByEventIdAndUserId(EVENT_ID, USER_ID))
-            .thenReturn(Optional.of(EventRsvp.builder().status(RsvpStatus.CANCELLED).build()));
+            .thenReturn(Optional.of(joined));
 
         service.cancelRsvp(EVENT_ID);
+        service.cancelRsvp(EVENT_ID);
 
-        verify(eventRepository, never()).releaseSeat(any());
+        assertThat(joined.getStatus()).isEqualTo(RsvpStatus.CANCELLED);
+        verify(eventRepository, times(1)).releaseSeat(EVENT_ID);
     }
 
     @Test
@@ -401,7 +729,7 @@ class EventServiceImplTest {
         event.setAttendeeLimit(null);
         event.setAttendeeCount(9999);
 
-        assertThat(service.rsvp(EVENT_ID).status()).isEqualTo(RsvpStatus.JOINED);
+        assertThat(service.rsvp(EVENT_ID, validRegistration()).status()).isEqualTo(RsvpStatus.JOINED);
     }
 
     /** Backs up chk_events_paid_requires_price with a readable error. */
@@ -412,6 +740,16 @@ class EventServiceImplTest {
             EventStatus.PUBLISHED, null, true, null)))
             .isInstanceOf(ApiException.class)
             .hasMessageContaining("price above zero");
+    }
+
+    private EventRegistrationRequest validRegistration() {
+        return registration("Year 3", true);
+    }
+
+    private EventRegistrationRequest registration(String studyYear, boolean termsAccepted) {
+        return new EventRegistrationRequest(
+            "Registered User", "registered@example.com", "012345678",
+            "ACLEDA University of Business", "Computer Science", studyYear, termsAccepted);
     }
 
     @Test

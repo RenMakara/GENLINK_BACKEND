@@ -76,13 +76,12 @@ public class EventController {
     /**
      * Join with the full attendee registration form. Idempotent. Capacity is checked
      * before payment, and a paid event is settled against the demo wallet - simulation
-     * only, no real transfer. The body remains optional for legacy clients; new clients
-     * should always submit EventRegistrationRequest.
+     * only, no real transfer.
      */
     @PostMapping("/{eventId}/rsvp")
     public ResponseEntity<ApiResponse<RsvpResponse>> rsvp(
         @PathVariable UUID eventId,
-        @Valid @RequestBody(required = false) EventRegistrationRequest request) {
+        @Valid @RequestBody EventRegistrationRequest request) {
         return ResponseEntity.ok(ApiResponse.success("RSVP confirmed", eventService.rsvp(eventId, request)));
     }
 

@@ -14,25 +14,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
-/**
- * Authenticated encryption for credential columns (SSOT §9.2).
- *
- * <p>Built for {@code admin_users.totp_secret}: a TOTP secret is a bearer credential, so a
- * database dump, a backup file or a careless {@code SELECT *} in a support session must not
- * hand anyone a working second factor.
- *
- * <h2>AES-256-GCM, not AES-CBC</h2>
- *
- * GCM authenticates as well as encrypts, so a tampered ciphertext fails loudly instead of
- * decrypting to plausible garbage. With CBC, someone with write access to the row could flip
- * bits and silently change the stored secret to one they control.
- *
- * <h2>Not a hash</h2>
- *
- * Recovery codes are hashed, because they only ever need to be checked. A TOTP secret has to
- * be read back to generate codes, so it is encrypted. The distinction is worth keeping
- * straight: a hashed secret would make every authenticator app useless.
- */
+/*  Authenticated encryption សម្រាប់ credential columns (SSOT §9.2).
+ GCM គឺ authenticate ព្រមទាំង encrypt ដូច្នេះ tampered ciphertext នឹង
+ fail loud ជំនួស​ឱ្យ​ការ decrypt ទៅ​ជា plausible garbage។ ចំពោះ CBC
+ អ្នកដែលមាន write access អាច flip bits និង change stored secret
+ ទៅ​ជា​របស់​ខ្លួន​ឯងដោយ silent បាន
+ Recovery codes គឺត្រូវបាន hashed ព្រោះវាគ្រាន់តែត្រូវ check តែប៉ុណ្ណោះ។ ចំណែក
+ TOTP secret ត្រូវតែ read back ដើម្បី generate codes ដូច្នេះវាត្រូវ encrypted។
+ ការបែងចែកនេះគឺសំខាន់ណាស់៖ hashed secret នឹងធ្វើឱ្យ authenticator app 
+ ទាំងអស់ មិនអាចប្រើប្រាស់បាន។ */
 @Component
 public class FieldEncryptor {
 
@@ -46,9 +36,12 @@ public class FieldEncryptor {
     private static final int TAG_BITS = 128;
 
     /**
-     * Marks the key generation that produced a value. Nothing rotates keys yet, but stored
-     * ciphertext outlives code: without a marker, a future rotation cannot tell which values
-     * still need the old key, and the only remedy would be re-enrolling every administrator.
+     * Marks the key generation that produced a value. Nothing rotates keys yet, but
+     * stored
+     * ciphertext outlives code: without a marker, a future rotation cannot tell
+     * which values
+     * still need the old key, and the only remedy would be re-enrolling every
+     * administrator.
      */
     private static final String PREFIX = "v1:";
 
@@ -62,12 +55,17 @@ public class FieldEncryptor {
     }
 
     /**
-     * Mirrors {@code JwtTokenProvider}: configured key everywhere, ephemeral fallback only
+     * Mirrors {@code JwtTokenProvider}: configured key everywhere, ephemeral
+     * fallback only
      * under a dev profile so a local checkout runs with no setup.
      *
-     * <p>The fallback is louder here than it is for JWT, and deliberately so. An ephemeral JWT
-     * key signs everyone out on restart, which is an inconvenience. An ephemeral encryption key
-     * makes every stored TOTP secret permanently undecryptable, which locks administrators out
+     * <p>
+     * The fallback is louder here than it is for JWT, and deliberately so. An
+     * ephemeral JWT
+     * key signs everyone out on restart, which is an inconvenience. An ephemeral
+     * encryption key
+     * makes every stored TOTP secret permanently undecryptable, which locks
+     * administrators out
      * of their own accounts.
      */
     private static SecretKey resolveKey(CryptoProperties properties, Environment environment) {
@@ -78,14 +76,15 @@ public class FieldEncryptor {
                 decoded = Base64.getDecoder().decode(configured.trim());
             } catch (IllegalArgumentException ex) {
                 throw new IllegalStateException(
-                    "app.crypto.secret-key is not valid Base64. Generate one with "
-                        + "`openssl rand -base64 32`.", ex);
+                        "app.crypto.secret-key is not valid Base64. Generate one with "
+                                + "`openssl rand -base64 32`.",
+                        ex);
             }
             if (decoded.length != KEY_BYTES) {
                 throw new IllegalStateException(
-                    "app.crypto.secret-key must decode to exactly " + KEY_BYTES + " bytes for "
-                        + "AES-256; got " + decoded.length + ". Generate one with "
-                        + "`openssl rand -base64 32`.");
+                        "app.crypto.secret-key must decode to exactly " + KEY_BYTES + " bytes for "
+                                + "AES-256; got " + decoded.length + ". Generate one with "
+                                + "`openssl rand -base64 32`.");
             }
             return new SecretKeySpec(decoded, ALGORITHM);
         }
@@ -94,16 +93,16 @@ public class FieldEncryptor {
             byte[] ephemeral = new byte[KEY_BYTES];
             new SecureRandom().nextBytes(ephemeral);
             log.warn("app.crypto.secret-key is not set - generated an EPHEMERAL key. Anything "
-                + "encrypted with it becomes unreadable on restart, so admins enrolled in TOTP "
-                + "now will have to enrol again. Set app.crypto.secret-key for anything but a "
-                + "throwaway local run.");
+                    + "encrypted with it becomes unreadable on restart, so admins enrolled in TOTP "
+                    + "now will have to enrol again. Set app.crypto.secret-key for anything but a "
+                    + "throwaway local run.");
             return new SecretKeySpec(ephemeral, ALGORITHM);
         }
 
         throw new IllegalStateException(
-            "app.crypto.secret-key must be set (Base64, 32 bytes) via the ADMIN_CRYPTO_KEY env "
-                + "var, e.g. `openssl rand -base64 32`. Auto-generation only happens under a "
-                + "dev/local/test profile.");
+                "app.crypto.secret-key must be set (Base64, 32 bytes) via the ADMIN_CRYPTO_KEY env "
+                        + "var, e.g. `openssl rand -base64 32`. Auto-generation only happens under a "
+                        + "dev/local/test profile.");
     }
 
     private static boolean isDevProfile(Environment environment) {
@@ -123,7 +122,8 @@ public class FieldEncryptor {
             return null;
         }
         try {
-            // A fresh IV per call. Reusing one under GCM is catastrophic - it leaks the XOR of
+            // A fresh IV per call. Reusing one under GCM is catastrophic - it leaks the XOR
+            // of
             // two plaintexts and, worse, allows forgery of further ciphertexts.
             byte[] iv = new byte[IV_BYTES];
             random.nextBytes(iv);
@@ -144,9 +144,12 @@ public class FieldEncryptor {
     }
 
     /**
-     * @throws IllegalStateException if the value was written with a different key or has been
-     *     tampered with. Both are worth failing on rather than papering over - a silent null
-     *     would present as "this admin has no second factor".
+     * @throws IllegalStateException if the value was written with a different key
+     *                               or has been
+     *                               tampered with. Both are worth failing on rather
+     *                               than papering over - a silent null
+     *                               would present as "this admin has no second
+     *                               factor".
      */
     public String decrypt(String stored) {
         if (stored == null) {
@@ -154,8 +157,8 @@ public class FieldEncryptor {
         }
         if (!stored.startsWith(PREFIX)) {
             throw new IllegalStateException(
-                "Encrypted field is missing the " + PREFIX + " marker. It was probably written "
-                    + "before encryption was introduced, or by a different codebase.");
+                    "Encrypted field is missing the " + PREFIX + " marker. It was probably written "
+                            + "before encryption was introduced, or by a different codebase.");
         }
         try {
             byte[] combined = Base64.getDecoder().decode(stored.substring(PREFIX.length()));
@@ -168,10 +171,11 @@ public class FieldEncryptor {
 
             return new String(plaintext, StandardCharsets.UTF_8);
         } catch (GeneralSecurityException | IllegalArgumentException
-                 | ArrayIndexOutOfBoundsException ex) {
+                | ArrayIndexOutOfBoundsException ex) {
             throw new IllegalStateException(
-                "Failed to decrypt a credential field. The encryption key has probably changed; "
-                    + "affected admins must re-enrol.", ex);
+                    "Failed to decrypt a credential field. The encryption key has probably changed; "
+                            + "affected admins must re-enrol.",
+                    ex);
         }
     }
 }

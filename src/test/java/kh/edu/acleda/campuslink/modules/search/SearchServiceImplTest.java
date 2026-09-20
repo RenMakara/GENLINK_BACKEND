@@ -15,7 +15,9 @@ import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.enums.EventMode;
 import kh.edu.acleda.campuslink.modules.community.enums.EventStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.PostType;
+import kh.edu.acleda.campuslink.modules.community.enums.RsvpStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
+import kh.edu.acleda.campuslink.modules.community.entity.EventRsvp;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumDiscussionRepository;
@@ -235,5 +237,91 @@ class SearchServiceImplTest {
         assertThat(result.totalPosts()).isEqualTo(1);
         assertThat(result.totalEvents()).isEqualTo(1);
         assertThat(result.totalDiscussions()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Public event search hides the meeting URL")
+    void publicEventSearchHidesMeetingUrl() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Event event = eventWithMeetingUrl(userEnat);
+        when(eventRepository.searchEvents(eq("meet"), eq(pageable)))
+            .thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+
+        assertThat(searchService.searchEvents("meet", null, pageable).content().get(0).meetingUrl())
+            .isNull();
+    }
+
+    @Test
+    @DisplayName("Authenticated non-attendee event search hides the meeting URL")
+    void nonAttendeeEventSearchHidesMeetingUrl() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Event event = eventWithMeetingUrl(userEnat);
+        when(eventRepository.searchEvents(eq("meet"), eq(pageable)))
+            .thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+        when(eventRsvpRepository.findByUserIdAndEventIdIn(eq(viewerId), any()))
+            .thenReturn(List.of());
+
+        assertThat(searchService.searchEvents("meet", viewerId, pageable).content().get(0).meetingUrl())
+            .isNull();
+    }
+
+    @Test
+    @DisplayName("RSVP attendee event search shows the meeting URL")
+    void attendeeEventSearchShowsMeetingUrl() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Event event = eventWithMeetingUrl(userEnat);
+        when(eventRepository.searchEvents(eq("meet"), eq(pageable)))
+            .thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+        when(eventRsvpRepository.findByUserIdAndEventIdIn(eq(viewerId), any()))
+            .thenReturn(List.of(EventRsvp.builder().event(event).status(RsvpStatus.JOINED).build()));
+
+        assertThat(searchService.searchEvents("meet", viewerId, pageable).content().get(0).meetingUrl())
+            .isEqualTo("https://meet.example/event");
+    }
+
+    @Test
+    @DisplayName("Event owner event search shows the meeting URL")
+    void ownerEventSearchShowsMeetingUrl() {
+        Pageable pageable = PageRequest.of(0, 20);
+        ReflectionTestUtils.setField(userTester, "id", viewerId);
+        Event event = eventWithMeetingUrl(userTester);
+        when(eventRepository.searchEvents(eq("meet"), eq(pageable)))
+            .thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+        when(eventRsvpRepository.findByUserIdAndEventIdIn(eq(viewerId), any()))
+            .thenReturn(List.of());
+
+        assertThat(searchService.searchEvents("meet", viewerId, pageable).content().get(0).meetingUrl())
+            .isEqualTo("https://meet.example/event");
+    }
+
+    @Test
+    @DisplayName("Event search returns the published, non-deleted repository scope")
+    void eventSearchUsesPublishedVisibilityScope() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Event event = eventWithMeetingUrl(userEnat);
+        when(eventRepository.searchEvents(eq("meet"), eq(pageable)))
+            .thenReturn(new PageImpl<>(List.of(event), pageable, 1));
+
+        PageResponse<kh.edu.acleda.campuslink.modules.community.dto.response.EventResponse> response =
+            searchService.searchEvents("meet", viewerId, pageable);
+
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.content().get(0).status()).isEqualTo(EventStatus.PUBLISHED);
+    }
+
+    private Event eventWithMeetingUrl(User organizer) {
+        Event event = Event.builder()
+            .title("Meeting Event")
+            .description("Event with a protected URL")
+            .status(EventStatus.PUBLISHED)
+            .mode(EventMode.ONLINE)
+            .meetingUrl("https://meet.example/event")
+            .dateTime(LocalDateTime.now().plusDays(2))
+            .endDateTime(LocalDateTime.now().plusDays(2).plusHours(1))
+            .attendeeCount(0)
+            .organizer(organizer)
+            .build();
+        ReflectionTestUtils.setField(event, "id", UUID.randomUUID());
+        return event;
     }
 }

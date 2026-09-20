@@ -25,6 +25,8 @@ import kh.edu.acleda.campuslink.modules.community.enums.RsvpStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
 import kh.edu.acleda.campuslink.modules.community.service.EventService;
+import kh.edu.acleda.campuslink.modules.community.service.EventMeetingUrlAccess;
+import kh.edu.acleda.campuslink.modules.community.service.EventVisibility;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoTransaction;
@@ -37,6 +39,7 @@ import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
@@ -112,7 +115,7 @@ public class EventServiceImpl implements EventService {
             .price(Boolean.TRUE.equals(request.paid()) ? request.price() : null)
             .currency(Boolean.TRUE.equals(request.paid()) ? request.currency() : null)
             .build());
-        return toResponse(event, null);
+        return toResponse(event, null, true);
     }
 
     @Override
@@ -131,8 +134,13 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public EventResponse getById(UUID eventId) {
-        Event event = loadEvent(eventId);
-        return toResponse(event, myRsvpStatus(eventId));
+        UUID viewerId = currentUserProvider.getCurrentUserId();
+        Event event = loadVisibleEvent(eventId, viewerId);
+        RsvpStatus myRsvpStatus = rsvpRepository.findByEventIdAndUserId(eventId, viewerId)
+            .map(EventRsvp::getStatus)
+            .orElse(null);
+        return toResponse(event, myRsvpStatus,
+            EventMeetingUrlAccess.canViewMeetingUrl(event, viewerId, myRsvpStatus));
     }
 
     @Override
@@ -162,7 +170,7 @@ public class EventServiceImpl implements EventService {
         event.setIsPaid(Boolean.TRUE.equals(request.paid()));
         event.setPrice(Boolean.TRUE.equals(request.paid()) ? request.price() : null);
         event.setCurrency(Boolean.TRUE.equals(request.paid()) ? request.currency() : null);
-        return toResponse(eventRepository.save(event), myRsvpStatus(eventId));
+        return toResponse(eventRepository.save(event), myRsvpStatus(eventId), true);
     }
 
     @Override
@@ -189,13 +197,21 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional
     public RsvpResponse rsvp(UUID eventId, EventRegistrationRequest registration) {
-        validateRegistration(registration);
-        Event event = loadEvent(eventId);
-        UUID userId = currentUserProvider.getCurrentUserId();
+        User attendee = loadCurrentUser();
+        // Serialize all RSVP transitions for this event. The database unique key is
+        // still the final guard, but the event lock makes the check/seat/state
+        // transition deterministic under duplicate and cancel races.
+        Event event = loadEventForRsvp(eventId);
+        UUID userId = attendee.getId();
 
-        if (event.getStatus() == EventStatus.CANCELLED) {
-            throw new ApiException("This event has been cancelled", "EVENT_CANCELLED");
+        // Drafts are visible to their organizer, but normal attendee registration is
+        // published-only. Keep this check after the row lock so the final status is
+        // checked in the same serialized transition as capacity and RSVP state.
+        if (!EventVisibility.canRsvp(event, userId)) {
+            throw new NotFoundException("Event not found");
         }
+
+        validateRegistration(registration, attendee);
         if (event.getDateTime().isBefore(LocalDateTime.now())) {
             throw new ApiException("This event has already taken place", "EVENT_PAST");
         }
@@ -223,7 +239,6 @@ public class EventServiceImpl implements EventService {
 
         PaymentSettlement payment = settlePayment(event, userId);
 
-        User attendee = loadCurrentUser();
         if (existing != null) {
             // The unique constraint forbids a second row, so a cancelled RSVP is reused.
             existing.setStatus(RsvpStatus.JOINED);
@@ -251,6 +266,9 @@ public class EventServiceImpl implements EventService {
     @Transactional
     public void cancelRsvp(UUID eventId) {
         UUID userId = currentUserProvider.getCurrentUserId();
+        // Lock before reading the RSVP so two cancellations cannot both observe
+        // JOINED and both release the same seat. RSVP creation uses the same lock.
+        eventRepository.findByIdForUpdate(eventId);
         EventRsvp rsvp = rsvpRepository.findByEventIdAndUserId(eventId, userId)
             .orElseThrow(() -> new NotFoundException("RSVP not found"));
         if (rsvp.getStatus() != RsvpStatus.JOINED) {
@@ -266,7 +284,9 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<CommunityMemberResponse> attendees(UUID eventId, Pageable pageable) {
-        loadEvent(eventId);
+        // Follow the existing owner-scoped Event convention: non-owners receive the
+        // same not-found response as missing/deleted events before attendee data is queried.
+        loadOwned(eventId);
         return PageResponse.from(rsvpRepository.findAttendees(eventId, RsvpStatus.JOINED, pageable),
             rsvp -> new CommunityMemberResponse(summary(rsvp.getUser()), null, rsvp.getCreatedAt()));
     }
@@ -385,13 +405,18 @@ public class EventServiceImpl implements EventService {
     private PageResponse<EventResponse> hydrate(Page<Event> page) {
         List<Event> events = page.getContent();
         if (events.isEmpty()) {
-            return PageResponse.from(page, event -> toResponse(event, null));
+            return PageResponse.from(page, event -> toResponse(event, null, false));
         }
         Set<UUID> ids = events.stream().map(Event::getId).collect(Collectors.toSet());
         Map<UUID, RsvpStatus> mine = new HashMap<>();
-        rsvpRepository.findByUserIdAndEventIdIn(currentUserProvider.getCurrentUserId(), ids)
+        UUID viewerId = currentUserProvider.getCurrentUserId();
+        rsvpRepository.findByUserIdAndEventIdIn(viewerId, ids)
             .forEach(rsvp -> mine.put(rsvp.getEvent().getId(), rsvp.getStatus()));
-        return PageResponse.from(page, event -> toResponse(event, mine.get(event.getId())));
+        return PageResponse.from(page, event -> {
+            RsvpStatus myRsvpStatus = mine.get(event.getId());
+            return toResponse(event, myRsvpStatus,
+                EventMeetingUrlAccess.canViewMeetingUrl(event, viewerId, myRsvpStatus));
+        });
     }
 
     private RsvpStatus myRsvpStatus(UUID eventId) {
@@ -463,17 +488,20 @@ public class EventServiceImpl implements EventService {
         return request.mode() == EventMode.ONLINE ? null : request.locationName();
     }
 
-    private void validateRegistration(EventRegistrationRequest registration) {
+    private void validateRegistration(EventRegistrationRequest registration, User attendee) {
         if (registration == null) {
-            return;
+            throw new ApiException("Complete event registration is required", "VALIDATION_ERROR");
         }
         if (!registration.termsAccepted()) {
             throw new ApiException("You must accept the event terms", "VALIDATION_ERROR");
         }
         if (isBlank(registration.fullName()) || isBlank(registration.email())
             || isBlank(registration.phoneNumber()) || isBlank(registration.university())
-            || isBlank(registration.faculty()) || isBlank(registration.studyYear())) {
+            || isBlank(registration.faculty())) {
             throw new ApiException("Complete event registration is required", "VALIDATION_ERROR");
+        }
+        if (WorkStatus.STUDENT.equals(attendee.getWorkStatus()) && isBlank(registration.studyYear())) {
+            throw new ApiException("Study year is required for student registration", "VALIDATION_ERROR");
         }
     }
 
@@ -490,13 +518,30 @@ public class EventServiceImpl implements EventService {
         rsvp.setPhoneNumber(registration.phoneNumber().strip());
         rsvp.setUniversity(registration.university().strip());
         rsvp.setFaculty(registration.faculty().strip());
-        rsvp.setStudyYear(registration.studyYear().strip());
+        rsvp.setStudyYear(trimToNull(registration.studyYear()));
         rsvp.setTermsAccepted(true);
+    }
+
+    private String trimToNull(String value) {
+        return isBlank(value) ? null : value.strip();
     }
 
     private Event loadEvent(UUID eventId) {
         return eventRepository.findByIdAndDeletedAtIsNull(eventId)
             .orElseThrow(() -> new NotFoundException("Event not found"));
+    }
+
+    private Event loadEventForRsvp(UUID eventId) {
+        return eventRepository.findByIdAndDeletedAtIsNullForUpdate(eventId)
+            .orElseThrow(() -> new NotFoundException("Event not found"));
+    }
+
+    private Event loadVisibleEvent(UUID eventId, UUID viewerId) {
+        Event event = loadEvent(eventId);
+        if (!EventVisibility.canView(event, viewerId)) {
+            throw new NotFoundException("Event not found");
+        }
+        return event;
     }
 
     private Event loadOwned(UUID eventId) {
@@ -515,7 +560,7 @@ public class EventServiceImpl implements EventService {
             user.getId(), user.getFullName(), user.getUsername(), user.getAvatarUrl());
     }
 
-    private EventResponse toResponse(Event event, RsvpStatus myRsvpStatus) {
+    private EventResponse toResponse(Event event, RsvpStatus myRsvpStatus, boolean canViewMeetingUrl) {
         return new EventResponse(
             event.getId(),
             summary(event.getOrganizer()),
@@ -526,7 +571,7 @@ public class EventServiceImpl implements EventService {
             event.getDateTime(),
             event.getEndDateTime(),
             event.getMode(),
-            event.getMeetingUrl(),
+            canViewMeetingUrl ? event.getMeetingUrl() : null,
             event.getLocationName(),
             event.getLatitude(),
             event.getLongitude(),

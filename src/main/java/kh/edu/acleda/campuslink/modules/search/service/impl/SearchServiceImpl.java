@@ -27,6 +27,7 @@ import kh.edu.acleda.campuslink.modules.community.repository.PollRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PollVoteRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
+import kh.edu.acleda.campuslink.modules.community.service.EventMeetingUrlAccess;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
 import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
 import kh.edu.acleda.campuslink.modules.profile.repository.SavedItemRepository;
@@ -281,7 +282,8 @@ public class SearchServiceImpl implements SearchService {
             event.getDateTime(),
             event.getEndDateTime(),
             event.getMode(),
-            event.getMeetingUrl(),
+            EventMeetingUrlAccess.canViewMeetingUrl(event, viewerId, myRsvp.get(event.getId()))
+                ? event.getMeetingUrl() : null,
             event.getLocationName(),
             event.getLatitude(),
             event.getLongitude(),

@@ -54,7 +54,7 @@ class SavedItemServiceImplTest {
         User user = new User();
         user.setEmail("user@example.com");
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
-        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(userRepository.findByIdForUpdate(USER_ID)).thenReturn(Optional.of(user));
         when(savedItemRepository.save(any(SavedItem.class))).thenAnswer(i -> i.getArgument(0));
     }
 
@@ -68,7 +68,20 @@ class SavedItemServiceImplTest {
         SavedItemResponse response = service.save(new SaveItemRequest(SavedItemType.POST, POST_ID), Language.ENGLISH);
 
         assertThat(response.itemId()).isEqualTo(POST_ID);
+        verify(userRepository).findByIdForUpdate(USER_ID);
         verify(savedItemRepository, never()).save(any(SavedItem.class));
+    }
+
+    @Test
+    void newSaveUsesTheUserRowLockBeforeInserting() {
+        when(savedItemRepository.findByUserIdAndItemTypeAndItemId(USER_ID, SavedItemType.POST, POST_ID))
+            .thenReturn(Optional.empty());
+        stubPreview(new SavedItemPreview("Hello GenLink", null, null));
+
+        service.save(new SaveItemRequest(SavedItemType.POST, POST_ID), Language.ENGLISH);
+
+        verify(userRepository).findByIdForUpdate(USER_ID);
+        verify(savedItemRepository).save(any(SavedItem.class));
     }
 
     @Test

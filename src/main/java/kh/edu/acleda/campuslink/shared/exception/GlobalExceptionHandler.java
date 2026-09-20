@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
@@ -76,6 +77,13 @@ public class GlobalExceptionHandler {
             .collect(Collectors.joining(", "));
         log.warn("Binding failed: {}", message);
         return ResponseEntity.badRequest().body(ApiResponse.failure(message, "VALIDATION_ERROR"));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableMessage(HttpMessageNotReadableException ex) {
+        log.warn("Request body was missing or unreadable: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body(
+            ApiResponse.failure("Request body is required and must be valid", "VALIDATION_ERROR"));
     }
 
     @ExceptionHandler(BadCredentialsException.class)

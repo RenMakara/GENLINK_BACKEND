@@ -10,6 +10,7 @@ import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumDiscussionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.OpportunityRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
+import kh.edu.acleda.campuslink.modules.community.service.EventVisibility;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.ShortContentRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.FinancialLessonRepository;
 import kh.edu.acleda.campuslink.modules.productivity.repository.MotivationContentRepository;
@@ -17,6 +18,7 @@ import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.localization.LocalizedTextSelector;
+import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,7 @@ public class SavedItemPreviewResolver {
     private final MotivationContentRepository motivationContentRepository;
     private final FinancialLessonRepository financialLessonRepository;
     private final ShortContentRepository shortContentRepository;
+    private final CurrentUserProvider currentUserProvider;
 
     public SavedItemPreviewResolver(PostRepository postRepository,
                                     ForumDiscussionRepository forumDiscussionRepository,
@@ -49,7 +52,8 @@ public class SavedItemPreviewResolver {
                                     OpportunityRepository opportunityRepository,
                                     MotivationContentRepository motivationContentRepository,
                                     FinancialLessonRepository financialLessonRepository,
-                                    ShortContentRepository shortContentRepository) {
+                                    ShortContentRepository shortContentRepository,
+                                    CurrentUserProvider currentUserProvider) {
         this.postRepository = postRepository;
         this.forumDiscussionRepository = forumDiscussionRepository;
         this.eventRepository = eventRepository;
@@ -57,11 +61,13 @@ public class SavedItemPreviewResolver {
         this.motivationContentRepository = motivationContentRepository;
         this.financialLessonRepository = financialLessonRepository;
         this.shortContentRepository = shortContentRepository;
+        this.currentUserProvider = currentUserProvider;
     }
 
     /**
      * @return previews keyed by item id. An id missing from the map means the target
-     *         was deleted; the caller reports that item as unavailable.
+     *         was deleted or is not visible to the current user; the caller reports
+     *         that item as unavailable.
      */
     @Transactional(readOnly = true)
     public Map<UUID, SavedItemPreview> resolve(SavedItemType type, Collection<UUID> ids, Language language) {
@@ -73,8 +79,7 @@ public class SavedItemPreviewResolver {
                 : new SavedItemPreview(truncate(post.getContentText()), null, post.getImageUrl()));
             case DISCUSSION -> index(forumDiscussionRepository.findAllById(ids), d -> d.getDeletedAt() != null ? null
                 : new SavedItemPreview(d.getTitle(), d.getCategory(), null));
-            case EVENT -> index(eventRepository.findAllById(ids), e -> e.getDeletedAt() != null ? null
-                : new SavedItemPreview(e.getTitle(), e.getLocationName(), e.getCoverImageUrl()));
+            case EVENT -> eventPreviews(ids);
             case OPPORTUNITY -> index(opportunityRepository.findAllById(ids), o -> o.getDeletedAt() != null ? null
                 : new SavedItemPreview(o.getTitle(), o.getOrganization(), null));
             case MOTIVATION -> index(motivationContentRepository.findAllById(ids), m -> new SavedItemPreview(
@@ -88,12 +93,19 @@ public class SavedItemPreviewResolver {
         };
     }
 
+    private Map<UUID, SavedItemPreview> eventPreviews(Collection<UUID> ids) {
+        UUID viewerId = currentUserProvider.getCurrentUserId();
+        return index(eventRepository.findAllById(ids), event -> EventVisibility.canView(event, viewerId)
+            ? new SavedItemPreview(event.getTitle(), event.getLocationName(), event.getCoverImageUrl())
+            : null);
+    }
+
     private <T extends BaseEntity> Map<UUID, SavedItemPreview> index(List<T> entities,
                                                                      Function<T, SavedItemPreview> toPreview) {
         Map<UUID, SavedItemPreview> previews = new HashMap<>();
         for (T entity : entities) {
             SavedItemPreview preview = toPreview.apply(entity);
-            // null means soft-deleted: leave it out so it reads as unavailable.
+            // null means unavailable: leave it out so the caller can flag the row.
             if (preview != null) {
                 previews.put(entity.getId(), preview);
             }

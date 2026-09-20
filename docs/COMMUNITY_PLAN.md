@@ -439,7 +439,10 @@ home BFF and existing data stay compatible.
 
 RSVP accepts `fullName`, `email`, `phoneNumber`, `university`, `faculty`,
 `studyYear` and `termsAccepted=true`. These values are stored on the unique
-`event_rsvps` row and are not exposed by the public attendee summary endpoint.
+`event_rsvps` row and are not exposed by the owner-only attendee endpoint.
+Normal RSVP registration is available only for non-deleted, published events
+that have not yet started; draft, cancelled and completed events are not
+registration targets, including for their organiser.
 
 Paid events also accept `paid=true`, a `price` above zero and `currency=USD|KHR`.
 The price is expressed in the selected currency; there is no USD/KHR conversion.
@@ -494,6 +497,9 @@ other order takes someone's money and then tells them the event is full. Pinned 
   and then incremented, which could overshoot by one - fixed 2026-07-18.)
 - Only PUBLISHED events are discoverable; a DRAFT belongs to its organiser alone.
   Past events are excluded from browse.
+- RSVP follows the same public registration boundary: only a non-deleted,
+  future PUBLISHED event accepts a new or rejoining attendee. Owner-only access
+  to a draft does not permit RSVP, and cancelled/completed events reject RSVP.
 - A free event never touches the wallet. A free event never keeps a stale price.
 - A paid event with insufficient funds in its selected currency is rejected before
   the RSVP row is saved; the reserved seat rolls back with the transaction.

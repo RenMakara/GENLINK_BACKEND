@@ -75,20 +75,23 @@ public class SavedItemServiceImpl implements SavedItemService {
     public SavedItemResponse save(SaveItemRequest request, Language language) {
         UUID userId = currentUserProvider.getCurrentUserId();
 
+        // The unique key is the database backstop. Locking the user's row first
+        // closes the check-then-insert window across application instances, so two
+        // simultaneous saves resolve to one row instead of surfacing a constraint
+        // violation as an unexpected 500.
+        User user = userRepository.findByIdForUpdate(userId)
+            .orElseThrow(() -> new NotFoundException("User not found"));
+
         // Save is a UI toggle, so tapping it twice must not 500 on the unique
         // (user_id, item_type, item_id) constraint.
         SavedItem item = savedItemRepository
             .findByUserIdAndItemTypeAndItemId(userId, request.itemType(), request.itemId())
-            .orElseGet(() -> {
-                User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new NotFoundException("User not found"));
-                return savedItemRepository.save(SavedItem.builder()
+            .orElseGet(() -> savedItemRepository.save(SavedItem.builder()
                     .user(user)
                     .itemType(request.itemType())
                     .itemId(request.itemId())
                     .savedAt(LocalDateTime.now())
-                    .build());
-            });
+                    .build()));
 
         SavedItemPreview preview = previewResolver
             .resolve(item.getItemType(), List.of(item.getItemId()), language)

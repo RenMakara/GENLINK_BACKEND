@@ -26,11 +26,7 @@ public interface EventService {
 
     void delete(UUID eventId);
 
-    /**
-     * Join. Idempotent. Capacity is checked before any payment, and a paid event is
-     * settled against the demo wallet - simulation only.
-     */
-    /** Legacy bodyless RSVP kept for existing service callers; new clients use the form overload. */
+    /** Compatibility overload; validation rejects the missing registration form. */
     RsvpResponse rsvp(UUID eventId);
 
     /** Join and persist the attendee's full registration form. */
