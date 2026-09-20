@@ -11,6 +11,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import kh.edu.acleda.campuslink.modules.community.enums.StoryMediaType;
+import kh.edu.acleda.campuslink.modules.community.enums.StoryReplyPermission;
+import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import lombok.AllArgsConstructor;
@@ -49,6 +51,20 @@ public class Story extends BaseEntity {
 
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibility", nullable = false, length = 50)
+    @Builder.Default
+    private Visibility visibility = Visibility.PUBLIC;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reply_permission", nullable = false, length = 50)
+    @Builder.Default
+    private StoryReplyPermission replyPermission = StoryReplyPermission.EVERYONE;
+
+    @Column(name = "allow_reactions", nullable = false)
+    @Builder.Default
+    private boolean allowReactions = true;
 
     @Column(name = "deleted_at")
     private Instant deletedAt;

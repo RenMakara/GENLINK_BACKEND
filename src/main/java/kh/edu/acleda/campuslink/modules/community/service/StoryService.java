@@ -27,4 +27,7 @@ public interface StoryService {
 
     /** Soft-deletes the caller's own story. Another user's story reads as not-found. */
     void deleteStory(UUID storyId);
+
+    /** Retrieves a single active story if the caller is authorized to view it. */
+    StoryResponse getStoryById(UUID storyId);
 }

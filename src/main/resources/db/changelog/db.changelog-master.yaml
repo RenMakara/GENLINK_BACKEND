@@ -131,3 +131,5 @@ databaseChangeLog:
       file: db/changelog/changes/0065-add-post-video-url.sql
   - include:
       file: db/changelog/changes/0066-seed-chat-and-social-notification-templates.sql
+  - include:
+      file: db/changelog/changes/0069-add-story-privacy-settings.sql
