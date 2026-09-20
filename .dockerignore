@@ -21,6 +21,12 @@ out/
 bin/
 .gradle/
 
+# The deploy workflow supplies exactly one CI-verified executable here. Keep
+# every other file under .deploy out of the image build context.
+.deploy/*
+!.deploy/
+!.deploy/app.jar
+
 # ── VCS and IDE ────────────────────────────────────────────────────────
 # .git can be large and carries full history, including secrets that were
 # committed and later removed.

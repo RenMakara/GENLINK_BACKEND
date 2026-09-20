@@ -343,9 +343,10 @@ The backend pipeline is defined in `.github/workflows/deploy.yml`:
 1. Pull requests into `main` run a clean Java 21 Gradle build and all tests.
 2. Pushes to `main` run the same CI gate.
 3. Only a successful `main` build may open the production SSH deployment.
-4. The EC2 instance runs `scripts/deploy.sh`, builds the Docker image, replaces only
-   the application container, waits for `/actuator/health`, and restores the
-   previous image if health verification fails.
+4. The deploy job copies the CI-verified JAR to EC2. `scripts/deploy.sh` builds only
+   the small JRE runtime image from that artifact, replaces the application container,
+   waits for `/actuator/health`, and restores the previous image if health verification
+   fails. Manual deployments without an artifact retain the source-build fallback.
 5. Test, JaCoCo and Gradle reports plus the verified JAR are retained as GitHub
    Actions artifacts for 14 days.
 6. Telegram reports CI blocks, deployment success, or deployment failure.

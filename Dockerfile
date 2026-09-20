@@ -45,17 +45,14 @@ RUN ./gradlew --no-daemon clean bootJar -x test
 # project version. Bare `*.jar` is safe here: only bootJar has run.
 RUN cp build/libs/*.jar /workspace/app.jar
 
-# ── Stage 2: runtime ───────────────────────────────────────────────────
+# ── Stage 2: runtime base ──────────────────────────────────────────────
 # JRE, not JDK — no compiler in production.
-FROM eclipse-temurin:21-jre-jammy AS runtime
+FROM eclipse-temurin:21-jre-jammy AS runtime-base
 WORKDIR /app
 
 # Run as a normal user. If the app is ever compromised, the attacker lands
 # as `spring`, not root. Docker defaults to root, so this must be explicit.
 RUN groupadd --system spring && useradd --system --gid spring spring
-
-# --chown so the process can read its own jar as the unprivileged user.
-COPY --from=build --chown=spring:spring /workspace/app.jar app.jar
 
 USER spring
 
@@ -74,3 +71,16 @@ ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 # shell swallows the signal and Docker kills the app after a 10s timeout
 # instead of letting Spring shut down gracefully.
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
+
+# ── Stage 3: deploy targets ────────────────────────────────────────────
+# The normal local/standalone build compiles the source in Docker.
+FROM runtime-base AS prebuilt-runtime
+# CI places the already-tested artifact here before the SSH deploy. This
+# target deliberately has no JDK or Gradle dependency, so a small EC2 host
+# does not recompile the whole application during deployment.
+COPY --chown=spring:spring .deploy/app.jar app.jar
+
+# Keep the source-build target as the default so `docker compose build app`
+# still works for local development and manual server recovery.
+FROM runtime-base AS runtime
+COPY --from=build --chown=spring:spring /workspace/app.jar app.jar

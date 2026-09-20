@@ -21,6 +21,14 @@ APP_IMAGE="genlink-api:latest"
 ROLLBACK_IMAGE="genlink-api:rollback"
 CONTAINER="genlink-api"
 HEALTH_TIMEOUT=120   # seconds to wait for the new container to go healthy
+PREBUILT_JAR="$PROJECT_DIR/.deploy/app.jar"
+
+# The CI artifact is single-use. Removing it on every exit prevents a later
+# manual invocation from accidentally deploying an old JAR.
+cleanup_prebuilt_artifact() {
+  rm -f "$PREBUILT_JAR" 2>/dev/null || true
+}
+trap cleanup_prebuilt_artifact EXIT
 
 log() { echo "[$(date -Is)] $*"; }
 
@@ -54,11 +62,15 @@ BEFORE="$(git rev-parse --short HEAD)"
 git pull --ff-only origin main
 AFTER="$(git rev-parse --short HEAD)"
 
-if [[ "$BEFORE" == "$AFTER" ]]; then
+if [[ "$BEFORE" == "$AFTER" && ! -s "$PREBUILT_JAR" ]]; then
   log "Already at ${AFTER} — nothing to deploy."
   exit 0
 fi
-log "Deploying ${BEFORE} -> ${AFTER}"
+if [[ "$BEFORE" == "$AFTER" ]]; then
+  log "Checkout is already at ${AFTER}; retrying the image deploy from the CI artifact."
+else
+  log "Deploying ${BEFORE} -> ${AFTER}"
+fi
 
 # 2. Save the currently-running image so we can roll back to it. `|| true`
 #    for the very first deploy, when no previous image exists yet.
@@ -67,15 +79,24 @@ if docker image inspect "$APP_IMAGE" >/dev/null 2>&1; then
   log "Tagged current image as rollback."
 fi
 
-# 3. Build the new image. If compilation fails, set -e aborts HERE — the old
-#    container is still running and untouched, so a broken commit cannot
-#    take production down.
+# 3. Build the new image. CI uploads a JAR that already passed the full build
+#    gate, so the normal SSH deploy only assembles the small JRE image. The
+#    source-build fallback keeps manual recovery possible when no CI artifact
+#    is present. If either build fails, set -e aborts HERE — the old container
+#    is still running and untouched, so a broken commit cannot take production
+#    down.
 log "Building app image…"
-docker compose build app
+if [[ -s "$PREBUILT_JAR" ]]; then
+  log "Using CI-verified JAR; skipping remote Gradle compilation."
+  docker build --target prebuilt-runtime --tag "$APP_IMAGE" .
+else
+  log "No CI artifact found; building the application from source."
+  docker compose build app
+fi
 
 # 4. Swap in the new container. Postgres is left alone.
 log "Starting new container…"
-docker compose up -d app
+docker compose up -d --no-build app
 
 # 5. Wait for the container's own healthcheck to report healthy.
 log "Waiting for health (up to ${HEALTH_TIMEOUT}s)…"
@@ -101,7 +122,7 @@ docker compose logs --tail 40 app || true
 
 if docker image inspect "$ROLLBACK_IMAGE" >/dev/null 2>&1; then
   docker image tag "$ROLLBACK_IMAGE" "$APP_IMAGE"
-  docker compose up -d app
+  docker compose up -d --no-build app
   log "Rolled back to the previous image. Investigate the logs above."
 else
   log "No rollback image available (first deploy). App is down — fix and redeploy."

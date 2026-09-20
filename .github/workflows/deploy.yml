@@ -103,6 +103,61 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Download verified application artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: backend-jar-${{ github.sha }}
+          path: deploy-artifact
+
+      - name: Normalize application artifact name
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          jar="$(find deploy-artifact -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)"
+          test -n "$jar"
+          if [[ "$jar" != "deploy-artifact/app.jar" ]]; then
+            mv "$jar" deploy-artifact/app.jar
+          fi
+
+      # The server only receives the artifact that passed the CI build/test
+      # gate. It no longer has to compile the full project over SSH.
+      - name: Upload verified application artifact
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_PORT: "22"
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          key_file="$RUNNER_TEMP/genlink-deploy-key"
+          known_hosts="$RUNNER_TEMP/genlink-known-hosts"
+          trap 'rm -f "$key_file" "$known_hosts"' EXIT
+
+          printf '%s\n' "$SSH_KEY" > "$key_file"
+          chmod 600 "$key_file"
+          ssh-keyscan -H -p "$SSH_PORT" "$SSH_HOST" > "$known_hosts"
+
+          ssh_opts=(
+            -i "$key_file"
+            -p "$SSH_PORT"
+            -o BatchMode=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$known_hosts"
+          )
+          scp_opts=(
+            -i "$key_file"
+            -P "$SSH_PORT"
+            -o BatchMode=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$known_hosts"
+          )
+
+          ssh "${ssh_opts[@]}" "$SSH_USER@$SSH_HOST" \
+            'sudo -n mkdir -p /opt/GENLINK_BACKEND/.deploy && sudo -n chown -R "$(id -u):$(id -g)" /opt/GENLINK_BACKEND/.deploy'
+          scp "${scp_opts[@]}" deploy-artifact/app.jar \
+            "$SSH_USER@$SSH_HOST:/opt/GENLINK_BACKEND/.deploy/app.jar"
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
