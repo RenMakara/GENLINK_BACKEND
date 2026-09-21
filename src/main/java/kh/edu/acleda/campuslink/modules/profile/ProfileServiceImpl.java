@@ -153,7 +153,12 @@ public class ProfileServiceImpl implements ProfileService {
             user.setLocation(request.location());
         }
         if (request.preferredLanguage() != null) {
-            user.setPreferredLanguage(request.preferredLanguage());
+            Language language = request.preferredLanguage();
+            user.setPreferredLanguage(language);
+            userSettingRepository.findByUserId(user.getId()).ifPresent(setting -> {
+                setting.setLanguage(language);
+                userSettingRepository.save(setting);
+            });
         }
         if (request.coverPreset() != null) {
             if (request.coverPreset() < 0 || request.coverPreset() > 9) {

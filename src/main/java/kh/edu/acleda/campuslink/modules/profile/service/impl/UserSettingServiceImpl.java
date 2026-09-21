@@ -10,6 +10,7 @@ import kh.edu.acleda.campuslink.modules.profile.repository.UserSettingRepository
 import kh.edu.acleda.campuslink.modules.profile.service.UserSettingService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.enums.Theme;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
@@ -47,6 +48,7 @@ public class UserSettingServiceImpl implements UserSettingService {
 
         if (request.language() != null) {
             setting.setLanguage(request.language());
+            syncUserLanguage(request.language());
         }
         if (request.theme() != null) {
             setting.setTheme(request.theme());
@@ -82,6 +84,18 @@ public class UserSettingServiceImpl implements UserSettingService {
         }
 
         return toResponse(userSettingRepository.save(setting));
+    }
+
+    /**
+     * The account language is used by /auth/me, request language resolution,
+     * notifications, and email delivery. Keep it aligned with the settings
+     * value changed by the mobile app.
+     */
+    private void syncUserLanguage(Language language) {
+        User user = userRepository.findById(currentUserProvider.getCurrentUserId())
+            .orElseThrow(() -> new NotFoundException("User not found"));
+        user.setPreferredLanguage(language);
+        userRepository.save(user);
     }
 
     /**

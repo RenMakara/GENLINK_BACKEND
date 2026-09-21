@@ -44,11 +44,24 @@ public class FocusSession extends BaseEntity {
     @Column(name = "completed", nullable = false)
     private Boolean completed;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private FocusSessionStatus status;
+
     @Column(name = "xp_earned", nullable = false)
     private Integer xpEarned;
 
+    @Column(name = "focused_seconds", nullable = false)
+    private Integer focusedSeconds;
+
     @Column(name = "started_at", nullable = false)
     private LocalDateTime startedAt;
+
+    @Column(name = "active_started_at")
+    private LocalDateTime activeStartedAt;
+
+    @Column(name = "paused_at")
+    private LocalDateTime pausedAt;
 
     @Column(name = "ended_at")
     private LocalDateTime endedAt;

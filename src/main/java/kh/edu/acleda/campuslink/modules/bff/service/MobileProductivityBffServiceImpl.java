@@ -149,7 +149,7 @@ public class MobileProductivityBffServiceImpl implements MobileProductivityBffSe
             userId, today.atStartOfDay(), today.plusDays(1).atStartOfDay());
         return new FocusSummary(
             intOrZero(summary.todaySessions()),
-            intOrZero(summary.todayMinutes()),
+            intOrZero(summary.todayFocusedSeconds()) / 60,
             orZero(summary.totalXp()));
     }
 

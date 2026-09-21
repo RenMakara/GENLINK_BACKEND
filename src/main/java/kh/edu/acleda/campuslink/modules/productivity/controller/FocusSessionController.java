@@ -37,9 +37,30 @@ public class FocusSessionController {
         return ResponseEntity.ok(ApiResponse.success("Focus session started", focusSessionService.start(request)));
     }
 
+    @GetMapping("/active")
+    public ResponseEntity<ApiResponse<FocusSessionResponse>> active() {
+        return ResponseEntity.ok(ApiResponse.success(
+            "Active focus session retrieved", focusSessionService.active()));
+    }
+
+    @PostMapping("/{id}/pause")
+    public ResponseEntity<ApiResponse<FocusSessionResponse>> pause(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success("Focus session paused", focusSessionService.pause(id)));
+    }
+
+    @PostMapping("/{id}/resume")
+    public ResponseEntity<ApiResponse<FocusSessionResponse>> resume(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success("Focus session resumed", focusSessionService.resume(id)));
+    }
+
     @PostMapping("/{id}/complete")
     public ResponseEntity<ApiResponse<FocusSessionResponse>> complete(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success("Focus session completed", focusSessionService.complete(id)));
+    }
+
+    @PostMapping("/{id}/leave")
+    public ResponseEntity<ApiResponse<FocusSessionResponse>> leave(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success("Focus session abandoned", focusSessionService.abandon(id)));
     }
 
     /** Session history, newest first. */

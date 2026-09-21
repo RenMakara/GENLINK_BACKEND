@@ -9,6 +9,7 @@ import kh.edu.acleda.campuslink.modules.productivity.dto.request.FocusSessionSta
 import kh.edu.acleda.campuslink.modules.productivity.dto.response.FocusSessionResponse;
 import kh.edu.acleda.campuslink.modules.productivity.dto.response.FocusStatsResponse;
 import kh.edu.acleda.campuslink.modules.productivity.entity.FocusSession;
+import kh.edu.acleda.campuslink.modules.productivity.entity.FocusSessionStatus;
 import kh.edu.acleda.campuslink.modules.productivity.repository.FocusSessionRepository;
 import kh.edu.acleda.campuslink.modules.productivity.service.impl.FocusSessionServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
@@ -58,6 +59,8 @@ class FocusSessionServiceImplTest {
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(focusSessionRepository.findFirstByUserIdAndStatusInOrderByStartedAtDesc(
+            eq(USER_ID), any())).thenReturn(Optional.empty());
         when(focusSessionRepository.save(any(FocusSession.class))).thenAnswer(i -> {
             FocusSession s = i.getArgument(0);
             if (s.getId() == null) {
@@ -68,9 +71,14 @@ class FocusSessionServiceImplTest {
     }
 
     private FocusSession session(int durationMinutes, boolean completed) {
+        LocalDateTime startedAt = LocalDateTime.now();
         FocusSession s = FocusSession.builder().user(user).mode("POMODORO")
-            .durationMinutes(durationMinutes).completed(completed).xpEarned(0)
-            .startedAt(LocalDateTime.now()).build();
+            .durationMinutes(durationMinutes).completed(completed)
+            .status(completed ? FocusSessionStatus.COMPLETED : FocusSessionStatus.ACTIVE)
+            .focusedSeconds(completed ? durationMinutes * 60 : 0).xpEarned(0)
+            .startedAt(startedAt)
+            .activeStartedAt(completed ? null : startedAt)
+            .build();
         ReflectionTestUtils.setField(s, "id", SESSION_ID);
         return s;
     }
@@ -86,8 +94,11 @@ class FocusSessionServiceImplTest {
 
     @Test
     void completingA25MinuteSessionAwardsFiveXp() {
-        when(focusSessionRepository.findByIdAndUserId(SESSION_ID, USER_ID))
-            .thenReturn(Optional.of(session(25, false)));
+        FocusSession active = session(25, false);
+        active.setStartedAt(LocalDateTime.now().minusMinutes(25));
+        active.setActiveStartedAt(active.getStartedAt());
+        when(focusSessionRepository.findByIdAndUserIdForUpdate(SESSION_ID, USER_ID))
+            .thenReturn(Optional.of(active));
 
         FocusSessionResponse r = service.complete(SESSION_ID);
 
@@ -99,16 +110,22 @@ class FocusSessionServiceImplTest {
 
     @Test
     void xpIsCappedForVeryLongSessions() {
-        when(focusSessionRepository.findByIdAndUserId(SESSION_ID, USER_ID))
-            .thenReturn(Optional.of(session(200, false))); // 200/5 = 40, capped at 30
+        FocusSession active = session(200, false);
+        active.setStartedAt(LocalDateTime.now().minusMinutes(200));
+        active.setActiveStartedAt(active.getStartedAt());
+        when(focusSessionRepository.findByIdAndUserIdForUpdate(SESSION_ID, USER_ID))
+            .thenReturn(Optional.of(active)); // 200/5 = 40, capped at 30
 
         assertThat(service.complete(SESSION_ID).xpEarned()).isEqualTo(30);
     }
 
     @Test
     void aSessionShorterThanFiveMinutesEarnsNoXp() {
-        when(focusSessionRepository.findByIdAndUserId(SESSION_ID, USER_ID))
-            .thenReturn(Optional.of(session(3, false)));
+        FocusSession active = session(3, false);
+        active.setStartedAt(LocalDateTime.now().minusMinutes(3));
+        active.setActiveStartedAt(active.getStartedAt());
+        when(focusSessionRepository.findByIdAndUserIdForUpdate(SESSION_ID, USER_ID))
+            .thenReturn(Optional.of(active));
 
         assertThat(service.complete(SESSION_ID).xpEarned()).isZero();
         verify(rewardService, never()).award(any(), any(), any(), anyInt());
@@ -118,7 +135,8 @@ class FocusSessionServiceImplTest {
     void completingAnAlreadyCompletedSessionDoesNotPayAgain() {
         FocusSession done = session(25, true);
         done.setXpEarned(5);
-        when(focusSessionRepository.findByIdAndUserId(SESSION_ID, USER_ID)).thenReturn(Optional.of(done));
+        when(focusSessionRepository.findByIdAndUserIdForUpdate(SESSION_ID, USER_ID))
+            .thenReturn(Optional.of(done));
 
         service.complete(SESSION_ID);
 
@@ -130,7 +148,8 @@ class FocusSessionServiceImplTest {
         FocusSession today = session(25, true);
         today.setXpEarned(5);
         FocusSession past = FocusSession.builder().user(user).durationMinutes(50).completed(true)
-            .xpEarned(10).startedAt(LocalDateTime.now().minusDays(3)).build();
+            .status(FocusSessionStatus.COMPLETED).focusedSeconds(50 * 60).xpEarned(10)
+            .startedAt(LocalDateTime.now().minusDays(3)).build();
         ReflectionTestUtils.setField(past, "id", UUID.randomUUID());
         when(focusSessionRepository.findByUserIdAndCompletedTrue(USER_ID)).thenReturn(List.of(today, past));
 
@@ -145,8 +164,69 @@ class FocusSessionServiceImplTest {
 
     @Test
     void completingAnUnknownSessionReadsAsNotFound() {
-        when(focusSessionRepository.findByIdAndUserId(SESSION_ID, USER_ID)).thenReturn(Optional.empty());
+        when(focusSessionRepository.findByIdAndUserIdForUpdate(SESSION_ID, USER_ID))
+            .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.complete(SESSION_ID)).isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void pauseAndResumeAreIdempotentStateTransitions() {
+        FocusSession active = session(25, false);
+        when(focusSessionRepository.findByIdAndUserIdForUpdate(SESSION_ID, USER_ID))
+            .thenReturn(Optional.of(active));
+
+        FocusSessionResponse paused = service.pause(SESSION_ID);
+        assertThat(paused.status()).isEqualTo(FocusSessionStatus.PAUSED);
+
+        FocusSessionResponse pausedAgain = service.pause(SESSION_ID);
+        assertThat(pausedAgain.status()).isEqualTo(FocusSessionStatus.PAUSED);
+
+        FocusSessionResponse resumed = service.resume(SESSION_ID);
+        assertThat(resumed.status()).isEqualTo(FocusSessionStatus.ACTIVE);
+
+        FocusSessionResponse resumedAgain = service.resume(SESSION_ID);
+        assertThat(resumedAgain.status()).isEqualTo(FocusSessionStatus.ACTIVE);
+    }
+
+    @Test
+    void leavingDoesNotAwardXpAndIsIdempotent() {
+        FocusSession active = session(25, false);
+        when(focusSessionRepository.findByIdAndUserIdForUpdate(SESSION_ID, USER_ID))
+            .thenReturn(Optional.of(active));
+
+        FocusSessionResponse abandoned = service.abandon(SESSION_ID);
+        assertThat(abandoned.status()).isEqualTo(FocusSessionStatus.ABANDONED);
+        assertThat(abandoned.xpEarned()).isZero();
+        verify(rewardService, never()).award(any(), any(), any(), anyInt());
+
+        assertThat(service.abandon(SESSION_ID).status()).isEqualTo(FocusSessionStatus.ABANDONED);
+    }
+
+    @Test
+    void startReturnsExistingActiveSessionInsteadOfCreatingADuplicate() {
+        FocusSession active = session(25, false);
+        when(focusSessionRepository.findFirstByUserIdAndStatusInOrderByStartedAtDesc(
+            eq(USER_ID), any())).thenReturn(Optional.of(active));
+
+        FocusSessionResponse response = service.start(
+            new FocusSessionStartRequest("POMODORO", 50, null));
+
+        assertThat(response.sessionId()).isEqualTo(SESSION_ID);
+        verify(focusSessionRepository, never()).save(any(FocusSession.class));
+    }
+
+    @Test
+    void completionUsesActualFocusedTimeInsteadOfPlannedDuration() {
+        FocusSession active = session(90, false);
+        active.setStartedAt(LocalDateTime.now().minusMinutes(3));
+        active.setActiveStartedAt(active.getStartedAt());
+        when(focusSessionRepository.findByIdAndUserIdForUpdate(SESSION_ID, USER_ID))
+            .thenReturn(Optional.of(active));
+
+        FocusSessionResponse response = service.complete(SESSION_ID);
+
+        assertThat(response.focusedSeconds()).isLessThan(5 * 60);
+        assertThat(response.xpEarned()).isZero();
     }
 }

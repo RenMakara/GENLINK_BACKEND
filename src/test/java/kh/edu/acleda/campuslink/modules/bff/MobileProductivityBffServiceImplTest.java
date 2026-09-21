@@ -148,7 +148,7 @@ class MobileProductivityBffServiceImplTest {
     @Test
     void focusAggregatesTodayMinutesAndTotalXp() {
         when(focusSessionRepository.summarizeForDashboard(eq(USER_ID), any(), any()))
-            .thenReturn(new FocusDashboardSummary(1L, 25L, 15L));
+            .thenReturn(new FocusDashboardSummary(1L, 25L * 60L, 15L));
 
         MobileProductivityDashboardResponse.FocusSummary focus = service.getDashboard(EMAIL, EN).focus();
 

@@ -24,6 +24,7 @@ import org.mockito.quality.Strictness;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -97,6 +98,17 @@ class UserSettingServiceImplTest {
         assertThat(response.language()).isEqualTo(Language.ENGLISH);
         assertThat(response.privacyProfile()).isEqualTo("FRIENDS");
         assertThat(response.allowMessages()).isFalse();
+    }
+
+    @Test
+    void updateLanguageMirrorsTheAccountPreferredLanguage() {
+        when(userSettingRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existingSetting()));
+
+        service.update(new UserSettingUpdateRequest(
+            Language.KHMER, null, null, null, null, null, null));
+
+        assertThat(user.getPreferredLanguage()).isEqualTo(Language.KHMER);
+        verify(userRepository).save(user);
     }
 
     @Test

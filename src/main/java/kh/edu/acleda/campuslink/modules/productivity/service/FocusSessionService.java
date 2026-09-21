@@ -9,11 +9,20 @@ import org.springframework.data.domain.Pageable;
 
 public interface FocusSessionService {
 
-    /** Begin a focus session (Pomodoro). No XP until it is completed. */
+    /** Begin a focus session. No XP until it is completed. */
     FocusSessionResponse start(FocusSessionStartRequest request);
 
-    /** Complete a session; awards duration-scaled XP once. */
+    /** Return the user's current active or paused session, if one exists. */
+    FocusSessionResponse active();
+
+    FocusSessionResponse pause(UUID id);
+
+    FocusSessionResponse resume(UUID id);
+
+    /** Complete a session; awards focused-duration-scaled XP once. */
     FocusSessionResponse complete(UUID id);
+
+    FocusSessionResponse abandon(UUID id);
 
     PageResponse<FocusSessionResponse> history(Pageable pageable);
 

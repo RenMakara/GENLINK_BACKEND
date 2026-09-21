@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.profile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.profile.dto.ProfileUpdateRequest;
+import kh.edu.acleda.campuslink.modules.profile.entity.UserSetting;
 import kh.edu.acleda.campuslink.modules.profile.repository.UserSettingRepository;
 import kh.edu.acleda.campuslink.modules.profile.service.InterestService;
 import kh.edu.acleda.campuslink.modules.profile.service.PortfolioService;
@@ -57,6 +58,7 @@ class ProfileServiceImplTest {
         User user = activeUser("student@example.com");
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);
+        when(userSettingRepository.findByUserId(user.getId())).thenReturn(Optional.empty());
 
         profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
             "Updated Name",
@@ -92,12 +94,33 @@ class ProfileServiceImplTest {
         user.setPreferredLanguage(Language.KHMER);
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(userRepository.save(user)).thenReturn(user);
+        when(userSettingRepository.findByUserId(user.getId())).thenReturn(Optional.empty());
 
         profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
             null, null, null, null, null, null, null, null, null, null, Language.ENGLISH, null
         ));
 
         assertThat(user.getPreferredLanguage()).isEqualTo(Language.ENGLISH);
+    }
+
+    @Test
+    void updateCurrentProfileMirrorsLanguageToExistingSettings() {
+        ProfileServiceImpl profileService = newProfileService();
+        User user = activeUser("student@example.com");
+        UserSetting setting = UserSetting.builder()
+            .user(user)
+            .language(Language.ENGLISH)
+            .build();
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+        when(userSettingRepository.findByUserId(user.getId())).thenReturn(Optional.of(setting));
+
+        profileService.updateCurrentProfile(user.getEmail(), new ProfileUpdateRequest(
+            null, null, null, null, null, null, null, null, null, null, Language.KHMER, null
+        ));
+
+        assertThat(setting.getLanguage()).isEqualTo(Language.KHMER);
+        verify(userSettingRepository).save(setting);
     }
 
     @Test

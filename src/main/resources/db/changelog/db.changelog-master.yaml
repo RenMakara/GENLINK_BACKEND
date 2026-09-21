@@ -140,3 +140,7 @@ databaseChangeLog:
       file: db/changelog/changes/0069-add-story-privacy-settings.sql
   - include:
       file: db/changelog/changes/0070-add-khmer-motivation-content.sql
+  - include:
+      file: db/changelog/changes/0071-sync-user-language-preference-columns.sql
+  - include:
+      file: db/changelog/changes/0072-focus-session-lifecycle.sql
