@@ -2587,7 +2587,7 @@
     },
     {
       "name": "Admin Dashboard",
-      "description": "Read-only Phase 2 dashboard aggregates. Run Admin Auth first and set {{adminAccessToken}}. Each section may be null when its backing aggregate is unavailable (ADM-045).",
+      "description": "Read-only Phase 2 dashboard aggregates. Run Admin Auth first and set {{adminAccessToken}}. Each section may be null when its backing aggregate is unavailable (ADM-045). DAU/MAU are estimated proxy metrics (ADM-046): successful login events and refresh-token activity are de-duplicated by user and bucketed in Asia/Phnom_Penh.",
       "item": [
         {
           "name": "Dashboard summary",
@@ -2617,7 +2617,38 @@
                 "summary"
               ]
             },
-            "description": "Requires dashboard:view. Returns seven KPI cards, 90-day user growth, 30-day registrations, estimated DAU/MAU activity, account status split, recent admin actions and recent registrations. Date buckets use Asia/Phnom_Penh."
+            "description": "Requires dashboard:view. Returns seven KPI cards, 90-day user growth, 30-day registrations, estimated DAU/MAU activity, account status split, recent admin actions and recent registrations. DAU/MAU count each user once per day/rolling 30-day window across successful login and refresh-token activity. Date buckets use Asia/Phnom_Penh."
+          }
+        },
+        {
+          "name": "System health",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/system/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "system",
+                "health"
+              ]
+            },
+            "description": "Requires dashboard:view and an enrolled admin access token. Returns normalized UP/DEGRADED/DOWN status for API, PostgreSQL and storage, plus mail SUCCESS/FAILURE/NEVER_RUN and the three scheduled-job last-run states. No credentials, URLs, bucket names or raw exceptions are returned."
           }
         }
       ]

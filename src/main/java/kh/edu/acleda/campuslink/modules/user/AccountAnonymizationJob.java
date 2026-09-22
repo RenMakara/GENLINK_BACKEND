@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.modules.user;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import kh.edu.acleda.campuslink.shared.service.ScheduledJobRunRegistry;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 public class AccountAnonymizationJob {
 
     private final AccountAnonymizationService accountAnonymizationService;
+    private final ScheduledJobRunRegistry scheduledJobRunRegistry;
 
     /**
      * 03:30 daily — off-peak for a Cambodian audience. The zone is pinned rather than
@@ -32,11 +34,13 @@ public class AccountAnonymizationJob {
             if (count > 0) {
                 log.info("Account anonymisation run finished: {} account(s) scrubbed", count);
             }
+            scheduledJobRunRegistry.recordSuccess(ScheduledJobRunRegistry.ACCOUNT_ANONYMIZATION_JOB);
         } catch (Exception ex) {
             // A scheduled method that throws is logged by Spring but silently stops
             // contributing anything useful; catching here keeps one bad row from
             // looking like a healthy no-op run.
             log.error("Account anonymisation run failed: {}", ex.getMessage(), ex);
+            scheduledJobRunRegistry.recordFailure(ScheduledJobRunRegistry.ACCOUNT_ANONYMIZATION_JOB);
         }
     }
 }

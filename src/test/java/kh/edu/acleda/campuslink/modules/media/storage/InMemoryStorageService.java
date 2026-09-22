@@ -39,6 +39,11 @@ public class InMemoryStorageService implements StorageService {
     }
 
     @Override
+    public void checkAvailability(Duration timeout) {
+        // The in-memory provider is always available and performs no external I/O.
+    }
+
+    @Override
     public String presignDownload(String key, Duration expiry) {
         return "memory://download/" + key;
     }

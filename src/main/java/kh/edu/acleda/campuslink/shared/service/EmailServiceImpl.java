@@ -6,6 +6,7 @@ import kh.edu.acleda.campuslink.modules.auth.entity.OtpPurpose;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class EmailServiceImpl implements EmailService {
     private final String fromEmail;
     private final boolean mailEnabled;
     private final MeterRegistry meterRegistry;
+    private final MailDeliveryRegistry deliveryRegistry;
 
     /**
      * @param fromEmail   the From address from {@code app.mail.from}. For standard SMTP
@@ -48,14 +50,25 @@ public class EmailServiceImpl implements EmailService {
      *                    attempted. The dev profile defaults this off so local work
      *                    needs no SMTP credentials; it defaults on everywhere else.
      */
+    @Autowired
     public EmailServiceImpl(JavaMailSender mailSender,
                             @Value("${app.mail.from}") String fromEmail,
                             @Value("${app.mail.enabled:true}") boolean mailEnabled,
-                            MeterRegistry meterRegistry) {
+                            MeterRegistry meterRegistry,
+                            MailDeliveryRegistry deliveryRegistry) {
         this.mailSender = mailSender;
         this.fromEmail = fromEmail;
         this.mailEnabled = mailEnabled;
         this.meterRegistry = meterRegistry;
+        this.deliveryRegistry = deliveryRegistry;
+    }
+
+    /** Compatibility seam for focused unit tests that do not need health instrumentation. */
+    public EmailServiceImpl(JavaMailSender mailSender,
+                            String fromEmail,
+                            boolean mailEnabled,
+                            MeterRegistry meterRegistry) {
+        this(mailSender, fromEmail, mailEnabled, meterRegistry, new MailDeliveryRegistry());
     }
 
     @Override
@@ -92,12 +105,14 @@ public class EmailServiceImpl implements EmailService {
             mailSender.send(message);
             log.info("Successfully sent OTP email to {}", to);
             meterRegistry.counter(DELIVERY_METRIC, "outcome", "success", "purpose", purpose.name()).increment();
+            deliveryRegistry.recordSuccess();
         } catch (Exception e) {
             log.error("Failed to send email to {}: {}", to, rootCauseMessage(e), e);
             // The failure is swallowed by design (a dead SMTP host must not break registration),
             // so this counter is what keeps it from being invisible: it is the only durable,
             // queryable record that delivery failed.
             meterRegistry.counter(DELIVERY_METRIC, "outcome", "failure", "purpose", purpose.name()).increment();
+            deliveryRegistry.recordFailure();
         }
     }
 

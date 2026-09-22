@@ -36,9 +36,11 @@ class EmailServiceImplTest {
     private MimeMessage mimeMessage;
 
     private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
+    private MailDeliveryRegistry deliveryRegistry;
 
     private EmailServiceImpl service(boolean mailEnabled) {
-        return new EmailServiceImpl(mailSender, "no-reply@genlinkkh.com", mailEnabled, meterRegistry);
+        return new EmailServiceImpl(mailSender, "no-reply@genlinkkh.com", mailEnabled,
+            meterRegistry, deliveryRegistry);
     }
 
     private ListAppender<ILoggingEvent> logs;
@@ -46,6 +48,7 @@ class EmailServiceImplTest {
 
     @BeforeEach
     void captureEmailLogs() {
+        deliveryRegistry = new MailDeliveryRegistry();
         emailLogger = (Logger) LoggerFactory.getLogger(EmailServiceImpl.class);
         emailLogger.setLevel(Level.INFO);
         logs = new ListAppender<>();
@@ -72,6 +75,8 @@ class EmailServiceImplTest {
             Language.ENGLISH, OtpPurpose.FORGOT_PASSWORD);
 
         verifyNoInteractions(mailSender);
+        assertThat(deliveryRegistry.snapshot().lastOutcome())
+            .isEqualTo(MailDeliveryRegistry.Outcome.NEVER_RUN);
     }
 
     @Test
@@ -82,6 +87,8 @@ class EmailServiceImplTest {
             Language.ENGLISH, OtpPurpose.REGISTER);
 
         verify(mailSender).send(any(MimeMessage.class));
+        assertThat(deliveryRegistry.snapshot().lastOutcome())
+            .isEqualTo(MailDeliveryRegistry.Outcome.SUCCESS);
     }
 
     @Test
@@ -95,6 +102,8 @@ class EmailServiceImplTest {
         assertThatCode(() -> service(true).sendOtpEmail("someone@example.com", "123456",
             Language.ENGLISH, OtpPurpose.REGISTER))
             .doesNotThrowAnyException();
+        assertThat(deliveryRegistry.snapshot().lastOutcome())
+            .isEqualTo(MailDeliveryRegistry.Outcome.FAILURE);
     }
 
     @Test

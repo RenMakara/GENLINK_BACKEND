@@ -31,6 +31,12 @@ public interface StorageService {
     /** Object metadata from a HEAD — existence, size, type, LastModified. */
     Optional<StoredObject> head(String key);
 
+    /**
+     * Verify that the configured object-store bucket is reachable without reading or writing an
+     * object. Implementations must honor the supplied bound and must not retry in a loop.
+     */
+    void checkAvailability(Duration timeout);
+
     /** Short-lived presigned GET for private media. */
     String presignDownload(String key, Duration expiry);
 

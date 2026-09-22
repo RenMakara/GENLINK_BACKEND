@@ -6,6 +6,7 @@ import kh.edu.acleda.campuslink.modules.finance.service.AutoSaveService;
 import kh.edu.acleda.campuslink.modules.finance.service.RecurringTransactionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import kh.edu.acleda.campuslink.shared.service.ScheduledJobRunRegistry;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +24,7 @@ public class RecurringFinanceJob {
 
     private final RecurringTransactionService recurringTransactionService;
     private final AutoSaveService autoSaveService;
+    private final ScheduledJobRunRegistry scheduledJobRunRegistry;
 
     /**
      * 01:15 daily, Phnom Penh time. The zone is pinned so the schedule does not drift with the
@@ -31,6 +33,7 @@ public class RecurringFinanceJob {
     @Scheduled(cron = "${app.finance.recurring-cron:0 15 1 * * *}", zone = "Asia/Phnom_Penh")
     public void run() {
         LocalDate today = LocalDate.now(ZONE);
+        boolean successful = true;
 
         // The two are independent: a failure in one must not skip the other, so each is guarded.
         try {
@@ -39,6 +42,7 @@ public class RecurringFinanceJob {
                 log.info("Recurring transactions run: {} occurrence(s) materialised", occurrences);
             }
         } catch (Exception ex) {
+            successful = false;
             log.error("Recurring transactions run failed: {}", ex.getMessage(), ex);
         }
 
@@ -48,7 +52,14 @@ public class RecurringFinanceJob {
                 log.info("Auto-save run: {} rule(s) moved money", applied);
             }
         } catch (Exception ex) {
+            successful = false;
             log.error("Auto-save run failed: {}", ex.getMessage(), ex);
+        }
+
+        if (successful) {
+            scheduledJobRunRegistry.recordSuccess(ScheduledJobRunRegistry.RECURRING_FINANCE_JOB);
+        } else {
+            scheduledJobRunRegistry.recordFailure(ScheduledJobRunRegistry.RECURRING_FINANCE_JOB);
         }
     }
 }

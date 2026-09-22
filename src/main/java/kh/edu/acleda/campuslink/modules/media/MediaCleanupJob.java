@@ -3,10 +3,12 @@ package kh.edu.acleda.campuslink.modules.media;
 import kh.edu.acleda.campuslink.modules.media.MediaCleanupService.CleanupResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import kh.edu.acleda.campuslink.shared.service.ScheduledJobRunRegistry;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.function.Supplier;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Runs the media sweeps once a day.
@@ -29,6 +31,7 @@ import java.util.function.Supplier;
 public class MediaCleanupJob {
 
     private final MediaCleanupService mediaCleanupService;
+    private final ScheduledJobRunRegistry scheduledJobRunRegistry;
 
     /**
      * 03:45 daily, fifteen minutes after the account sweep so the two never
@@ -42,8 +45,9 @@ public class MediaCleanupJob {
     public void cleanUp() {
         // Each sweep is caught separately: a failure in one must not stop the
         // other, and a scheduled method that throws just looks like a quiet run.
-        CleanupResult orphans = runQuietly("orphans", mediaCleanupService::purgeOrphans);
-        CleanupResult purged = runQuietly("purge", mediaCleanupService::purgeSoftDeleted);
+        AtomicBoolean runFailed = new AtomicBoolean();
+        CleanupResult orphans = runQuietly("orphans", mediaCleanupService::purgeOrphans, runFailed);
+        CleanupResult purged = runQuietly("purge", mediaCleanupService::purgeSoftDeleted, runFailed);
 
         // One summary line per run, always emitted, so a scrape or a human can see
         // the job ran and what it cost — a silent success is indistinguishable from
@@ -60,6 +64,12 @@ public class MediaCleanupJob {
         if (failed > 0) {
             log.warn("Media cleanup left {} object(s) undeleted; the next run retries them", failed);
         }
+
+        if (runFailed.get() || failed > 0) {
+            scheduledJobRunRegistry.recordFailure(ScheduledJobRunRegistry.MEDIA_CLEANUP_JOB);
+        } else {
+            scheduledJobRunRegistry.recordSuccess(ScheduledJobRunRegistry.MEDIA_CLEANUP_JOB);
+        }
     }
 
     /** " +more" when the sweep hit its batch ceiling and work remains. */
@@ -67,10 +77,12 @@ public class MediaCleanupJob {
         return result.batchFull() ? " +more" : "";
     }
 
-    private CleanupResult runQuietly(String sweep, Supplier<CleanupResult> action) {
+    private CleanupResult runQuietly(String sweep, Supplier<CleanupResult> action,
+                                     AtomicBoolean runFailed) {
         try {
             return action.get();
         } catch (Exception ex) {
+            runFailed.set(true);
             log.error("Media {} sweep failed: {}", sweep, ex.getMessage(), ex);
             return CleanupResult.empty(0);
         }
