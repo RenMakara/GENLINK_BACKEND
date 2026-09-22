@@ -118,6 +118,7 @@ services:
       # or Compose never injects it into the container. Generate with `openssl rand -base64 32`.
       # LOSING IT is not recoverable — every enrolled admin must re-enrol. Back it up with JWT_SECRET.
       ADMIN_CRYPTO_KEY: ${ADMIN_CRYPTO_KEY}
+      ADMIN_CORS_ORIGINS: ${ADMIN_CORS_ORIGINS:-}
       ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
       # OTP delivery uses the standard JavaMail SMTP transport. Keep the
       # switch explicit so dev/prod profiles receive the same setting.
