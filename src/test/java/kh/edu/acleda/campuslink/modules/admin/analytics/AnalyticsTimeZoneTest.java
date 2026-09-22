@@ -86,6 +86,13 @@ class AnalyticsTimeZoneTest {
     }
 
     @Test
+    @DisplayName("API timestamps interpret naive database values as UTC")
+    void apiTimestampUsesUtcInterpretation() {
+        assertThat(AnalyticsTimeZone.toUtcInstant("created_at"))
+            .isEqualTo("(created_at AT TIME ZONE 'UTC')");
+    }
+
+    @Test
     @DisplayName("today() is Cambodia's date, not the JVM default zone's")
     void todayIsCambodian() {
         assertThat(AnalyticsTimeZone.today()).isEqualTo(LocalDate.now(AnalyticsTimeZone.ZONE));

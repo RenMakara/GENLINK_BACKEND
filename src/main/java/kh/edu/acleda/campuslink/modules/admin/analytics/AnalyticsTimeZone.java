@@ -50,6 +50,11 @@ public final class AnalyticsTimeZone {
         return "(" + column + " AT TIME ZONE 'UTC' AT TIME ZONE '" + ZONE_SQL + "')";
     }
 
+    /** Converts a naive UTC timestamp to a PostgreSQL instant for an ISO-8601 API field. */
+    public static String toUtcInstant(String column) {
+        return "(" + column + " AT TIME ZONE 'UTC')";
+    }
+
     /** Groups by Cambodian calendar day. */
     public static String dayBucket(String column) {
         return "date_trunc('day', " + toLocal(column) + ")";

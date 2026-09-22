@@ -2586,6 +2586,43 @@
       "description": "Admin portal authentication (SSOT 8.1). Runs end to end with no copy-paste.\n\nSET FIRST: {{adminEmail}}, {{adminPassword}}.\n\nFIRST-TIME ADMIN (never enrolled) - run in order:\n  1. Admin Login            -> captures {{adminChallengeToken}}\n  2. MFA Enrol              -> captures {{adminTotpSecret}}, prints the otpauth:// URI\n  3. MFA Confirm            -> code auto-generated; returns 10 recovery codes. SAVE THEM.\n  4. MFA Verify             -> captures {{adminAccessToken}} + {{adminRefreshToken}}\n  5. Me                     -> identity + resolved permissions\nThe challenge lives 5 minutes. If steps 2-4 take longer, re-run Admin Login.\n\nALREADY-ENROLLED ADMIN - the normal case:\n  1. Admin Login   2. MFA Verify   3. Me\nMFA Enrol will refuse with ADMIN_MFA_ALREADY_ENROLLED, which is correct.\n\n  For the code to be auto-generated you need {{adminTotpSecret}} set. It is\n  returned exactly once, at enrolment, so if you enrolled elsewhere paste it in\n  by hand ONCE - that is setup, not per-request copy-paste. Otherwise replace\n  {{adminTotpCode}} in the body with a code from your authenticator.\n\nHOW THE CODE IS GENERATED\n  A pre-request script on Confirm / Verify / Sudo computes RFC 6238 TOTP from\n  {{adminTotpSecret}} using crypto-js. It was verified against the RFC 6238\n  Appendix B vectors before being committed.\n\nSUDO-GATED REQUESTS\n  'Regenerate recovery codes' answers 403 ADMIN_SUDO_REQUIRED until you run\n  'Sudo'. That 403 is worth seeing once - it is the control that bounds what an\n  unattended, unlocked laptop can do (SSOT 10.7).\n\nWHAT THE STATUS CODES MEAN HERE\n  Admin Login answers 401 ADMIN_MFA_REQUIRED on SUCCESS. The caller is not\n  authenticated yet - they hold a challenge, which grants nothing on its own."
     },
     {
+      "name": "Admin Dashboard",
+      "description": "Read-only Phase 2 dashboard aggregates. Run Admin Auth first and set {{adminAccessToken}}. Each section may be null when its backing aggregate is unavailable (ADM-045).",
+      "item": [
+        {
+          "name": "Dashboard summary",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/dashboard/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "dashboard",
+                "summary"
+              ]
+            },
+            "description": "Requires dashboard:view. Returns seven KPI cards, 90-day user growth, 30-day registrations, estimated DAU/MAU activity, account status split, recent admin actions and recent registrations. Date buckets use Asia/Phnom_Penh."
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin Notifications",
       "description": "Admin-only notification controls. Run Admin Auth first and set {{adminAccessToken}}. Template keys must use the ADMIN_ namespace; seeded module templates cannot be changed here. Broadcasts are in-app only, audited, and capped at 500 active recipients.",
       "item": [
