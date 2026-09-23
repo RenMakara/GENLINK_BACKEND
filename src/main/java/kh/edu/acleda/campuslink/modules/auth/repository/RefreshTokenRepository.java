@@ -13,6 +13,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
@@ -25,6 +27,12 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
 
     /** Active sessions: not revoked and not yet expired. */
     List<RefreshToken> findByUserAndRevokedAtIsNullAndExpiresAtAfterOrderByCreatedAtDesc(User user, Instant now);
+
+    /** Active sessions for the admin user detail view; token hashes are never mapped to its DTO. */
+    @Query("SELECT rt FROM RefreshToken rt WHERE rt.user.id = :userId "
+        + "AND rt.revokedAt IS NULL AND rt.expiresAt > :now ORDER BY rt.createdAt DESC")
+    Page<RefreshToken> findActiveByUserId(
+        @Param("userId") UUID userId, @Param("now") Instant now, Pageable pageable);
 
     Optional<RefreshToken> findByIdAndUser(UUID id, User user);
 

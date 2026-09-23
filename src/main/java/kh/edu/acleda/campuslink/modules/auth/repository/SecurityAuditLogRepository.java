@@ -7,6 +7,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface SecurityAuditLogRepository extends JpaRepository<SecurityAuditLog, UUID> {
@@ -17,4 +19,7 @@ public interface SecurityAuditLogRepository extends JpaRepository<SecurityAuditL
     /** Successful logins with a complete context are the baseline for new-login detection. */
     List<SecurityAuditLog> findTop50ByUserAndEventTypeAndSuccessTrueOrderByCreatedAtDesc(
         User user, String eventType);
+
+    /** Security history for one user, newest first, for the admin detail view. */
+    Page<SecurityAuditLog> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 }

@@ -2755,6 +2755,90 @@
             },
             "description": "Requires user:read. Set {{adminUserId}} to the target user's UUID. Returns the admin Profile/Account detail projection, current effective sanction state, interests, social links and portfolio count. Password hashes, provider identifiers and tokens are never returned; a missing UUID returns 404 NOT_FOUND."
           }
+        },
+        {
+          "name": "List user active sessions",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{adminUserId}}/sessions?page=0&size=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                "{{adminUserId}}",
+                "sessions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "25"
+                }
+              ]
+            },
+            "description": "Requires user:read. Returns active, non-expired, non-revoked refresh-token session metadata for {{adminUserId}}. Token hashes are never returned."
+          }
+        },
+        {
+          "name": "List user login history",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{adminUserId}}/login-history?page=0&size=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                "{{adminUserId}}",
+                "login-history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "25"
+                }
+              ]
+            },
+            "description": "Requires user:read. Returns newest-first security audit events for {{adminUserId}} with event type, outcome, failure reason, IP, user agent and timestamp. Audit details, email and credentials are not returned."
+          }
         }
       ]
     },
