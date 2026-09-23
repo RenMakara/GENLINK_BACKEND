@@ -257,7 +257,7 @@
                   "// Copy it into the {{otp}} variable, then run Verify Email."
                 ]
               }
-            },
+            }
           ],
           "request": {
             "auth": {
@@ -2838,6 +2838,48 @@
               ]
             },
             "description": "Requires user:read. Returns newest-first security audit events for {{adminUserId}} with event type, outcome, failure reason, IP, user agent and timestamp. Audit details, email and credentials are not returned."
+          }
+        },
+        {
+          "name": "Get user XP detail",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{adminUserId}}/xp?page=0&size=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                "{{adminUserId}}",
+                "xp"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "25"
+                }
+              ]
+            },
+            "description": "Requires user:read. Returns total XP, level progress, source breakdown, signed newest-first XP ledger and earned badges for {{adminUserId}}."
           }
         }
       ]
