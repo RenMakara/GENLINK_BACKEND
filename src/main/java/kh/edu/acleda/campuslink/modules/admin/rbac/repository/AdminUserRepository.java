@@ -24,6 +24,8 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, UUID> {
         + "WHERE a.user.email = :email AND a.active = true AND a.deletedAt IS NULL")
     Optional<AdminUser> findActiveByUserEmail(String email);
 
+    /** Fetches the role in the same query for the admin user detail projection. */
+    @EntityGraph(attributePaths = "adminRole")
     Optional<AdminUser> findByUserIdAndDeletedAtIsNull(UUID userId);
 
     /**

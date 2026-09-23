@@ -47,6 +47,12 @@ public class PortfolioServiceImpl implements PortfolioService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public long countByUserId(UUID userId) {
+        return portfolioItemRepository.countByUserIdAndDeletedAtIsNull(userId);
+    }
+
+    @Override
     @Transactional
     public PortfolioItemResponse create(PortfolioItemCreateRequest request) {
         UUID userId = currentUserProvider.getCurrentUserId();

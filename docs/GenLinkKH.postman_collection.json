@@ -2724,6 +2724,37 @@
             },
             "description": "Requires user:read. Search matches email, username, full name and phone; a UUID q is an exact user_id lookup. The response is ApiResponse<PageResponse<AdminUserSummaryResponse>> and never exposes credentials or tokens."
           }
+        },
+        {
+          "name": "Get user detail",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{adminUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                "{{adminUserId}}"
+              ]
+            },
+            "description": "Requires user:read. Set {{adminUserId}} to the target user's UUID. Returns the admin Profile/Account detail projection, current effective sanction state, interests, social links and portfolio count. Password hashes, provider identifiers and tokens are never returned; a missing UUID returns 404 NOT_FOUND."
+          }
         }
       ]
     },

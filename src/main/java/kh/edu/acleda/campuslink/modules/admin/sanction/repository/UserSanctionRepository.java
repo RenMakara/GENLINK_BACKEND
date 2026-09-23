@@ -16,6 +16,9 @@ public interface UserSanctionRepository extends JpaRepository<UserSanction, UUID
     /** A user's enforcement timeline: warnings, suspensions and bans interleaved. */
     Page<UserSanction> findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
+    /** Open sanction candidates for the detail view; expiry is checked in the service. */
+    List<UserSanction> findByUserIdAndLiftedAtIsNullAndDeletedAtIsNullOrderByCreatedAtDesc(UUID userId);
+
     /**
      * The open sanction of a given type, if any.
      *

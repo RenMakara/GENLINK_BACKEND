@@ -12,6 +12,8 @@ public interface PortfolioService {
 
     List<PortfolioItemResponse> getByUserId(UUID userId);
 
+    long countByUserId(UUID userId);
+
     PortfolioItemResponse create(PortfolioItemCreateRequest request);
 
     PortfolioItemResponse update(UUID portfolioId, PortfolioItemUpdateRequest request);

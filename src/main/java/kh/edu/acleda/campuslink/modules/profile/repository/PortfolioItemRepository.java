@@ -11,5 +11,7 @@ public interface PortfolioItemRepository extends JpaRepository<PortfolioItem, UU
 
     List<PortfolioItem> findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID userId);
 
+    long countByUserIdAndDeletedAtIsNull(UUID userId);
+
     Optional<PortfolioItem> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
 }
