@@ -88,4 +88,32 @@ class AdminUserListServiceTest {
         assertThat(row.totalXp()).isEqualTo(250);
         assertThat(response.totalElements()).isEqualTo(1);
     }
+
+    @Test
+    void leavesLastActiveNullWhenRefreshActivityHasNoTimestamp() {
+        UUID userId = UUID.randomUUID();
+        User user = mock(User.class);
+        when(user.getId()).thenReturn(userId);
+        when(user.getAccountStatus()).thenReturn(AccountStatus.ACTIVE);
+
+        RefreshTokenRepository.LastActiveProjection activity =
+            mock(RefreshTokenRepository.LastActiveProjection.class);
+        when(activity.getUserId()).thenReturn(userId);
+        when(activity.getLastActiveAt()).thenReturn(null);
+
+        when(listRepository.findPage(any(), any())).thenReturn(
+            new PageImpl<>(List.of(user), PageRequest.of(0, 25), 1));
+        when(adminUserRepository.findByUserIdIn(List.of(userId))).thenReturn(List.of());
+        when(refreshTokenRepository.findLastActiveByUserIdIn(List.of(userId)))
+            .thenReturn(List.of(activity));
+
+        AdminUserListCriteria criteria = AdminUserListCriteria.fromRequest(
+            null, null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null,
+            false, false, 0, 25, null);
+
+        AdminUserSummaryResponse row = service.list(criteria).content().get(0);
+
+        assertThat(row.lastActiveAt()).isNull();
+    }
 }

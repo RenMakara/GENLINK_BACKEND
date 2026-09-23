@@ -48,6 +48,8 @@ public class AdminUserListService {
         Map<UUID, java.time.Instant> lastActiveAt = userIds.isEmpty()
             ? Map.of()
             : refreshTokenRepository.findLastActiveByUserIdIn(userIds).stream()
+                .filter(activity -> activity.getUserId() != null)
+                .filter(activity -> activity.getLastActiveAt() != null)
                 .collect(Collectors.toUnmodifiableMap(
                     RefreshTokenRepository.LastActiveProjection::getUserId,
                     RefreshTokenRepository.LastActiveProjection::getLastActiveAt,
