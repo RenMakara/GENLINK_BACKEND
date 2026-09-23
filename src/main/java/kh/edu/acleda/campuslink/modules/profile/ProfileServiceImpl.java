@@ -1,5 +1,6 @@
 package kh.edu.acleda.campuslink.modules.profile;
 
+import java.util.Optional;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.enums.FollowStatus;
 import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
@@ -51,7 +52,20 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     @Transactional(readOnly = true)
     public PublicProfileResponse getPublicProfile(String username, Language language) {
-        User target = userRepository.findByUsername(username)
+        final String rawClean = username == null ? "" : username.strip();
+        final String clean = rawClean.startsWith("@") ? rawClean.substring(1).strip() : rawClean;
+
+        User target = userRepository.findByUsername(clean)
+            .or(() -> userRepository.findByUsernameIgnoreCase(clean))
+            .or(() -> {
+                try {
+                    UUID id = UUID.fromString(clean);
+                    return userRepository.findById(id);
+                } catch (IllegalArgumentException ignored) {
+                    return Optional.empty();
+                }
+            })
+            .or(() -> userRepository.findFirstByFullNameIgnoreCaseAndDeletedAtIsNull(clean))
             .orElseThrow(() -> new NotFoundException("User not found: " + username));
         if (target.getAccountStatus() == AccountStatus.DELETED
             || target.getAccountStatus() == AccountStatus.BANNED

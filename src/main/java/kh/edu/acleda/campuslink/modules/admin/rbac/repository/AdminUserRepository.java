@@ -1,10 +1,13 @@
 package kh.edu.acleda.campuslink.modules.admin.rbac.repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.admin.rbac.entity.AdminUser;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -43,6 +46,10 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, UUID> {
     boolean existsByUserIdAndActiveTrueAndDeletedAtIsNull(UUID userId);
 
     Page<AdminUser> findByDeletedAtIsNull(Pageable pageable);
+
+    /** Batch-load staff roles for a page of users without an N+1 lazy-role query. */
+    @EntityGraph(attributePaths = "adminRole")
+    List<AdminUser> findByUserIdIn(Collection<UUID> userIds);
 
     /**
      * Guards the "cannot demote the last SUPER_ADMIN" rule. Counting rather than listing

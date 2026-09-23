@@ -140,6 +140,47 @@ class PublicProfileVisibilityTest {
             .isInstanceOf(NotFoundException.class);
     }
 
+    @Test
+    void resolvesProfileWithAtPrefix() {
+        privacy("PUBLIC");
+        PublicProfileResponse response = service.getPublicProfile("@target", Language.ENGLISH);
+        assertThat(response.username()).isEqualTo("target");
+    }
+
+    @Test
+    void resolvesProfileCaseInsensitivelyWhenExactUsernameFails() {
+        privacy("PUBLIC");
+        when(userRepository.findByUsername("TARGET")).thenReturn(Optional.empty());
+        when(userRepository.findByUsernameIgnoreCase("TARGET")).thenReturn(Optional.of(target));
+
+        PublicProfileResponse response = service.getPublicProfile("TARGET", Language.ENGLISH);
+        assertThat(response.username()).isEqualTo("target");
+    }
+
+    @Test
+    void resolvesProfileByUserIdUuid() {
+        privacy("PUBLIC");
+        String uuidString = TARGET_ID.toString();
+        when(userRepository.findByUsername(uuidString)).thenReturn(Optional.empty());
+        when(userRepository.findByUsernameIgnoreCase(uuidString)).thenReturn(Optional.empty());
+        when(userRepository.findById(TARGET_ID)).thenReturn(Optional.of(target));
+
+        PublicProfileResponse response = service.getPublicProfile(uuidString, Language.ENGLISH);
+        assertThat(response.username()).isEqualTo("target");
+    }
+
+    @Test
+    void resolvesProfileByFullNameFallback() {
+        privacy("PUBLIC");
+        when(userRepository.findByUsername("Target User")).thenReturn(Optional.empty());
+        when(userRepository.findByUsernameIgnoreCase("Target User")).thenReturn(Optional.empty());
+        when(userRepository.findFirstByFullNameIgnoreCaseAndDeletedAtIsNull("Target User"))
+            .thenReturn(Optional.of(target));
+
+        PublicProfileResponse response = service.getPublicProfile("Target User", Language.ENGLISH);
+        assertThat(response.username()).isEqualTo("target");
+    }
+
     private void privacy(String value) {
         when(userSettingRepository.findByUserId(TARGET_ID))
             .thenReturn(Optional.of(UserSetting.builder().user(target).privacyProfile(value).build()));

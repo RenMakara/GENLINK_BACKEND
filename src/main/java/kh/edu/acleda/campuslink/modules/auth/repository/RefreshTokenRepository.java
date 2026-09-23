@@ -9,18 +9,29 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
+    interface LastActiveProjection {
+        UUID getUserId();
+        Instant getLastActiveAt();
+    }
+
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
     /** Active sessions: not revoked and not yet expired. */
     List<RefreshToken> findByUserAndRevokedAtIsNullAndExpiresAtAfterOrderByCreatedAtDesc(User user, Instant now);
 
     Optional<RefreshToken> findByIdAndUser(UUID id, User user);
+
+    /** Returns one aggregate row per user for the admin directory's last-active column. */
+    @Query("SELECT rt.user.id AS userId, MAX(rt.lastUsedAt) AS lastActiveAt "
+        + "FROM RefreshToken rt WHERE rt.user.id IN :userIds GROUP BY rt.user.id")
+    List<LastActiveProjection> findLastActiveByUserIdIn(@Param("userIds") Collection<UUID> userIds);
 
     @Modifying
     @Query("DELETE FROM RefreshToken rt WHERE rt.user = :user")

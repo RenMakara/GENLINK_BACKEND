@@ -2654,6 +2654,80 @@
       ]
     },
     {
+      "name": "Admin Users",
+      "description": "Read-only Phase 3 user directory. Run Admin Auth first and set {{adminAccessToken}}. The endpoint requires user:read and excludes soft-deleted users unless includeDeleted=true. Query filters are server-side Criteria predicates; page is zero-based and size is restricted to 25, 50 or 100.",
+      "item": [
+        {
+          "name": "List users (filters + search + sort)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users?page=0&size=25&q=&status=ACTIVE,PENDING&emailVerified=true&workStatus=STUDENT&university=&gender=&language=&authProvider=&levelMin=&levelMax=&xpMin=&xpMax=&createdFrom=&createdTo=&lastActive=&banned=false&includeDeleted=false&sort=createdAt,desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "25"
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE,PENDING"
+                },
+                {
+                  "key": "emailVerified",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "lastActive",
+                  "value": "24h",
+                  "disabled": true
+                },
+                {
+                  "key": "includeDeleted",
+                  "value": "true",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt,desc"
+                }
+              ]
+            },
+            "description": "Requires user:read. Search matches email, username, full name and phone; a UUID q is an exact user_id lookup. The response is ApiResponse<PageResponse<AdminUserSummaryResponse>> and never exposes credentials or tokens."
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin Notifications",
       "description": "Admin-only notification controls. Run Admin Auth first and set {{adminAccessToken}}. Template keys must use the ADMIN_ namespace; seeded module templates cannot be changed here. Broadcasts are in-app only, audited, and capped at 500 active recipients.",
       "item": [
