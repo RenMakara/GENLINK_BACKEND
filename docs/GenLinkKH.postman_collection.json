@@ -2881,6 +2881,38 @@
             },
             "description": "Requires user:read. Returns total XP, level progress, source breakdown, signed newest-first XP ledger and earned badges for {{adminUserId}}."
           }
+        },
+        {
+          "name": "Get user activity counts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{adminUserId}}/activity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                "{{adminUserId}}",
+                "activity"
+              ]
+            },
+            "description": "Requires user:read. Returns posts, comments, active community memberships, non-cancelled event RSVPs, and filed/received report counts. Soft-deleted content and deleted parent content are excluded."
+          }
         }
       ]
     },
