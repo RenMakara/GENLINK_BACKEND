@@ -144,3 +144,5 @@ databaseChangeLog:
       file: db/changelog/changes/0071-sync-user-language-preference-columns.sql
   - include:
       file: db/changelog/changes/0072-focus-session-lifecycle.sql
+  - include:
+      file: db/changelog/changes/0073-seed-community-opportunities.sql
