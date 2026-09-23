@@ -2726,6 +2726,44 @@
           }
         },
         {
+          "name": "List university facet values",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/facets/universities?q=royal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                "facets",
+                "universities"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "royal"
+                }
+              ]
+            },
+            "description": "Requires user:read. Returns up to 50 distinct live university names, ordered by frequency. q is optional and filters the typeahead case-insensitively. No user credentials or sensitive data are returned."
+          }
+        },
+        {
           "name": "Get user detail",
           "request": {
             "auth": {
