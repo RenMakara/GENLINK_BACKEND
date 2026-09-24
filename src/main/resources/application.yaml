@@ -67,6 +67,7 @@ app:
     # an open door today. It is still a loaded gun pointed at the day someone
     # deactivates the last SUPER_ADMIN, so remove it.
     bootstrap-email: ${ADMIN_BOOTSTRAP_EMAIL:}
+    suspension-expiry-cron: ${ADMIN_SUSPENSION_EXPIRY_CRON:0 0 3 * * *}
 
   community:
     # Event reminders run five minutes and look for events roughly 24 hours away.

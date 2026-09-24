@@ -118,6 +118,10 @@ public class AccountAnonymizationService {
         user.setPasswordHash(null);
         user.setGoogleId(null);
         user.setAuthProvider(AuthProvider.LOCAL);
+        // A scrubbed row is no longer restorable. Clearing the captured lifecycle state gives
+        // the admin restore path an unambiguous USER_ANONYMISED signal, including for rows that
+        // were deleted before the current recovery implementation existed.
+        user.setStatusBeforeDeletion(null);
 
         // Access tokens are stateless and validated against this version, so bumping it
         // invalidates anything still in flight.

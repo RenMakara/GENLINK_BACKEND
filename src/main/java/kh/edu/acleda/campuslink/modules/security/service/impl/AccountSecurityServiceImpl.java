@@ -208,6 +208,7 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
             authRateLimitService.clearAccountDeleteFailures(user.getEmail(), clientIp);
         }
 
+        user.setStatusBeforeDeletion(user.getAccountStatus());
         user.setAccountStatus(AccountStatus.DELETED);
         user.setDeletedAt(Instant.now());
         // Same reasoning as changePassword: revoking refresh tokens alone leaves the

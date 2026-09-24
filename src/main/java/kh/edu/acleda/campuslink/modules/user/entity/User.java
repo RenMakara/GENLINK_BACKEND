@@ -124,6 +124,12 @@ public class User extends BaseEntity {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    /** The account status to restore when a reversible soft deletion is lifted. */
+    @Setter
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_before_deletion", length = 30)
+    private AccountStatus statusBeforeDeletion;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "preferred_language", nullable = false, length = 20)
     private Language preferredLanguage = Language.ENGLISH;

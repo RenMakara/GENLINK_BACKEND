@@ -146,3 +146,5 @@ databaseChangeLog:
       file: db/changelog/changes/0072-focus-session-lifecycle.sql
   - include:
       file: db/changelog/changes/0073-seed-community-opportunities.sql
+  - include:
+      file: db/changelog/changes/0074-add-user-status-before-deletion.sql

@@ -229,6 +229,7 @@ public class AuthServiceImpl implements AuthService {
         user.setAccountStatus(AccountStatus.PENDING);
         user.setEmailVerified(false);
         user.setDeletedAt(null);
+        user.setStatusBeforeDeletion(null);
         // Tokens minted before the deletion must not spring back to life with the account.
         user.incrementTokenVersion();
 

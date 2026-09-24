@@ -9,7 +9,10 @@ import kh.edu.acleda.campuslink.modules.admin.sanction.enums.SanctionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 public interface UserSanctionRepository extends JpaRepository<UserSanction, UUID> {
 
@@ -29,13 +32,20 @@ public interface UserSanctionRepository extends JpaRepository<UserSanction, UUID
         + "AND s.liftedAt IS NULL AND s.deletedAt IS NULL ORDER BY s.createdAt DESC LIMIT 1")
     Optional<UserSanction> findOpenByUserIdAndType(UUID userId, SanctionType type);
 
+    /** Reloads an expiry candidate after its user row has been locked. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM UserSanction s WHERE s.id = :id")
+    Optional<UserSanction> findByIdForUpdate(@Param("id") UUID id);
+
     /**
      * Suspensions whose time is up, for the daily expiry job.
      *
      * <p>Matches {@code idx_user_sanctions_pending_expiry} - the partial index exists exactly
      * for this query, so the job never scans the full history table.
      */
-    @Query("SELECT s FROM UserSanction s WHERE s.liftedAt IS NULL AND s.expiresAt IS NOT NULL "
+    @Query("SELECT s FROM UserSanction s WHERE s.type = "
+        + "kh.edu.acleda.campuslink.modules.admin.sanction.enums.SanctionType.SUSPENSION "
+        + "AND s.liftedAt IS NULL AND s.expiresAt IS NOT NULL "
         + "AND s.expiresAt < :now AND s.deletedAt IS NULL")
     List<UserSanction> findExpired(Instant now);
 }
