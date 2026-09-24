@@ -80,4 +80,13 @@ public final class AdminErrorCode {
 
     /** 400. An admin-managed template key is already in use. */
     public static final String ADMIN_NOTIFICATION_TEMPLATE_DUPLICATE = "ADMIN_NOTIFICATION_TEMPLATE_DUPLICATE";
+
+    /** 400. The target already has an open ban. */
+    public static final String USER_ALREADY_BANNED = "USER_ALREADY_BANNED";
+
+    /** 400. The target has no open ban to lift. */
+    public static final String USER_NOT_BANNED = "USER_NOT_BANNED";
+
+    /** 400. The target is beyond the reversible account-deletion stage. */
+    public static final String USER_ANONYMISED = "USER_ANONYMISED";
 }

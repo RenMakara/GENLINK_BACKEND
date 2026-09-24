@@ -9,9 +9,15 @@ import kh.edu.acleda.campuslink.modules.admin.audit.AdminAuditWriter;
 import kh.edu.acleda.campuslink.modules.admin.audit.entity.AdminAuditLog;
 import kh.edu.acleda.campuslink.modules.admin.audit.enums.AuditStatus;
 import kh.edu.acleda.campuslink.modules.admin.rbac.AdminIdentity;
+import kh.edu.acleda.campuslink.modules.admin.rbac.entity.AdminUser;
 import kh.edu.acleda.campuslink.modules.admin.rbac.AdminPermissionCache;
 import kh.edu.acleda.campuslink.modules.admin.rbac.repository.AdminUserRepository;
+import kh.edu.acleda.campuslink.modules.admin.sanction.AdminSanctionService;
+import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserSanctionRequest;
 import kh.edu.acleda.campuslink.modules.admin.sanction.entity.UserSanction;
+import kh.edu.acleda.campuslink.modules.admin.sanction.enums.SanctionType;
+import kh.edu.acleda.campuslink.modules.admin.sanction.repository.UserSanctionRepository;
+import kh.edu.acleda.campuslink.modules.auth.RefreshTokenService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.Role;
@@ -19,7 +25,6 @@ import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.GlobalExceptionHandler;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -40,6 +45,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -300,28 +306,68 @@ class SecurityRegressionTest {
     @DisplayName("S5 - lifting a sanction on a PENDING user returns them to PENDING")
     class S5UnbanRestoresPreviousStatus {
 
+        @AfterEach
+        void clearContext() {
+            SecurityContextHolder.clearContext();
+        }
+
         /**
-         * <strong>PENDING until ADM-077.</strong> There is no unban service to call yet - the
-         * endpoint is Phase 4. Written now, and deliberately left visible, because a
-         * requirement with no test is a requirement that gets forgotten (testing-plan.md §3).
-         *
-         * <p>The bug it will guard: unban setting {@code ACTIVE} unconditionally. A user who was
+         * The bug it guards: unban setting {@code ACTIVE} unconditionally. A user who was
          * PENDING when they were banned would come back <em>verified</em> - the ban would have
          * silently granted them something. Found during the ADM-001 schema review, which is why
          * {@code user_sanctions.previous_status} exists at all.
          */
         @Test
-        @Disabled("Pending ADM-077: no unban service exists yet. Enable it with that task - "
-            + "the assertion body is already written and must not be weakened to make it pass.")
         void liftingASanctionRestoresTheStatusTheUserHadBefore() {
-            // When ADM-077 lands:
-            //   UserSanction sanction = ...ban a PENDING user...
-            //   sanctionService.lift(sanction.getId(), "appeal upheld");
-            //   assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING);
-            //
-            // NOT AccountStatus.ACTIVE. If this ever fails, the fix is the service, never the
-            // expectation.
-            throw new UnsupportedOperationException("ADM-077 not implemented");
+            UUID userId = UUID.randomUUID();
+            Instant now = Instant.parse("2026-09-24T04:00:00Z");
+            User user = new User();
+            user.setAccountStatus(AccountStatus.BANNED);
+            user.setTokenVersion(1);
+            user.setEmail("target@example.com");
+            user.setFullName("Target User");
+            user.setUsername("target");
+
+            AdminUser actor = AdminUser.builder().active(true).build();
+            UserSanction sanction = UserSanction.builder()
+                .user(user)
+                .adminUser(actor)
+                .type(SanctionType.BAN)
+                .reason("Repeated abusive messages")
+                .previousStatus(AccountStatus.PENDING)
+                .startsAt(now.minusSeconds(3600))
+                .build();
+
+            UserRepository userRepository = org.mockito.Mockito.mock(UserRepository.class);
+            UserSanctionRepository sanctionRepository =
+                org.mockito.Mockito.mock(UserSanctionRepository.class);
+            AdminUserRepository adminUserRepository =
+                org.mockito.Mockito.mock(AdminUserRepository.class);
+            RefreshTokenService refreshTokenService =
+                org.mockito.Mockito.mock(RefreshTokenService.class);
+            AdminAuditService auditService = org.mockito.Mockito.mock(AdminAuditService.class);
+
+            when(userRepository.findByIdForUpdate(userId)).thenReturn(java.util.Optional.of(user));
+            when(sanctionRepository.findOpenByUserIdAndType(userId, SanctionType.BAN))
+                .thenReturn(java.util.Optional.of(sanction));
+            when(adminUserRepository.findActiveByUserEmail("moderator@example.com"))
+                .thenReturn(java.util.Optional.of(actor));
+            when(auditService.toJson(any())).thenReturn("{}");
+
+            SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("moderator@example.com", null,
+                    java.util.List.of()));
+
+            AdminSanctionService service = new AdminSanctionService(
+                userRepository,
+                sanctionRepository,
+                adminUserRepository,
+                refreshTokenService,
+                auditService);
+
+            service.unban(userId, new AdminUserSanctionRequest("Manual review completed"));
+
+            assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING);
         }
 
         /**
@@ -330,7 +376,7 @@ class SecurityRegressionTest {
          * <p>{@code previous_status} is NOT NULL, so a sanction cannot be written without
          * recording what to restore. Without this column the correct unban is not merely
          * unimplemented - it is unimplementable, because the information is gone. Pinning it now
-         * means the schema cannot regress while S5 sits disabled.
+         * means the schema cannot regress while S5 is active.
          */
         @Test
         void aSanctionCannotBeRecordedWithoutThePreviousStatus() throws Exception {

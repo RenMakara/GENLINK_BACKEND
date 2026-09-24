@@ -1,0 +1,328 @@
+package kh.edu.acleda.campuslink.modules.admin.sanction;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Set;
+import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.admin.AdminErrorCode;
+import kh.edu.acleda.campuslink.modules.admin.audit.AdminAuditEvent;
+import kh.edu.acleda.campuslink.modules.admin.audit.AdminAuditService;
+import kh.edu.acleda.campuslink.modules.admin.rbac.entity.AdminUser;
+import kh.edu.acleda.campuslink.modules.admin.rbac.repository.AdminUserRepository;
+import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserSanctionRequest;
+import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserSuspendRequest;
+import kh.edu.acleda.campuslink.modules.admin.sanction.entity.UserSanction;
+import kh.edu.acleda.campuslink.modules.admin.sanction.enums.SanctionType;
+import kh.edu.acleda.campuslink.modules.admin.sanction.repository.UserSanctionRepository;
+import kh.edu.acleda.campuslink.modules.auth.RefreshTokenService;
+import kh.edu.acleda.campuslink.modules.user.UserRepository;
+import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
+import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.shared.exception.ApiException;
+import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
+import kh.edu.acleda.campuslink.shared.exception.UnauthorizedException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Transactional user-enforcement operations for the Admin portal (ADM-077).
+ *
+ * <p>The user row is locked before checking or creating a sanction. That makes the
+ * "already banned" guard correct when two staff requests arrive at the same time, and it keeps
+ * the status update, sanction history row, token-version bump and refresh-token revocation in
+ * one transaction.
+ */
+@Service
+public class AdminSanctionService {
+
+    private static final String TARGET_TYPE_USER = "USER";
+    private static final String ACTION_BAN = "USER_BAN";
+    private static final String ACTION_UNBAN = "USER_UNBAN";
+    private static final String ACTION_SUSPEND = "USER_SUSPEND";
+    private static final String VALIDATION_ERROR = "VALIDATION_ERROR";
+    private static final String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
+    private static final Set<Integer> ALLOWED_SUSPENSION_HOURS = Set.of(24, 24 * 7, 24 * 30);
+
+    private final UserRepository userRepository;
+    private final UserSanctionRepository userSanctionRepository;
+    private final AdminUserRepository adminUserRepository;
+    private final RefreshTokenService refreshTokenService;
+    private final AdminAuditService adminAuditService;
+    private final Clock clock;
+
+    @Autowired
+    public AdminSanctionService(
+        UserRepository userRepository,
+        UserSanctionRepository userSanctionRepository,
+        AdminUserRepository adminUserRepository,
+        RefreshTokenService refreshTokenService,
+        AdminAuditService adminAuditService) {
+        this(userRepository, userSanctionRepository, adminUserRepository, refreshTokenService,
+            adminAuditService, Clock.systemUTC());
+    }
+
+    AdminSanctionService(
+        UserRepository userRepository,
+        UserSanctionRepository userSanctionRepository,
+        AdminUserRepository adminUserRepository,
+        RefreshTokenService refreshTokenService,
+        AdminAuditService adminAuditService,
+        Clock clock) {
+        this.userRepository = userRepository;
+        this.userSanctionRepository = userSanctionRepository;
+        this.adminUserRepository = adminUserRepository;
+        this.refreshTokenService = refreshTokenService;
+        this.adminAuditService = adminAuditService;
+        this.clock = clock;
+    }
+
+    /** Permanently bans the account until an authorised admin lifts the sanction. */
+    @Transactional
+    public void ban(UUID userId, AdminUserSanctionRequest request) {
+        String reason = requireReason(request);
+        AdminUser actor = currentAdmin();
+
+        try {
+            User user = lockedUser(userId, ACTION_BAN, reason);
+            ensureNotAnonymised(user, userId, ACTION_BAN, reason);
+
+            UserSanction existingBan = userSanctionRepository
+                .findOpenByUserIdAndType(userId, SanctionType.BAN)
+                .orElse(null);
+            if (user.getAccountStatus() == AccountStatus.BANNED || existingBan != null) {
+                throw failure(ACTION_BAN, userId, reason,
+                    AdminErrorCode.USER_ALREADY_BANNED, "User is already banned.");
+            }
+
+            Instant now = clock.instant();
+            AccountStatus previousStatus = user.getAccountStatus();
+            int beforeTokenVersion = user.getTokenVersion();
+            UserSanction sanction = UserSanction.builder()
+                .user(user)
+                .adminUser(actor)
+                .type(SanctionType.BAN)
+                .reason(reason)
+                .previousStatus(previousStatus)
+                .startsAt(now)
+                .expiresAt(null)
+                .build();
+
+            userSanctionRepository.save(sanction);
+            user.setAccountStatus(AccountStatus.BANNED);
+            user.incrementTokenVersion();
+            refreshTokenService.revoke(user);
+            userRepository.save(user);
+
+            recordSuccess(ACTION_BAN, userId, reason,
+                snapshot(previousStatus, previousStatus, beforeTokenVersion, null, null),
+                snapshot(previousStatus, user.getAccountStatus(), user.getTokenVersion(),
+                    SanctionType.BAN, null));
+        } catch (ApiException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            recordFailure(ACTION_BAN, userId, reason, INTERNAL_SERVER_ERROR);
+            throw ex;
+        }
+    }
+
+    /** Lifts the current ban and restores exactly the status captured when it was created. */
+    @Transactional
+    public void unban(UUID userId, AdminUserSanctionRequest request) {
+        String reason = requireReason(request);
+        AdminUser actor = currentAdmin();
+
+        try {
+            User user = lockedUser(userId, ACTION_UNBAN, reason);
+            ensureNotAnonymised(user, userId, ACTION_UNBAN, reason);
+
+            UserSanction ban = userSanctionRepository
+                .findOpenByUserIdAndType(userId, SanctionType.BAN)
+                .orElseThrow(() -> failure(ACTION_UNBAN, userId, reason,
+                    AdminErrorCode.USER_NOT_BANNED, "User is not currently banned."));
+
+            if (user.getAccountStatus() != AccountStatus.BANNED) {
+                throw failure(ACTION_UNBAN, userId, reason,
+                    AdminErrorCode.USER_NOT_BANNED, "User is not currently banned.");
+            }
+
+            AccountStatus restoredStatus = ban.getPreviousStatus();
+            if (restoredStatus == null || restoredStatus == AccountStatus.BANNED
+                || restoredStatus == AccountStatus.DELETED) {
+                throw failure(ACTION_UNBAN, userId, reason, INTERNAL_SERVER_ERROR,
+                    "The ban does not contain a valid previous account status.");
+            }
+
+            Instant now = clock.instant();
+            int beforeTokenVersion = user.getTokenVersion();
+            ban.setLiftedAt(now);
+            ban.setLiftedBy(actor);
+            ban.setLiftReason(reason);
+            user.setAccountStatus(restoredStatus);
+            user.incrementTokenVersion();
+            userRepository.save(user);
+
+            recordSuccess(ACTION_UNBAN, userId, reason,
+                snapshot(restoredStatus, AccountStatus.BANNED, beforeTokenVersion,
+                    SanctionType.BAN, ban.getExpiresAt()),
+                snapshot(restoredStatus, user.getAccountStatus(), user.getTokenVersion(), null, null));
+        } catch (ApiException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            recordFailure(ACTION_UNBAN, userId, reason, INTERNAL_SERVER_ERROR);
+            throw ex;
+        }
+    }
+
+    /** Suspends the account for one of the fixed durations agreed by the frontend contract. */
+    @Transactional
+    public void suspend(UUID userId, AdminUserSuspendRequest request) {
+        String reason = requireReason(request);
+        int durationHours = requireDuration(request);
+        AdminUser actor = currentAdmin();
+
+        try {
+            User user = lockedUser(userId, ACTION_SUSPEND, reason);
+            ensureNotAnonymised(user, userId, ACTION_SUSPEND, reason);
+
+            if (user.getAccountStatus() == AccountStatus.BANNED) {
+                throw failure(ACTION_SUSPEND, userId, reason,
+                    AdminErrorCode.USER_ALREADY_BANNED,
+                    "A banned user cannot be suspended. Lift the ban first.");
+            }
+            if (user.getAccountStatus() == AccountStatus.SUSPENDED) {
+                throw failure(ACTION_SUSPEND, userId, reason, VALIDATION_ERROR,
+                    "User is already suspended.");
+            }
+
+            Instant now = clock.instant();
+            AccountStatus previousStatus = user.getAccountStatus();
+            int beforeTokenVersion = user.getTokenVersion();
+            Instant expiresAt = now.plus(Duration.ofHours(durationHours));
+            UserSanction sanction = UserSanction.builder()
+                .user(user)
+                .adminUser(actor)
+                .type(SanctionType.SUSPENSION)
+                .reason(reason)
+                .previousStatus(previousStatus)
+                .startsAt(now)
+                .expiresAt(expiresAt)
+                .build();
+
+            userSanctionRepository.save(sanction);
+            user.setAccountStatus(AccountStatus.SUSPENDED);
+            user.incrementTokenVersion();
+            refreshTokenService.revoke(user);
+            userRepository.save(user);
+
+            recordSuccess(ACTION_SUSPEND, userId, reason,
+                snapshot(previousStatus, previousStatus, beforeTokenVersion, null, null),
+                snapshot(previousStatus, user.getAccountStatus(), user.getTokenVersion(),
+                    SanctionType.SUSPENSION, expiresAt));
+        } catch (ApiException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            recordFailure(ACTION_SUSPEND, userId, reason, INTERNAL_SERVER_ERROR);
+            throw ex;
+        }
+    }
+
+    private User lockedUser(UUID userId, String action, String reason) {
+        return userRepository.findByIdForUpdate(userId).orElseGet(() -> {
+            recordFailure(action, userId, reason, "NOT_FOUND");
+            throw new NotFoundException("User not found with id: " + userId);
+        });
+    }
+
+    private void ensureNotAnonymised(
+        User user, UUID userId, String action, String reason) {
+        if (user.getAccountStatus() == AccountStatus.DELETED) {
+            throw failure(action, userId, reason,
+                AdminErrorCode.USER_ANONYMISED,
+                "This account can no longer be changed.");
+        }
+    }
+
+    private void recordSuccess(
+        String action,
+        UUID userId,
+        String reason,
+        UserStateSnapshot before,
+        UserStateSnapshot after) {
+        adminAuditService.record(AdminAuditEvent.builder()
+            .action(action)
+            .targetType(TARGET_TYPE_USER)
+            .targetId(userId)
+            .reason(reason)
+            .beforeJson(adminAuditService.toJson(before))
+            .afterJson(adminAuditService.toJson(after))
+            .build());
+    }
+
+    private void recordFailure(String action, UUID userId, String reason, String errorCode) {
+        adminAuditService.recordFailure(action, TARGET_TYPE_USER, userId, reason, errorCode);
+    }
+
+    private ApiException failure(
+        String action,
+        UUID userId,
+        String reason,
+        String errorCode,
+        String message) {
+        recordFailure(action, userId, reason, errorCode);
+        return new ApiException(message, errorCode);
+    }
+
+    private static String requireReason(AdminUserSanctionRequest request) {
+        if (request == null || request.reason() == null || request.reason().trim().length() < 10) {
+            throw new ApiException("reason: size must be between 10 and 2000", VALIDATION_ERROR);
+        }
+        return request.reason().trim();
+    }
+
+    private static String requireReason(AdminUserSuspendRequest request) {
+        if (request == null || request.reason() == null || request.reason().trim().length() < 10) {
+            throw new ApiException("reason: size must be between 10 and 2000", VALIDATION_ERROR);
+        }
+        return request.reason().trim();
+    }
+
+    private static int requireDuration(AdminUserSuspendRequest request) {
+        if (request == null || request.durationHours() == null
+            || !ALLOWED_SUSPENSION_HOURS.contains(request.durationHours())) {
+            throw new ApiException("durationHours: must be one of 24, 168, or 720", VALIDATION_ERROR);
+        }
+        return request.durationHours();
+    }
+
+    private AdminUser currentAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+            || authentication.getName() == null || authentication.getName().isBlank()) {
+            throw new UnauthorizedException("Your session is no longer valid.");
+        }
+        return adminUserRepository.findActiveByUserEmail(authentication.getName())
+            .orElseThrow(() -> new UnauthorizedException("Your session is no longer valid."));
+    }
+
+    private static UserStateSnapshot snapshot(
+        AccountStatus previousStatus,
+        AccountStatus accountStatus,
+        int tokenVersion,
+        SanctionType sanctionType,
+        Instant expiresAt) {
+        return new UserStateSnapshot(
+            previousStatus, accountStatus, tokenVersion, sanctionType, expiresAt);
+    }
+
+    private record UserStateSnapshot(
+        AccountStatus previousStatus,
+        AccountStatus accountStatus,
+        int tokenVersion,
+        SanctionType sanctionType,
+        Instant expiresAt) {
+    }
+}
