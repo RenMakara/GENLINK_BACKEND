@@ -3,11 +3,15 @@ package kh.edu.acleda.campuslink.modules.admin.sanction;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Method;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserSanctionRequest;
 import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserSuspendRequest;
+import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserWarningRequest;
+import kh.edu.acleda.campuslink.modules.admin.sanction.dto.response.AdminUserWarningResponse;
+import kh.edu.acleda.campuslink.modules.admin.sanction.enums.SanctionSeverity;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,10 +58,28 @@ class AdminUserSanctionControllerTest {
     }
 
     @Test
+    void delegatesWarningAndReturnsTheExplicitPendingDeliveryState() {
+        UUID userId = UUID.randomUUID();
+        AdminUserWarningRequest request = new AdminUserWarningRequest(
+            "Repeated abusive messages", SanctionSeverity.LOW,
+            "Please keep discussions respectful.", "សូមរក្សាការពិភាក្សាឱ្យមានការគោរព។");
+        AdminUserWarningResponse expected = mock(AdminUserWarningResponse.class);
+        when(service.warn(userId, request)).thenReturn(expected);
+
+        ApiResponse<AdminUserWarningResponse> response = controller.warn(userId, request);
+
+        verify(service).warn(userId, request);
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage()).isEqualTo("User warning recorded; delivery pending");
+        assertThat(response.getData()).isEqualTo(expected);
+    }
+
+    @Test
     void exposesTheRequiredPermissionForEachEndpoint() throws Exception {
         assertPermission("ban", "PERM_user:ban");
         assertPermission("unban", "PERM_user:unban");
         assertPermission("suspend", "PERM_user:suspend");
+        assertPermission("warn", "PERM_user:warn");
     }
 
     private void assertPermission(String methodName, String permission) throws Exception {
@@ -66,6 +88,8 @@ class AdminUserSanctionControllerTest {
                 methodName, UUID.class, AdminUserSanctionRequest.class);
             case "suspend" -> AdminUserSanctionController.class.getMethod(
                 methodName, UUID.class, AdminUserSuspendRequest.class);
+            case "warn" -> AdminUserSanctionController.class.getMethod(
+                methodName, UUID.class, AdminUserWarningRequest.class);
             default -> throw new IllegalArgumentException(methodName);
         };
         PreAuthorize authorization = method.getAnnotation(PreAuthorize.class);

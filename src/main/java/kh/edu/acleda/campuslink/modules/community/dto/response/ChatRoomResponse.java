@@ -14,10 +14,23 @@ public record ChatRoomResponse(
     UUID roomId,
     ChatType type,
     String name,
+    String avatarUrl,
     List<ChatMemberResponse> members,
     ChatMessageResponse pinnedMessage,
     Instant createdAt,
     @JsonProperty("isMuted") boolean isMuted,
     @JsonProperty("isArchived") boolean isArchived
 ) {
+    public ChatRoomResponse(
+        UUID roomId,
+        ChatType type,
+        String name,
+        List<ChatMemberResponse> members,
+        ChatMessageResponse pinnedMessage,
+        Instant createdAt,
+        boolean isMuted,
+        boolean isArchived
+    ) {
+        this(roomId, type, name, null, members, pinnedMessage, createdAt, isMuted, isArchived);
+    }
 }

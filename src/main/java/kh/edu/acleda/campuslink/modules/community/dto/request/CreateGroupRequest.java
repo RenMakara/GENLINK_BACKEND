@@ -15,16 +15,23 @@ import java.util.UUID;
  */
 public record CreateGroupRequest(
     @NotBlank @Size(max = 120) String name,
-    @NotEmpty List<@NotNull UUID> memberIds
+    @NotEmpty List<@NotNull UUID> memberIds,
+    String avatarUrl
 ) {
+    public CreateGroupRequest(String name, List<UUID> memberIds) {
+        this(name, memberIds, null);
+    }
+
     @JsonCreator
     public CreateGroupRequest(
         @JsonProperty("name") String name,
         @JsonProperty("memberIds") List<UUID> memberIds,
-        @JsonProperty("memberUserIds") List<UUID> memberUserIds
+        @JsonProperty("memberUserIds") List<UUID> memberUserIds,
+        @JsonProperty("avatarUrl") String avatarUrl
     ) {
         this(name, (memberIds != null && !memberIds.isEmpty())
             ? memberIds
-            : (memberUserIds != null ? memberUserIds : List.of()));
+            : (memberUserIds != null ? memberUserIds : List.of()),
+            avatarUrl);
     }
 }

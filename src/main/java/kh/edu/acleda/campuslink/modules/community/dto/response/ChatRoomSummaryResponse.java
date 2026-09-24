@@ -17,6 +17,7 @@ public record ChatRoomSummaryResponse(
     UUID roomId,
     ChatType type,
     String title,
+    String avatarUrl,
     ChatParticipant counterpart,
     ChatMessageResponse lastMessage,
     long unreadCount,
@@ -24,4 +25,17 @@ public record ChatRoomSummaryResponse(
     @JsonProperty("isMuted") boolean isMuted,
     @JsonProperty("isArchived") boolean isArchived
 ) {
+    public ChatRoomSummaryResponse(
+        UUID roomId,
+        ChatType type,
+        String title,
+        ChatParticipant counterpart,
+        ChatMessageResponse lastMessage,
+        long unreadCount,
+        Instant lastActivityAt,
+        boolean isMuted,
+        boolean isArchived
+    ) {
+        this(roomId, type, title, null, counterpart, lastMessage, unreadCount, lastActivityAt, isMuted, isArchived);
+    }
 }

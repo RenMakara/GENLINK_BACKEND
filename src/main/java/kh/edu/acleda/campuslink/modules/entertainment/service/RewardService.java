@@ -12,10 +12,11 @@ import kh.edu.acleda.campuslink.modules.user.entity.User;
 public interface RewardService {
 
     /**
-     * Adds xp to the user, recomputes their level, records an xp_history row, and checks
-     * for badge unlocks. A non-positive xp is a no-op. Mutates and saves the given
-     * (managed) user, so the caller's instance reflects the new total/level. Returns
-     * the XP actually awarded; duplicate logical sources return zero.
+     * Applies a signed XP delta, recomputes the level, records an xp_history row, and checks
+     * for badge unlocks. Positive values grant XP; negative values revoke it and floor the
+     * user's total at zero. A zero delta is a no-op. Mutates and saves the given user, so the
+     * caller's instance reflects the new total/level. Returns the signed delta actually applied;
+     * duplicate logical sources return zero.
      */
     int award(User user, String sourceType, UUID sourceId, int xp);
 }

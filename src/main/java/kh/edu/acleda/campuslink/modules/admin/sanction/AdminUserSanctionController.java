@@ -6,6 +6,8 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserSanctionRequest;
 import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserSuspendRequest;
+import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserWarningRequest;
+import kh.edu.acleda.campuslink.modules.admin.sanction.dto.response.AdminUserWarningResponse;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -58,5 +60,16 @@ public class AdminUserSanctionController {
         @Valid @RequestBody AdminUserSuspendRequest request) {
         adminSanctionService.suspend(userId, request);
         return ApiResponse.success("User suspended", null);
+    }
+
+    @Operation(
+        summary = "Record a user warning",
+        description = "Stores a bilingual warning for staff review. Delivery is not implemented yet and is explicitly reported as NOT_DELIVERED.")
+    @PostMapping("/warnings")
+    @PreAuthorize("hasAuthority('PERM_user:warn')")
+    public ApiResponse<AdminUserWarningResponse> warn(
+        @PathVariable UUID userId,
+        @Valid @RequestBody AdminUserWarningRequest request) {
+        return ApiResponse.success("User warning recorded; delivery pending", adminSanctionService.warn(userId, request));
     }
 }

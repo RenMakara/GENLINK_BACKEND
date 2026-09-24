@@ -119,7 +119,11 @@ public class ChatServiceImpl implements ChatService {
         }
 
         ChatRoom room = roomRepository.save(ChatRoom.builder()
-            .chatType(ChatType.GROUP).name(request.name().strip()).createdByUser(me).build());
+            .chatType(ChatType.GROUP)
+            .name(request.name().strip())
+            .avatarUrl(request.avatarUrl() != null && !request.avatarUrl().isBlank() ? request.avatarUrl().strip() : null)
+            .createdByUser(me)
+            .build());
         memberRepository.save(activeMember(room, me, ChatRole.OWNER));
         for (User other : others) {
             memberRepository.save(activeMember(room, other, ChatRole.MEMBER));
@@ -335,9 +339,14 @@ public class ChatServiceImpl implements ChatService {
     public ChatRoomResponse renameGroup(UUID roomId, RenameGroupRequest request) {
         UUID meId = currentUserProvider.getCurrentUserId();
         ChatRoom room = requireGroupManager(roomId, meId, false).getChatRoom();
-        room.setName(request.name().strip());
+        if (request.name() != null && !request.name().isBlank()) {
+            room.setName(request.name().strip());
+        }
+        if (request.avatarUrl() != null) {
+            room.setAvatarUrl(request.avatarUrl().isBlank() ? null : request.avatarUrl().strip());
+        }
         roomRepository.save(room);
-        log.info("Group {} renamed by {}", roomId, meId);
+        log.info("Group {} updated by {}", roomId, meId);
         return toRoomResponse(room, meId);
     }
 
@@ -527,6 +536,7 @@ public class ChatServiceImpl implements ChatService {
         boolean isMuted = myMember != null && myMember.getMutedUntil() != null && myMember.getMutedUntil().isAfter(LocalDateTime.now());
         boolean isArchived = myMember != null && myMember.getArchivedAt() != null;
         return new ChatRoomResponse(room.getId(), room.getChatType(), room.getName(),
+            room.getAvatarUrl(),
             members, pinned, room.getCreatedAt(), isMuted, isArchived);
     }
 
@@ -541,8 +551,10 @@ public class ChatServiceImpl implements ChatService {
         ChatParticipant counterpart = room.getChatType() == ChatType.PRIVATE
             ? otherMember(room.getId(), meId) : null;
         String title = room.getChatType() == ChatType.GROUP ? room.getName() : null;
+        String avatarUrl = room.getChatType() == ChatType.GROUP ? room.getAvatarUrl()
+            : (counterpart != null ? counterpart.avatarUrl() : null);
         return new ChatRoomSummaryResponse(
-            room.getId(), room.getChatType(), title, counterpart, last,
+            room.getId(), room.getChatType(), title, avatarUrl, counterpart, last,
             unreadFor(room.getId(), meId), room.getUpdatedAt(),
             isMuted, isArchived);
     }
@@ -558,8 +570,10 @@ public class ChatServiceImpl implements ChatService {
         ChatParticipant counterpart = room.getChatType() == ChatType.PRIVATE
             ? otherMember(room.getId(), meId) : null;
         String title = room.getChatType() == ChatType.GROUP ? room.getName() : null;
+        String avatarUrl = room.getChatType() == ChatType.GROUP ? room.getAvatarUrl()
+            : (counterpart != null ? counterpart.avatarUrl() : null);
         return new ChatRoomSummaryResponse(
-            room.getId(), room.getChatType(), title, counterpart, last,
+            room.getId(), room.getChatType(), title, avatarUrl, counterpart, last,
             unreadFor(room.getId(), meId), room.getUpdatedAt(),
             isMuted, isArchived);
     }

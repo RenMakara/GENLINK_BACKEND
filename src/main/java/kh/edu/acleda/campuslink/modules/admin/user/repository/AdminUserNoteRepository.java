@@ -6,8 +6,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/** Staff-only note storage, always excluding soft-deleted notes. */
 public interface AdminUserNoteRepository extends JpaRepository<AdminUserNote, UUID> {
 
-    /** The notes thread for one user, newest first. Staff-only; never served to the mobile API. */
-    Page<AdminUserNote> findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    Page<AdminUserNote> findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+        UUID userId,
+        Pageable pageable);
 }

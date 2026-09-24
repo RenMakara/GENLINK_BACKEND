@@ -8,6 +8,7 @@ import kh.edu.acleda.campuslink.modules.entertainment.service.LevelUpNotifier;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +41,7 @@ public class RewardServiceImpl implements RewardService {
     @Override
     @Transactional
     public int award(User user, String sourceType, UUID sourceId, int xp) {
-        if (xp <= 0) {
+        if (xp == 0) {
             return 0;
         }
         User lockedUser = userRepository.findByIdForUpdate(user.getId())
@@ -52,7 +53,15 @@ public class RewardServiceImpl implements RewardService {
             return 0;
         }
 
-        int newTotal = lockedUser.getTotalXp() + xp;
+        long candidateTotal = (long) lockedUser.getTotalXp() + xp;
+        if (candidateTotal > Integer.MAX_VALUE) {
+            throw new ApiException("XP total exceeds the supported maximum", "VALIDATION_ERROR");
+        }
+        int newTotal = (int) Math.max(0L, candidateTotal);
+        int appliedXp = newTotal - lockedUser.getTotalXp();
+        if (appliedXp == 0) {
+            return 0;
+        }
         int newLevel = 1 + newTotal / XP_PER_LEVEL;
         boolean leveledUp = newLevel > lockedUser.getLevel();
 
@@ -61,7 +70,7 @@ public class RewardServiceImpl implements RewardService {
         userRepository.save(lockedUser);
 
         xpHistoryRepository.save(XpHistory.builder()
-            .user(lockedUser).sourceType(sourceType).sourceId(sourceId).xpAmount(xp).build());
+            .user(lockedUser).sourceType(sourceType).sourceId(sourceId).xpAmount(appliedXp).build());
 
         // Badge unlocks are evaluated after the XP lands, so thresholds see the new total.
         badgeAwarder.evaluate(lockedUser, sourceType);
@@ -76,6 +85,6 @@ public class RewardServiceImpl implements RewardService {
                     lockedUser.getId(), newLevel, notificationFailure);
             }
         }
-        return xp;
+        return appliedXp;
     }
 }

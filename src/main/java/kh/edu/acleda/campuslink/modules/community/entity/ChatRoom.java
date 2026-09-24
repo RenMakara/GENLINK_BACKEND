@@ -35,6 +35,9 @@ public class ChatRoom extends BaseEntity {
     @Column(name = "name", length = 120)
     private String name;
 
+    @Column(name = "avatar_url", columnDefinition = "TEXT")
+    private String avatarUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_user_id", nullable = true)
     private User createdByUser;

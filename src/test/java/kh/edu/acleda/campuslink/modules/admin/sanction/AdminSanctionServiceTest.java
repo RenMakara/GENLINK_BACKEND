@@ -21,7 +21,10 @@ import kh.edu.acleda.campuslink.modules.admin.rbac.entity.AdminUser;
 import kh.edu.acleda.campuslink.modules.admin.rbac.repository.AdminUserRepository;
 import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserSanctionRequest;
 import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserSuspendRequest;
+import kh.edu.acleda.campuslink.modules.admin.sanction.dto.request.AdminUserWarningRequest;
+import kh.edu.acleda.campuslink.modules.admin.sanction.dto.response.AdminUserWarningResponse;
 import kh.edu.acleda.campuslink.modules.admin.sanction.entity.UserSanction;
+import kh.edu.acleda.campuslink.modules.admin.sanction.enums.SanctionSeverity;
 import kh.edu.acleda.campuslink.modules.admin.sanction.enums.SanctionType;
 import kh.edu.acleda.campuslink.modules.admin.sanction.repository.UserSanctionRepository;
 import kh.edu.acleda.campuslink.modules.auth.RefreshTokenService;
@@ -203,6 +206,39 @@ class AdminSanctionServiceTest {
 
         verify(userSanctionRepository, never()).save(any(UserSanction.class));
         verify(refreshTokenService, never()).revoke(any(User.class));
+    }
+
+    @Test
+    void warningStoresBilingualMessagesAndClearlyReportsThatDeliveryHasNotHappened() {
+        User user = user(AccountStatus.ACTIVE, 3);
+        when(userRepository.findByIdForUpdate(USER_ID)).thenReturn(Optional.of(user));
+        AdminUserWarningRequest request = new AdminUserWarningRequest(
+            "Repeated abusive messages",
+            SanctionSeverity.MEDIUM,
+            "Please keep discussions respectful.",
+            "សូមរក្សាការពិភាក្សាឱ្យមានការគោរព។");
+
+        AdminUserWarningResponse response = service.warn(USER_ID, request);
+
+        assertThat(response.userId()).isEqualTo(USER_ID);
+        assertThat(response.severity()).isEqualTo(SanctionSeverity.MEDIUM);
+        assertThat(response.delivered()).isFalse();
+        assertThat(response.deliveryStatus()).isEqualTo("NOT_DELIVERED");
+        assertThat(response.recordedAt()).isEqualTo(NOW);
+
+        ArgumentCaptor<UserSanction> warning = ArgumentCaptor.forClass(UserSanction.class);
+        verify(userSanctionRepository).save(warning.capture());
+        assertThat(warning.getValue().getType()).isEqualTo(SanctionType.WARNING);
+        assertThat(warning.getValue().getSeverity()).isEqualTo(SanctionSeverity.MEDIUM);
+        assertThat(warning.getValue().getMessageEn()).isEqualTo(request.messageEn());
+        assertThat(warning.getValue().getMessageKm()).isEqualTo(request.messageKm());
+        assertThat(warning.getValue().getPreviousStatus()).isEqualTo(AccountStatus.ACTIVE);
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.ACTIVE);
+
+        ArgumentCaptor<AdminAuditEvent> audit = ArgumentCaptor.forClass(AdminAuditEvent.class);
+        verify(adminAuditService).record(audit.capture());
+        assertThat(audit.getValue().action()).isEqualTo("USER_WARNING");
+        assertThat(audit.getValue().targetId()).isEqualTo(USER_ID);
     }
 
     private User user(AccountStatus status, int tokenVersion) {

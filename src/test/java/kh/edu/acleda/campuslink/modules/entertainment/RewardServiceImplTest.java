@@ -11,6 +11,7 @@ import kh.edu.acleda.campuslink.modules.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -94,5 +95,36 @@ class RewardServiceImplTest {
         verify(userRepository, never()).save(any());
         verify(xpHistoryRepository, never()).save(any());
         verify(badgeAwarder, never()).evaluate(any(), any());
+    }
+
+    @Test
+    void revokeAppliesSignedHistoryRecomputesLevelAndEvaluatesBadges() {
+        ReflectionTestUtils.setField(user, "totalXp", 250);
+        ReflectionTestUtils.setField(user, "level", 3);
+
+        int applied = service.award(user, "ADMIN_ADJUSTMENT", null, -75);
+
+        assertThat(applied).isEqualTo(-75);
+        assertThat(user.getTotalXp()).isEqualTo(175);
+        assertThat(user.getLevel()).isEqualTo(2);
+        ArgumentCaptor<XpHistory> history = ArgumentCaptor.forClass(XpHistory.class);
+        verify(xpHistoryRepository).save(history.capture());
+        assertThat(history.getValue().getSourceType()).isEqualTo("ADMIN_ADJUSTMENT");
+        assertThat(history.getValue().getXpAmount()).isEqualTo(-75);
+        verify(badgeAwarder).evaluate(user, "ADMIN_ADJUSTMENT");
+    }
+
+    @Test
+    void revokeFloorsTotalXpAtZeroAndRecordsOnlyTheAppliedDelta() {
+        ReflectionTestUtils.setField(user, "totalXp", 50);
+
+        int applied = service.award(user, "ADMIN_ADJUSTMENT", null, -200);
+
+        assertThat(applied).isEqualTo(-50);
+        assertThat(user.getTotalXp()).isZero();
+        assertThat(user.getLevel()).isEqualTo(1);
+        ArgumentCaptor<XpHistory> history = ArgumentCaptor.forClass(XpHistory.class);
+        verify(xpHistoryRepository).save(history.capture());
+        assertThat(history.getValue().getXpAmount()).isEqualTo(-50);
     }
 }
