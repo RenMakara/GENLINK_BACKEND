@@ -41,6 +41,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class AdminSanctionServiceTest {
@@ -239,6 +240,68 @@ class AdminSanctionServiceTest {
         verify(adminAuditService).record(audit.capture());
         assertThat(audit.getValue().action()).isEqualTo("USER_WARNING");
         assertThat(audit.getValue().targetId()).isEqualTo(USER_ID);
+    }
+
+    @Test
+    void liftByIdRestoresTheCapturedStatusAndAuditsTheLift() {
+        UUID sanctionId = UUID.randomUUID();
+        User user = user(AccountStatus.BANNED, 5);
+        ReflectionTestUtils.setField(user, "id", USER_ID);
+        UserSanction ban = UserSanction.builder()
+            .user(user)
+            .adminUser(actor)
+            .type(SanctionType.BAN)
+            .reason("Repeated abusive messages")
+            .previousStatus(AccountStatus.PENDING)
+            .startsAt(NOW.minusSeconds(3600))
+            .build();
+        ReflectionTestUtils.setField(ban, "id", sanctionId);
+        when(userSanctionRepository.findById(sanctionId)).thenReturn(Optional.of(ban));
+        when(userRepository.findByIdForUpdate(USER_ID)).thenReturn(Optional.of(user));
+        when(userSanctionRepository.findByIdForUpdate(sanctionId)).thenReturn(Optional.of(ban));
+
+        service.lift(sanctionId, new AdminUserSanctionRequest("Manual review completed"));
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING);
+        assertThat(user.getTokenVersion()).isEqualTo(6);
+        assertThat(ban.getLiftedAt()).isEqualTo(NOW);
+        assertThat(ban.getLiftedBy()).isSameAs(actor);
+        assertThat(ban.getLiftReason()).isEqualTo("Manual review completed");
+        verify(userRepository).save(user);
+        verify(userSanctionRepository).save(ban);
+
+        ArgumentCaptor<AdminAuditEvent> audit = ArgumentCaptor.forClass(AdminAuditEvent.class);
+        verify(adminAuditService).record(audit.capture());
+        assertThat(audit.getValue().action()).isEqualTo("USER_SANCTION_LIFT");
+        assertThat(audit.getValue().targetId()).isEqualTo(USER_ID);
+    }
+
+    @Test
+    void liftingAnOlderSuspensionDoesNotDowngradeANewerBan() {
+        UUID sanctionId = UUID.randomUUID();
+        User user = user(AccountStatus.BANNED, 8);
+        ReflectionTestUtils.setField(user, "id", USER_ID);
+        UserSanction suspension = UserSanction.builder()
+            .user(user)
+            .adminUser(actor)
+            .type(SanctionType.SUSPENSION)
+            .reason("Temporary restriction for review")
+            .previousStatus(AccountStatus.ACTIVE)
+            .startsAt(NOW.minusSeconds(7200))
+            .expiresAt(NOW.plusSeconds(3600))
+            .build();
+        ReflectionTestUtils.setField(suspension, "id", sanctionId);
+        when(userSanctionRepository.findById(sanctionId)).thenReturn(Optional.of(suspension));
+        when(userRepository.findByIdForUpdate(USER_ID)).thenReturn(Optional.of(user));
+        when(userSanctionRepository.findByIdForUpdate(sanctionId)).thenReturn(Optional.of(suspension));
+
+        service.lift(sanctionId, new AdminUserSanctionRequest("Newer ban takes precedence"));
+
+        assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.BANNED);
+        assertThat(user.getTokenVersion()).isEqualTo(8);
+        assertThat(suspension.getLiftedAt()).isEqualTo(NOW);
+        verify(userRepository, never()).save(user);
+        verify(refreshTokenService, never()).revoke(any(User.class));
     }
 
     private User user(AccountStatus status, int tokenVersion) {

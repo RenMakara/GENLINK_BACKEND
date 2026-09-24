@@ -47,6 +47,7 @@ public class AdminSanctionService {
     private static final String ACTION_UNBAN = "USER_UNBAN";
     private static final String ACTION_SUSPEND = "USER_SUSPEND";
     private static final String ACTION_WARNING = "USER_WARNING";
+    private static final String ACTION_LIFT = "USER_SANCTION_LIFT";
     private static final String WARNING_DELIVERY_STATUS = "NOT_DELIVERED";
     private static final String VALIDATION_ERROR = "VALIDATION_ERROR";
     private static final String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
@@ -288,6 +289,83 @@ public class AdminSanctionService {
         }
     }
 
+    /** Lifts one identified sanction without allowing a newer account action to be overwritten. */
+    @Transactional
+    public void lift(UUID sanctionId, AdminUserSanctionRequest request) {
+        String reason = requireReason(request);
+        AdminUser actor = currentAdmin();
+
+        try {
+            UserSanction reference = userSanctionRepository.findById(sanctionId)
+                .orElseThrow(() -> sanctionNotFound(sanctionId, reason));
+            User referenceUser = reference.getUser();
+            if (referenceUser == null || referenceUser.getId() == null) {
+                throw sanctionFailure(sanctionId, reason, INTERNAL_SERVER_ERROR,
+                    "The sanction does not contain a valid target user.");
+            }
+
+            // Match the action services' lock order: target user first, then the sanction row.
+            // Reloading after the user lock prevents a concurrent unban or expiry run from being
+            // overwritten by this request.
+            User user = lockedUser(referenceUser.getId(), ACTION_LIFT, reason);
+            ensureNotAnonymised(user, referenceUser.getId(), ACTION_LIFT, reason);
+            UserSanction sanction = userSanctionRepository.findByIdForUpdate(sanctionId)
+                .orElseThrow(() -> sanctionNotFound(sanctionId, reason));
+
+            if (sanction.getDeletedAt() != null || sanction.getLiftedAt() != null) {
+                throw sanctionFailure(sanctionId, reason, VALIDATION_ERROR,
+                    "Sanction is already lifted or unavailable.");
+            }
+
+            AccountStatus beforeStatus = user.getAccountStatus();
+            int beforeTokenVersion = user.getTokenVersion();
+            boolean userChanged = false;
+            if (sanction.getType() == SanctionType.BAN) {
+                if (user.getAccountStatus() != AccountStatus.BANNED) {
+                    throw failure(ACTION_LIFT, referenceUser.getId(), reason,
+                        AdminErrorCode.USER_NOT_BANNED, "User is not currently banned.");
+                }
+                AccountStatus restoredStatus = validRestoredStatus(sanction, sanctionId, reason);
+                user.setAccountStatus(restoredStatus);
+                user.incrementTokenVersion();
+                userChanged = true;
+            } else if (sanction.getType() == SanctionType.SUSPENSION
+                && user.getAccountStatus() == AccountStatus.SUSPENDED) {
+                AccountStatus restoredStatus = validRestoredStatus(sanction, sanctionId, reason);
+                user.setAccountStatus(restoredStatus);
+                user.incrementTokenVersion();
+                refreshTokenService.revoke(user);
+                userChanged = true;
+            }
+
+            Instant now = clock.instant();
+            sanction.setLiftedAt(now);
+            sanction.setLiftedBy(actor);
+            sanction.setLiftReason(reason);
+            userSanctionRepository.save(sanction);
+            if (userChanged) {
+                userRepository.save(user);
+            }
+
+            adminAuditService.record(AdminAuditEvent.builder()
+                .action(ACTION_LIFT)
+                .targetType(TARGET_TYPE_USER)
+                .targetId(referenceUser.getId())
+                .reason(reason)
+                .beforeJson(adminAuditService.toJson(new LiftSnapshot(
+                    sanction.getType(), beforeStatus, beforeTokenVersion, false)))
+                .afterJson(adminAuditService.toJson(new LiftSnapshot(
+                    sanction.getType(), user.getAccountStatus(), user.getTokenVersion(), true)))
+                .build());
+        } catch (ApiException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            adminAuditService.recordFailure(
+                ACTION_LIFT, TARGET_TYPE_USER, sanctionId, reason, INTERNAL_SERVER_ERROR);
+            throw ex;
+        }
+    }
+
     private User lockedUser(UUID userId, String action, String reason) {
         return userRepository.findByIdForUpdate(userId).orElseGet(() -> {
             recordFailure(action, userId, reason, "NOT_FOUND");
@@ -322,6 +400,35 @@ public class AdminSanctionService {
 
     private void recordFailure(String action, UUID userId, String reason, String errorCode) {
         adminAuditService.recordFailure(action, TARGET_TYPE_USER, userId, reason, errorCode);
+    }
+
+    private ApiException sanctionNotFound(UUID sanctionId, String reason) {
+        adminAuditService.recordFailure(
+            ACTION_LIFT, "SANCTION", sanctionId, reason, "NOT_FOUND");
+        return new NotFoundException("Sanction not found with id: " + sanctionId);
+    }
+
+    private ApiException sanctionFailure(
+        UUID sanctionId,
+        String reason,
+        String errorCode,
+        String message) {
+        adminAuditService.recordFailure(
+            ACTION_LIFT, "SANCTION", sanctionId, reason, errorCode);
+        return new ApiException(message, errorCode);
+    }
+
+    private AccountStatus validRestoredStatus(
+        UserSanction sanction,
+        UUID sanctionId,
+        String reason) {
+        AccountStatus restoredStatus = sanction.getPreviousStatus();
+        if (restoredStatus == null || restoredStatus == AccountStatus.BANNED
+            || restoredStatus == AccountStatus.DELETED || restoredStatus == AccountStatus.SUSPENDED) {
+            throw sanctionFailure(sanctionId, reason, INTERNAL_SERVER_ERROR,
+                "The sanction does not contain a valid previous account status.");
+        }
+        return restoredStatus;
     }
 
     private ApiException failure(
@@ -399,5 +506,12 @@ public class AdminSanctionService {
     }
 
     private record WarningSnapshot(SanctionSeverity severity, String deliveryStatus) {
+    }
+
+    private record LiftSnapshot(
+        SanctionType sanctionType,
+        AccountStatus accountStatus,
+        int tokenVersion,
+        boolean lifted) {
     }
 }
