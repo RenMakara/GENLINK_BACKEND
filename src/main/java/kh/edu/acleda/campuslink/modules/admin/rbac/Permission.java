@@ -54,7 +54,7 @@ public enum Permission {
     // -- Account recovery and lifecycle --------------------------------------------------
     USER_VERIFY_EMAIL("user:verify_email", "Manually mark an email verified"),
     USER_RESET_PASSWORD("user:reset_password", "Trigger a password-reset email"),
-    USER_FORCE_LOGOUT("user:force_logout", "Revoke all of a user's sessions"),
+    USER_FORCE_LOGOUT("user:force_logout", "Revoke a user's sessions"),
     USER_DELETE("user:delete", "Soft-delete and restore a user account"),
 
     // -- Gamification --------------------------------------------------------------------

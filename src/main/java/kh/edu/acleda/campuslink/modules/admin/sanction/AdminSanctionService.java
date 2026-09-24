@@ -89,19 +89,25 @@ public class AdminSanctionService {
     /** Permanently bans the account until an authorised admin lifts the sanction. */
     @Transactional
     public void ban(UUID userId, AdminUserSanctionRequest request) {
+        ban(userId, request, null);
+    }
+
+    /** Permanently bans the account and optionally attaches the action to a bulk batch. */
+    @Transactional
+    public void ban(UUID userId, AdminUserSanctionRequest request, UUID batchId) {
         String reason = requireReason(request);
         AdminUser actor = currentAdmin();
 
         try {
-            User user = lockedUser(userId, ACTION_BAN, reason);
-            ensureNotAnonymised(user, userId, ACTION_BAN, reason);
+            User user = lockedUser(userId, ACTION_BAN, reason, batchId);
+            ensureNotAnonymised(user, userId, ACTION_BAN, reason, batchId);
 
             UserSanction existingBan = userSanctionRepository
                 .findOpenByUserIdAndType(userId, SanctionType.BAN)
                 .orElse(null);
             if (user.getAccountStatus() == AccountStatus.BANNED || existingBan != null) {
                 throw failure(ACTION_BAN, userId, reason,
-                    AdminErrorCode.USER_ALREADY_BANNED, "User is already banned.");
+                    AdminErrorCode.USER_ALREADY_BANNED, "User is already banned.", batchId);
             }
 
             Instant now = clock.instant();
@@ -126,11 +132,11 @@ public class AdminSanctionService {
             recordSuccess(ACTION_BAN, userId, reason,
                 snapshot(previousStatus, previousStatus, beforeTokenVersion, null, null),
                 snapshot(previousStatus, user.getAccountStatus(), user.getTokenVersion(),
-                    SanctionType.BAN, null));
+                    SanctionType.BAN, null), batchId);
         } catch (ApiException ex) {
             throw ex;
         } catch (RuntimeException ex) {
-            recordFailure(ACTION_BAN, userId, reason, INTERNAL_SERVER_ERROR);
+            recordFailure(ACTION_BAN, userId, reason, INTERNAL_SERVER_ERROR, batchId);
             throw ex;
         }
     }
@@ -367,18 +373,27 @@ public class AdminSanctionService {
     }
 
     private User lockedUser(UUID userId, String action, String reason) {
+        return lockedUser(userId, action, reason, null);
+    }
+
+    private User lockedUser(UUID userId, String action, String reason, UUID batchId) {
         return userRepository.findByIdForUpdate(userId).orElseGet(() -> {
-            recordFailure(action, userId, reason, "NOT_FOUND");
+            recordFailure(action, userId, reason, "NOT_FOUND", batchId);
             throw new NotFoundException("User not found with id: " + userId);
         });
     }
 
     private void ensureNotAnonymised(
         User user, UUID userId, String action, String reason) {
+        ensureNotAnonymised(user, userId, action, reason, null);
+    }
+
+    private void ensureNotAnonymised(
+        User user, UUID userId, String action, String reason, UUID batchId) {
         if (user.getAccountStatus() == AccountStatus.DELETED) {
             throw failure(action, userId, reason,
                 AdminErrorCode.USER_ANONYMISED,
-                "This account can no longer be changed.");
+                "This account can no longer be changed.", batchId);
         }
     }
 
@@ -388,18 +403,39 @@ public class AdminSanctionService {
         String reason,
         UserStateSnapshot before,
         UserStateSnapshot after) {
+        recordSuccess(action, userId, reason, before, after, null);
+    }
+
+    private void recordSuccess(
+        String action,
+        UUID userId,
+        String reason,
+        UserStateSnapshot before,
+        UserStateSnapshot after,
+        UUID batchId) {
         adminAuditService.record(AdminAuditEvent.builder()
             .action(action)
             .targetType(TARGET_TYPE_USER)
             .targetId(userId)
             .reason(reason)
+            .batchId(batchId)
             .beforeJson(adminAuditService.toJson(before))
             .afterJson(adminAuditService.toJson(after))
             .build());
     }
 
     private void recordFailure(String action, UUID userId, String reason, String errorCode) {
-        adminAuditService.recordFailure(action, TARGET_TYPE_USER, userId, reason, errorCode);
+        recordFailure(action, userId, reason, errorCode, null);
+    }
+
+    private void recordFailure(
+        String action, UUID userId, String reason, String errorCode, UUID batchId) {
+        if (batchId == null) {
+            adminAuditService.recordFailure(action, TARGET_TYPE_USER, userId, reason, errorCode);
+        } else {
+            adminAuditService.recordFailure(
+                action, TARGET_TYPE_USER, userId, reason, errorCode, batchId);
+        }
     }
 
     private ApiException sanctionNotFound(UUID sanctionId, String reason) {
@@ -437,7 +473,17 @@ public class AdminSanctionService {
         String reason,
         String errorCode,
         String message) {
-        recordFailure(action, userId, reason, errorCode);
+        return failure(action, userId, reason, errorCode, message, null);
+    }
+
+    private ApiException failure(
+        String action,
+        UUID userId,
+        String reason,
+        String errorCode,
+        String message,
+        UUID batchId) {
+        recordFailure(action, userId, reason, errorCode, batchId);
         return new ApiException(message, errorCode);
     }
 

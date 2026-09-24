@@ -10,12 +10,13 @@ import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Permission-gated read boundary for one user's sessions and security history. */
+/** Permission-gated boundary for one user's sessions and security history. */
 @Tag(name = "Admin - User Security", description = "User sessions and login history")
 @RestController
 @RequestMapping("/api/v1/admin/users/{userId}")
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminUserSecurityController {
 
     private final AdminUserSecurityService adminUserSecurityService;
+    private final AdminUserSessionRevocationService adminUserSessionRevocationService;
 
     @Operation(
         summary = "List a user's active sessions",
@@ -48,5 +50,21 @@ public class AdminUserSecurityController {
         @RequestParam(defaultValue = "25") int size) {
         return ApiResponse.success(
             "User login history retrieved", adminUserSecurityService.loginHistory(userId, page, size));
+    }
+
+    @Operation(
+        summary = "Revoke one of a user's sessions",
+        description = "Revokes the selected refresh token and removes the session from the active "
+            + "session list. The access token already issued to that device remains valid until "
+            + "its normal expiry because token_version is per-user.")
+    @DeleteMapping("/sessions/{sessionId}")
+    @PreAuthorize("hasAuthority('PERM_user:force_logout')")
+    public ApiResponse<Void> revokeSession(
+        @PathVariable UUID userId,
+        @PathVariable UUID sessionId) {
+        adminUserSessionRevocationService.revoke(userId, sessionId);
+        return ApiResponse.success(
+            "Session revoked; the device's current access token remains valid until expiry",
+            null);
     }
 }

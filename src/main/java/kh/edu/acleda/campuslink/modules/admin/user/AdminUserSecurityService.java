@@ -21,7 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Read-only, owner-scoped security history for the admin user detail page. */
+/** Owner-scoped security history for the admin user detail page. */
 @Service
 public class AdminUserSecurityService {
 

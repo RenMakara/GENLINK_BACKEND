@@ -72,6 +72,12 @@ public final class AdminErrorCode {
     /** 400. A broadcast has no eligible recipients. */
     public static final String ADMIN_NOTIFICATION_NO_RECIPIENTS = "ADMIN_NOTIFICATION_NO_RECIPIENTS";
 
+    /** 400. A bulk request contains more than the server-side 500-user cap. */
+    public static final String BULK_LIMIT_EXCEEDED = "BULK_LIMIT_EXCEEDED";
+
+    /** 400. A CSV export exceeds the server-side 50,000-row cap. */
+    public static final String EXPORT_TOO_LARGE = "EXPORT_TOO_LARGE";
+
     /** 400. The template key is not an admin-managed key or its localized content is invalid. */
     public static final String ADMIN_NOTIFICATION_TEMPLATE_INVALID = "ADMIN_NOTIFICATION_TEMPLATE_INVALID";
 

@@ -67,7 +67,10 @@ public class GlobalExceptionHandler {
             .map(error -> error.getField() + ": " + error.getDefaultMessage())
             .collect(Collectors.joining(", "));
         log.warn("Validation failed: {}", message);
-        return ResponseEntity.badRequest().body(ApiResponse.failure(message, "VALIDATION_ERROR"));
+        String errorCode = ex.getBindingResult().getFieldErrors().stream()
+            .anyMatch(error -> "BULK_LIMIT_EXCEEDED".equals(error.getDefaultMessage()))
+            ? "BULK_LIMIT_EXCEEDED" : "VALIDATION_ERROR";
+        return ResponseEntity.badRequest().body(ApiResponse.failure(message, errorCode));
     }
 
     @ExceptionHandler(BindException.class)

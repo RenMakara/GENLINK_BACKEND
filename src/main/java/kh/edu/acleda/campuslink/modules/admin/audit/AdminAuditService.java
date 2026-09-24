@@ -46,17 +46,34 @@ public class AdminAuditService {
 
     /** Records a successful action. */
     public void recordSuccess(String action, String targetType, UUID targetId, String reason) {
+        recordSuccess(action, targetType, targetId, reason, null);
+    }
+
+    /** Records a successful action and optionally correlates it to a bulk batch. */
+    public void recordSuccess(
+        String action, String targetType, UUID targetId, String reason, UUID batchId) {
         record(AdminAuditEvent.builder()
             .action(action).targetType(targetType).targetId(targetId)
-            .reason(reason).status(AuditStatus.SUCCESS)
+            .reason(reason).batchId(batchId).status(AuditStatus.SUCCESS)
             .build());
     }
 
     /** Records an action that was attempted and refused or failed. */
     public void recordFailure(String action, String targetType, UUID targetId, String reason, String errorCode) {
+        recordFailure(action, targetType, targetId, reason, errorCode, null);
+    }
+
+    /** Records a failed action and optionally correlates it to a bulk batch. */
+    public void recordFailure(
+        String action,
+        String targetType,
+        UUID targetId,
+        String reason,
+        String errorCode,
+        UUID batchId) {
         record(AdminAuditEvent.builder()
             .action(action).targetType(targetType).targetId(targetId)
-            .reason(reason).errorCode(errorCode).status(AuditStatus.FAILURE)
+            .reason(reason).batchId(batchId).errorCode(errorCode).status(AuditStatus.FAILURE)
             .build());
     }
 

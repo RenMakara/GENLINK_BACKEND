@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.admin.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 import java.lang.reflect.Method;
 import java.util.UUID;
@@ -17,12 +18,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 class AdminUserSecurityControllerTest {
 
     private AdminUserSecurityService service;
+    private AdminUserSessionRevocationService revocationService;
     private AdminUserSecurityController controller;
 
     @BeforeEach
     void setUp() {
         service = mock(AdminUserSecurityService.class);
-        controller = new AdminUserSecurityController(service);
+        revocationService = mock(AdminUserSessionRevocationService.class);
+        controller = new AdminUserSecurityController(service, revocationService);
     }
 
     @Test
@@ -66,5 +69,23 @@ class AdminUserSecurityControllerTest {
             .isEqualTo("hasAuthority('PERM_user:read')");
         assertThat(loginHistory.getAnnotation(PreAuthorize.class).value())
             .isEqualTo("hasAuthority('PERM_user:read')");
+    }
+
+    @Test
+    void revokesOneSessionWithTheForceLogoutPermission() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID sessionId = UUID.randomUUID();
+
+        ApiResponse<Void> response = controller.revokeSession(userId, sessionId);
+
+        verify(revocationService).revoke(userId, sessionId);
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getMessage())
+            .contains("current access token remains valid until expiry");
+
+        Method revoke = AdminUserSecurityController.class
+            .getMethod("revokeSession", UUID.class, UUID.class);
+        assertThat(revoke.getAnnotation(PreAuthorize.class).value())
+            .isEqualTo("hasAuthority('PERM_user:force_logout')");
     }
 }

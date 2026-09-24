@@ -54,10 +54,34 @@ public class AdminUserListRepository {
     }
 
     public Page<User> findPage(AdminUserListCriteria criteria, Pageable pageable) {
+        Instant now = clock.instant();
+        List<User> users = findUsers(criteria, Math.toIntExact(pageable.getOffset()),
+            pageable.getPageSize(), now);
+        long total = count(criteria, now);
+        return new PageImpl<>(users, pageable, total);
+    }
+
+    /** Returns one bounded batch using the same filters and whitelist as the directory page. */
+    public List<User> findBatch(AdminUserListCriteria criteria, int offset, int limit) {
+        if (offset < 0 || limit < 1) {
+            throw new IllegalArgumentException("offset must be non-negative and limit must be positive");
+        }
+        return findUsers(criteria, offset, limit, clock.instant());
+    }
+
+    /** Counts the complete filtered result before an export starts streaming. */
+    public long count(AdminUserListCriteria criteria) {
+        return count(criteria, clock.instant());
+    }
+
+    private List<User> findUsers(
+        AdminUserListCriteria criteria,
+        int offset,
+        int limit,
+        Instant now) {
         CriteriaBuilder builder = entityManager.getCriteriaBuilder();
         CriteriaQuery<User> query = builder.createQuery(User.class);
         Root<User> root = query.from(User.class);
-        Instant now = clock.instant();
 
         List<Predicate> predicates = predicates(builder, query, root, criteria, now);
         if (!predicates.isEmpty()) {
@@ -66,10 +90,13 @@ public class AdminUserListRepository {
         applyOrderBy(builder, query, root, criteria);
 
         TypedQuery<User> typedQuery = entityManager.createQuery(query);
-        typedQuery.setFirstResult(Math.toIntExact(pageable.getOffset()));
-        typedQuery.setMaxResults(pageable.getPageSize());
-        List<User> users = typedQuery.getResultList();
+        typedQuery.setFirstResult(offset);
+        typedQuery.setMaxResults(limit);
+        return typedQuery.getResultList();
+    }
 
+    private long count(AdminUserListCriteria criteria, Instant now) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> countQuery = builder.createQuery(Long.class);
         Root<User> countRoot = countQuery.from(User.class);
         List<Predicate> countPredicates = predicates(builder, countQuery, countRoot, criteria, now);
@@ -77,8 +104,7 @@ public class AdminUserListRepository {
         if (!countPredicates.isEmpty()) {
             countQuery.where(countPredicates.toArray(Predicate[]::new));
         }
-        long total = entityManager.createQuery(countQuery).getSingleResult();
-        return new PageImpl<>(users, pageable, total);
+        return entityManager.createQuery(countQuery).getSingleResult();
     }
 
     private List<Predicate> predicates(

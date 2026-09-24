@@ -57,6 +57,9 @@ class AdminUserListRepositoryTest {
 
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent()).extracting(User::getId).containsExactly(active.getId());
+        assertThat(repository.count(criteria)).isEqualTo(1);
+        assertThat(repository.findBatch(criteria, 0, 25)).extracting(User::getId)
+            .containsExactly(active.getId());
     }
 
     @Test
