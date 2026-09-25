@@ -234,7 +234,7 @@ public class AdminAnalyticsQueryRepositoryImpl implements AdminAnalyticsQueryRep
               AND u.created_at < :toInstant
               AND %s
             GROUP BY 1
-            ORDER BY %s
+            ORDER BY MIN(%s)
             """.formatted(bucket, ACTIVE_USER_SCOPE, order);
 
         Query nativeQuery = entityManager.createNativeQuery(sql);
