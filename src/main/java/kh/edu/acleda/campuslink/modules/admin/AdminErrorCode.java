@@ -69,6 +69,10 @@ public final class AdminErrorCode {
     /** 400. A selected broadcast recipient is absent, inactive, deleted, or duplicated. */
     public static final String ADMIN_NOTIFICATION_INVALID_RECIPIENTS = "ADMIN_NOTIFICATION_INVALID_RECIPIENTS";
 
+    /** 400. SUPER_ADMIN permissions are implicit in code and cannot be replaced from data. */
+    public static final String ADMIN_SUPER_ADMIN_PERMISSIONS_IMMUTABLE =
+        "ADMIN_SUPER_ADMIN_PERMISSIONS_IMMUTABLE";
+
     /** 400. A broadcast has no eligible recipients. */
     public static final String ADMIN_NOTIFICATION_NO_RECIPIENTS = "ADMIN_NOTIFICATION_NO_RECIPIENTS";
 
