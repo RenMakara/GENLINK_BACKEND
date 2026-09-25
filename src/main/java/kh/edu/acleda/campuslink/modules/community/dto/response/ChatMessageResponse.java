@@ -19,6 +19,7 @@ public record ChatMessageResponse(
     String mediaUrl,
     UUID replyToMessageId,
     ReplyPreview replyTo,
+    String sharedContent,
     boolean mine,
     Instant createdAt
 ) {
@@ -33,15 +34,30 @@ public record ChatMessageResponse(
         boolean mine,
         Instant createdAt
     ) {
-        this(messageId, null, sender, type, content, mediaUrl, replyToMessageId, replyTo, mine, createdAt);
+        this(messageId, null, sender, type, content, mediaUrl, replyToMessageId, replyTo, null, mine, createdAt);
+    }
+
+    public ChatMessageResponse(
+        UUID messageId,
+        UUID roomId,
+        ChatParticipant sender,
+        MessageType type,
+        String content,
+        String mediaUrl,
+        UUID replyToMessageId,
+        ReplyPreview replyTo,
+        boolean mine,
+        Instant createdAt
+    ) {
+        this(messageId, roomId, sender, type, content, mediaUrl, replyToMessageId, replyTo, null, mine, createdAt);
     }
 
     public ChatMessageResponse withMine(boolean newMine) {
-        return new ChatMessageResponse(messageId, roomId, sender, type, content, mediaUrl, replyToMessageId, replyTo, newMine, createdAt);
+        return new ChatMessageResponse(messageId, roomId, sender, type, content, mediaUrl, replyToMessageId, replyTo, sharedContent, newMine, createdAt);
     }
 
     public ChatMessageResponse withRoomId(UUID newRoomId) {
-        return new ChatMessageResponse(messageId, newRoomId, sender, type, content, mediaUrl, replyToMessageId, replyTo, mine, createdAt);
+        return new ChatMessageResponse(messageId, newRoomId, sender, type, content, mediaUrl, replyToMessageId, replyTo, sharedContent, mine, createdAt);
     }
 
     /** Just enough of the replied-to message to render a quote line. */

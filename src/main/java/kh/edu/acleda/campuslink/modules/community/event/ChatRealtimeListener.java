@@ -95,6 +95,9 @@ public class ChatRealtimeListener {
             String trimmed = event.message().content().strip();
             return trimmed.length() > 100 ? trimmed.substring(0, 97) + "..." : trimmed;
         }
+        if (event.message() != null && event.message().sharedContent() != null && !event.message().sharedContent().isBlank()) {
+            return "[Shared Content]";
+        }
         return "[Attachment]";
     }
 }

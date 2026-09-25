@@ -152,3 +152,5 @@ databaseChangeLog:
       file: db/changelog/changes/0075-add-chat-room-avatar-url.sql
   - include:
       file: db/changelog/changes/0076-seed-story-like-notification-template.sql
+  - include:
+      file: db/changelog/changes/0077-add-chat-shared-content.sql

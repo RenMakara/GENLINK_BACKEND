@@ -18,6 +18,15 @@ public record SendMessageRequest(
     @NotNull MessageType type,
     @Size(max = 4000) String content,
     @Size(max = 2048) String mediaUrl,
-    UUID replyToMessageId
+    UUID replyToMessageId,
+    String sharedContent
 ) {
+    public SendMessageRequest(
+        MessageType type,
+        String content,
+        String mediaUrl,
+        UUID replyToMessageId
+    ) {
+        this(type, content, mediaUrl, replyToMessageId, null);
+    }
 }

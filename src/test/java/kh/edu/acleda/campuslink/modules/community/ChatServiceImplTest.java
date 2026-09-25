@@ -259,6 +259,27 @@ class ChatServiceImplTest {
         verify(roomRepository).touch(eq(ROOM_ID), any(Instant.class));
     }
 
+    @Test
+    void sendingSharedContentMessageStoresItAndReturnsSharedContent() {
+        activeMembership();
+        when(messageRepository.save(any(ChatMessage.class))).thenAnswer(i -> {
+            ChatMessage m = i.getArgument(0);
+            ReflectionTestUtils.setField(m, "id", MSG_ID);
+            ReflectionTestUtils.setField(m, "createdAt", Instant.now());
+            return m;
+        });
+
+        String sharedJson = "{\"type\":\"POST\",\"id\":\"post-123\",\"title\":\"Tech Expo 2026\"}";
+        ChatMessageResponse response = service.sendMessage(ROOM_ID,
+                new SendMessageRequest(MessageType.TEXT, "Check this out!", null, null, sharedJson));
+
+        assertThat(response.messageId()).isEqualTo(MSG_ID);
+        assertThat(response.content()).isEqualTo("Check this out!");
+        assertThat(response.sharedContent()).isEqualTo(sharedJson);
+        assertThat(response.mine()).isTrue();
+        verify(roomRepository).touch(eq(ROOM_ID), any(Instant.class));
+    }
+
     // ------------------------------------------------------------ delete/read
 
     @Test

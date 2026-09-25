@@ -54,7 +54,9 @@ public class ChatMessage extends BaseEntity {
     @JoinColumn(name = "reply_to_message_id", nullable = true)
     private ChatMessage replyToMessage;
 
+    @Column(name = "shared_content", columnDefinition = "TEXT")
+    private String sharedContent;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
-
 }

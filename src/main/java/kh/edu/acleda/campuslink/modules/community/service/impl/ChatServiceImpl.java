@@ -261,6 +261,7 @@ public class ChatServiceImpl implements ChatService {
             .messageType(type)
             .content(request.content())
             .mediaUrl(request.mediaUrl())
+            .sharedContent(request.sharedContent())
             .replyToMessage(replyTo)
             .build());
         // If this is a private chat and the other member had left, re-activate them so the thread reappears in their chats.
@@ -437,7 +438,8 @@ public class ChatServiceImpl implements ChatService {
         if (type == MessageType.SYSTEM) {
             throw new ApiException("SYSTEM messages are server-generated", "CHAT_MESSAGE_TYPE_INVALID");
         }
-        if (type == MessageType.TEXT && (request.content() == null || request.content().isBlank())) {
+        if (type == MessageType.TEXT && (request.content() == null || request.content().isBlank())
+            && (request.sharedContent() == null || request.sharedContent().isBlank())) {
             throw new ApiException("A text message needs content", "VALIDATION_ERROR");
         }
         if ((type == MessageType.IMAGE || type == MessageType.VOICE)
@@ -602,6 +604,7 @@ public class ChatServiceImpl implements ChatService {
             message.getMediaUrl(),
             replyTo == null ? null : replyTo.getId(),
             preview,
+            message.getSharedContent(),
             message.getSender().getId().equals(meId),
             message.getCreatedAt());
     }
@@ -615,6 +618,9 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private String snippet(ChatMessage message) {
+        if (message.getSharedContent() != null && !message.getSharedContent().isBlank()) {
+            return "[shared content]";
+        }
         return switch (message.getMessageType()) {
             case IMAGE -> "[image]";
             case VOICE -> "[voice message]";
