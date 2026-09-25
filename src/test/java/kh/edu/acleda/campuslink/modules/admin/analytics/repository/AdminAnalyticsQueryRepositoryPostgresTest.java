@@ -142,7 +142,7 @@ class AdminAnalyticsQueryRepositoryPostgresTest {
             new AdminAnalyticsQueryRepository.DistributionRow("STUDENT", 1L),
             new AdminAnalyticsQueryRepository.DistributionRow("FREELANCER", 1L));
         assertThat(queryRepository.findLanguages(query).distribution()).contains(
-            new AdminAnalyticsQueryRepository.DistributionRow("ENGLISH", 1L),
+            new AdminAnalyticsQueryRepository.DistributionRow("ENGLISH", 2L),
             new AdminAnalyticsQueryRepository.DistributionRow("KHMER", 1L));
         assertThat(queryRepository.findXpDistribution(query).buckets()).contains(
             new AdminAnalyticsQueryRepository.DistributionRow("100-499", 1L),
