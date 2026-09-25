@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.admin.auth.RequiresSudo;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminDeactivationRequest;
+import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminMfaResetRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminPromotionRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminRoleChangeRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.response.AdminStaffResponse;
@@ -40,6 +41,8 @@ class AdminUserManagementControllerTest {
             roleId, "Move the staff member to customer support");
         AdminDeactivationRequest deactivate = new AdminDeactivationRequest(
             "Revoke staff access after the contract ended");
+        AdminMfaResetRequest resetMfa = new AdminMfaResetRequest(
+            "Recover the locked staff administrator");
         AdminStaffResponse staff = new AdminStaffResponse(
             adminId, userId, "Staff", "staff", "staff@genlink.kh", roleId,
             "SUPPORT", "Support", true, true, true, null, null, null);
@@ -48,20 +51,24 @@ class AdminUserManagementControllerTest {
         when(service.promote(promote)).thenReturn(staff);
         when(service.changeRole(adminId, change)).thenReturn(staff);
         when(service.deactivate(adminId, deactivate)).thenReturn(staff);
+        when(service.resetMfa(adminId, resetMfa)).thenReturn(staff);
 
         var listResponse = controller.list(0, 25);
         var promoteResponse = controller.promote(promote);
         var changeResponse = controller.changeRole(adminId, change);
         var deactivateResponse = controller.deactivate(adminId, deactivate);
+        var resetMfaResponse = controller.resetMfa(adminId, resetMfa);
 
         verify(service).list(0, 25);
         verify(service).promote(promote);
         verify(service).changeRole(adminId, change);
         verify(service).deactivate(adminId, deactivate);
+        verify(service).resetMfa(adminId, resetMfa);
         assertThat(listResponse.getMessage()).isEqualTo("Admin users retrieved");
         assertThat(promoteResponse.getMessage()).isEqualTo("User promoted to admin");
         assertThat(changeResponse.getMessage()).isEqualTo("Admin role changed");
         assertThat(deactivateResponse.getMessage()).isEqualTo("Admin deactivated");
+        assertThat(resetMfaResponse.getMessage()).isEqualTo("Admin MFA reset");
     }
 
     @Test
@@ -72,6 +79,7 @@ class AdminUserManagementControllerTest {
         assertMutation("promote", AdminPromotionRequest.class);
         assertMutation("changeRole", UUID.class, AdminRoleChangeRequest.class);
         assertMutation("deactivate", UUID.class, AdminDeactivationRequest.class);
+        assertMutation("resetMfa", UUID.class, AdminMfaResetRequest.class);
     }
 
     private void assertMutation(String methodName, Class<?>... parameterTypes) throws Exception {

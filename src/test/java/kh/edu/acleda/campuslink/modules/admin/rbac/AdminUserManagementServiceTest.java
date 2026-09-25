@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.admin.rbac;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,6 +18,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.admin.audit.AdminAuditEvent;
 import kh.edu.acleda.campuslink.modules.admin.audit.AdminAuditService;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminDeactivationRequest;
+import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminMfaResetRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminPromotionRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminRoleChangeRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.entity.AdminRole;
@@ -195,6 +197,65 @@ class AdminUserManagementServiceTest {
         verify(refreshTokenService).revoke(user);
         verify(userRepository).save(user);
         verify(adminPermissionCache).evictIdentity("staff@genlink.kh");
+    }
+
+    @Test
+    void resetMfaClearsCredentialsRevokesSessionsAndForcesFreshEnrolment() {
+        UUID adminId = UUID.randomUUID();
+        User user = user("staff@genlink.kh", "staff", "Staff User");
+        user.setRole(Role.ADMIN);
+        AdminUser target = admin(user, "SUPPORT", true);
+        target.setTotpSecret("v1:encrypted-secret");
+        target.setRecoveryCodes("old-recovery-codes");
+        when(adminUserRepository.findByIdForUpdate(adminId)).thenReturn(Optional.of(target));
+        when(adminUserRepository.save(any(AdminUser.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var result = service.resetMfa(
+            adminId,
+            new AdminMfaResetRequest("Recover the locked support administrator"));
+
+        assertThat(result.active()).isTrue();
+        assertThat(result.totpEnabled()).isFalse();
+        assertThat(result.totpConfirmed()).isFalse();
+        assertThat(target.getTotpSecret()).isNull();
+        assertThat(target.getRecoveryCodes()).isNull();
+        assertThat(target.getTotpConfirmedAt()).isNull();
+        assertThat(user.getTokenVersion()).isEqualTo(1);
+        verify(superAdminGuard).ensureMayResetMfa(actor, target);
+        verify(refreshTokenService).revoke(user);
+        verify(userRepository).save(user);
+        verify(adminAuditService).record(any(AdminAuditEvent.class));
+    }
+
+    @Test
+    void resetMfaRefusalDoesNotMutateTheTargetAndIsAudited() {
+        UUID adminId = UUID.randomUUID();
+        User user = user("super@genlink.kh", "super", "Super Admin");
+        user.setRole(Role.ADMIN);
+        AdminUser target = admin(user, "SUPER_ADMIN", true);
+        target.setTotpSecret("v1:encrypted-secret");
+        target.setRecoveryCodes("old-recovery-codes");
+        when(adminUserRepository.findByIdForUpdate(adminId)).thenReturn(Optional.of(target));
+        doThrow(new ApiException("Only a Super Admin can modify another Super Admin.", "FORBIDDEN"))
+            .when(superAdminGuard).ensureMayResetMfa(actor, target);
+
+        assertThatThrownBy(() -> service.resetMfa(
+            adminId,
+            new AdminMfaResetRequest("Attempt an unauthorised MFA recovery")))
+            .isInstanceOf(ApiException.class)
+            .hasFieldOrPropertyWithValue("errorCode", "FORBIDDEN");
+
+        assertThat(target.getTotpSecret()).isEqualTo("v1:encrypted-secret");
+        assertThat(target.getRecoveryCodes()).isEqualTo("old-recovery-codes");
+        verify(refreshTokenService, never()).revoke(user);
+        verify(adminUserRepository, never()).save(any(AdminUser.class));
+        verify(adminAuditService).recordFailure(
+            "ADMIN_MFA_RESET",
+            "ADMIN_USER",
+            adminId,
+            "Attempt an unauthorised MFA recovery",
+            "FORBIDDEN");
     }
 
     @Test

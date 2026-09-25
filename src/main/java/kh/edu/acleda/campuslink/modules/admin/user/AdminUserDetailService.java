@@ -3,6 +3,8 @@ package kh.edu.acleda.campuslink.modules.admin.user;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.admin.rbac.AdminIdentity;
+import kh.edu.acleda.campuslink.modules.admin.rbac.AdminPermissionCache;
 import kh.edu.acleda.campuslink.modules.admin.rbac.entity.AdminUser;
 import kh.edu.acleda.campuslink.modules.admin.rbac.repository.AdminUserRepository;
 import kh.edu.acleda.campuslink.modules.admin.sanction.entity.UserSanction;
@@ -16,8 +18,11 @@ import kh.edu.acleda.campuslink.modules.profile.service.SocialLinkService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.enums.Language;
+import kh.edu.acleda.campuslink.shared.exception.ForbiddenException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +33,7 @@ public class AdminUserDetailService {
 
     private final UserRepository userRepository;
     private final AdminUserRepository adminUserRepository;
+    private final AdminPermissionCache adminPermissionCache;
     private final InterestService interestService;
     private final SocialLinkService socialLinkService;
     private final PortfolioService portfolioService;
@@ -35,6 +41,8 @@ public class AdminUserDetailService {
 
     @Transactional(readOnly = true)
     public AdminUserDetailResponse get(UUID userId) {
+        ensureFullProfileAccess();
+
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
@@ -97,6 +105,25 @@ public class AdminUserDetailService {
             adminRoleName,
             currentSanction
         );
+    }
+
+    /**
+     * Finance staff have the matrix's reduced identity+wallet view, not this full profile
+     * projection. A separate reduced finance endpoint can be added with the finance roadmap;
+     * until then, fail closed instead of accidentally exposing profile and contact fields.
+     */
+    private void ensureFullProfileAccess() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return;
+        }
+
+        AdminIdentity identity = adminPermissionCache.identityFor(authentication.getName());
+        if ("FINANCE_ADMIN".equals(identity.roleCode())) {
+            throw new ForbiddenException(
+                "Finance administrators cannot access full user profiles",
+                "ADMIN_USER_PROFILE_SCOPE_FORBIDDEN");
+        }
     }
 
     private static AdminUserDetailResponse.Interest toInterest(InterestResponse interest) {

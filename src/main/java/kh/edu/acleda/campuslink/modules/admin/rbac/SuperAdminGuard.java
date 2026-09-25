@@ -27,8 +27,9 @@ import org.springframework.stereotype.Component;
  * loop this closes (SSOT §5.1 D5).
  *
  * <p>The endpoints that call these arrive in Phase 5 (`POST /admin/admins`,
- * `PUT /admin/admins/{id}/role`, `POST /admin/admins/{id}/deactivate`). The guards are built
- * first so the endpoints are written against them rather than around them.
+ * `PUT /admin/admins/{id}/role`, `POST /admin/admins/{id}/deactivate`, and
+ * `POST /admin/admins/{id}/reset-mfa`). The guards are built first so the endpoints are
+ * written against them rather than around them.
  */
 @Slf4j
 @Component
@@ -176,6 +177,18 @@ public class SuperAdminGuard {
         ensureNotSelf(actor, target);
         ensureMayManage(actor, target, null);
         ensureNotLastSuperAdmin(target);
+    }
+
+    /**
+     * Guards an MFA reset for another administrator.
+     *
+     * <p>An MFA reset is account recovery, not a role change: it must still be performed by a
+     * different admin and a non-SUPER_ADMIN cannot use it to touch a SUPER_ADMIN, but it must
+     * not apply the last-SUPER_ADMIN guard because the target's role is unchanged.
+     */
+    public void ensureMayResetMfa(AdminUser actor, AdminUser target) {
+        ensureNotSelf(actor, target);
+        ensureMayManage(actor, target, null);
     }
 
     private static boolean isSuperAdmin(AdminUser admin) {

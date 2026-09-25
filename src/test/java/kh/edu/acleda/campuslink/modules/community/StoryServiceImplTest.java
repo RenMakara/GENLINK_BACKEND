@@ -21,6 +21,9 @@ import kh.edu.acleda.campuslink.modules.community.repository.StoryViewRepository
 import kh.edu.acleda.campuslink.modules.community.service.impl.StoryServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.modules.notification.repository.NotificationTemplateRepository;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
@@ -56,6 +59,8 @@ class StoryServiceImplTest {
     @Mock private FollowRepository followRepository;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private NotificationEmitter notificationEmitter;
+    @Mock private NotificationTemplateRepository notificationTemplateRepository;
 
     private StoryServiceImpl service;
     private User me;
@@ -64,7 +69,7 @@ class StoryServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new StoryServiceImpl(storyRepository, storyViewRepository, followRepository,
-            userRepository, currentUserProvider);
+            userRepository, currentUserProvider, notificationEmitter, notificationTemplateRepository);
 
         me = user(ME_ID, "me");
         other = user(OTHER_ID, "other");
@@ -363,6 +368,46 @@ class StoryServiceImplTest {
 
         assertThat(mine.getDeletedAt()).isNotNull();
         verify(storyRepository).save(mine);
+    }
+
+    @Test
+    void likeStoryEmitsNotificationToStoryAuthor() {
+        Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
+        when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
+        when(notificationTemplateRepository.existsByTemplateKey("COMMUNITY_STORY_LIKE")).thenReturn(true);
+
+        service.likeStory(STORY_ID);
+
+        ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
+        verify(notificationEmitter).emit(captor.capture());
+
+        NotificationRequest req = captor.getValue();
+        assertThat(req.recipientUserId()).isEqualTo(OTHER_ID);
+        assertThat(req.templateKey()).isEqualTo("COMMUNITY_STORY_LIKE");
+        assertThat(req.referenceType()).isEqualTo("STORY");
+        assertThat(req.referenceId()).isEqualTo(STORY_ID);
+        assertThat(req.parameters()).containsEntry("likerName", "me");
+    }
+
+    @Test
+    void likeStoryDoesNotEmitNotificationWhenAuthorIsViewer() {
+        Story mine = story(STORY_ID, me, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
+        when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(mine));
+
+        service.likeStory(STORY_ID);
+
+        verify(notificationEmitter, never()).emit(any());
+    }
+
+    @Test
+    void likeStoryDoesNotEmitNotificationWhenReactionsDisabled() {
+        Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
+        theirs.setAllowReactions(false);
+        when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
+
+        service.likeStory(STORY_ID);
+
+        verify(notificationEmitter, never()).emit(any());
     }
 
     private User user(UUID id, String username) {

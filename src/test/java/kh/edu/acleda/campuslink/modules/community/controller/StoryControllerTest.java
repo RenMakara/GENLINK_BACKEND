@@ -132,6 +132,18 @@ class StoryControllerTest {
     }
 
     @Test
+    @DisplayName("POST /stories/{id}/like delegates to likeStory")
+    void likeDelegatesToService() {
+        UUID storyId = UUID.randomUUID();
+
+        ResponseEntity<ApiResponse<Void>> result = controller.like(storyId);
+
+        assertThat(result.getBody()).isNotNull();
+        assertThat(result.getBody().isSuccess()).isTrue();
+        verify(storyService).likeStory(storyId);
+    }
+
+    @Test
     @DisplayName("DELETE /stories/{id} delegates to deleteStory")
     void deleteDelegatesToService() {
         UUID storyId = UUID.randomUUID();

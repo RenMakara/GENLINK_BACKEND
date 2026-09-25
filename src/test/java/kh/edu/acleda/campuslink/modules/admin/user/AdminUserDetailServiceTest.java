@@ -13,6 +13,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import kh.edu.acleda.campuslink.modules.admin.rbac.AdminIdentity;
+import kh.edu.acleda.campuslink.modules.admin.rbac.AdminPermissionCache;
 import kh.edu.acleda.campuslink.modules.admin.rbac.entity.AdminRole;
 import kh.edu.acleda.campuslink.modules.admin.rbac.entity.AdminUser;
 import kh.edu.acleda.campuslink.modules.admin.rbac.repository.AdminUserRepository;
@@ -35,14 +37,19 @@ import kh.edu.acleda.campuslink.modules.user.entity.Role;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 import kh.edu.acleda.campuslink.shared.enums.Language;
+import kh.edu.acleda.campuslink.shared.exception.ForbiddenException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 class AdminUserDetailServiceTest {
 
     private UserRepository userRepository;
     private AdminUserRepository adminUserRepository;
+    private AdminPermissionCache adminPermissionCache;
     private InterestService interestService;
     private SocialLinkService socialLinkService;
     private PortfolioService portfolioService;
@@ -53,13 +60,19 @@ class AdminUserDetailServiceTest {
     void setUp() {
         userRepository = mock(UserRepository.class);
         adminUserRepository = mock(AdminUserRepository.class);
+        adminPermissionCache = mock(AdminPermissionCache.class);
         interestService = mock(InterestService.class);
         socialLinkService = mock(SocialLinkService.class);
         portfolioService = mock(PortfolioService.class);
         userSanctionRepository = mock(UserSanctionRepository.class);
         service = new AdminUserDetailService(
-            userRepository, adminUserRepository, interestService, socialLinkService,
+            userRepository, adminUserRepository, adminPermissionCache, interestService, socialLinkService,
             portfolioService, userSanctionRepository);
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -175,5 +188,20 @@ class AdminUserDetailServiceTest {
         assertThatThrownBy(() -> service.get(userId))
             .isInstanceOf(NotFoundException.class)
             .hasMessageContaining(userId.toString());
+    }
+
+    @Test
+    void financeAdminCannotReadTheFullProfileProjection() {
+        String email = "finance@example.com";
+        when(adminPermissionCache.identityFor(email)).thenReturn(
+            new AdminIdentity(UUID.randomUUID(), UUID.randomUUID(), "FINANCE_ADMIN"));
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(email, "n/a", List.of()));
+
+        assertThatThrownBy(() -> service.get(UUID.randomUUID()))
+            .isInstanceOf(ForbiddenException.class)
+            .hasMessage("Finance administrators cannot access full user profiles")
+            .satisfies(exception -> assertThat(((ForbiddenException) exception).getErrorCode())
+                .isEqualTo("ADMIN_USER_PROFILE_SCOPE_FORBIDDEN"));
     }
 }

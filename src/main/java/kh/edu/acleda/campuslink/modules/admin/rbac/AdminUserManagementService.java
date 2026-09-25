@@ -7,6 +7,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.admin.audit.AdminAuditEvent;
 import kh.edu.acleda.campuslink.modules.admin.audit.AdminAuditService;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminDeactivationRequest;
+import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminMfaResetRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminPromotionRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminRoleChangeRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.response.AdminStaffResponse;
@@ -33,7 +34,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Promotion, role assignment and revocation of staff accounts (ADM-103). */
+/** Promotion, role assignment, MFA recovery and revocation of staff accounts (ADM-103/104). */
 @Service
 public class AdminUserManagementService {
 
@@ -42,6 +43,7 @@ public class AdminUserManagementService {
     private static final String ACTION_PROMOTE = "ADMIN_PROMOTE";
     private static final String ACTION_ROLE_CHANGE = "ADMIN_ROLE_CHANGE";
     private static final String ACTION_DEACTIVATE = "ADMIN_DEACTIVATE";
+    private static final String ACTION_RESET_MFA = "ADMIN_MFA_RESET";
     private static final String VALIDATION_ERROR = "VALIDATION_ERROR";
     private static final String NOT_FOUND = "NOT_FOUND";
     private static final String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
@@ -235,6 +237,40 @@ public class AdminUserManagementService {
         }
     }
 
+    /** Clears another admin's MFA credentials and forces a fresh enrolment at next sign-in. */
+    @Transactional
+    public AdminStaffResponse resetMfa(UUID adminId, AdminMfaResetRequest request) {
+        String reason = requireReason(request == null ? null : request.reason());
+        try {
+            AdminUser actor = currentAdmin();
+            AdminUser target = lockedAdmin(adminId);
+            superAdminGuard.ensureMayResetMfa(actor, target);
+            ensureUsable(target);
+
+            AdminMfaSnapshot before = new AdminMfaSnapshot(target);
+            User user = target.getUser();
+            target.setTotpSecret(null);
+            target.setTotpEnabled(false);
+            target.setTotpConfirmedAt(null);
+            target.setRecoveryCodes(null);
+            revokeAllSessions(user);
+            adminUserRepository.save(target);
+            userRepository.save(user);
+
+            recordSuccess(ACTION_RESET_MFA, adminId, reason, before, new AdminMfaSnapshot(target));
+            return toResponse(target);
+        } catch (NotFoundException ex) {
+            recordFailure(ACTION_RESET_MFA, adminId, reason, NOT_FOUND);
+            throw ex;
+        } catch (ApiException ex) {
+            recordFailure(ACTION_RESET_MFA, adminId, reason, ex.getErrorCode());
+            throw ex;
+        } catch (RuntimeException ex) {
+            recordFailure(ACTION_RESET_MFA, adminId, reason, INTERNAL_SERVER_ERROR);
+            throw ex;
+        }
+    }
+
     private AdminUser currentAdmin() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()
@@ -366,6 +402,30 @@ public class AdminUserManagementService {
                 admin.getAdminRole() == null ? null : admin.getAdminRole().getCode(),
                 admin.isActive(),
                 admin.getDeletedAt(),
+                admin.getUser() == null ? 0 : admin.getUser().getTokenVersion());
+        }
+    }
+
+    /** Audit-safe MFA state; never serialise the encrypted secret or recovery-code hashes. */
+    private record AdminMfaSnapshot(
+        UUID adminId,
+        UUID userId,
+        String roleCode,
+        boolean active,
+        boolean totpEnabled,
+        boolean enrolled,
+        boolean recoveryCodesPresent,
+        int tokenVersion) {
+
+        private AdminMfaSnapshot(AdminUser admin) {
+            this(
+                admin.getId(),
+                admin.getUser() == null ? null : admin.getUser().getId(),
+                admin.getAdminRole() == null ? null : admin.getAdminRole().getCode(),
+                admin.isUsable(),
+                admin.isTotpEnabled(),
+                admin.isEnrolled(),
+                admin.getRecoveryCodes() != null && !admin.getRecoveryCodes().isBlank(),
                 admin.getUser() == null ? 0 : admin.getUser().getTokenVersion());
         }
     }

@@ -55,6 +55,13 @@ public class StoryController {
         return ResponseEntity.ok(ApiResponse.success("Story marked as seen", null));
     }
 
+    /** Like a story. Emits a notification to the story author. */
+    @PostMapping("/{id}/like")
+    public ResponseEntity<ApiResponse<Void>> like(@PathVariable UUID id) {
+        storyService.likeStory(id);
+        return ResponseEntity.ok(ApiResponse.success("Story liked", null));
+    }
+
     /** Who viewed a story. Owner only; a non-owner gets 404, not 403. */
     @GetMapping("/{id}/viewers")
     public ResponseEntity<ApiResponse<List<StoryViewerResponse>>> viewers(@PathVariable UUID id) {

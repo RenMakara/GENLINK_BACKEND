@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.admin.auth.RequiresSudo;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminDeactivationRequest;
+import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminMfaResetRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminPromotionRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.request.AdminRoleChangeRequest;
 import kh.edu.acleda.campuslink.modules.admin.rbac.dto.response.AdminStaffResponse;
@@ -83,5 +84,20 @@ public class AdminUserManagementController {
         @Valid @RequestBody AdminDeactivationRequest request) {
         return ApiResponse.success(
             "Admin deactivated", adminUserManagementService.deactivate(adminId, request));
+    }
+
+    @Operation(
+        summary = "Reset an admin's MFA",
+        description = "Clears the target's TOTP secret and recovery codes, revokes all target "
+            + "sessions, and forces fresh TOTP enrolment at the next login. Requires sudo "
+            + "step-up authentication.")
+    @PostMapping("/{adminId}/reset-mfa")
+    @RequiresSudo
+    @PreAuthorize("hasAuthority('PERM_rbac:manage')")
+    public ApiResponse<AdminStaffResponse> resetMfa(
+        @PathVariable UUID adminId,
+        @Valid @RequestBody AdminMfaResetRequest request) {
+        return ApiResponse.success(
+            "Admin MFA reset", adminUserManagementService.resetMfa(adminId, request));
     }
 }

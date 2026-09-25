@@ -26,10 +26,15 @@ import kh.edu.acleda.campuslink.modules.community.repository.StoryViewRepository
 import kh.edu.acleda.campuslink.modules.community.service.StoryService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
+import kh.edu.acleda.campuslink.modules.notification.repository.NotificationTemplateRepository;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
+import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,17 +52,32 @@ public class StoryServiceImpl implements StoryService {
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final NotificationEmitter notificationEmitter;
+    private final NotificationTemplateRepository notificationTemplateRepository;
 
     public StoryServiceImpl(StoryRepository storyRepository,
                             StoryViewRepository storyViewRepository,
                             FollowRepository followRepository,
                             UserRepository userRepository,
                             CurrentUserProvider currentUserProvider) {
+        this(storyRepository, storyViewRepository, followRepository, userRepository, currentUserProvider, null, null);
+    }
+
+    @Autowired
+    public StoryServiceImpl(StoryRepository storyRepository,
+                            StoryViewRepository storyViewRepository,
+                            FollowRepository followRepository,
+                            UserRepository userRepository,
+                            CurrentUserProvider currentUserProvider,
+                            @Autowired(required = false) NotificationEmitter notificationEmitter,
+                            @Autowired(required = false) NotificationTemplateRepository notificationTemplateRepository) {
         this.storyRepository = storyRepository;
         this.storyViewRepository = storyViewRepository;
         this.followRepository = followRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
+        this.notificationEmitter = notificationEmitter;
+        this.notificationTemplateRepository = notificationTemplateRepository;
     }
 
     @Override
@@ -268,6 +288,55 @@ public class StoryServiceImpl implements StoryService {
             story.getVisibility(),
             story.getReplyPermission(),
             story.isAllowReactions());
+    }
+
+    @Override
+    @Transactional
+    public void likeStory(UUID storyId) {
+        Story story = loadActiveStory(storyId);
+        UUID meId = currentUserProvider.getCurrentUserId();
+        if (!canViewStory(story, meId)) {
+            throw new NotFoundException("Story not found");
+        }
+        if (!story.isAllowReactions()) {
+            return;
+        }
+        User author = story.getUser();
+        if (author == null || author.getId() == null || author.getId().equals(meId)) {
+            return;
+        }
+        User liker = loadCurrentUser();
+        emitStoryLikeNotification(story, author, liker);
+    }
+
+    private void emitStoryLikeNotification(Story story, User author, User liker) {
+        if (notificationEmitter == null) {
+            return;
+        }
+        String likerName = liker.getFullName() != null && !liker.getFullName().isBlank()
+            ? liker.getFullName().strip() : liker.getUsername();
+        if (likerName == null || likerName.isBlank()) {
+            likerName = "Someone";
+        }
+        String templateKey = (notificationTemplateRepository != null
+            && notificationTemplateRepository.existsByTemplateKey("COMMUNITY_STORY_LIKE"))
+            ? "COMMUNITY_STORY_LIKE"
+            : "COMMUNITY_POST_LIKE";
+
+        try {
+            notificationEmitter.emit(new NotificationRequest(
+                author.getId(),
+                templateKey,
+                "COMMUNITY",
+                Map.of("likerName", likerName),
+                "STORY",
+                story.getId(),
+                "story-like:" + story.getId() + ":" + liker.getId(),
+                Set.of(NotificationChannel.IN_APP, NotificationChannel.MOBILE_PUSH)
+            ));
+        } catch (RuntimeException exception) {
+            log.warn("Failed to emit story like notification for story {}: {}", story.getId(), exception.getMessage());
+        }
     }
 
     private User loadCurrentUser() {
