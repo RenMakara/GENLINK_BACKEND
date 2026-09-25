@@ -1,7 +1,11 @@
 package kh.edu.acleda.campuslink.shared.config;
 
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 /**
  * Turns on {@code @Cacheable} support.
@@ -10,9 +14,9 @@ import org.springframework.context.annotation.Configuration;
  * every {@code @Cacheable} in the codebase was inert. Admin permission resolution is the first
  * thing that genuinely needs it: it runs on every authenticated request, mobile included.
  *
- * <p>No cache provider is configured, so Spring Boot uses its {@code ConcurrentMapCacheManager}
- * - an in-process map with <strong>no expiry</strong>. That is deliberate rather than an
- * oversight:
+ * <p>The default cache manager is an in-process {@code ConcurrentMapCacheManager} with
+ * <strong>no expiry</strong>. That is deliberate rather than an oversight for permission
+ * caches:
  *
  * <ul>
  *   <li>The backend runs a single instance (enforced by {@code container_name} in
@@ -30,4 +34,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableCaching
 public class CacheConfig {
+
+    /**
+     * Keep the default, non-expiring manager explicit so feature-specific managers can coexist
+     * without changing the semantics of permission caches.
+     */
+    @Bean(name = "cacheManager")
+    @Primary
+    public CacheManager cacheManager() {
+        return new ConcurrentMapCacheManager();
+    }
 }

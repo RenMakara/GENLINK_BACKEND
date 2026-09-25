@@ -7,21 +7,27 @@ import static org.mockito.Mockito.when;
 import java.lang.reflect.Method;
 import java.time.LocalDate;
 import java.util.List;
+import kh.edu.acleda.campuslink.modules.admin.auth.RequiresSudo;
+import kh.edu.acleda.campuslink.modules.admin.analytics.dto.request.AdminAnalyticsExportRequest;
 import kh.edu.acleda.campuslink.modules.admin.analytics.dto.response.AdminAnalyticsResponse;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
 class AdminAnalyticsControllerTest {
 
     private AdminAnalyticsService analyticsService;
+    private AdminAnalyticsExportService analyticsExportService;
     private AdminAnalyticsController controller;
 
     @BeforeEach
     void setUp() {
         analyticsService = mock(AdminAnalyticsService.class);
-        controller = new AdminAnalyticsController(analyticsService);
+        analyticsExportService = mock(AdminAnalyticsExportService.class);
+        controller = new AdminAnalyticsController(analyticsService, analyticsExportService);
     }
 
     @Test
@@ -57,5 +63,28 @@ class AdminAnalyticsControllerTest {
             assertThat(authorization.value()).isEqualTo("hasAuthority('PERM_analytics:view')");
         }
     }
-}
 
+    @Test
+    void exportRequiresSeparatePermissionAndSudoAndReturnsCsv() throws Exception {
+        AdminAnalyticsExportRequest request = new AdminAnalyticsExportRequest(
+            "user-growth", LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 2),
+            "day", "Monthly analytics review");
+        when(analyticsExportService.export(request)).thenReturn(
+            "bucket,count\r\n2026-09-01,3\r\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        ResponseEntity<byte[]> response = controller.export(request);
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getHeaders().getContentType()).isEqualTo(
+            MediaType.parseMediaType("text/csv;charset=UTF-8"));
+        assertThat(response.getHeaders().getFirst("Content-Disposition"))
+            .isEqualTo("attachment; filename=\"genlink-analytics-user-growth.csv\"");
+        assertThat(response.getHeaders().getFirst("Cache-Control")).isEqualTo("no-store");
+        assertThat(controller.getClass().getDeclaredMethod(
+            "export", AdminAnalyticsExportRequest.class).getAnnotation(RequiresSudo.class))
+            .isNotNull();
+        assertThat(controller.getClass().getDeclaredMethod(
+            "export", AdminAnalyticsExportRequest.class).getAnnotation(PreAuthorize.class).value())
+            .isEqualTo("hasAuthority('PERM_analytics:export')");
+    }
+}

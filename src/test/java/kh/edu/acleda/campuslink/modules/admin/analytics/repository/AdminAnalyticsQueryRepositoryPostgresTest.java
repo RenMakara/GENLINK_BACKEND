@@ -17,6 +17,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * PostgreSQL regression coverage for the nine ADM-113 projection queries.
@@ -147,6 +148,59 @@ class AdminAnalyticsQueryRepositoryPostgresTest {
         assertThat(queryRepository.findXpDistribution(query).buckets()).contains(
             new AdminAnalyticsQueryRepository.DistributionRow("100-499", 1L),
             new AdminAnalyticsQueryRepository.DistributionRow("500-999", 1L));
+    }
+
+    @Test
+    @Transactional
+    void confirmsGrowthIndexIsAvailableToThePostgresPlanner() {
+        List<String> indexes = jdbcTemplate.query(
+            """
+            SELECT indexname
+            FROM pg_indexes
+            WHERE schemaname = current_schema()
+              AND indexname IN (
+                'idx_users_created_at_status',
+                'idx_users_university',
+                'idx_refresh_tokens_last_used'
+              )
+            """,
+            (resultSet, rowNumber) -> resultSet.getString("indexname"));
+        assertThat(indexes).contains(
+            "idx_users_created_at_status",
+            "idx_users_university",
+            "idx_refresh_tokens_last_used");
+
+        List<String> measuredPlan = jdbcTemplate.query(
+            """
+            EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+            SELECT COUNT(*)
+            FROM users u
+            WHERE u.created_at >= TIMESTAMP '2026-09-22 00:00:00'
+              AND u.created_at < TIMESTAMP '2026-09-24 00:00:00'
+              AND u.account_status <> 'DELETED'
+              AND u.deleted_at IS NULL
+            """,
+            (resultSet, rowNumber) -> resultSet.getString(1));
+        assertThat(measuredPlan).anyMatch(line -> line.startsWith("Execution Time:"));
+        System.out.println("ADM-114 growth query EXPLAIN ANALYZE:\n"
+            + String.join("\n", measuredPlan));
+
+        // This is a planner usability check, not a production session setting. The local
+        // transaction is rolled back after the test, while the EXPLAIN matches the growth
+        // query's created_at/status/deleted_at predicates.
+        jdbcTemplate.execute("SET LOCAL enable_seqscan = off");
+        String plan = String.join("\n", jdbcTemplate.query(
+            """
+            EXPLAIN (FORMAT TEXT)
+            SELECT COUNT(*)
+            FROM users u
+            WHERE u.created_at >= TIMESTAMP '2026-09-22 00:00:00'
+              AND u.created_at < TIMESTAMP '2026-09-24 00:00:00'
+              AND u.account_status <> 'DELETED'
+              AND u.deleted_at IS NULL
+            """,
+            (resultSet, rowNumber) -> resultSet.getString(1)));
+        assertThat(plan).contains("idx_users_created_at_status");
     }
 
     private UUID insertUser(

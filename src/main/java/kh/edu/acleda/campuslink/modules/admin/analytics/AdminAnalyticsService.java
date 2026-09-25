@@ -4,12 +4,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import kh.edu.acleda.campuslink.modules.admin.analytics.cache.AnalyticsCacheConfig;
 import kh.edu.acleda.campuslink.modules.admin.analytics.dto.request.AdminAnalyticsQuery;
 import kh.edu.acleda.campuslink.modules.admin.analytics.dto.response.AdminAnalyticsResponse;
 import kh.edu.acleda.campuslink.modules.admin.analytics.repository.AdminAnalyticsQueryRepository;
 import kh.edu.acleda.campuslink.modules.admin.analytics.repository.AdminAnalyticsQueryRepository.DistributionResult;
 import kh.edu.acleda.campuslink.modules.admin.analytics.repository.AdminAnalyticsQueryRepository.DistributionRow;
 import kh.edu.acleda.campuslink.modules.admin.analytics.repository.AdminAnalyticsQueryRepository.TrendRow;
+import org.springframework.cache.annotation.Cacheable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +34,11 @@ public class AdminAnalyticsService {
 
     private final AdminAnalyticsQueryRepository queryRepository;
 
+    @Cacheable(
+        cacheNames = AnalyticsCacheConfig.CACHE_NAME,
+        cacheManager = AnalyticsCacheConfig.CACHE_MANAGER_BEAN,
+        key = "'user-growth:' + #root.args[0]",
+        sync = true)
     public AdminAnalyticsResponse.UserGrowth userGrowth(AdminAnalyticsQuery query) {
         List<AdminAnalyticsResponse.SeriesPoint> points = queryRepository.findUserGrowth(query).stream()
             .map(row -> new AdminAnalyticsResponse.SeriesPoint(row.bucket(), row.count()))
@@ -40,6 +47,11 @@ public class AdminAnalyticsService {
             query.from(), query.to(), query.wireGranularity(), points);
     }
 
+    @Cacheable(
+        cacheNames = AnalyticsCacheConfig.CACHE_NAME,
+        cacheManager = AnalyticsCacheConfig.CACHE_MANAGER_BEAN,
+        key = "'active-users:' + #root.args[0]",
+        sync = true)
     public AdminAnalyticsResponse.ActiveUsers activeUsers(AdminAnalyticsQuery query) {
         List<AdminAnalyticsResponse.ActiveUsersPoint> points = queryRepository.findActiveUsers(query).stream()
             .map(row -> new AdminAnalyticsResponse.ActiveUsersPoint(
@@ -49,6 +61,11 @@ public class AdminAnalyticsService {
             query.from(), query.to(), query.wireGranularity(), true, points);
     }
 
+    @Cacheable(
+        cacheNames = AnalyticsCacheConfig.CACHE_NAME,
+        cacheManager = AnalyticsCacheConfig.CACHE_MANAGER_BEAN,
+        key = "'registrations:' + #root.args[0]",
+        sync = true)
     public AdminAnalyticsResponse.Registrations registrations(AdminAnalyticsQuery query) {
         List<AdminAnalyticsResponse.RegistrationPoint> points = queryRepository
             .findRegistrations(query).stream()
@@ -59,10 +76,20 @@ public class AdminAnalyticsService {
             query.from(), query.to(), query.wireGranularity(), points);
     }
 
+    @Cacheable(
+        cacheNames = AnalyticsCacheConfig.CACHE_NAME,
+        cacheManager = AnalyticsCacheConfig.CACHE_MANAGER_BEAN,
+        key = "'user-status:' + #root.args[0]",
+        sync = true)
     public AdminAnalyticsResponse.Distribution userStatus(AdminAnalyticsQuery query) {
         return distribution(query, queryRepository.findUserStatus(query), ACCOUNT_STATUSES);
     }
 
+    @Cacheable(
+        cacheNames = AnalyticsCacheConfig.CACHE_NAME,
+        cacheManager = AnalyticsCacheConfig.CACHE_MANAGER_BEAN,
+        key = "'universities:' + #root.args[0]",
+        sync = true)
     public AdminAnalyticsResponse.Distribution universities(AdminAnalyticsQuery query) {
         List<DistributionRow> rows = queryRepository.findUniversities(query);
         List<DistributionRow> top = rows.stream().limit(20).toList();
@@ -74,6 +101,11 @@ public class AdminAnalyticsService {
             query.from(), query.to(), query.wireGranularity(), List.copyOf(distribution), List.of());
     }
 
+    @Cacheable(
+        cacheNames = AnalyticsCacheConfig.CACHE_NAME,
+        cacheManager = AnalyticsCacheConfig.CACHE_MANAGER_BEAN,
+        key = "'work-status:' + #root.args[0]",
+        sync = true)
     public AdminAnalyticsResponse.Distribution workStatus(AdminAnalyticsQuery query) {
         return distribution(
             query,
@@ -81,6 +113,11 @@ public class AdminAnalyticsService {
             WORK_STATUSES);
     }
 
+    @Cacheable(
+        cacheNames = AnalyticsCacheConfig.CACHE_NAME,
+        cacheManager = AnalyticsCacheConfig.CACHE_MANAGER_BEAN,
+        key = "'xp-distribution:' + #root.args[0]",
+        sync = true)
     public AdminAnalyticsResponse.XpDistribution xpDistribution(AdminAnalyticsQuery query) {
         var result = queryRepository.findXpDistribution(query);
         return new AdminAnalyticsResponse.XpDistribution(
@@ -93,10 +130,20 @@ public class AdminAnalyticsService {
                 .toList());
     }
 
+    @Cacheable(
+        cacheNames = AnalyticsCacheConfig.CACHE_NAME,
+        cacheManager = AnalyticsCacheConfig.CACHE_MANAGER_BEAN,
+        key = "'languages:' + #root.args[0]",
+        sync = true)
     public AdminAnalyticsResponse.Distribution languages(AdminAnalyticsQuery query) {
         return distribution(query, queryRepository.findLanguages(query), LANGUAGES);
     }
 
+    @Cacheable(
+        cacheNames = AnalyticsCacheConfig.CACHE_NAME,
+        cacheManager = AnalyticsCacheConfig.CACHE_MANAGER_BEAN,
+        key = "'platforms:' + #root.args[0]",
+        sync = true)
     public AdminAnalyticsResponse.Distribution platforms(AdminAnalyticsQuery query) {
         return new AdminAnalyticsResponse.Distribution(
             query.from(),

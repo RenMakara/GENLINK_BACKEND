@@ -2,13 +2,22 @@ package kh.edu.acleda.campuslink.modules.admin.analytics;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.time.LocalDate;
+import kh.edu.acleda.campuslink.modules.admin.auth.RequiresSudo;
+import kh.edu.acleda.campuslink.modules.admin.analytics.dto.request.AdminAnalyticsExportRequest;
+import kh.edu.acleda.campuslink.modules.admin.analytics.dto.request.AdminAnalyticsSeries;
 import kh.edu.acleda.campuslink.modules.admin.analytics.dto.request.AdminAnalyticsQuery;
 import kh.edu.acleda.campuslink.modules.admin.analytics.dto.response.AdminAnalyticsResponse;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminAnalyticsController {
 
     private final AdminAnalyticsService analyticsService;
+    private final AdminAnalyticsExportService analyticsExportService;
 
     @Operation(summary = "Get cumulative user growth", description = "Counts users by Phnom Penh bucket.")
     @GetMapping("/user-growth")
@@ -130,6 +140,24 @@ public class AdminAnalyticsController {
             analyticsService.platforms(query(from, to, granularity)));
     }
 
+    @Operation(
+        summary = "Export one analytics series as CSV",
+        description = "Exports one of the nine analytics series for the requested Phnom Penh date range. "
+            + "Requires analytics:export and a fresh sudo window.")
+    @PostMapping(value = "/export", consumes = MediaType.APPLICATION_JSON_VALUE, produces = "text/csv")
+    @RequiresSudo
+    @PreAuthorize("hasAuthority('PERM_analytics:export')")
+    public ResponseEntity<byte[]> export(@Valid @RequestBody AdminAnalyticsExportRequest request) {
+        byte[] csv = analyticsExportService.export(request);
+        String series = AdminAnalyticsSeries.fromValue(request.series()).wireValue();
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
+            .header(HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"genlink-analytics-" + series + ".csv\"")
+            .header(HttpHeaders.CACHE_CONTROL, "no-store")
+            .body(csv);
+    }
+
     private static AdminAnalyticsQuery query(
         LocalDate from,
         LocalDate to,
@@ -137,4 +165,3 @@ public class AdminAnalyticsController {
         return AdminAnalyticsQuery.fromRequest(from, to, granularity);
     }
 }
-
