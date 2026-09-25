@@ -19,6 +19,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
  *     it cannot drift from what authorization enforces.
  * @param lastLoginAt UTC, like every timestamp the API emits (SSOT §9.5). The portal renders it
  *     in Asia/Phnom_Penh.
+ * @param totpConfirmedAt UTC timestamp when this admin completed TOTP enrolment, or {@code null}
+ *     when the account is not enrolled.
  */
 public record AdminMeResponse(
     @Schema(description = "Admin profile id, not the user id", example = "2c9f077e-6e35-49ee-944b-235168f07372")
@@ -36,6 +38,8 @@ public record AdminMeResponse(
     @Schema(description = "UTC. The portal renders it in Asia/Phnom_Penh.", example = "2026-08-07T20:06:39Z")
     Instant lastLoginAt,
     @Schema(description = "Whether two-factor is active on this account", example = "true")
-    boolean totpEnabled
+    boolean totpEnabled,
+    @Schema(description = "UTC timestamp when TOTP enrolment was confirmed", example = "2026-08-01T17:00:00Z")
+    Instant totpConfirmedAt
 ) {
 }

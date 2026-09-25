@@ -83,7 +83,8 @@ public class AdminSessionService {
             admin.getAdminRole().getName(),
             currentPermissions(),
             admin.getLastLoginAt(),
-            admin.isTotpEnabled());
+            admin.isTotpEnabled(),
+            admin.getTotpConfirmedAt());
     }
 
     /**

@@ -82,7 +82,7 @@ class AdminSessionServiceTest {
         admin.setAdminRole(role);
         admin.setActive(true);
         admin.setTotpEnabled(true);
-        admin.setTotpConfirmedAt(Instant.now());
+        admin.setTotpConfirmedAt(Instant.parse("2026-08-01T17:00:00Z"));
         admin.setLastLoginAt(Instant.parse("2026-08-01T17:30:00Z"));
 
         when(adminUserRepository.findActiveByUserEmail(EMAIL)).thenReturn(Optional.of(admin));
@@ -149,6 +149,7 @@ class AdminSessionServiceTest {
         assertThat(me.roleCode()).isEqualTo("MODERATOR");
         assertThat(me.roleName()).isEqualTo("Moderator");
         assertThat(me.totpEnabled()).isTrue();
+        assertThat(me.totpConfirmedAt()).isEqualTo(Instant.parse("2026-08-01T17:00:00Z"));
         assertThat(me.lastLoginAt()).isEqualTo(Instant.parse("2026-08-01T17:30:00Z"));
     }
 
