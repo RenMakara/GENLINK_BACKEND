@@ -10,6 +10,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PollResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.PostLikerResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
 import kh.edu.acleda.campuslink.modules.community.service.DiscussionService;
@@ -186,4 +187,12 @@ public class PostController {
     public ResponseEntity<ApiResponse<Map<String, Integer>>> unlike(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success("Post unliked", Map.of("likeCount", postService.unlike(id))));
     }
+
+    @GetMapping("/{id}/likes")
+    public ResponseEntity<ApiResponse<PageResponse<PostLikerResponse>>> getLikers(
+        @PathVariable UUID id,
+        @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Post likers retrieved", postService.getLikers(id, pageable)));
+    }
+
 }

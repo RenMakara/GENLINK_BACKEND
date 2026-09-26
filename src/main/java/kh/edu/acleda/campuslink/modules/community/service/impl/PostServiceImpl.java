@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.response.PostLikerResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Community;
@@ -597,6 +598,26 @@ public class PostServiceImpl implements PostService {
                 return post.getLikeCount() - 1;
             })
             .orElseGet(post::getLikeCount);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<PostLikerResponse> getLikers(UUID postId, Pageable pageable) {
+        if (postRepository.findByIdAndDeletedAtIsNull(postId).isEmpty()) {
+            throw new NotFoundException("Post not found");
+        }
+        Page<PostReaction> reactions = postReactionRepository.findByPostIdWithUser(postId, pageable);
+        return PageResponse.from(reactions, reaction -> {
+            kh.edu.acleda.campuslink.modules.user.entity.User user = reaction.getUser();
+            return new PostLikerResponse(
+                user != null ? user.getId() : reaction.getId(),
+                user != null ? user.getId() : null,
+                user != null ? (user.getFullName() != null && !user.getFullName().isBlank() ? user.getFullName() : user.getUsername()) : "User",
+                user != null ? user.getUsername() : "user",
+                user != null ? user.getAvatarUrl() : null,
+                reaction.getCreatedAt()
+            );
+        });
     }
 
     /**

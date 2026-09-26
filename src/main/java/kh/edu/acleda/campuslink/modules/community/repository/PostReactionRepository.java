@@ -1,6 +1,8 @@
 package kh.edu.acleda.campuslink.modules.community.repository;
 
 import kh.edu.acleda.campuslink.modules.community.entity.PostReaction;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,4 +19,8 @@ public interface PostReactionRepository extends JpaRepository<PostReaction, UUID
     /** Batched for the feed: one query per page rather than one per post. */
     @Query("SELECT r.post.id FROM PostReaction r WHERE r.user.id = :userId AND r.post.id IN :postIds")
     List<UUID> findLikedPostIds(@Param("userId") UUID userId, @Param("postIds") Collection<UUID> postIds);
+
+    @Query(value = "SELECT r FROM PostReaction r LEFT JOIN FETCH r.user WHERE r.post.id = :postId",
+           countQuery = "SELECT COUNT(r) FROM PostReaction r WHERE r.post.id = :postId")
+    Page<PostReaction> findByPostIdWithUser(@Param("postId") UUID postId, Pageable pageable);
 }

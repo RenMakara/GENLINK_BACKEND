@@ -6,6 +6,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PollResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.PostLikerResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
@@ -70,4 +71,7 @@ public interface PostService {
     int like(UUID postId);
 
     int unlike(UUID postId);
+
+    /** List of users who liked the post. */
+    PageResponse<PostLikerResponse> getLikers(UUID postId, Pageable pageable);
 }
