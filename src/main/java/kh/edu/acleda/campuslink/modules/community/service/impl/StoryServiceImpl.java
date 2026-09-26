@@ -252,7 +252,7 @@ public class StoryServiceImpl implements StoryService {
         return switch (story.getVisibility()) {
             case PUBLIC -> true;
             case FRIENDS -> isFriend(ownerId, viewerId);
-            case COMMUNITY -> false;
+            case COMMUNITY, ONLY_ME -> false;
         };
     }
 

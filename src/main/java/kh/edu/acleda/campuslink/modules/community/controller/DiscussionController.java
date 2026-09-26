@@ -7,6 +7,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CommentCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionReportRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedDiscussionResponse;
@@ -104,6 +105,22 @@ public class DiscussionController {
     public ResponseEntity<ApiResponse<Map<String, Integer>>> unreact(@PathVariable UUID discussionId) {
         return ResponseEntity.ok(ApiResponse.success("Reaction removed",
             Map.of("reactionCount", discussionService.unreact(discussionId))));
+    }
+
+    /** Repost a forum discussion for the current user. Repeating the request is idempotent. */
+    @PostMapping("/{discussionId}/repost")
+    public ResponseEntity<ApiResponse<Void>> repost(
+        @PathVariable UUID discussionId,
+        @Valid @RequestBody(required = false) RepostRequest request) {
+        discussionService.repost(discussionId, request);
+        return ResponseEntity.ok(ApiResponse.success("Discussion reposted", null));
+    }
+
+    /** Remove the current user's discussion repost. Repeating the request is a no-op. */
+    @DeleteMapping("/{discussionId}/repost")
+    public ResponseEntity<ApiResponse<Void>> unrepost(@PathVariable UUID discussionId) {
+        discussionService.unrepost(discussionId);
+        return ResponseEntity.ok(ApiResponse.success("Discussion unreposted", null));
     }
 
     /** One report per user. Reporting twice is a silent no-op, not an error. */

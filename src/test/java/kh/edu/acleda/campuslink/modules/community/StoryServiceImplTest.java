@@ -155,6 +155,32 @@ class StoryServiceImplTest {
     }
 
     @Test
+    void createStoryWithOnlyMeVisibilitySavesCorrectly() {
+        StoryCreateRequest request = new StoryCreateRequest(
+            "https://cdn/x.jpg",
+            StoryMediaType.IMAGE,
+            "Only me story",
+            Visibility.ONLY_ME,
+            StoryReplyPermission.OFF,
+            false
+        );
+
+        StoryResponse response = service.createStory(request);
+
+        ArgumentCaptor<Story> storyCaptor = ArgumentCaptor.forClass(Story.class);
+        verify(storyRepository).save(storyCaptor.capture());
+        Story saved = storyCaptor.getValue();
+
+        assertThat(saved.getVisibility()).isEqualTo(Visibility.ONLY_ME);
+        assertThat(saved.getReplyPermission()).isEqualTo(StoryReplyPermission.OFF);
+        assertThat(saved.isAllowReactions()).isFalse();
+
+        assertThat(response.visibility()).isEqualTo(Visibility.ONLY_ME);
+        assertThat(response.replyPermission()).isEqualTo(StoryReplyPermission.OFF);
+        assertThat(response.allowReactions()).isFalse();
+    }
+
+    @Test
     void createStoryRejectsCommunityVisibilityWhenExplicitlyRequested() {
         StoryCreateRequest request = new StoryCreateRequest(
             "https://cdn/x.jpg",

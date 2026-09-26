@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.community.service;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CommentCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionReportRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedDiscussionResponse;
@@ -31,6 +32,12 @@ public interface DiscussionService {
     int react(UUID discussionId);
 
     int unreact(UUID discussionId);
+
+    /** Creates or returns the caller's existing discussion repost. */
+    void repost(UUID discussionId, RepostRequest request);
+
+    /** Removes the caller's discussion repost if one exists. */
+    void unrepost(UUID discussionId);
 
     /** One report per user per discussion, so the count means distinct people. */
     void report(UUID discussionId, DiscussionReportRequest request);

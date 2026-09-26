@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Community;
@@ -14,6 +15,8 @@ import kh.edu.acleda.campuslink.modules.community.entity.CommunityMember;
 import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.entity.PostReaction;
 import kh.edu.acleda.campuslink.modules.community.entity.PostReport;
+import kh.edu.acleda.campuslink.modules.community.entity.PostRepost;
+import kh.edu.acleda.campuslink.modules.community.repository.PostRepostRepository;
 import kh.edu.acleda.campuslink.modules.community.enums.CommunityRole;
 import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.PostType;
@@ -81,6 +84,7 @@ class PostServiceImplTest {
     @Mock private PostRepository postRepository;
     @Mock private PostReactionRepository postReactionRepository;
     @Mock private PostReportRepository postReportRepository;
+    @Mock private PostRepostRepository postRepostRepository;
     @Mock private SavedItemRepository savedItemRepository;
     @Mock private CommunityRepository communityRepository;
     @Mock private CommunityMemberRepository communityMemberRepository;
@@ -101,7 +105,7 @@ class PostServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new PostServiceImpl(postRepository, postReactionRepository, postReportRepository,
-            savedItemRepository, communityRepository, communityMemberRepository, followRepository,
+            postRepostRepository, savedItemRepository, communityRepository, communityMemberRepository, followRepository,
             hashtagService, userRepository, currentUserProvider,
             pollRepository, pollOptionRepository, pollVoteRepository, notificationEmitter);
 
@@ -130,6 +134,7 @@ class PostServiceImplTest {
         when(hashtagService.tagsForPosts(any())).thenReturn(Map.of());
         when(postReactionRepository.findLikedPostIds(any(), anyCollection())).thenReturn(List.of());
         when(savedItemRepository.findSavedItemIds(any(), any(), anyCollection())).thenReturn(List.of());
+        when(postRepostRepository.findByPostIdInAndUserId(anyCollection(), any())).thenReturn(List.of());
         when(followRepository.findFriendIds(any())).thenReturn(List.of());
         when(communityMemberRepository.findActiveCommunityIds(any())).thenReturn(List.of());
         // Most posts are not polls, so poll enrichment resolves to nothing by default.
@@ -287,6 +292,46 @@ class PostServiceImplTest {
     }
 
     @Test
+    void repostCreatesOneRecordAndIncrementsTheShareCount() {
+        UUID originalAuthorId = UUID.randomUUID();
+        User originalAuthor = new User();
+        originalAuthor.setFullName("Original Author");
+        ReflectionTestUtils.setField(originalAuthor, "id", originalAuthorId);
+        post.setUser(originalAuthor);
+        post.setShareCount(2);
+
+        PostRepost savedRepost = PostRepost.builder()
+            .post(post)
+            .user(author)
+            .caption("Worth reading")
+            .build();
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(postRepostRepository.findByPostIdAndUserId(POST_ID, USER_ID)).thenReturn(Optional.empty());
+        when(postRepostRepository.save(any(PostRepost.class))).thenReturn(savedRepost);
+
+        PostResponse response = service.repost(POST_ID, new RepostRequest(" Worth reading "));
+
+        assertThat(response.shareCount()).isEqualTo(3);
+        assertThat(response.repostedByMe()).isTrue();
+        assertThat(response.repostCaption()).isEqualTo("Worth reading");
+        assertThat(response.reposterId()).isEqualTo(USER_ID);
+        verify(postRepository).adjustShareCount(POST_ID, 1);
+    }
+
+    @Test
+    void unrepostIsIdempotentAndDecrementsOnlyWhenARecordWasRemoved() {
+        post.setShareCount(3);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(postRepostRepository.deleteByPostIdAndUserId(POST_ID, USER_ID)).thenReturn(1);
+
+        PostResponse response = service.unrepost(POST_ID);
+
+        assertThat(response.shareCount()).isEqualTo(2);
+        assertThat(response.repostedByMe()).isFalse();
+        verify(postRepository).adjustShareCount(POST_ID, -1);
+    }
+
+    @Test
     void likeByAnotherUserEmitsPostLikeNotification() {
         UUID otherUserId = UUID.randomUUID();
         User otherAuthor = new User();
@@ -401,7 +446,7 @@ class PostServiceImplTest {
             .thenReturn(Optional.of(CommunityMember.builder()
                 .role(CommunityRole.MODERATOR).status(MemberStatus.ACTIVE).build()));
         service = new PostServiceImpl(postRepository, postReactionRepository, postReportRepository,
-            savedItemRepository, communityRepository, communityMemberRepository, followRepository,
+            postRepostRepository, savedItemRepository, communityRepository, communityMemberRepository, followRepository,
             hashtagService, userRepository, currentUserProvider,
             pollRepository, pollOptionRepository, pollVoteRepository, emitterWithWriterFailure());
 

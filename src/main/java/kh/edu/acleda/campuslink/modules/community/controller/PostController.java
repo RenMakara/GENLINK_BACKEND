@@ -8,12 +8,15 @@ import kh.edu.acleda.campuslink.modules.community.dto.request.PollCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PollVoteRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PollResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
+import kh.edu.acleda.campuslink.modules.community.service.DiscussionService;
 import kh.edu.acleda.campuslink.modules.community.service.PostService;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
+import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -33,9 +36,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class PostController {
 
     private final PostService postService;
+    private final DiscussionService discussionService;
 
-    public PostController(PostService postService) {
+    public PostController(PostService postService, DiscussionService discussionService) {
         this.postService = postService;
+        this.discussionService = discussionService;
     }
 
     @PostMapping
@@ -78,6 +83,13 @@ public class PostController {
             postService.getCommunityFeed(communityId, pageable)));
     }
 
+    /** Reposts for the current user only; these are intentionally separate from the feed. */
+    @GetMapping("/reposts")
+    public ResponseEntity<ApiResponse<PageResponse<PostResponse>>> getReposts(
+        @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Reposts retrieved", postService.getReposts(pageable)));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<PostResponse>>> getMine(
         @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
@@ -87,6 +99,32 @@ public class PostController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PostResponse>> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success("Post retrieved", postService.getById(id)));
+    }
+
+    /** Repost a post for the current user. Repeating the request is idempotent. */
+    @PostMapping("/{id}/repost")
+    public ResponseEntity<ApiResponse<Object>> repost(
+        @PathVariable UUID id,
+        @Valid @RequestBody(required = false) RepostRequest request) {
+        try {
+            return ResponseEntity.ok(ApiResponse.<Object>success("Post reposted", postService.repost(id, request)));
+        } catch (NotFoundException postNotFound) {
+            // Older mobile builds sent forum discussion ids to this post URL. Keep that
+            // request compatible while newer clients use /community/discussions/{id}/repost.
+            discussionService.repost(id, request);
+            return ResponseEntity.ok(ApiResponse.<Object>success("Discussion reposted", null));
+        }
+    }
+
+    /** Remove the current user's repost. Repeating the request is a no-op. */
+    @DeleteMapping("/{id}/repost")
+    public ResponseEntity<ApiResponse<Object>> unrepost(@PathVariable UUID id) {
+        try {
+            return ResponseEntity.ok(ApiResponse.<Object>success("Post unreposted", postService.unrepost(id)));
+        } catch (NotFoundException postNotFound) {
+            discussionService.unrepost(id);
+            return ResponseEntity.ok(ApiResponse.<Object>success("Discussion unreposted", null));
+        }
     }
 
     @PutMapping("/{id}")

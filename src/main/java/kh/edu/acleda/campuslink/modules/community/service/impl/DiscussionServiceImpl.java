@@ -10,16 +10,19 @@ import java.util.stream.Collectors;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CommentCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionReportRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedDiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.DiscussionReport;
+import kh.edu.acleda.campuslink.modules.community.entity.DiscussionRepost;
 import kh.edu.acleda.campuslink.modules.community.entity.ForumComment;
 import kh.edu.acleda.campuslink.modules.community.entity.ForumCommentReaction;
 import kh.edu.acleda.campuslink.modules.community.entity.ForumDiscussion;
 import kh.edu.acleda.campuslink.modules.community.entity.ForumReaction;
 import kh.edu.acleda.campuslink.modules.community.repository.DiscussionReportRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.DiscussionRepostRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumCommentReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumCommentRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumDiscussionRepository;
@@ -30,6 +33,7 @@ import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
+import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +56,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     private final ForumReactionRepository reactionRepository;
     private final ForumCommentReactionRepository commentReactionRepository;
     private final DiscussionReportRepository reportRepository;
+    private final DiscussionRepostRepository repostRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
     private final NotificationEmitter notificationEmitter;
@@ -61,6 +66,7 @@ public class DiscussionServiceImpl implements DiscussionService {
                                  ForumReactionRepository reactionRepository,
                                  ForumCommentReactionRepository commentReactionRepository,
                                  DiscussionReportRepository reportRepository,
+                                 DiscussionRepostRepository repostRepository,
                                  UserRepository userRepository,
                                  CurrentUserProvider currentUserProvider,
                                  NotificationEmitter notificationEmitter) {
@@ -69,6 +75,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         this.reactionRepository = reactionRepository;
         this.commentReactionRepository = commentReactionRepository;
         this.reportRepository = reportRepository;
+        this.repostRepository = repostRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
         this.notificationEmitter = notificationEmitter;
@@ -182,6 +189,39 @@ public class DiscussionServiceImpl implements DiscussionService {
                 return discussion.getReactionCount() - 1;
             })
             .orElseGet(discussion::getReactionCount);
+    }
+
+    @Override
+    @Transactional
+    public void repost(UUID discussionId, RepostRequest request) {
+        ForumDiscussion discussion = loadDiscussion(discussionId);
+        UUID userId = currentUserProvider.getCurrentUserId();
+        if (discussion.getUser() != null && userId.equals(discussion.getUser().getId())) {
+            throw new ApiException("You cannot repost your own discussion", "CANNOT_REPOST_OWN_POST");
+        }
+
+        DiscussionRepost repost = repostRepository.findByDiscussionIdAndUserId(discussionId, userId)
+            .orElse(null);
+        String caption = normalizeCaption(request == null ? null : request.caption());
+        if (repost == null) {
+            repostRepository.save(DiscussionRepost.builder()
+                .discussion(discussion)
+                .user(loadCurrentUser())
+                .caption(caption)
+                .build());
+        } else if (request != null && request.caption() != null
+            && !java.util.Objects.equals(repost.getCaption(), caption)) {
+            repost.setCaption(caption);
+            repostRepository.save(repost);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void unrepost(UUID discussionId) {
+        loadDiscussion(discussionId);
+        repostRepository.deleteByDiscussionIdAndUserId(
+            discussionId, currentUserProvider.getCurrentUserId());
     }
 
     @Override
@@ -422,6 +462,14 @@ public class DiscussionServiceImpl implements DiscussionService {
     private User loadCurrentUser() {
         return userRepository.findById(currentUserProvider.getCurrentUserId())
             .orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    private String normalizeCaption(String caption) {
+        if (caption == null) {
+            return null;
+        }
+        String normalized = caption.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     /**

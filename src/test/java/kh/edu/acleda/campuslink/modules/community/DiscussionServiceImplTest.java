@@ -19,6 +19,7 @@ import kh.edu.acleda.campuslink.modules.community.repository.ForumCommentReactio
 import kh.edu.acleda.campuslink.modules.community.repository.ForumCommentRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumDiscussionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ForumReactionRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.DiscussionRepostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.DiscussionServiceImpl;
 import kh.edu.acleda.campuslink.modules.notification.event.NotificationEventListener;
 import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
@@ -67,6 +68,7 @@ class DiscussionServiceImplTest {
     @Mock private ForumReactionRepository reactionRepository;
     @Mock private ForumCommentReactionRepository commentReactionRepository;
     @Mock private DiscussionReportRepository reportRepository;
+    @Mock private DiscussionRepostRepository repostRepository;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
     @Mock private NotificationEmitter notificationEmitter;
@@ -79,7 +81,8 @@ class DiscussionServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new DiscussionServiceImpl(discussionRepository, commentRepository, reactionRepository,
-            commentReactionRepository, reportRepository, userRepository, currentUserProvider, notificationEmitter);
+            commentReactionRepository, reportRepository, repostRepository, userRepository,
+            currentUserProvider, notificationEmitter);
 
         author = new User();
         author.setEmail("author@example.com");
@@ -294,7 +297,7 @@ class DiscussionServiceImplTest {
     @Test
     void notificationWriterFailureDoesNotUndoDiscussionModeration() {
         service = new DiscussionServiceImpl(discussionRepository, commentRepository, reactionRepository,
-            commentReactionRepository, reportRepository, userRepository, currentUserProvider,
+            commentReactionRepository, reportRepository, repostRepository, userRepository, currentUserProvider,
             emitterWithWriterFailure());
 
         service.removeAsAdmin(DISCUSSION_ID);

@@ -1,5 +1,6 @@
 package kh.edu.acleda.campuslink.modules.community.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -25,12 +26,24 @@ public record PostResponse(
     Language language,
     Integer likeCount,
     Integer commentCount,
+    Integer shareCount,
     boolean likedByMe,
     boolean savedByMe,
     List<String> hashtags,
     PollResponse poll,
-    Instant createdAt
+    Instant createdAt,
+    boolean repostedByMe,
+    String repostedBy,
+    String repostCaption,
+    UUID reposterId,
+    UUID originalPostId
 ) {
+
+    /** Alias used by the mobile community model. */
+    @JsonProperty("repostCount")
+    public Integer repostCount() {
+        return shareCount;
+    }
 
     /**
      * Backward-compatible constructor for existing callers and tests omitting videoUrl.
@@ -52,7 +65,31 @@ public record PostResponse(
         Instant createdAt
     ) {
         this(postId, author, contentText, imageUrl, null, postType, visibility,
-            language, likeCount, commentCount, likedByMe, savedByMe, hashtags, poll, createdAt);
+            language, likeCount, commentCount, null, likedByMe, savedByMe, hashtags, poll,
+            createdAt, false, null, null, null, null);
+    }
+
+    /** Backward-compatible constructor for callers that already provide videoUrl. */
+    public PostResponse(
+        UUID postId,
+        AuthorSummary author,
+        String contentText,
+        String imageUrl,
+        String videoUrl,
+        PostType postType,
+        Visibility visibility,
+        Language language,
+        Integer likeCount,
+        Integer commentCount,
+        boolean likedByMe,
+        boolean savedByMe,
+        List<String> hashtags,
+        PollResponse poll,
+        Instant createdAt
+    ) {
+        this(postId, author, contentText, imageUrl, videoUrl, postType, visibility,
+            language, likeCount, commentCount, null, likedByMe, savedByMe, hashtags, poll,
+            createdAt, false, null, null, null, null);
     }
 
     /** Public-safe author fields only: no email, no phone. */

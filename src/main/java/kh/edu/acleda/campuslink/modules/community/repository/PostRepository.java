@@ -94,6 +94,10 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     void adjustCommentCount(@Param("postId") UUID postId, @Param("delta") int delta);
 
     @Modifying
+    @Query("UPDATE Post p SET p.shareCount = p.shareCount + :delta WHERE p.id = :postId")
+    void adjustShareCount(@Param("postId") UUID postId, @Param("delta") int delta);
+
+    @Modifying
     @Query("UPDATE Post p SET p.reportCount = p.reportCount + :delta WHERE p.id = :postId")
     void adjustReportCount(@Param("postId") UUID postId, @Param("delta") int delta);
 

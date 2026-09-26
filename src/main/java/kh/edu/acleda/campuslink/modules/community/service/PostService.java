@@ -4,6 +4,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.request.PollCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PollVoteRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PollResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
@@ -35,7 +36,16 @@ public interface PostService {
 
     PageResponse<PostResponse> getMine(Pageable pageable);
 
+    /** Returns the caller's reposted posts without adding them to the main feed. */
+    PageResponse<PostResponse> getReposts(Pageable pageable);
+
     PostResponse getById(UUID id);
+
+    /** Creates or returns the caller's existing repost of the post. */
+    PostResponse repost(UUID postId, RepostRequest request);
+
+    /** Removes the caller's repost if one exists. */
+    PostResponse unrepost(UUID postId);
 
     PostResponse update(UUID id, PostCreateRequest request);
 

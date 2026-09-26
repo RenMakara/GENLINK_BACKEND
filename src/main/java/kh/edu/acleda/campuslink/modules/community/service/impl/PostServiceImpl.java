@@ -11,6 +11,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PostReportRequest;
+import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Community;
@@ -18,6 +19,7 @@ import kh.edu.acleda.campuslink.modules.community.entity.CommunityMember;
 import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.entity.PostReaction;
 import kh.edu.acleda.campuslink.modules.community.entity.PostReport;
+import kh.edu.acleda.campuslink.modules.community.entity.PostRepost;
 import kh.edu.acleda.campuslink.modules.community.enums.CommunityRole;
 import kh.edu.acleda.campuslink.modules.community.enums.MemberStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.PostType;
@@ -27,6 +29,7 @@ import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository
 import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostReportRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.PostRepostRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
 import kh.edu.acleda.campuslink.modules.community.service.PostService;
@@ -75,6 +78,7 @@ public class PostServiceImpl implements PostService {
     private final PostRepository postRepository;
     private final PostReactionRepository postReactionRepository;
     private final PostReportRepository postReportRepository;
+    private final PostRepostRepository postRepostRepository;
     private final SavedItemRepository savedItemRepository;
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository communityMemberRepository;
@@ -90,6 +94,7 @@ public class PostServiceImpl implements PostService {
     public PostServiceImpl(PostRepository postRepository,
                            PostReactionRepository postReactionRepository,
                            PostReportRepository postReportRepository,
+                           PostRepostRepository postRepostRepository,
                            SavedItemRepository savedItemRepository,
                            CommunityRepository communityRepository,
                            CommunityMemberRepository communityMemberRepository,
@@ -104,6 +109,7 @@ public class PostServiceImpl implements PostService {
         this.postRepository = postRepository;
         this.postReactionRepository = postReactionRepository;
         this.postReportRepository = postReportRepository;
+        this.postRepostRepository = postRepostRepository;
         this.savedItemRepository = savedItemRepository;
         this.communityRepository = communityRepository;
         this.communityMemberRepository = communityMemberRepository;
@@ -290,6 +296,40 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResponse<PostResponse> getReposts(Pageable pageable) {
+        Page<PostRepost> repostPage = postRepostRepository
+            .findByUserId(currentUserProvider.getCurrentUserId(), pageable);
+        List<PostRepost> reposts = repostPage.getContent();
+        if (reposts.isEmpty()) {
+            return PageResponse.from(repostPage, repost -> toResponse(
+                repost.getPost(), false, false, List.of(), null, repost,
+                repost.getPost().getShareCount()));
+        }
+
+        UUID viewerId = currentUserProvider.getCurrentUserId();
+        Set<UUID> postIds = reposts.stream().map(repost -> repost.getPost().getId())
+            .collect(Collectors.toSet());
+        Set<UUID> liked = new HashSet<>(postReactionRepository.findLikedPostIds(viewerId, postIds));
+        Set<UUID> saved = new HashSet<>(
+            savedItemRepository.findSavedItemIds(viewerId, SavedItemType.POST, postIds));
+        Map<UUID, List<String>> tags = hashtagService.tagsForPosts(postIds);
+        Map<UUID, PollResponse> polls = pollsForPosts(postIds, viewerId);
+
+        return PageResponse.from(repostPage, repost -> {
+            Post post = repost.getPost();
+            return toResponse(
+                post,
+                liked.contains(post.getId()),
+                saved.contains(post.getId()),
+                tags.getOrDefault(post.getId(), List.of()),
+                polls.get(post.getId()),
+                repost,
+                post.getShareCount());
+        });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PostResponse getById(UUID id) {
         Post post = postRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new NotFoundException("Post not found"));
@@ -300,7 +340,55 @@ public class PostServiceImpl implements PostService {
             postReactionRepository.findByPostIdAndUserId(id, viewerId).isPresent(),
             savedItemRepository.existsByUserIdAndItemTypeAndItemId(viewerId, SavedItemType.POST, id),
             hashtagsFor(id),
-            poll);
+            poll,
+            postRepostRepository.findByPostIdAndUserId(id, viewerId).orElse(null),
+            post.getShareCount());
+    }
+
+    @Override
+    @Transactional
+    public PostResponse repost(UUID postId, RepostRequest request) {
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+            .orElseThrow(() -> new NotFoundException("Post not found"));
+        UUID userId = currentUserProvider.getCurrentUserId();
+        if (post.getUser() != null && userId.equals(post.getUser().getId())) {
+            throw new ApiException("You cannot repost your own post", "CANNOT_REPOST_OWN_POST");
+        }
+
+        String caption = normalizeCaption(request == null ? null : request.caption());
+        PostRepost repost = postRepostRepository.findByPostIdAndUserId(postId, userId).orElse(null);
+        boolean created = repost == null;
+        if (created) {
+            repost = postRepostRepository.save(PostRepost.builder()
+                .post(post)
+                .user(loadCurrentUser())
+                .caption(caption)
+                .build());
+            postRepository.adjustShareCount(postId, 1);
+        } else if (request != null && request.caption() != null
+            && !java.util.Objects.equals(repost.getCaption(), caption)) {
+            // A retry is idempotent, but an explicitly supplied quote can still be edited.
+            repost.setCaption(caption);
+            repost = postRepostRepository.save(repost);
+        }
+
+        int shareCount = safeCount(post.getShareCount()) + (created ? 1 : 0);
+        return toResponseForViewer(post, userId, repost, shareCount);
+    }
+
+    @Override
+    @Transactional
+    public PostResponse unrepost(UUID postId) {
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+            .orElseThrow(() -> new NotFoundException("Post not found"));
+        UUID userId = currentUserProvider.getCurrentUserId();
+        int removed = postRepostRepository.deleteByPostIdAndUserId(postId, userId);
+        if (removed > 0) {
+            postRepository.adjustShareCount(postId, -1);
+        }
+
+        int shareCount = Math.max(0, safeCount(post.getShareCount()) - (removed > 0 ? 1 : 0));
+        return toResponseForViewer(post, userId, null, shareCount);
     }
 
     @Override
@@ -528,13 +616,18 @@ public class PostServiceImpl implements PostService {
             savedItemRepository.findSavedItemIds(viewerId, SavedItemType.POST, postIds));
         Map<UUID, List<String>> tags = hashtagService.tagsForPosts(postIds);
         Map<UUID, PollResponse> polls = pollsForPosts(postIds, viewerId);
+        Map<UUID, PostRepost> reposts = new HashMap<>();
+        postRepostRepository.findByPostIdInAndUserId(postIds, viewerId)
+            .forEach(repost -> reposts.put(repost.getPost().getId(), repost));
 
         return PageResponse.from(page, post -> toResponse(
             post,
             liked.contains(post.getId()),
             saved.contains(post.getId()),
             tags.getOrDefault(post.getId(), List.of()),
-            polls.get(post.getId())));
+            polls.get(post.getId()),
+            reposts.get(post.getId()),
+            post.getShareCount()));
     }
 
     private List<String> hashtagsFor(UUID postId) {
@@ -558,7 +651,14 @@ public class PostServiceImpl implements PostService {
 
     private PostResponse toResponse(Post post, boolean likedByMe, boolean savedByMe,
                                     List<String> hashtags, PollResponse poll) {
+        return toResponse(post, likedByMe, savedByMe, hashtags, poll, null, post.getShareCount());
+    }
+
+    private PostResponse toResponse(Post post, boolean likedByMe, boolean savedByMe,
+                                    List<String> hashtags, PollResponse poll,
+                                    PostRepost repost, Integer shareCount) {
         User author = post.getUser();
+        User reposter = repost == null ? null : repost.getUser();
         return new PostResponse(
             post.getId(),
             author == null ? null : new PostResponse.AuthorSummary(
@@ -571,12 +671,50 @@ public class PostServiceImpl implements PostService {
             post.getLanguage(),
             post.getLikeCount(),
             post.getCommentCount(),
+            safeCount(shareCount),
             likedByMe,
             savedByMe,
             hashtags,
             poll,
-            post.getCreatedAt()
+            post.getCreatedAt(),
+            repost != null,
+            displayName(reposter),
+            repost == null ? null : repost.getCaption(),
+            reposter == null ? null : reposter.getId(),
+            repost == null ? null : post.getId()
         );
+    }
+
+    private PostResponse toResponseForViewer(Post post, UUID viewerId, PostRepost repost, int shareCount) {
+        UUID postId = post.getId();
+        PollResponse poll = post.getPostType() == PostType.POLL
+            ? pollsForPosts(Set.of(postId), viewerId).get(postId) : null;
+        return toResponse(post,
+            postReactionRepository.findByPostIdAndUserId(postId, viewerId).isPresent(),
+            savedItemRepository.existsByUserIdAndItemTypeAndItemId(viewerId, SavedItemType.POST, postId),
+            hashtagsFor(postId), poll, repost, shareCount);
+    }
+
+    private String normalizeCaption(String caption) {
+        if (caption == null) {
+            return null;
+        }
+        String normalized = caption.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String displayName(User user) {
+        if (user == null) {
+            return null;
+        }
+        if (user.getFullName() != null && !user.getFullName().isBlank()) {
+            return user.getFullName();
+        }
+        return user.getUsername();
+    }
+
+    private int safeCount(Integer count) {
+        return count == null ? 0 : Math.max(0, count);
     }
 
     /**

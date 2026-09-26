@@ -1,17 +1,4 @@
   # GenLink KH — production stack.
-#
-# Grows over the deployment steps:
-#   Step 1 (now)  postgres  + optional redis
-#   Step 3        app       (Spring Boot, once its Dockerfile exists)
-#   Step 4        nginx runs on the HOST, not here, and proxies to `app`
-  ##
-  # Nothing here is published to the public internet. Ports are bound to
-# 127.0.0.1 so they are reachable only from the EC2 instance itself (or through
-# an SSH tunnel). Nginx is the single public door — that is what makes the
-# later IP -> domain migration a config change instead of a code change.
-#
-# No `version:` key: Compose V2 ignores it and warns when present.
-
 name: genlink
 
 services:
@@ -27,24 +14,15 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      # Keeps the data files in the documented location and lets us mount a
-      # named volume at exactly that path.
       PGDATA: /var/lib/postgresql/data/pgdata
 
     volumes:
-      # Named volume = data survives `docker compose down`, image upgrades
-      # and EC2 instance reboots. See Step 6.
       - postgres_data:/var/lib/postgresql/data
 
     ports:
-      # 127.0.0.1 prefix is the security control: Postgres is NOT exposed to
-      # the internet. Connect from your laptop with an SSH tunnel:
-      #   ssh -L 5432:localhost:5432 root@165.22.101.156
       - "127.0.0.1:5432:5432"
 
     healthcheck:
-      # Compose waits for this before starting dependents (Step 3), so the
-      # app never boots against a database that is still initialising.
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
@@ -52,8 +30,6 @@ services:
       # Generous: first boot has to initialise the cluster.
       start_period: 30s
 
-    # Container logs are written by the Docker daemon and grow forever
-    # unless capped. See Step 7 for the host-wide default.
     logging:
       driver: "json-file"
       options:
@@ -113,55 +89,35 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ISSUER: ${JWT_ISSUER:-genlink_kh}
-      # Field encryption for credential columns (admin_users.totp_secret). Required in prod:
-      # FieldEncryptor refuses to start without a valid Base64 32-byte key. Must be listed here
-      # or Compose never injects it into the container. Generate with `openssl rand -base64 32`.
-      # LOSING IT is not recoverable — every enrolled admin must re-enrol. Back it up with JWT_SECRET.
+
       ADMIN_CRYPTO_KEY: ${ADMIN_CRYPTO_KEY}
       ADMIN_CORS_ORIGINS: ${ADMIN_CORS_ORIGINS:-}
       ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
-      # OTP delivery uses the standard JavaMail SMTP transport. Keep the
-      # switch explicit so dev/prod profiles receive the same setting.
+
       MAIL_ENABLED: ${MAIL_ENABLED:-true}
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
-      # The visible From address. Must be listed here, not just in .env:
-      # Compose reads .env to interpolate THIS file, but only the keys named
-      # in `environment:` are actually injected into the container.
-      # Falls back to the SMTP login, which is correct for Gmail. A bare
-      # ${MAIL_FROM} would inject an EMPTY string when unset — worse than
-      # absent, because Spring's own fallback chain would never fire.
+
       MAIL_FROM: ${MAIL_FROM:-${MAIL_USERNAME}}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_PROJECT_ID: ${GOOGLE_PROJECT_ID:-genlinkkh}
-      # Offline mobile push is opt-in. Prefer workload identity/ADC; the Base64 option is for a
-      # secret manager that injects one-line service-account JSON without committing a key.
+
       NOTIFICATION_MOBILE_PUSH_ENABLED: ${NOTIFICATION_MOBILE_PUSH_ENABLED:-false}
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
       GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
       FIREBASE_CREDENTIALS_BASE64: ${FIREBASE_CREDENTIALS_BASE64:-}
       APP_DEFAULT_LANGUAGE: ${APP_DEFAULT_LANGUAGE:-ENGLISH}
-      # S3-compatible object storage. Must be listed here, not only in
-      # .env: Compose reads .env to interpolate this file, but only the keys named
-      # in `environment:` are injected into the container.
+
       STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-https://sgp1.digitaloceanspaces.com}
       STORAGE_REGION: ${STORAGE_REGION:-sgp1}
       STORAGE_BUCKET: ${STORAGE_BUCKET}
       STORAGE_CDN_BASE: ${STORAGE_CDN_BASE}
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
-      # Set false for AWS S3 Bucket owner enforced + CloudFront OAC. Keep true
-      # only while using a legacy provider that relies on object ACLs.
       STORAGE_PUBLIC_READ_ACL: ${STORAGE_PUBLIC_READ_ACL:-true}
-      # Lets Spring trust Nginx's X-Forwarded-* headers (Step 4). This is
-      # what makes http://IP -> https://domain a config-only migration.
       SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-framework}
-      # The app stores habit check-ins and deadlines as timezone-naive
-      # LocalDate/LocalDateTime, so "today" is decided by the container
-      # clock. Left at UTC, a Cambodian user's day would roll over at 07:00
-      # local. Pin it to the users' zone.
       TZ: ${TZ:-Asia/Phnom_Penh}
 
     depends_on:

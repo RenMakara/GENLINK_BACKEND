@@ -154,3 +154,7 @@ databaseChangeLog:
       file: db/changelog/changes/0076-seed-story-like-notification-template.sql
   - include:
       file: db/changelog/changes/0077-add-chat-shared-content.sql
+  - include:
+      file: db/changelog/changes/0078-create-post-reposts.sql
+  - include:
+      file: db/changelog/changes/0079-create-discussion-reposts.sql
