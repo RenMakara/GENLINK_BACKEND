@@ -76,6 +76,19 @@ public class DiscussionController {
             discussionService.reportedDiscussions(pageable)));
     }
 
+    /**
+     * Profile-only repost history. Reposts are deliberately not merged into the forum
+     * browse response; this endpoint is what makes them visible on the reposter's profile.
+     */
+    @GetMapping("/reposts")
+    public ResponseEntity<ApiResponse<PageResponse<DiscussionResponse>>> getReposts(
+        @RequestParam(required = false) UUID userId,
+        @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+        Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Discussion reposts retrieved",
+            discussionService.getReposts(userId, pageable)));
+    }
+
     @GetMapping("/{discussionId}")
     public ResponseEntity<ApiResponse<DiscussionResponse>> getById(@PathVariable UUID discussionId) {
         return ResponseEntity.ok(ApiResponse.success("Discussion retrieved", discussionService.getById(discussionId)));

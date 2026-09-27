@@ -22,6 +22,12 @@ public interface DiscussionService {
     /** The caller's own discussions, including ones they posted anonymously. */
     PageResponse<DiscussionResponse> getMine(Pageable pageable);
 
+    /**
+     * Discussions reposted by the requested profile. When no profile id is supplied,
+     * this returns the caller's own reposts.
+     */
+    PageResponse<DiscussionResponse> getReposts(UUID userId, Pageable pageable);
+
     DiscussionResponse getById(UUID discussionId);
 
     DiscussionResponse update(UUID discussionId, DiscussionCreateRequest request);

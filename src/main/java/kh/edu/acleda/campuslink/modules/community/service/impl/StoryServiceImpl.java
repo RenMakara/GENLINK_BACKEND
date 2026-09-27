@@ -16,12 +16,14 @@ import kh.edu.acleda.campuslink.modules.community.dto.response.StoryFeedItem;
 import kh.edu.acleda.campuslink.modules.community.dto.response.StoryResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.StoryViewerResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Story;
+import kh.edu.acleda.campuslink.modules.community.entity.StoryReaction;
 import kh.edu.acleda.campuslink.modules.community.entity.StoryView;
 import kh.edu.acleda.campuslink.modules.community.enums.FollowStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.StoryReplyPermission;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.StoryRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.StoryReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.StoryViewRepository;
 import kh.edu.acleda.campuslink.modules.community.service.StoryService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
@@ -46,9 +48,11 @@ public class StoryServiceImpl implements StoryService {
     private static final Duration STORY_TTL = Duration.ofHours(24);
     /** Stands in for an empty IN list, which is invalid SQL. Matches nothing. */
     private static final UUID PLACEHOLDER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    private static final String DEFAULT_REACTION = "LIKE";
 
     private final StoryRepository storyRepository;
     private final StoryViewRepository storyViewRepository;
+    private final StoryReactionRepository storyReactionRepository;
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
@@ -60,12 +64,26 @@ public class StoryServiceImpl implements StoryService {
                             FollowRepository followRepository,
                             UserRepository userRepository,
                             CurrentUserProvider currentUserProvider) {
-        this(storyRepository, storyViewRepository, followRepository, userRepository, currentUserProvider, null, null);
+        this(storyRepository, storyViewRepository, null, followRepository, userRepository,
+            currentUserProvider, null, null);
+    }
+
+    /** Kept for existing direct callers; Spring uses the constructor with StoryReactionRepository. */
+    public StoryServiceImpl(StoryRepository storyRepository,
+                            StoryViewRepository storyViewRepository,
+                            FollowRepository followRepository,
+                            UserRepository userRepository,
+                            CurrentUserProvider currentUserProvider,
+                            NotificationEmitter notificationEmitter,
+                            NotificationTemplateRepository notificationTemplateRepository) {
+        this(storyRepository, storyViewRepository, null, followRepository, userRepository,
+            currentUserProvider, notificationEmitter, notificationTemplateRepository);
     }
 
     @Autowired
     public StoryServiceImpl(StoryRepository storyRepository,
                             StoryViewRepository storyViewRepository,
+                            StoryReactionRepository storyReactionRepository,
                             FollowRepository followRepository,
                             UserRepository userRepository,
                             CurrentUserProvider currentUserProvider,
@@ -73,6 +91,7 @@ public class StoryServiceImpl implements StoryService {
                             @Autowired(required = false) NotificationTemplateRepository notificationTemplateRepository) {
         this.storyRepository = storyRepository;
         this.storyViewRepository = storyViewRepository;
+        this.storyReactionRepository = storyReactionRepository;
         this.followRepository = followRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
@@ -108,7 +127,7 @@ public class StoryServiceImpl implements StoryService {
         log.info("Story created: id={} by user={} visibility={} expires={}",
             story.getId(), me.getId(), story.getVisibility(), story.getExpiresAt());
         // The author's own story always reads as seen.
-        return toStoryResponse(story, true);
+        return toStoryResponse(story, true, 0, false);
     }
 
     @Override
@@ -127,6 +146,8 @@ public class StoryServiceImpl implements StoryService {
         }
         Set<UUID> storyIds = stories.stream().map(Story::getId).collect(Collectors.toSet());
         Set<UUID> seen = new HashSet<>(storyViewRepository.findViewedStoryIds(meId, storyIds));
+        Map<UUID, Integer> reactionCounts = reactionCounts(storyIds);
+        Set<UUID> reactedStoryIds = reactedStoryIds(meId, storyIds);
 
         // Group by author, preserving the oldest-first order the query returned.
         Map<UUID, List<Story>> byAuthor = new LinkedHashMap<>();
@@ -147,7 +168,9 @@ public class StoryServiceImpl implements StoryService {
                 if (!storySeen) {
                     hasUnseen = true;
                 }
-                responses.add(toStoryResponse(story, storySeen));
+                responses.add(toStoryResponse(story, storySeen,
+                    reactionCounts.getOrDefault(story.getId(), 0),
+                    reactedStoryIds.contains(story.getId())));
             }
             StoryFeedItem item = new StoryFeedItem(
                 new StoryFeedItem.Author(author.getId(), author.getFullName(),
@@ -179,7 +202,8 @@ public class StoryServiceImpl implements StoryService {
             throw new NotFoundException("Story not found");
         }
         boolean seen = story.getUser().getId().equals(meId) || storyViewRepository.existsByStoryIdAndViewerId(storyId, meId);
-        return toStoryResponse(story, seen);
+        return toStoryResponse(story, seen,
+            reactionCount(storyId), reactedByMe(storyId, meId));
     }
 
     @Override
@@ -276,7 +300,8 @@ public class StoryServiceImpl implements StoryService {
         return story;
     }
 
-    private StoryResponse toStoryResponse(Story story, boolean seen) {
+    private StoryResponse toStoryResponse(Story story, boolean seen,
+                                          int reactionCount, boolean reactedByMe) {
         return new StoryResponse(
             story.getId(),
             story.getMediaType(),
@@ -287,7 +312,48 @@ public class StoryServiceImpl implements StoryService {
             story.getExpiresAt(),
             story.getVisibility(),
             story.getReplyPermission(),
-            story.isAllowReactions());
+            story.isAllowReactions(),
+            reactionCount,
+            reactedByMe);
+    }
+
+    private Map<UUID, Integer> reactionCounts(Collection<UUID> storyIds) {
+        if (storyReactionRepository == null || storyIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> rows = storyReactionRepository.countByStoryIds(storyIds);
+        Map<UUID, Integer> counts = new LinkedHashMap<>();
+        if (rows == null) {
+            return counts;
+        }
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2 || !(row[0] instanceof UUID)
+                || !(row[1] instanceof Number)) {
+                continue;
+            }
+            counts.put((UUID) row[0], ((Number) row[1]).intValue());
+        }
+        return counts;
+    }
+
+    private int reactionCount(UUID storyId) {
+        if (storyReactionRepository == null) {
+            return 0;
+        }
+        return Math.toIntExact(storyReactionRepository.countByStoryId(storyId));
+    }
+
+    private Set<UUID> reactedStoryIds(UUID userId, Collection<UUID> storyIds) {
+        if (storyReactionRepository == null || storyIds.isEmpty()) {
+            return Set.of();
+        }
+        List<UUID> reacted = storyReactionRepository.findReactedStoryIds(userId, storyIds);
+        return reacted == null ? Set.of() : new HashSet<>(reacted);
+    }
+
+    private boolean reactedByMe(UUID storyId, UUID userId) {
+        return storyReactionRepository != null
+            && storyReactionRepository.findByStoryIdAndUserId(storyId, userId).isPresent();
     }
 
     @Override
@@ -305,7 +371,26 @@ public class StoryServiceImpl implements StoryService {
         if (author == null || author.getId() == null || author.getId().equals(meId)) {
             return;
         }
+        // Older direct service callers may not provide the new repository. Keep their
+        // notification-only behavior while production wiring always persists reactions.
+        if (storyReactionRepository == null) {
+            emitStoryLikeNotification(story, author, loadCurrentUser());
+            return;
+        }
+
+        var existingReaction = storyReactionRepository.findByStoryIdAndUserId(storyId, meId);
+        if (existingReaction.isPresent()) {
+            storyReactionRepository.delete(existingReaction.get());
+            log.info("Story reaction removed by user {}: {}", meId, storyId);
+            return;
+        }
+
         User liker = loadCurrentUser();
+        storyReactionRepository.save(StoryReaction.builder()
+            .story(story)
+            .user(liker)
+            .reactionType(DEFAULT_REACTION)
+            .build());
         emitStoryLikeNotification(story, author, liker);
     }
 

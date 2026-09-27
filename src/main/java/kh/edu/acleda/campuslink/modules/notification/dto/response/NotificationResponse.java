@@ -15,7 +15,8 @@ public record NotificationResponse(
     UUID referenceId,
     Boolean readStatus,
     LocalDateTime readAt,
-    Instant createdAt
+    Instant createdAt,
+    String dedupeKey
 ) {
     public NotificationResponse(
         UUID notificationId,
@@ -28,6 +29,21 @@ public record NotificationResponse(
         Boolean readStatus,
         LocalDateTime readAt
     ) {
-        this(notificationId, title, message, language, type, referenceType, referenceId, readStatus, readAt, null);
+        this(notificationId, title, message, language, type, referenceType, referenceId, readStatus, readAt, null, null);
+    }
+
+    public NotificationResponse(
+        UUID notificationId,
+        String title,
+        String message,
+        Language language,
+        String type,
+        String referenceType,
+        UUID referenceId,
+        Boolean readStatus,
+        LocalDateTime readAt,
+        Instant createdAt
+    ) {
+        this(notificationId, title, message, language, type, referenceType, referenceId, readStatus, readAt, createdAt, null);
     }
 }

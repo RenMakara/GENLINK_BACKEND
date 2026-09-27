@@ -55,11 +55,11 @@ public class StoryController {
         return ResponseEntity.ok(ApiResponse.success("Story marked as seen", null));
     }
 
-    /** Like a story. Emits a notification to the story author. */
+    /** Toggle a story reaction. Adds/removes one persisted reaction and notifies on add. */
     @PostMapping("/{id}/like")
     public ResponseEntity<ApiResponse<Void>> like(@PathVariable UUID id) {
         storyService.likeStory(id);
-        return ResponseEntity.ok(ApiResponse.success("Story liked", null));
+        return ResponseEntity.ok(ApiResponse.success("Story reaction updated", null));
     }
 
     /** Who viewed a story. Owner only; a non-owner gets 404, not 403. */

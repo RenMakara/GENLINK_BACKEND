@@ -10,6 +10,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.request.StoryCreateRequest
 import kh.edu.acleda.campuslink.modules.community.dto.response.StoryFeedItem;
 import kh.edu.acleda.campuslink.modules.community.dto.response.StoryResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Story;
+import kh.edu.acleda.campuslink.modules.community.entity.StoryReaction;
 import kh.edu.acleda.campuslink.modules.community.entity.StoryView;
 import kh.edu.acleda.campuslink.modules.community.enums.FollowStatus;
 import kh.edu.acleda.campuslink.modules.community.enums.StoryMediaType;
@@ -17,6 +18,7 @@ import kh.edu.acleda.campuslink.modules.community.enums.StoryReplyPermission;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.StoryRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.StoryReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.StoryViewRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.StoryServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
@@ -56,6 +58,7 @@ class StoryServiceImplTest {
 
     @Mock private StoryRepository storyRepository;
     @Mock private StoryViewRepository storyViewRepository;
+    @Mock private StoryReactionRepository storyReactionRepository;
     @Mock private FollowRepository followRepository;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
@@ -68,8 +71,9 @@ class StoryServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new StoryServiceImpl(storyRepository, storyViewRepository, followRepository,
-            userRepository, currentUserProvider, notificationEmitter, notificationTemplateRepository);
+        service = new StoryServiceImpl(storyRepository, storyViewRepository, storyReactionRepository,
+            followRepository, userRepository, currentUserProvider, notificationEmitter,
+            notificationTemplateRepository);
 
         me = user(ME_ID, "me");
         other = user(OTHER_ID, "other");
@@ -237,6 +241,26 @@ class StoryServiceImplTest {
     }
 
     @Test
+    void feedIncludesPersistedReactionCountAndViewerState() {
+        Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
+        when(followRepository.findFollowingIds(ME_ID)).thenReturn(List.of(OTHER_ID));
+        when(followRepository.findFriendIds(ME_ID)).thenReturn(List.of());
+        when(storyRepository.findVisibleActiveStories(anyCollection(), eq(ME_ID), anyCollection(), any(Instant.class)))
+            .thenReturn(List.of(theirs));
+        when(storyViewRepository.findViewedStoryIds(any(), anyCollection())).thenReturn(List.of());
+        when(storyReactionRepository.countByStoryIds(anyCollection()))
+            .thenReturn(List.<Object[]>of(new Object[] {STORY_ID, 2L}));
+        when(storyReactionRepository.findReactedStoryIds(eq(ME_ID), anyCollection()))
+            .thenReturn(List.of(STORY_ID));
+
+        List<StoryFeedItem> feed = service.getStoriesFeed();
+
+        StoryResponse response = feed.get(0).stories().get(0);
+        assertThat(response.reactionCount()).isEqualTo(2);
+        assertThat(response.reactedByMe()).isTrue();
+    }
+
+    @Test
     void getStoryByIdAllowsOwnerRegardlessOfVisibility() {
         Story mine = story(STORY_ID, me, Instant.now().plus(Duration.ofHours(1)), Visibility.COMMUNITY);
         when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(mine));
@@ -254,6 +278,9 @@ class StoryServiceImplTest {
         Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
         when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
         when(storyViewRepository.existsByStoryIdAndViewerId(STORY_ID, ME_ID)).thenReturn(false);
+        when(storyReactionRepository.countByStoryId(STORY_ID)).thenReturn(3L);
+        when(storyReactionRepository.findByStoryIdAndUserId(STORY_ID, ME_ID))
+            .thenReturn(Optional.of(StoryReaction.builder().story(theirs).user(me).reactionType("LIKE").build()));
 
         StoryResponse response = service.getStoryById(STORY_ID);
 
@@ -261,6 +288,8 @@ class StoryServiceImplTest {
         assertThat(response.storyId()).isEqualTo(STORY_ID);
         assertThat(response.visibility()).isEqualTo(Visibility.PUBLIC);
         assertThat(response.seen()).isFalse();
+        assertThat(response.reactionCount()).isEqualTo(3);
+        assertThat(response.reactedByMe()).isTrue();
     }
 
     @Test
@@ -400,9 +429,16 @@ class StoryServiceImplTest {
     void likeStoryEmitsNotificationToStoryAuthor() {
         Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
         when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
+        when(storyReactionRepository.findByStoryIdAndUserId(STORY_ID, ME_ID)).thenReturn(Optional.empty());
         when(notificationTemplateRepository.existsByTemplateKey("COMMUNITY_STORY_LIKE")).thenReturn(true);
 
         service.likeStory(STORY_ID);
+
+        ArgumentCaptor<StoryReaction> reactionCaptor = ArgumentCaptor.forClass(StoryReaction.class);
+        verify(storyReactionRepository).save(reactionCaptor.capture());
+        assertThat(reactionCaptor.getValue().getStory()).isSameAs(theirs);
+        assertThat(reactionCaptor.getValue().getUser()).isSameAs(me);
+        assertThat(reactionCaptor.getValue().getReactionType()).isEqualTo("LIKE");
 
         ArgumentCaptor<NotificationRequest> captor = ArgumentCaptor.forClass(NotificationRequest.class);
         verify(notificationEmitter).emit(captor.capture());
@@ -413,6 +449,25 @@ class StoryServiceImplTest {
         assertThat(req.referenceType()).isEqualTo("STORY");
         assertThat(req.referenceId()).isEqualTo(STORY_ID);
         assertThat(req.parameters()).containsEntry("likerName", "me");
+    }
+
+    @Test
+    void likeStoryRemovesExistingReactionWithoutSendingAnotherNotification() {
+        Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
+        StoryReaction existing = StoryReaction.builder()
+            .story(theirs)
+            .user(me)
+            .reactionType("LIKE")
+            .build();
+        when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
+        when(storyReactionRepository.findByStoryIdAndUserId(STORY_ID, ME_ID))
+            .thenReturn(Optional.of(existing));
+
+        service.likeStory(STORY_ID);
+
+        verify(storyReactionRepository).delete(existing);
+        verify(storyReactionRepository, never()).save(any(StoryReaction.class));
+        verify(notificationEmitter, never()).emit(any());
     }
 
     @Test

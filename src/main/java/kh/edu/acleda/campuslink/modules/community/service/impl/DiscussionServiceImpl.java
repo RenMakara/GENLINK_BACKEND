@@ -116,6 +116,34 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResponse<DiscussionResponse> getReposts(UUID userId, Pageable pageable) {
+        UUID targetUserId = userId == null
+            ? currentUserProvider.getCurrentUserId()
+            : userId;
+        Page<DiscussionRepost> repostPage = repostRepository.findByUserId(targetUserId, pageable);
+        List<DiscussionRepost> reposts = repostPage.getContent();
+        UUID viewerId = currentUserProvider.getCurrentUserId();
+
+        if (reposts.isEmpty()) {
+            return PageResponse.from(repostPage, repost ->
+                toResponse(repost.getDiscussion(), false, viewerId, repost));
+        }
+
+        Set<UUID> discussionIds = reposts.stream()
+            .map(repost -> repost.getDiscussion().getId())
+            .collect(Collectors.toSet());
+        Set<UUID> reacted = new HashSet<>(
+            reactionRepository.findReactedDiscussionIds(viewerId, discussionIds));
+
+        return PageResponse.from(repostPage, repost -> toResponse(
+            repost.getDiscussion(),
+            reacted.contains(repost.getDiscussion().getId()),
+            viewerId,
+            repost));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public DiscussionResponse getById(UUID discussionId) {
         ForumDiscussion discussion = loadDiscussion(discussionId);
         UUID viewerId = currentUserProvider.getCurrentUserId();
@@ -477,9 +505,15 @@ public class DiscussionServiceImpl implements DiscussionService {
      * withholds it. Get this wrong and an anonymous discussion is not anonymous.
      */
     private DiscussionResponse toResponse(ForumDiscussion discussion, boolean reactedByMe, UUID viewerId) {
+        return toResponse(discussion, reactedByMe, viewerId, null);
+    }
+
+    private DiscussionResponse toResponse(ForumDiscussion discussion, boolean reactedByMe,
+                                          UUID viewerId, DiscussionRepost repost) {
         User author = discussion.getUser();
         boolean anonymous = Boolean.TRUE.equals(discussion.getIsAnonymous());
         boolean mine = author != null && author.getId().equals(viewerId);
+        User reposter = repost == null ? null : repost.getUser();
 
         return new DiscussionResponse(
             discussion.getId(),
@@ -493,7 +527,12 @@ public class DiscussionServiceImpl implements DiscussionService {
             discussion.getCommentCount(),
             reactedByMe,
             mine,
-            discussion.getCreatedAt()
+            discussion.getCreatedAt(),
+            repost != null,
+            displayName(reposter),
+            repost == null ? null : repost.getCaption(),
+            reposter == null ? null : reposter.getId(),
+            repost == null ? null : discussion.getId()
         );
     }
 
@@ -515,5 +554,15 @@ public class DiscussionServiceImpl implements DiscussionService {
     private PostResponse.AuthorSummary summary(User user) {
         return user == null ? null : new PostResponse.AuthorSummary(
             user.getId(), user.getFullName(), user.getUsername(), user.getAvatarUrl());
+    }
+
+    private String displayName(User user) {
+        if (user == null) {
+            return null;
+        }
+        if (user.getFullName() != null && !user.getFullName().isBlank()) {
+            return user.getFullName();
+        }
+        return user.getUsername();
     }
 }

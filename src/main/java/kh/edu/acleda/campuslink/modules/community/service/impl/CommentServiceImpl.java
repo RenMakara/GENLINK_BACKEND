@@ -234,7 +234,13 @@ public class CommentServiceImpl implements CommentService {
                     parent.getUser().getId(),
                     "COMMUNITY_COMMENT_REPLY",
                     "COMMUNITY",
-                    Map.of("replierName", authorName, "replySnippet", snippet),
+                    Map.of(
+                        "replierName", authorName,
+                        "replySnippet", snippet,
+                        "postId", post.getId().toString(),
+                        "commentId", comment.getId().toString(),
+                        "parentCommentId", parent.getId().toString()
+                    ),
                     "POST",
                     post.getId(),
                     "comment-reply:" + comment.getId() + ":" + parent.getUser().getId(),
@@ -252,7 +258,12 @@ public class CommentServiceImpl implements CommentService {
                         postAuthor.getId(),
                         "COMMUNITY_POST_COMMENT",
                         "COMMUNITY",
-                        Map.of("commenterName", authorName, "commentSnippet", snippet),
+                        Map.of(
+                            "commenterName", authorName,
+                            "commentSnippet", snippet,
+                            "postId", post.getId().toString(),
+                            "commentId", comment.getId().toString()
+                        ),
                         "POST",
                         post.getId(),
                         "post-comment:" + comment.getId() + ":" + postAuthor.getId(),
