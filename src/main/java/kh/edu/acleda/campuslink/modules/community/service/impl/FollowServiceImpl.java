@@ -206,14 +206,15 @@ public class FollowServiceImpl implements FollowService {
         FollowStatus myStatus = followRepository.findByFollowerIdAndFollowingId(viewerId, userId)
             .map(Follow::getStatus)
             .orElse(null);
-        boolean friend = FollowStatus.ACCEPTED.equals(myStatus)
-            && followRepository.existsByFollowerIdAndFollowingIdAndStatus(userId, viewerId, FollowStatus.ACCEPTED);
+        boolean followsViewer = followRepository.existsByFollowerIdAndFollowingIdAndStatus(userId, viewerId, FollowStatus.ACCEPTED);
+        boolean friend = FollowStatus.ACCEPTED.equals(myStatus) && followsViewer;
 
         return new FollowStatsResponse(
             followRepository.countByFollowingIdAndStatus(userId, FollowStatus.ACCEPTED),
             followRepository.countByFollowerIdAndStatus(userId, FollowStatus.ACCEPTED),
             myStatus,
-            friend
+            friend,
+            followsViewer
         );
     }
 
