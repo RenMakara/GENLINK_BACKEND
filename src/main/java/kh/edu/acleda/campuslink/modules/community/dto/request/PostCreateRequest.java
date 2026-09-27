@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.community.dto.request;
 
 import jakarta.validation.constraints.AssertTrue;
+import java.util.List;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.enums.PostType;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
@@ -17,8 +18,17 @@ public record PostCreateRequest(
     PostType postType,
     Visibility visibility,
     Language language,
-    UUID communityId
+    UUID communityId,
+    List<UUID> imageMediaIds,
+    UUID videoMediaId
 ) {
+
+    public PostCreateRequest(String contentText, String imageUrl, String videoUrl,
+                             PostType postType, Visibility visibility, Language language,
+                             UUID communityId) {
+        this(contentText, imageUrl, videoUrl, postType, visibility, language,
+            communityId, List.of(), null);
+    }
 
     /**
      * Backward-compatible constructor for callers and tests that omit videoUrl.
@@ -31,14 +41,15 @@ public record PostCreateRequest(
         Language language,
         UUID communityId
     ) {
-        this(contentText, imageUrl, null, postType, visibility, language, communityId);
+        this(contentText, imageUrl, null, postType, visibility, language, communityId, List.of(), null);
     }
 
     @AssertTrue(message = "Post must have content text, an image, or a video")
     public boolean hasContent() {
         boolean hasText = contentText != null && !contentText.isBlank();
-        boolean hasImage = imageUrl != null && !imageUrl.isBlank();
-        boolean hasVideo = videoUrl != null && !videoUrl.isBlank();
+        boolean hasImage = (imageUrl != null && !imageUrl.isBlank())
+            || (imageMediaIds != null && !imageMediaIds.isEmpty());
+        boolean hasVideo = (videoUrl != null && !videoUrl.isBlank()) || videoMediaId != null;
         return hasText || hasImage || hasVideo;
     }
 
@@ -48,7 +59,9 @@ public record PostCreateRequest(
             return contentText != null && !contentText.isBlank();
         }
         if (postType == PostType.VIDEO) {
-            return (videoUrl != null && !videoUrl.isBlank()) || (imageUrl != null && !imageUrl.isBlank());
+            return (videoUrl != null && !videoUrl.isBlank()) || videoMediaId != null
+                || (imageUrl != null && !imageUrl.isBlank())
+                || (imageMediaIds != null && !imageMediaIds.isEmpty());
         }
         return true;
     }

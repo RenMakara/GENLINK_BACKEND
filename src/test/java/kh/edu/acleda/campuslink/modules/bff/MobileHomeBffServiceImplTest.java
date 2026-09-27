@@ -15,6 +15,11 @@ import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepo
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
+import kh.edu.acleda.campuslink.modules.community.entity.Post;
+import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.DailyChallengeRepository;
 import kh.edu.acleda.campuslink.modules.finance.entity.Budget;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingGoal;
@@ -56,6 +61,7 @@ class MobileHomeBffServiceImplTest {
     @Mock private CommunityRepository communityRepository;
     @Mock private CommunityMemberRepository communityMemberRepository;
     @Mock private PostRepository postRepository;
+    @Mock private MediaService mediaService;
 
     private MobileHomeBffServiceImpl service;
     private User user;
@@ -65,7 +71,7 @@ class MobileHomeBffServiceImplTest {
         service = new MobileHomeBffServiceImpl(userRepository, habitRepository, habitCheckInRepository,
             taskRepository, motivationContentRepository, dailyChallengeRepository, budgetRepository,
             expenseRepository, savingGoalRepository, eventRsvpRepository, communityRepository,
-            communityMemberRepository, postRepository);
+            communityMemberRepository, postRepository, mediaService);
         user = new User();
         user.setEmail(EMAIL);
         user.setFullName("Sok");
@@ -96,5 +102,22 @@ class MobileHomeBffServiceImplTest {
         verify(budgetRepository).findByUserIdAndMonthAndYearAndCurrencyAndDeletedAtIsNull(
             eq(USER_ID), any(), any(), eq(Currency.KHR));
         verify(savingGoalRepository).findByUser(USER_ID, SavingGoalStatus.IN_PROGRESS, Currency.KHR);
+    }
+
+    @Test
+    void publicFeedPreviewResolvesNewlyAttachedImageMedia() {
+        Post post = Post.builder().user(user).visibility(Visibility.PUBLIC)
+            .contentText("Public image").likeCount(1).build();
+        UUID postId = UUID.randomUUID();
+        org.springframework.test.util.ReflectionTestUtils.setField(post, "id", postId);
+        when(postRepository.findFeedPreview(eq(Visibility.PUBLIC), any()))
+            .thenReturn(List.of(post));
+        when(mediaService.resolveAttachedMedia(MediaResourceType.POST, postId)).thenReturn(List.of(
+            new MediaService.AttachedMedia(MediaAttachmentRole.IMAGE, 0, "https://cdn.example/public.jpg")));
+
+        MobileHomeResponse response = service.getHome(EMAIL, Language.ENGLISH, Currency.USD);
+
+        assertThat(response.feedPreview()).singleElement().extracting(
+            MobileHomeResponse.FeedPreview::imageUrl).isEqualTo("https://cdn.example/public.jpg");
     }
 }

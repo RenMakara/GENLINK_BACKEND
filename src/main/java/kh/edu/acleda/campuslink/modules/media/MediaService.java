@@ -4,6 +4,10 @@ import kh.edu.acleda.campuslink.modules.media.dto.ConfirmRequest;
 import kh.edu.acleda.campuslink.modules.media.dto.MediaResponse;
 import kh.edu.acleda.campuslink.modules.media.dto.PresignRequest;
 import kh.edu.acleda.campuslink.modules.media.dto.PresignResponse;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaPurpose;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
+import java.util.List;
 
 import java.util.UUID;
 
@@ -28,6 +32,23 @@ public interface MediaService {
      * confirmed, or not public.
      */
     String resolveConfirmedUrl(UUID mediaId);
+
+    /** Attach an owned, confirmed upload to exactly one post/story resource. */
+    void attachMedia(UUID mediaId, MediaResourceType resourceType, UUID resourceId,
+                     MediaAttachmentRole role, int order, MediaPurpose expectedPurpose,
+                     boolean publicContent);
+
+    /** Link a previously returned owned URL if it came from this media service. */
+    boolean attachOwnedUrl(String url, MediaPurpose expectedPurpose, MediaResourceType resourceType,
+                           UUID resourceId, MediaAttachmentRole role, int order, boolean publicContent);
+
+    /** Resolve resource media after the owning content service has authorized its viewer. */
+    List<AttachedMedia> resolveAttachedMedia(MediaResourceType resourceType, UUID resourceId);
+
+    /** Apply a content audience change to every attachment owned by that resource. */
+    void updateAttachedMediaVisibility(MediaResourceType resourceType, UUID resourceId, boolean publicContent);
+
+    record AttachedMedia(MediaAttachmentRole role, int order, String url) {}
 
     /** Soft delete (owner only). The object is purged later by the cleanup job. */
     void delete(UUID mediaId);

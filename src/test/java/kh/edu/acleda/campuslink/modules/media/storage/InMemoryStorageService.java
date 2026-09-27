@@ -56,6 +56,11 @@ public class InMemoryStorageService implements StorageService {
     }
 
     @Override
+    public void makePrivate(String key) {
+        publicObjects.remove(key);
+    }
+
+    @Override
     public void delete(String key) {
         objects.remove(key);
         publicObjects.remove(key);

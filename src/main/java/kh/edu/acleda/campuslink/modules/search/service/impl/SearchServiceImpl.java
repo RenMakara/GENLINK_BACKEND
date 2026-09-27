@@ -29,6 +29,9 @@ import kh.edu.acleda.campuslink.modules.community.repository.PostReactionReposit
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.EventMeetingUrlAccess;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
 import kh.edu.acleda.campuslink.modules.profile.repository.SavedItemRepository;
 import kh.edu.acleda.campuslink.modules.search.dto.SearchCategory;
@@ -61,6 +64,7 @@ public class SearchServiceImpl implements SearchService {
     private final PollVoteRepository pollVoteRepository;
     private final EventRsvpRepository eventRsvpRepository;
     private final ForumReactionRepository forumReactionRepository;
+    private final MediaService mediaService;
 
     public SearchServiceImpl(UserRepository userRepository,
                              PostRepository postRepository,
@@ -73,7 +77,8 @@ public class SearchServiceImpl implements SearchService {
                              PollOptionRepository pollOptionRepository,
                              PollVoteRepository pollVoteRepository,
                              EventRsvpRepository eventRsvpRepository,
-                             ForumReactionRepository forumReactionRepository) {
+                             ForumReactionRepository forumReactionRepository,
+                             MediaService mediaService) {
         this.userRepository = userRepository;
         this.postRepository = postRepository;
         this.eventRepository = eventRepository;
@@ -86,6 +91,7 @@ public class SearchServiceImpl implements SearchService {
         this.pollVoteRepository = pollVoteRepository;
         this.eventRsvpRepository = eventRsvpRepository;
         this.forumReactionRepository = forumReactionRepository;
+        this.mediaService = mediaService;
     }
 
     @Override
@@ -247,7 +253,7 @@ public class SearchServiceImpl implements SearchService {
             post.getId(),
             summary(post.getUser()),
             post.getContentText(),
-            post.getImageUrl(),
+            postImageUrl(post),
             post.getPostType(),
             post.getVisibility(),
             post.getLanguage(),
@@ -259,6 +265,25 @@ public class SearchServiceImpl implements SearchService {
             polls.get(post.getId()),
             post.getCreatedAt()
         )).toList();
+    }
+
+    private String postImageUrl(Post post) {
+        List<MediaService.AttachedMedia> attached = mediaService.resolveAttachedMedia(
+            MediaResourceType.POST, post.getId());
+        List<String> urls = attached == null ? new java.util.ArrayList<>() : attached.stream()
+            .filter(media -> media.role() == MediaAttachmentRole.IMAGE)
+            .map(MediaService.AttachedMedia::url)
+            .filter(url -> url != null && !url.isBlank())
+            .collect(Collectors.toCollection(java.util.ArrayList::new));
+        if (post.getImageUrl() != null && !post.getImageUrl().isBlank()) {
+            for (String url : post.getImageUrl().split(",")) {
+                String cleaned = url.strip();
+                if (!cleaned.isEmpty() && !urls.contains(cleaned)) {
+                    urls.add(cleaned);
+                }
+            }
+        }
+        return urls.isEmpty() ? null : String.join(",", urls);
     }
 
     private List<EventResponse> hydrateEvents(List<Event> events, UUID viewerId) {

@@ -75,6 +75,15 @@ public class SavedItemServiceImpl implements SavedItemService {
     public SavedItemResponse save(SaveItemRequest request, Language language) {
         UUID userId = currentUserProvider.getCurrentUserId();
 
+        SavedItemPreview requestedPreview = null;
+        if (request.itemType() == SavedItemType.POST) {
+            requestedPreview = previewResolver.resolve(request.itemType(), List.of(request.itemId()), language)
+                .get(request.itemId());
+            if (requestedPreview == null) {
+                throw new NotFoundException("Saved item not found");
+            }
+        }
+
         // The unique key is the database backstop. Locking the user's row first
         // closes the check-then-insert window across application instances, so two
         // simultaneous saves resolve to one row instead of surfacing a constraint
@@ -93,9 +102,8 @@ public class SavedItemServiceImpl implements SavedItemService {
                     .savedAt(LocalDateTime.now())
                     .build()));
 
-        SavedItemPreview preview = previewResolver
-            .resolve(item.getItemType(), List.of(item.getItemId()), language)
-            .get(item.getItemId());
+        SavedItemPreview preview = requestedPreview != null ? requestedPreview : previewResolver
+            .resolve(item.getItemType(), List.of(item.getItemId()), language).get(item.getItemId());
         return toResponse(item, preview);
     }
 

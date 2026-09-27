@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import kh.edu.acleda.campuslink.modules.community.entity.Community;
 import kh.edu.acleda.campuslink.modules.community.entity.Event;
 import kh.edu.acleda.campuslink.modules.community.entity.EventRsvp;
@@ -19,6 +20,9 @@ import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepo
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.EventRsvpRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.DailyChallenge;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.DailyChallengeRepository;
 import kh.edu.acleda.campuslink.modules.finance.entity.Budget;
@@ -73,6 +77,7 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository communityMemberRepository;
     private final PostRepository postRepository;
+    private final MediaService mediaService;
 
     public MobileHomeBffServiceImpl(UserRepository userRepository,
                                     HabitRepository habitRepository,
@@ -86,7 +91,8 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
                                     EventRsvpRepository eventRsvpRepository,
                                     CommunityRepository communityRepository,
                                     CommunityMemberRepository communityMemberRepository,
-                                    PostRepository postRepository) {
+                                    PostRepository postRepository,
+                                    MediaService mediaService) {
         this.userRepository = userRepository;
         this.habitRepository = habitRepository;
         this.habitCheckInRepository = habitCheckInRepository;
@@ -100,6 +106,7 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
         this.communityRepository = communityRepository;
         this.communityMemberRepository = communityMemberRepository;
         this.postRepository = postRepository;
+        this.mediaService = mediaService;
     }
 
     @Override
@@ -259,12 +266,27 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
 
     private MobileHomeResponse.FeedPreview toFeedPreview(Post post) {
         User author = post.getUser();
+        List<MediaService.AttachedMedia> attached = mediaService.resolveAttachedMedia(
+            MediaResourceType.POST, post.getId());
+        List<String> imageUrls = attached == null ? new ArrayList<>() : attached.stream()
+            .filter(media -> media.role() == MediaAttachmentRole.IMAGE)
+            .map(MediaService.AttachedMedia::url)
+            .filter(url -> url != null && !url.isBlank())
+            .collect(Collectors.toCollection(ArrayList::new));
+        if (post.getImageUrl() != null && !post.getImageUrl().isBlank()) {
+            for (String url : post.getImageUrl().split(",")) {
+                String cleaned = url.strip();
+                if (!cleaned.isEmpty() && !imageUrls.contains(cleaned)) {
+                    imageUrls.add(cleaned);
+                }
+            }
+        }
         return new MobileHomeResponse.FeedPreview(
             post.getId(),
             author == null ? null : author.getFullName(),
             author == null ? null : author.getAvatarUrl(),
             post.getContentText(),
-            post.getImageUrl(),
+            imageUrls.isEmpty() ? null : String.join(",", imageUrls),
             post.getLikeCount(),
             post.getCreatedAt()
         );

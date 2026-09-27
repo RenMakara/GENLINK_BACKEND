@@ -35,6 +35,8 @@ public interface CommunityMemberRepository extends JpaRepository<CommunityMember
 
     boolean existsByCommunityIdAndUserId(UUID communityId, UUID userId);
 
+    boolean existsByCommunityIdAndUserIdAndStatus(UUID communityId, UUID userId, MemberStatus status);
+
     long countByCommunityId(UUID communityId);
 
     /** Ids of communities the user is an active member of; drives COMMUNITY visibility. */

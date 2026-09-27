@@ -10,12 +10,31 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaPurpose;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 
 @Repository
 public interface MediaFileRepository extends JpaRepository<MediaFile, UUID> {
 
     /** Active (not soft-deleted) media by id. */
     Optional<MediaFile> findByIdAndDeletedAtIsNull(UUID id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT m FROM MediaFile m WHERE m.id = :id AND m.deletedAt IS NULL")
+    Optional<MediaFile> findByIdAndDeletedAtIsNullForUpdate(@Param("id") UUID id);
+
+    Optional<MediaFile> findByOwnerIdAndPublicUrlAndPurposeAndDeletedAtIsNull(
+        UUID ownerId, String publicUrl, MediaPurpose purpose);
+
+    List<MediaFile> findByAttachedResourceTypeAndAttachedResourceIdAndDeletedAtIsNullOrderByAttachmentRoleAscAttachmentOrderAsc(
+        MediaResourceType attachedResourceType, UUID attachedResourceId);
+
+    List<MediaFile> findByVisibilityAndPublicUrlIsNotNullAndDeletedAtIsNull(
+        kh.edu.acleda.campuslink.modules.media.entity.MediaVisibility visibility);
 
     /**
      * Per-owner duplicate detection: an existing confirmed object with the same

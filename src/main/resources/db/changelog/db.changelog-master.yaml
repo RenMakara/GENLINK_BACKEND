@@ -161,3 +161,5 @@ databaseChangeLog:
       file: db/changelog/changes/0079-create-discussion-reposts.sql
   - include:
       file: db/changelog/changes/0080-create-story-reactions.sql
+  - include:
+      file: db/changelog/changes/0081-secure-community-media-attachments.sql

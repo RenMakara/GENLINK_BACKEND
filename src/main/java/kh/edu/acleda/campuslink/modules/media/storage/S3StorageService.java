@@ -129,6 +129,19 @@ public class S3StorageService implements StorageService {
     }
 
     @Override
+    public void makePrivate(String key) {
+        if (!properties.isPublicReadAcl()) {
+            // Private S3 buckets with CloudFront OAC do not use object ACLs.
+            return;
+        }
+        client.putObjectAcl(PutObjectAclRequest.builder()
+            .bucket(properties.getBucket())
+            .key(key)
+            .acl(ObjectCannedACL.PRIVATE)
+            .build());
+    }
+
+    @Override
     public void delete(String key) {
         client.deleteObject(DeleteObjectRequest.builder()
             .bucket(properties.getBucket())

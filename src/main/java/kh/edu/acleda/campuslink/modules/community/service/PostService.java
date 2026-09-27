@@ -42,6 +42,9 @@ public interface PostService {
 
     PostResponse getById(UUID id);
 
+    /** Internal routing guard for legacy post/discussion repost URL compatibility. */
+    boolean isActivePost(UUID id);
+
     /** Creates or returns the caller's existing repost of the post. */
     PostResponse repost(UUID postId, RepostRequest request);
 

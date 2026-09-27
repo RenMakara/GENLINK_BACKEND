@@ -105,10 +105,7 @@ public class HashtagServiceImpl implements HashtagService {
     @Override
     @Transactional(readOnly = true)
     public List<String> trending(int limit) {
-        return hashtagRepository.findByOrderByUsageCountDesc(PageRequest.of(0, limit))
-            .stream()
-            .map(Hashtag::getTag)
-            .toList();
+        return hashtagRepository.findTrendingPublicTags(PageRequest.of(0, limit));
     }
 
     /**

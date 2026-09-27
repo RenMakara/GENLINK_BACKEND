@@ -51,6 +51,13 @@ public interface FollowRepository extends JpaRepository<Follow, UUID> {
         + "AND g.status = kh.edu.acleda.campuslink.modules.community.enums.FollowStatus.ACCEPTED)")
     List<UUID> findFriendIds(@Param("userId") UUID userId);
 
+    /** Number of accepted directions in the mutual friendship pair (2 means friends). */
+    @Query("SELECT COUNT(f) FROM Follow f WHERE f.status = kh.edu.acleda.campuslink.modules.community.enums.FollowStatus.ACCEPTED "
+        + "AND ((f.follower.id = :firstUserId AND f.following.id = :secondUserId) "
+        + "OR (f.follower.id = :secondUserId AND f.following.id = :firstUserId))")
+    long countMutualAcceptedFollows(@Param("firstUserId") UUID firstUserId,
+                                    @Param("secondUserId") UUID secondUserId);
+
     /**
      * Ids of everyone the user follows (accepted only). Used to assemble the story bar:
      * you see the active stories of people you follow.

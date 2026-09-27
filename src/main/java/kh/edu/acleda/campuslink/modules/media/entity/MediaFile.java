@@ -6,6 +6,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -25,7 +26,9 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "media_files")
+@Table(name = "media_files", uniqueConstraints = @UniqueConstraint(
+    name = "uq_media_attachment_slot",
+    columnNames = {"attached_resource_type", "attached_resource_id", "attachment_role", "attachment_order"}))
 public class MediaFile {
 
     @Id
@@ -75,6 +78,20 @@ public class MediaFile {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private MediaStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "attached_resource_type", length = 20)
+    private MediaResourceType attachedResourceType;
+
+    @Column(name = "attached_resource_id")
+    private java.util.UUID attachedResourceId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "attachment_role", length = 20)
+    private MediaAttachmentRole attachmentRole;
+
+    @Column(name = "attachment_order")
+    private Integer attachmentOrder;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

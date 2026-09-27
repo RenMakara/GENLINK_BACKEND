@@ -16,6 +16,7 @@ import kh.edu.acleda.campuslink.modules.profile.service.impl.SavedItemServiceImp
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.enums.Language;
+import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -82,6 +84,19 @@ class SavedItemServiceImplTest {
 
         verify(userRepository).findByIdForUpdate(USER_ID);
         verify(savedItemRepository).save(any(SavedItem.class));
+    }
+
+    @Test
+    void savingAnUnauthorizedPostDoesNotCreateASavedItem() {
+        when(previewResolver.resolve(SavedItemType.POST, List.of(POST_ID), Language.ENGLISH))
+            .thenReturn(Map.of());
+
+        assertThatThrownBy(() -> service.save(
+            new SaveItemRequest(SavedItemType.POST, POST_ID), Language.ENGLISH))
+            .isInstanceOf(NotFoundException.class);
+
+        verify(userRepository, never()).findByIdForUpdate(USER_ID);
+        verify(savedItemRepository, never()).save(any(SavedItem.class));
     }
 
     @Test

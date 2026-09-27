@@ -6,6 +6,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.dto.request.AddMembersRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.ChangeChatRoleRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CreateGroupRequest;
@@ -28,7 +33,9 @@ import kh.edu.acleda.campuslink.modules.community.repository.ChatMessageReposito
 import kh.edu.acleda.campuslink.modules.community.repository.ChatRoomMemberRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ChatRoomRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.MessageReadRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.ChatService;
+import kh.edu.acleda.campuslink.modules.community.service.PostVisibilityService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -38,10 +45,14 @@ import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
 import kh.edu.acleda.campuslink.modules.community.event.ChatMessageSavedEvent;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 
 @Slf4j
 @Service
@@ -56,14 +67,23 @@ public class ChatServiceImpl implements ChatService {
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
     private final ApplicationEventPublisher eventPublisher;
+    private final PostRepository postRepository;
+    private final PostVisibilityService postVisibilityService;
+    private final MediaService mediaService;
+    private final ObjectMapper objectMapper;
 
+    @Autowired
     public ChatServiceImpl(ChatRoomRepository roomRepository,
                            ChatRoomMemberRepository memberRepository,
                            ChatMessageRepository messageRepository,
                            MessageReadRepository messageReadRepository,
                            UserRepository userRepository,
                            CurrentUserProvider currentUserProvider,
-                           ApplicationEventPublisher eventPublisher) {
+                           ApplicationEventPublisher eventPublisher,
+                           PostRepository postRepository,
+                           PostVisibilityService postVisibilityService,
+                           MediaService mediaService,
+                           ObjectMapper objectMapper) {
         this.roomRepository = roomRepository;
         this.memberRepository = memberRepository;
         this.messageRepository = messageRepository;
@@ -71,6 +91,22 @@ public class ChatServiceImpl implements ChatService {
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
         this.eventPublisher = eventPublisher;
+        this.postRepository = postRepository;
+        this.postVisibilityService = postVisibilityService;
+        this.mediaService = mediaService;
+        this.objectMapper = objectMapper;
+    }
+
+    /** Compatibility constructor retained for direct service tests. */
+    public ChatServiceImpl(ChatRoomRepository roomRepository,
+                           ChatRoomMemberRepository memberRepository,
+                           ChatMessageRepository messageRepository,
+                           MessageReadRepository messageReadRepository,
+                           UserRepository userRepository,
+                           CurrentUserProvider currentUserProvider,
+                           ApplicationEventPublisher eventPublisher) {
+        this(roomRepository, memberRepository, messageRepository, messageReadRepository,
+            userRepository, currentUserProvider, eventPublisher, null, null, null, new ObjectMapper());
     }
 
     // ----------------------------------------------------------------- rooms
@@ -254,14 +290,15 @@ public class ChatServiceImpl implements ChatService {
 
         MessageType type = validatePayload(request);
         ChatMessage replyTo = resolveReplyTarget(roomId, request.replyToMessageId());
+        SanitizedSharedContent sanitized = sanitizeSharedContentForSend(request.sharedContent(), meId);
 
         ChatMessage message = messageRepository.save(ChatMessage.builder()
             .chatRoom(room)
             .sender(me)
             .messageType(type)
-            .content(request.content())
-            .mediaUrl(request.mediaUrl())
-            .sharedContent(request.sharedContent())
+            .content(sanitized.privatePost() ? "" : request.content())
+            .mediaUrl(sanitized.privatePost() ? null : request.mediaUrl())
+            .sharedContent(sanitized.json())
             .replyToMessage(replyTo)
             .build());
         // If this is a private chat and the other member had left, re-activate them so the thread reappears in their chats.
@@ -452,6 +489,161 @@ public class ChatServiceImpl implements ChatService {
         return type;
     }
 
+    /**
+     * A chat message may carry a reference to a post, but restricted post data is
+     * never copied into the room history. Opening the reference goes through the
+     * normal post endpoint and its audience policy.
+     */
+    private SanitizedSharedContent sanitizeSharedContentForSend(String raw, UUID senderId) {
+        if (raw == null || raw.isBlank()) {
+            return new SanitizedSharedContent(raw, false);
+        }
+        final JsonNode node;
+        try {
+            node = objectMapper.readTree(raw);
+        } catch (JsonProcessingException exception) {
+            throw new ApiException("Shared content must be valid JSON", "CHAT_SHARED_CONTENT_INVALID");
+        }
+        if (!node.isObject()) {
+            throw new ApiException("Shared content must be an object", "CHAT_SHARED_CONTENT_INVALID");
+        }
+
+        String type = node.path("type").asText(node.path("contentType").asText(""));
+        if (!"POST".equalsIgnoreCase(type)) {
+            return new SanitizedSharedContent(raw, false);
+        }
+        String idValue = node.path("id").asText(node.path("contentId").asText(""));
+        final UUID postId;
+        try {
+            postId = UUID.fromString(idValue);
+        } catch (IllegalArgumentException exception) {
+            throw new ApiException("Shared post reference is invalid", "CHAT_SHARED_CONTENT_INVALID");
+        }
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+            .orElseThrow(() -> new NotFoundException("Post not found"));
+        postVisibilityService.requireCanView(post, senderId);
+        if (post.getVisibility() == kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC) {
+            return new SanitizedSharedContent(publicPostPreview(post), false);
+        }
+
+        return new SanitizedSharedContent(postReference(postId), true);
+    }
+
+    /** Rebuild legacy stored previews at read time so an audience change cannot revive stale private text. */
+    private SanitizedSharedContent sanitizeSharedContentForRead(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return new SanitizedSharedContent(raw, false);
+        }
+        final JsonNode node;
+        try {
+            node = objectMapper.readTree(raw);
+        } catch (JsonProcessingException exception) {
+            return new SanitizedSharedContent(raw, false);
+        }
+        if (!node.isObject()) {
+            return new SanitizedSharedContent(raw, false);
+        }
+        String type = node.path("type").asText(node.path("contentType").asText(""));
+        if (!"POST".equalsIgnoreCase(type)) {
+            return new SanitizedSharedContent(raw, false);
+        }
+
+        String idValue = node.path("id").asText(node.path("contentId").asText(""));
+        final UUID postId;
+        try {
+            postId = UUID.fromString(idValue);
+        } catch (IllegalArgumentException exception) {
+            return new SanitizedSharedContent(postReference(null), true);
+        }
+        Post post = postRepository == null ? null
+            : postRepository.findByIdAndDeletedAtIsNull(postId).orElse(null);
+        if (post == null || post.getVisibility()
+            != kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC) {
+            return new SanitizedSharedContent(postReference(postId), true);
+        }
+        return new SanitizedSharedContent(publicPostPreview(post), false);
+    }
+
+    private String postReference(UUID postId) {
+        ObjectNode reference = objectMapper.createObjectNode();
+        reference.put("type", "POST");
+        if (postId != null) {
+            reference.put("id", postId.toString());
+        }
+        reference.put("title", "Shared a post");
+        try {
+            return objectMapper.writeValueAsString(reference);
+        } catch (JsonProcessingException exception) {
+            throw new ApiException("Unable to serialize shared post reference", "CHAT_SHARED_CONTENT_INVALID");
+        }
+    }
+
+    private String publicPostPreview(Post post) {
+        ObjectNode preview = objectMapper.createObjectNode();
+        preview.put("type", "POST");
+        preview.put("id", post.getId().toString());
+        String text = post.getContentText() == null ? "" : post.getContentText().strip();
+        String title = text.isBlank() ? "Post" : text.split("\\R", 2)[0].strip();
+        if (title.length() > 60) {
+            title = title.substring(0, 57) + "...";
+        }
+        preview.put("title", title);
+        preview.put("previewText", text);
+        if (post.getUser() != null) {
+            String authorName = post.getUser().getFullName();
+            if (authorName != null && !authorName.isBlank()) {
+                preview.put("authorName", authorName);
+            }
+            String authorAvatar = post.getUser().getAvatarUrl();
+            if (authorAvatar != null && !authorAvatar.isBlank()) {
+                preview.put("authorAvatar", authorAvatar);
+            }
+        }
+        String thumbnail = postThumbnail(post);
+        if (thumbnail != null) {
+            preview.put("thumbnailUrl", thumbnail);
+        }
+        if (post.getCommunity() != null && post.getCommunity().getName() != null) {
+            preview.put("subtitle", post.getCommunity().getName());
+        }
+        try {
+            return objectMapper.writeValueAsString(preview);
+        } catch (JsonProcessingException exception) {
+            throw new ApiException("Unable to serialize shared post preview", "CHAT_SHARED_CONTENT_INVALID");
+        }
+    }
+
+    private String postThumbnail(Post post) {
+        if (mediaService != null) {
+            List<MediaService.AttachedMedia> attached = mediaService.resolveAttachedMedia(
+                MediaResourceType.POST, post.getId());
+            if (attached != null) {
+                String image = attached.stream()
+                    .filter(media -> media.role() == MediaAttachmentRole.IMAGE)
+                    .map(MediaService.AttachedMedia::url)
+                    .filter(url -> url != null && !url.isBlank())
+                    .findFirst().orElse(null);
+                if (image != null) {
+                    return image;
+                }
+                String video = attached.stream()
+                    .filter(media -> media.role() == MediaAttachmentRole.VIDEO)
+                    .map(MediaService.AttachedMedia::url)
+                    .filter(url -> url != null && !url.isBlank())
+                    .findFirst().orElse(null);
+                if (video != null) {
+                    return video;
+                }
+            }
+        }
+        if (post.getImageUrl() != null && !post.getImageUrl().isBlank()) {
+            return post.getImageUrl().split(",", 2)[0].strip();
+        }
+        return post.getVideoUrl();
+    }
+
+    private record SanitizedSharedContent(String json, boolean privatePost) {}
+
     private ChatMessage resolveReplyTarget(UUID roomId, UUID replyToMessageId) {
         if (replyToMessageId == null) {
             return null;
@@ -595,16 +787,17 @@ public class ChatServiceImpl implements ChatService {
             : new ChatMessageResponse.ReplyPreview(
                 replyTo.getId(), displayName(replyTo.getSender()), replyTo.getMessageType(), snippet(replyTo));
         UUID roomId = message.getChatRoom() != null ? message.getChatRoom().getId() : null;
+        SanitizedSharedContent shared = sanitizeSharedContentForRead(message.getSharedContent());
         return new ChatMessageResponse(
             message.getId(),
             roomId,
             toParticipant(message.getSender()),
             message.getMessageType(),
-            message.getContent(),
-            message.getMediaUrl(),
+            shared.privatePost() ? "" : message.getContent(),
+            shared.privatePost() ? null : message.getMediaUrl(),
             replyTo == null ? null : replyTo.getId(),
             preview,
-            message.getSharedContent(),
+            shared.json(),
             message.getSender().getId().equals(meId),
             message.getCreatedAt());
     }

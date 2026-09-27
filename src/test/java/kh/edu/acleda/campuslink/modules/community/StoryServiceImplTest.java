@@ -21,6 +21,9 @@ import kh.edu.acleda.campuslink.modules.community.repository.StoryRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.StoryReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.StoryViewRepository;
 import kh.edu.acleda.campuslink.modules.community.service.impl.StoryServiceImpl;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.modules.notification.repository.NotificationTemplateRepository;
@@ -55,6 +58,7 @@ class StoryServiceImplTest {
     private static final UUID ME_ID = UUID.randomUUID();
     private static final UUID OTHER_ID = UUID.randomUUID();
     private static final UUID STORY_ID = UUID.randomUUID();
+    private static final UUID MEDIA_ID = UUID.randomUUID();
 
     @Mock private StoryRepository storyRepository;
     @Mock private StoryViewRepository storyViewRepository;
@@ -64,6 +68,7 @@ class StoryServiceImplTest {
     @Mock private CurrentUserProvider currentUserProvider;
     @Mock private NotificationEmitter notificationEmitter;
     @Mock private NotificationTemplateRepository notificationTemplateRepository;
+    @Mock private MediaService mediaService;
 
     private StoryServiceImpl service;
     private User me;
@@ -73,7 +78,7 @@ class StoryServiceImplTest {
     void setUp() {
         service = new StoryServiceImpl(storyRepository, storyViewRepository, storyReactionRepository,
             followRepository, userRepository, currentUserProvider, notificationEmitter,
-            notificationTemplateRepository);
+            notificationTemplateRepository, mediaService);
 
         me = user(ME_ID, "me");
         other = user(OTHER_ID, "other");
@@ -87,6 +92,7 @@ class StoryServiceImplTest {
             }
             return saved;
         });
+        when(mediaService.resolveAttachedMedia(any(), any())).thenReturn(List.of());
     }
 
     @Test
@@ -109,12 +115,13 @@ class StoryServiceImplTest {
     @Test
     void createStoryWithCustomPrivacySettingsSavesAndReturnsActualValues() {
         StoryCreateRequest request = new StoryCreateRequest(
-            "https://cdn/x.jpg",
+            null,
             StoryMediaType.IMAGE,
             "Friends only story",
             Visibility.FRIENDS,
             StoryReplyPermission.FRIENDS,
-            false
+            false,
+            MEDIA_ID
         );
 
         StoryResponse response = service.createStory(request);
@@ -161,12 +168,13 @@ class StoryServiceImplTest {
     @Test
     void createStoryWithOnlyMeVisibilitySavesCorrectly() {
         StoryCreateRequest request = new StoryCreateRequest(
-            "https://cdn/x.jpg",
+            null,
             StoryMediaType.IMAGE,
             "Only me story",
             Visibility.ONLY_ME,
             StoryReplyPermission.OFF,
-            false
+            false,
+            MEDIA_ID
         );
 
         StoryResponse response = service.createStory(request);
@@ -182,6 +190,45 @@ class StoryServiceImplTest {
         assertThat(response.visibility()).isEqualTo(Visibility.ONLY_ME);
         assertThat(response.replyPermission()).isEqualTo(StoryReplyPermission.OFF);
         assertThat(response.allowReactions()).isFalse();
+    }
+
+    @Test
+    void restrictedStoryRejectsAnUnownedRawMediaUrl() {
+        StoryCreateRequest request = new StoryCreateRequest("https://cdn/private.jpg",
+            StoryMediaType.IMAGE, "Friends only", Visibility.FRIENDS,
+            StoryReplyPermission.FRIENDS, true);
+
+        assertThatThrownBy(() -> service.createStory(request))
+            .isInstanceOf(ApiException.class)
+            .hasFieldOrPropertyWithValue("errorCode", "PRIVATE_MEDIA_REQUIRED");
+    }
+
+    @Test
+    void friendsStoryResolvesPrivateMediaOnlyAfterAudienceAuthorization() {
+        Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.FRIENDS);
+        when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
+        when(followRepository.existsByFollowerIdAndFollowingIdAndStatus(
+            OTHER_ID, ME_ID, FollowStatus.ACCEPTED)).thenReturn(true);
+        when(followRepository.existsByFollowerIdAndFollowingIdAndStatus(
+            ME_ID, OTHER_ID, FollowStatus.ACCEPTED)).thenReturn(true);
+        when(mediaService.resolveAttachedMedia(MediaResourceType.STORY, STORY_ID))
+            .thenReturn(List.of(new MediaService.AttachedMedia(
+                MediaAttachmentRole.STORY, 0, "https://signed.example/private")));
+
+        StoryResponse response = service.getStoryById(STORY_ID);
+
+        assertThat(response.mediaUrl()).isEqualTo("https://signed.example/private");
+        verify(mediaService).resolveAttachedMedia(MediaResourceType.STORY, STORY_ID);
+    }
+
+    @Test
+    void unauthorizedViewerCannotResolveFriendsStoryMedia() {
+        Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.FRIENDS);
+        when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
+
+        assertThatThrownBy(() -> service.getStoryById(STORY_ID)).isInstanceOf(NotFoundException.class);
+
+        verify(mediaService, never()).resolveAttachedMedia(MediaResourceType.STORY, STORY_ID);
     }
 
     @Test

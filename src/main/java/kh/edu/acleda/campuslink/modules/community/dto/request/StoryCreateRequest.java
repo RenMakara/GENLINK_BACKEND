@@ -1,7 +1,8 @@
 package kh.edu.acleda.campuslink.modules.community.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
+import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.enums.StoryMediaType;
 import kh.edu.acleda.campuslink.modules.community.enums.StoryReplyPermission;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
@@ -11,14 +12,26 @@ import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
  * {@code mediaUrl} is the resulting URL. Stories expire 24h after creation.
  */
 public record StoryCreateRequest(
-    @NotBlank String mediaUrl,
+    String mediaUrl,
     @NotNull StoryMediaType mediaType,
     String caption,
     Visibility visibility,
     StoryReplyPermission replyPermission,
-    Boolean allowReactions
+    Boolean allowReactions,
+    UUID mediaId
 ) {
+    public StoryCreateRequest(String mediaUrl, StoryMediaType mediaType, String caption,
+                              Visibility visibility, StoryReplyPermission replyPermission,
+                              Boolean allowReactions) {
+        this(mediaUrl, mediaType, caption, visibility, replyPermission, allowReactions, null);
+    }
+
     public StoryCreateRequest(String mediaUrl, StoryMediaType mediaType, String caption) {
-        this(mediaUrl, mediaType, caption, Visibility.PUBLIC, StoryReplyPermission.EVERYONE, true);
+        this(mediaUrl, mediaType, caption, Visibility.PUBLIC, StoryReplyPermission.EVERYONE, true, null);
+    }
+
+    @AssertTrue(message = "Story media or mediaId is required")
+    public boolean hasMedia() {
+        return mediaId != null || (mediaUrl != null && !mediaUrl.isBlank());
     }
 }

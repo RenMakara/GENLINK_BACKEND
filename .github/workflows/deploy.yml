@@ -1,253 +1,253 @@
-name: Backend CI/CD
-
-# Pull requests must pass CI before merge. A push (or manual run) on main runs
-# the same gate and deploys only after it succeeds.
-on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-# Production deploys never overlap. Superseded pull-request checks may be
-# cancelled because they cannot affect the server.
-concurrency:
-  group: backend-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
-jobs:
-  ci:
-    name: Build and test
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      # The PostgreSQL-only integration tests are enabled in CI against this
-      # disposable service database. No production credentials are used.
-      GENLINK_TEST_POSTGRES_URL: jdbc:postgresql://localhost:5432/campuslink_test
-      GENLINK_TEST_POSTGRES_USERNAME: postgres
-      GENLINK_TEST_POSTGRES_PASSWORD: postgres
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: campuslink_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d campuslink_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v6
-
-      - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v6
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-          cache-dependency-path: |
-            build.gradle
-            settings.gradle
-            gradle/wrapper/gradle-wrapper.properties
-
-      - name: Run full Gradle test suite
-        run: |
-          chmod +x gradlew
-          ./gradlew clean test
-
-      - name: Build verified application artifact
-        run: ./gradlew bootJar
-
-      # Always retain reports: successful runs provide coverage evidence and a
-      # failed run remains diagnosable after the runner has gone away.
-      - name: Upload test and coverage reports
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: backend-test-reports-${{ github.run_id }}
-          path: |
-            build/test-results/test/
-            build/reports/tests/test/
-            build/reports/jacoco/test/
-            build/reports/problems/
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Upload verified application artifact
-        if: success()
-        uses: actions/upload-artifact@v6
-        with:
-          name: backend-jar-${{ github.sha }}
-          path: |
-            build/libs/*.jar
-            !build/libs/*-plain.jar
-          if-no-files-found: error
-          retention-days: 14
-
-  deploy:
-    name: Deploy to Server
-    needs: ci
-    # Pull requests are CI-only. Production changes only from main after CI.
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Download verified application artifact
-        uses: actions/download-artifact@v6
-        with:
-          name: backend-jar-${{ github.sha }}
-          path: deploy-artifact
-
-      - name: Normalize application artifact name
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          jar="$(find deploy-artifact -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)"
-          test -n "$jar"
-          if [[ "$jar" != "deploy-artifact/app.jar" ]]; then
-            mv "$jar" deploy-artifact/app.jar
-          fi
-
-      # The server only receives the artifact that passed the CI build/test
-      # gate. It no longer has to compile the full project over SSH.
-      - name: Upload verified application artifact
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-          SSH_PORT: "22"
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          key_file="$RUNNER_TEMP/genlink-deploy-key"
-          known_hosts="$RUNNER_TEMP/genlink-known-hosts"
-          trap 'rm -f "$key_file" "$known_hosts"' EXIT
-
-          printf '%s\n' "$SSH_KEY" > "$key_file"
-          chmod 600 "$key_file"
-          ssh-keyscan -H -p "$SSH_PORT" "$SSH_HOST" > "$known_hosts"
-
-          ssh_opts=(
-            -i "$key_file"
-            -p "$SSH_PORT"
-            -o BatchMode=yes
-            -o StrictHostKeyChecking=yes
-            -o UserKnownHostsFile="$known_hosts"
-          )
-          scp_opts=(
-            -i "$key_file"
-            -P "$SSH_PORT"
-            -o BatchMode=yes
-            -o StrictHostKeyChecking=yes
-            -o UserKnownHostsFile="$known_hosts"
-          )
-
-          ssh "${ssh_opts[@]}" "$SSH_USER@$SSH_HOST" \
-            'sudo -n mkdir -p /opt/GENLINK_BACKEND/.deploy && sudo -n chown -R "$(id -u):$(id -g)" /opt/GENLINK_BACKEND/.deploy'
-          scp "${scp_opts[@]}" deploy-artifact/app.jar \
-            "$SSH_USER@$SSH_HOST:/opt/GENLINK_BACKEND/.deploy/app.jar"
-
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          # The EC2 checkout uses HTTPS. Pass the short-lived workflow token
-          # only for this SSH session so a private repository can be pulled.
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 22
-          envs: GITHUB_TOKEN
-          script_stop: true
-          command_timeout: 15m
-          script: |
-            # The initial checkout may have been created as root. Make the
-            # working tree writable by the SSH user before Git runs.
-            sudo -n chown -R "$(id -u):$(id -g)" /opt/GENLINK_BACKEND
-            # Configure an in-memory Git credential helper. The token is not
-            # written to .git/config or any file on the EC2 instance.
-            export GIT_TERMINAL_PROMPT=0
-            export GIT_CONFIG_COUNT=1
-            export GIT_CONFIG_KEY_0=credential.helper
-            export GIT_CONFIG_VALUE_0='!f() { if [ "${1:-}" = get ]; then printf "username=x-access-token\npassword=%s\n\n" "$GITHUB_TOKEN"; fi; }; f'
-            cd /opt/GENLINK_BACKEND
-            ./scripts/deploy.sh
-
-  notify:
-    name: Notify production result
-    needs: [ci, deploy]
-    # `always()` lets CI failures report that deployment was blocked. PR checks
-    # stay quiet; their status is already visible on the pull request.
-    if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Notify Telegram
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
-          CI_STATUS: ${{ needs.ci.result }}
-          DEPLOY_STATUS: ${{ needs.deploy.result }}
-          REPO: ${{ github.repository }}
-          BRANCH: ${{ github.ref_name }}
-          ACTOR: ${{ github.actor }}
-          SHA: ${{ github.sha }}
-          COMMIT_MSG: ${{ github.event.head_commit.message || 'Manual workflow dispatch' }}
-          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "Telegram secrets are not configured; skipping notification."
-            exit 0
-          fi
-
-          esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
-
-          short_sha="${SHA:0:7}"
-          repo_name="${REPO#*/}"
-          title="$(esc "$(printf '%s' "$COMMIT_MSG" | head -n1)")"
-          actor="$(esc "$ACTOR")"
-          branch="$(esc "$BRANCH")"
-
-          if [ "$CI_STATUS" != "success" ]; then
-            header="❌ <b>CI failed — deploy blocked</b>"
-            footer="🛡️ Production was not changed."
-            link_text="View test logs →"
-          elif [ "$DEPLOY_STATUS" = "success" ]; then
-            header="<b>CI/CD Successfully🙏😒🐸</b>"
-            footer="🟢 Live · https://api.genlink.enat.online"
-            link_text="View workflow run →"
-          else
-            header="❌ <b>Fail to deploy</b>"
-            footer="🛡️ Previous image restored when available; verify migrations and health."
-            link_text="View deploy logs →"
-          fi
-
-          msg=$(printf '%s\n\n📁 <b>%s</b>\n🌿 %s\n🔖 <a href="%s">%s</a>  %s\n👤 %s\n\n%s\n<a href="%s">%s</a>' \
-            "$header" \
-            "$repo_name" "$branch" \
-            "$COMMIT_URL" "$short_sha" "$title" \
-            "$actor" \
-            "$footer" \
-            "$RUN_URL" "$link_text")
-
-          curl -sS -X POST \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHAT_ID}" \
-            -d message_thread_id="${TELEGRAM_THREAD_ID}" \
-            -d parse_mode="HTML" \
-            -d disable_web_page_preview="true" \
-            --data-urlencode text="$msg" || true
+#name: Backend CI/CD
+#
+## Pull requests must pass CI before merge. A push (or manual run) on main runs
+## the same gate and deploys only after it succeeds.
+#on:
+#  pull_request:
+#    branches: [main]
+#  push:
+#    branches: [main]
+#  workflow_dispatch:
+#
+#permissions:
+#  contents: read
+#
+## Production deploys never overlap. Superseded pull-request checks may be
+## cancelled because they cannot affect the server.
+#concurrency:
+#  group: backend-${{ github.ref }}
+#  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+#
+#jobs:
+#  ci:
+#    name: Build and test
+#    runs-on: ubuntu-latest
+#    timeout-minutes: 20
+#    env:
+#      # The PostgreSQL-only integration tests are enabled in CI against this
+#      # disposable service database. No production credentials are used.
+#      GENLINK_TEST_POSTGRES_URL: jdbc:postgresql://localhost:5432/campuslink_test
+#      GENLINK_TEST_POSTGRES_USERNAME: postgres
+#      GENLINK_TEST_POSTGRES_PASSWORD: postgres
+#    services:
+#      postgres:
+#        image: postgres:16
+#        env:
+#          POSTGRES_DB: campuslink_test
+#          POSTGRES_USER: postgres
+#          POSTGRES_PASSWORD: postgres
+#        ports:
+#          - 5432:5432
+#        options: >-
+#          --health-cmd "pg_isready -U postgres -d campuslink_test"
+#          --health-interval 10s
+#          --health-timeout 5s
+#          --health-retries 10
+#    steps:
+#      - name: Check out source
+#        uses: actions/checkout@v6
+#
+#      - name: Validate Gradle wrapper
+#        uses: gradle/actions/wrapper-validation@v6
+#
+#      - name: Set up Java 21
+#        uses: actions/setup-java@v6
+#        with:
+#          distribution: temurin
+#          java-version: "21"
+#          cache: gradle
+#          cache-dependency-path: |
+#            build.gradle
+#            settings.gradle
+#            gradle/wrapper/gradle-wrapper.properties
+#
+#      - name: Run full Gradle test suite
+#        run: |
+#          chmod +x gradlew
+#          ./gradlew clean test
+#
+#      - name: Build verified application artifact
+#        run: ./gradlew bootJar
+#
+#      # Always retain reports: successful runs provide coverage evidence and a
+#      # failed run remains diagnosable after the runner has gone away.
+#      - name: Upload test and coverage reports
+#        if: always()
+#        uses: actions/upload-artifact@v6
+#        with:
+#          name: backend-test-reports-${{ github.run_id }}
+#          path: |
+#            build/test-results/test/
+#            build/reports/tests/test/
+#            build/reports/jacoco/test/
+#            build/reports/problems/
+#          if-no-files-found: warn
+#          retention-days: 14
+#
+#      - name: Upload verified application artifact
+#        if: success()
+#        uses: actions/upload-artifact@v6
+#        with:
+#          name: backend-jar-${{ github.sha }}
+#          path: |
+#            build/libs/*.jar
+#            !build/libs/*-plain.jar
+#          if-no-files-found: error
+#          retention-days: 14
+#
+#  deploy:
+#    name: Deploy to Server
+#    needs: ci
+#    # Pull requests are CI-only. Production changes only from main after CI.
+#    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+#    runs-on: ubuntu-latest
+#    timeout-minutes: 20
+#    steps:
+#      - name: Download verified application artifact
+#        uses: actions/download-artifact@v6
+#        with:
+#          name: backend-jar-${{ github.sha }}
+#          path: deploy-artifact
+#
+#      - name: Normalize application artifact name
+#        shell: bash
+#        run: |
+#          set -Eeuo pipefail
+#          jar="$(find deploy-artifact -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)"
+#          test -n "$jar"
+#          if [[ "$jar" != "deploy-artifact/app.jar" ]]; then
+#            mv "$jar" deploy-artifact/app.jar
+#          fi
+#
+#      # The server only receives the artifact that passed the CI build/test
+#      # gate. It no longer has to compile the full project over SSH.
+#      - name: Upload verified application artifact
+#        env:
+#          SSH_HOST: ${{ secrets.SSH_HOST }}
+#          SSH_USER: ${{ secrets.SSH_USER }}
+#          SSH_KEY: ${{ secrets.SSH_KEY }}
+#          SSH_PORT: "22"
+#        shell: bash
+#        run: |
+#          set -Eeuo pipefail
+#          key_file="$RUNNER_TEMP/genlink-deploy-key"
+#          known_hosts="$RUNNER_TEMP/genlink-known-hosts"
+#          trap 'rm -f "$key_file" "$known_hosts"' EXIT
+#
+#          printf '%s\n' "$SSH_KEY" > "$key_file"
+#          chmod 600 "$key_file"
+#          ssh-keyscan -H -p "$SSH_PORT" "$SSH_HOST" > "$known_hosts"
+#
+#          ssh_opts=(
+#            -i "$key_file"
+#            -p "$SSH_PORT"
+#            -o BatchMode=yes
+#            -o StrictHostKeyChecking=yes
+#            -o UserKnownHostsFile="$known_hosts"
+#          )
+#          scp_opts=(
+#            -i "$key_file"
+#            -P "$SSH_PORT"
+#            -o BatchMode=yes
+#            -o StrictHostKeyChecking=yes
+#            -o UserKnownHostsFile="$known_hosts"
+#          )
+#
+#          ssh "${ssh_opts[@]}" "$SSH_USER@$SSH_HOST" \
+#            'sudo -n mkdir -p /opt/GENLINK_BACKEND/.deploy && sudo -n chown -R "$(id -u):$(id -g)" /opt/GENLINK_BACKEND/.deploy'
+#          scp "${scp_opts[@]}" deploy-artifact/app.jar \
+#            "$SSH_USER@$SSH_HOST:/opt/GENLINK_BACKEND/.deploy/app.jar"
+#
+#      - name: Deploy over SSH
+#        uses: appleboy/ssh-action@v1.2.0
+#        env:
+#          # The EC2 checkout uses HTTPS. Pass the short-lived workflow token
+#          # only for this SSH session so a private repository can be pulled.
+#          GITHUB_TOKEN: ${{ github.token }}
+#        with:
+#          host: ${{ secrets.SSH_HOST }}
+#          username: ${{ secrets.SSH_USER }}
+#          key: ${{ secrets.SSH_KEY }}
+#          port: 22
+#          envs: GITHUB_TOKEN
+#          script_stop: true
+#          command_timeout: 15m
+#          script: |
+#            # The initial checkout may have been created as root. Make the
+#            # working tree writable by the SSH user before Git runs.
+#            sudo -n chown -R "$(id -u):$(id -g)" /opt/GENLINK_BACKEND
+#            # Configure an in-memory Git credential helper. The token is not
+#            # written to .git/config or any file on the EC2 instance.
+#            export GIT_TERMINAL_PROMPT=0
+#            export GIT_CONFIG_COUNT=1
+#            export GIT_CONFIG_KEY_0=credential.helper
+#            export GIT_CONFIG_VALUE_0='!f() { if [ "${1:-}" = get ]; then printf "username=x-access-token\npassword=%s\n\n" "$GITHUB_TOKEN"; fi; }; f'
+#            cd /opt/GENLINK_BACKEND
+#            ./scripts/deploy.sh
+#
+#  notify:
+#    name: Notify production result
+#    needs: [ci, deploy]
+#    # `always()` lets CI failures report that deployment was blocked. PR checks
+#    # stay quiet; their status is already visible on the pull request.
+#    if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+#    runs-on: ubuntu-latest
+#    timeout-minutes: 5
+#    steps:
+#      - name: Notify Telegram
+#        env:
+#          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+#          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+#          TELEGRAM_THREAD_ID: ${{ secrets.TELEGRAM_THREAD_ID }}
+#          CI_STATUS: ${{ needs.ci.result }}
+#          DEPLOY_STATUS: ${{ needs.deploy.result }}
+#          REPO: ${{ github.repository }}
+#          BRANCH: ${{ github.ref_name }}
+#          ACTOR: ${{ github.actor }}
+#          SHA: ${{ github.sha }}
+#          COMMIT_MSG: ${{ github.event.head_commit.message || 'Manual workflow dispatch' }}
+#          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+#          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+#        run: |
+#          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+#            echo "Telegram secrets are not configured; skipping notification."
+#            exit 0
+#          fi
+#
+#          esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+#
+#          short_sha="${SHA:0:7}"
+#          repo_name="${REPO#*/}"
+#          title="$(esc "$(printf '%s' "$COMMIT_MSG" | head -n1)")"
+#          actor="$(esc "$ACTOR")"
+#          branch="$(esc "$BRANCH")"
+#
+#          if [ "$CI_STATUS" != "success" ]; then
+#            header="❌ <b>CI failed — deploy blocked</b>"
+#            footer="🛡️ Production was not changed."
+#            link_text="View test logs →"
+#          elif [ "$DEPLOY_STATUS" = "success" ]; then
+#            header="<b>CI/CD Successfully🙏😒🐸</b>"
+#            footer="🟢 Live · https://api.genlink.enat.online"
+#            link_text="View workflow run →"
+#          else
+#            header="❌ <b>Fail to deploy</b>"
+#            footer="🛡️ Previous image restored when available; verify migrations and health."
+#            link_text="View deploy logs →"
+#          fi
+#
+#          msg=$(printf '%s\n\n📁 <b>%s</b>\n🌿 %s\n🔖 <a href="%s">%s</a>  %s\n👤 %s\n\n%s\n<a href="%s">%s</a>' \
+#            "$header" \
+#            "$repo_name" "$branch" \
+#            "$COMMIT_URL" "$short_sha" "$title" \
+#            "$actor" \
+#            "$footer" \
+#            "$RUN_URL" "$link_text")
+#
+#          curl -sS -X POST \
+#            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+#            -d chat_id="${TELEGRAM_CHAT_ID}" \
+#            -d message_thread_id="${TELEGRAM_THREAD_ID}" \
+#            -d parse_mode="HTML" \
+#            -d disable_web_page_preview="true" \
+#            --data-urlencode text="$msg" || true

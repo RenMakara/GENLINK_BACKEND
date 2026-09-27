@@ -29,6 +29,27 @@ public interface PostRepostRepository extends JpaRepository<PostRepost, UUID> {
             + "WHERE r.user.id = :userId AND r.post.deletedAt IS NULL")
     Page<PostRepost> findByUserId(@Param("userId") UUID userId, Pageable pageable);
 
+    @Query(value = "SELECT r FROM PostRepost r JOIN FETCH r.post p LEFT JOIN FETCH p.user "
+        + "WHERE r.user.id = :viewerId AND p.deletedAt IS NULL AND ("
+        + "p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC "
+        + "OR p.user.id = :viewerId "
+        + "OR (p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.FRIENDS "
+        + "AND p.user.id IN :friendIds) "
+        + "OR (p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.COMMUNITY "
+        + "AND p.community.id IN :communityIds)) ORDER BY r.createdAt DESC",
+        countQuery = "SELECT COUNT(r) FROM PostRepost r WHERE r.user.id = :viewerId "
+            + "AND r.post.deletedAt IS NULL AND ("
+            + "r.post.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC "
+            + "OR r.post.user.id = :viewerId "
+            + "OR (r.post.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.FRIENDS "
+            + "AND r.post.user.id IN :friendIds) "
+            + "OR (r.post.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.COMMUNITY "
+            + "AND r.post.community.id IN :communityIds))")
+    Page<PostRepost> findVisibleByUserId(@Param("viewerId") UUID viewerId,
+                                         @Param("friendIds") Collection<UUID> friendIds,
+                                         @Param("communityIds") Collection<UUID> communityIds,
+                                         Pageable pageable);
+
     long countByPostId(UUID postId);
 
     @Modifying

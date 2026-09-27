@@ -11,6 +11,7 @@ import kh.edu.acleda.campuslink.modules.community.entity.PostCommentReaction;
 import kh.edu.acleda.campuslink.modules.community.repository.PostCommentReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostCommentRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
+import kh.edu.acleda.campuslink.modules.community.service.PostVisibilityService;
 import kh.edu.acleda.campuslink.modules.community.service.impl.CommentServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -36,6 +37,7 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -52,6 +54,7 @@ class CommentServiceImplTest {
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
     @Mock private kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter notificationEmitter;
+    @Mock private PostVisibilityService postVisibilityService;
 
     private CommentServiceImpl service;
     private User author;
@@ -60,7 +63,7 @@ class CommentServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new CommentServiceImpl(commentRepository, commentReactionRepository,
-            postRepository, userRepository, currentUserProvider, notificationEmitter);
+            postRepository, userRepository, currentUserProvider, notificationEmitter, postVisibilityService);
 
         author = new User();
         author.setFullName("Author");
@@ -91,6 +94,40 @@ class CommentServiceImplTest {
         verify(commentRepository).save(captor.capture());
         assertThat(captor.getValue().getParentComment()).isNull();
         verify(postRepository).adjustCommentCount(POST_ID, 1);
+    }
+
+    @Test
+    void restrictedPostBlocksCommentCreationAndListing() {
+        doThrow(new NotFoundException("Post not found"))
+            .when(postVisibilityService).requireCanView(post, USER_ID);
+
+        assertThatThrownBy(() -> service.add(POST_ID,
+            new CommentCreateRequest("hidden comment", null, Language.ENGLISH)))
+            .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service.list(POST_ID, PageRequest.of(0, 20)))
+            .isInstanceOf(NotFoundException.class);
+
+        verify(commentRepository, never()).save(any(PostComment.class));
+        verify(commentRepository, never()).findTopLevel(eq(POST_ID), any());
+        verify(postRepository, never()).adjustCommentCount(POST_ID, 1);
+    }
+
+    @Test
+    void restrictedPostBlocksReplyReadsAndReactions() {
+        UUID commentId = UUID.randomUUID();
+        PostComment comment = PostComment.builder().post(post).user(author).content("hidden")
+            .likeCount(0).build();
+        ReflectionTestUtils.setField(comment, "id", commentId);
+        when(commentRepository.findByIdAndDeletedAtIsNull(commentId)).thenReturn(Optional.of(comment));
+        doThrow(new NotFoundException("Post not found"))
+            .when(postVisibilityService).requireCanView(post, USER_ID);
+
+        assertThatThrownBy(() -> service.replies(commentId, PageRequest.of(0, 20)))
+            .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service.like(commentId)).isInstanceOf(NotFoundException.class);
+
+        verify(commentRepository, never()).findReplies(eq(commentId), any());
+        verify(commentReactionRepository, never()).save(any(PostCommentReaction.class));
     }
 
     /** Threading is one level deep: a reply to a reply attaches to the top-level parent. */

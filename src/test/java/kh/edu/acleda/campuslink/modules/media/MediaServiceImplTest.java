@@ -6,6 +6,8 @@ import kh.edu.acleda.campuslink.modules.media.dto.PresignRequest;
 import kh.edu.acleda.campuslink.modules.media.dto.PresignResponse;
 import kh.edu.acleda.campuslink.modules.media.entity.MediaFile;
 import kh.edu.acleda.campuslink.modules.media.entity.MediaPurpose;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 import kh.edu.acleda.campuslink.modules.media.entity.MediaStatus;
 import kh.edu.acleda.campuslink.modules.media.entity.MediaVisibility;
 import kh.edu.acleda.campuslink.modules.media.repository.MediaFileRepository;
@@ -82,7 +84,7 @@ class MediaServiceImplTest {
         MediaFile saved = captor.getValue();
         assertThat(saved.getOwnerId()).isEqualTo(ownerId);
         assertThat(saved.getStatus()).isEqualTo(MediaStatus.PENDING);
-        assertThat(saved.getVisibility()).isEqualTo(MediaVisibility.PUBLIC);
+        assertThat(saved.getVisibility()).isEqualTo(MediaVisibility.PRIVATE);
         assertThat(saved.getChecksumSha256()).isEqualTo(CHECKSUM);
         assertThat(saved.getPublicUrl()).isNull(); // set only at confirm
     }
@@ -123,6 +125,9 @@ class MediaServiceImplTest {
             new PresignRequest("video/mp4", 10_000_000, MediaPurpose.STORY, CHECKSUM));
 
         assertThat(response.storageKey()).startsWith("stories/").endsWith(".mp4");
+        ArgumentCaptor<MediaFile> captor = ArgumentCaptor.forClass(MediaFile.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getVisibility()).isEqualTo(MediaVisibility.PRIVATE);
     }
 
     @Test
@@ -152,6 +157,7 @@ class MediaServiceImplTest {
     @Test
     void confirmVerifiesObjectAndMarksConfirmedWithPublicUrl() {
         MediaFile pending = pendingMedia();
+        pending.setVisibility(MediaVisibility.PUBLIC);
         when(currentUserProvider.getCurrentUserId()).thenReturn(ownerId);
         when(repository.findByIdAndDeletedAtIsNull(pending.getId())).thenReturn(Optional.of(pending));
         Instant lastModified = Instant.now();
@@ -170,6 +176,82 @@ class MediaServiceImplTest {
         assertThat(pending.getConfirmedAt()).isNotNull();
         assertThat(response.url()).isEqualTo("https://cdn.example.com/" + pending.getStorageKey());
         verify(storage).makePublic(pending.getStorageKey()); // PUBLIC media access is configured by the storage adapter
+    }
+
+    @Test
+    void confirmKeepsPostMediaPrivateUntilItsContentAudienceIsKnown() {
+        MediaFile pending = pendingMedia();
+        when(currentUserProvider.getCurrentUserId()).thenReturn(ownerId);
+        when(repository.findByIdAndDeletedAtIsNull(pending.getId())).thenReturn(Optional.of(pending));
+        when(storage.head(pending.getStorageKey())).thenReturn(Optional.of(
+            new StorageService.StoredObject(2048L, "image/jpeg", Instant.now())));
+        when(repository.save(any(MediaFile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        MediaResponse response = service.confirmUpload(new ConfirmRequest(pending.getId(), null, null, null));
+
+        assertThat(pending.getVisibility()).isEqualTo(MediaVisibility.PRIVATE);
+        assertThat(pending.getPublicUrl()).isNull();
+        assertThat(response.url()).isNull();
+        verify(storage, never()).makePublic(pending.getStorageKey());
+    }
+
+    @Test
+    void attachingRestrictedPostMediaKeepsObjectPrivateAndResolvesOnlyASignedUrl() {
+        MediaFile media = pendingMedia();
+        media.setStatus(MediaStatus.CONFIRMED);
+        media.setPublicUrl(null);
+        UUID postId = UUID.randomUUID();
+        when(currentUserProvider.getCurrentUserId()).thenReturn(ownerId);
+        when(repository.findByIdAndDeletedAtIsNullForUpdate(media.getId())).thenReturn(Optional.of(media));
+        when(repository.findByAttachedResourceTypeAndAttachedResourceIdAndDeletedAtIsNullOrderByAttachmentRoleAscAttachmentOrderAsc(
+            MediaResourceType.POST, postId)).thenReturn(java.util.List.of(media));
+        when(repository.save(any(MediaFile.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(storage.presignDownload(media.getStorageKey(), Duration.ofSeconds(300)))
+            .thenReturn("https://signed.example/private.jpg");
+
+        service.attachMedia(media.getId(), MediaResourceType.POST, postId,
+            MediaAttachmentRole.IMAGE, 0, MediaPurpose.POST, false);
+        var resolved = service.resolveAttachedMedia(MediaResourceType.POST, postId);
+
+        assertThat(media.getVisibility()).isEqualTo(MediaVisibility.PRIVATE);
+        assertThat(media.getPublicUrl()).isNull();
+        assertThat(resolved).singleElement().extracting(MediaService.AttachedMedia::url)
+            .isEqualTo("https://signed.example/private.jpg");
+        verify(storage, never()).makePublic(media.getStorageKey());
+    }
+
+    @Test
+    void attachingPublicPostMediaPreservesThePublicCdnFlow() {
+        MediaFile media = pendingMedia();
+        media.setStatus(MediaStatus.CONFIRMED);
+        UUID postId = UUID.randomUUID();
+        String cdnUrl = "https://cdn.example.com/" + media.getStorageKey();
+        when(currentUserProvider.getCurrentUserId()).thenReturn(ownerId);
+        when(repository.findByIdAndDeletedAtIsNullForUpdate(media.getId())).thenReturn(Optional.of(media));
+        when(repository.findByAttachedResourceTypeAndAttachedResourceIdAndDeletedAtIsNullOrderByAttachmentRoleAscAttachmentOrderAsc(
+            MediaResourceType.POST, postId)).thenReturn(java.util.List.of(media));
+        when(storage.publicUrl(media.getStorageKey())).thenReturn(cdnUrl);
+        when(repository.save(any(MediaFile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.attachMedia(media.getId(), MediaResourceType.POST, postId,
+            MediaAttachmentRole.IMAGE, 0, MediaPurpose.POST, true);
+
+        assertThat(media.getVisibility()).isEqualTo(MediaVisibility.PUBLIC);
+        assertThat(media.getPublicUrl()).isEqualTo(cdnUrl);
+        verify(storage).makePublic(media.getStorageKey());
+        assertThat(service.resolveAttachedMedia(MediaResourceType.POST, postId))
+            .singleElement().extracting(MediaService.AttachedMedia::url).isEqualTo(cdnUrl);
+        verify(storage, never()).presignDownload(anyString(), any(Duration.class));
+    }
+
+    @Test
+    void privateMediaDownloadUrlIsHiddenFromNonOwner() {
+        MediaFile media = pendingMedia();
+        when(currentUserProvider.getCurrentUserId()).thenReturn(UUID.randomUUID());
+        when(repository.findByIdAndDeletedAtIsNull(media.getId())).thenReturn(Optional.of(media));
+
+        assertThatThrownBy(() -> service.downloadUrl(media.getId())).isInstanceOf(NotFoundException.class);
+        verify(storage, never()).presignDownload(anyString(), any(Duration.class));
     }
 
     @Test
@@ -230,6 +312,7 @@ class MediaServiceImplTest {
     void resolveConfirmedUrlReturnsCdnUrlForOwnedConfirmedPublicMedia() {
         MediaFile media = pendingMedia();
         media.setStatus(MediaStatus.CONFIRMED);
+        media.setVisibility(MediaVisibility.PUBLIC);
         media.setPublicUrl("https://cdn.example.com/" + media.getStorageKey());
         when(currentUserProvider.getCurrentUserId()).thenReturn(ownerId);
         when(repository.findByIdAndDeletedAtIsNull(media.getId())).thenReturn(Optional.of(media));
@@ -306,7 +389,7 @@ class MediaServiceImplTest {
         m.setSizeBytes(1024L);
         m.setChecksumSha256(CHECKSUM);
         m.setPurpose(MediaPurpose.POST);
-        m.setVisibility(MediaVisibility.PUBLIC);
+        m.setVisibility(MediaVisibility.PRIVATE);
         m.setStatus(MediaStatus.PENDING);
         return m;
     }

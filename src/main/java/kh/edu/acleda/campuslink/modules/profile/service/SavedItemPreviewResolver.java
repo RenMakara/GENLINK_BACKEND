@@ -11,6 +11,10 @@ import kh.edu.acleda.campuslink.modules.community.repository.ForumDiscussionRepo
 import kh.edu.acleda.campuslink.modules.community.repository.OpportunityRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.EventVisibility;
+import kh.edu.acleda.campuslink.modules.community.service.PostVisibilityService;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.ShortContentRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.FinancialLessonRepository;
 import kh.edu.acleda.campuslink.modules.productivity.repository.MotivationContentRepository;
@@ -19,6 +23,7 @@ import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.localization.LocalizedTextSelector;
 import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +50,8 @@ public class SavedItemPreviewResolver {
     private final FinancialLessonRepository financialLessonRepository;
     private final ShortContentRepository shortContentRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final PostVisibilityService postVisibilityService;
+    private final MediaService mediaService;
 
     public SavedItemPreviewResolver(PostRepository postRepository,
                                     ForumDiscussionRepository forumDiscussionRepository,
@@ -53,7 +60,9 @@ public class SavedItemPreviewResolver {
                                     MotivationContentRepository motivationContentRepository,
                                     FinancialLessonRepository financialLessonRepository,
                                     ShortContentRepository shortContentRepository,
-                                    CurrentUserProvider currentUserProvider) {
+                                    CurrentUserProvider currentUserProvider,
+                                    PostVisibilityService postVisibilityService,
+                                    MediaService mediaService) {
         this.postRepository = postRepository;
         this.forumDiscussionRepository = forumDiscussionRepository;
         this.eventRepository = eventRepository;
@@ -62,6 +71,23 @@ public class SavedItemPreviewResolver {
         this.financialLessonRepository = financialLessonRepository;
         this.shortContentRepository = shortContentRepository;
         this.currentUserProvider = currentUserProvider;
+        this.postVisibilityService = postVisibilityService;
+        this.mediaService = mediaService;
+    }
+
+    /** Compatibility constructor retained for direct tests of non-post previews. */
+    @Autowired
+    public SavedItemPreviewResolver(PostRepository postRepository,
+                                    ForumDiscussionRepository forumDiscussionRepository,
+                                    EventRepository eventRepository,
+                                    OpportunityRepository opportunityRepository,
+                                    MotivationContentRepository motivationContentRepository,
+                                    FinancialLessonRepository financialLessonRepository,
+                                    ShortContentRepository shortContentRepository,
+                                    CurrentUserProvider currentUserProvider) {
+        this(postRepository, forumDiscussionRepository, eventRepository, opportunityRepository,
+            motivationContentRepository, financialLessonRepository, shortContentRepository,
+            currentUserProvider, null, null);
     }
 
     /**
@@ -75,8 +101,22 @@ public class SavedItemPreviewResolver {
             return Map.of();
         }
         return switch (type) {
-            case POST -> index(postRepository.findAllById(ids), post -> post.getDeletedAt() != null ? null
-                : new SavedItemPreview(truncate(post.getContentText()), null, post.getImageUrl()));
+            case POST -> index(postRepository.findAllById(ids), post -> {
+                UUID viewerId = currentUserProvider.getCurrentUserId();
+                if (post.getDeletedAt() != null || postVisibilityService == null
+                    || !postVisibilityService.canView(post, viewerId)) {
+                    return null;
+                }
+                List<MediaService.AttachedMedia> attached = mediaService == null ? List.of()
+                    : mediaService.resolveAttachedMedia(MediaResourceType.POST, post.getId());
+                String imageUrl = attached.stream()
+                    .filter(media -> media.role() == MediaAttachmentRole.IMAGE)
+                    .map(MediaService.AttachedMedia::url)
+                    .findFirst()
+                    .orElse(post.getVisibility() == kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC
+                        ? post.getImageUrl() : null);
+                return new SavedItemPreview(truncate(post.getContentText()), null, imageUrl);
+            });
             case DISCUSSION -> index(forumDiscussionRepository.findAllById(ids), d -> d.getDeletedAt() != null ? null
                 : new SavedItemPreview(d.getTitle(), d.getCategory(), null));
             case EVENT -> eventPreviews(ids);

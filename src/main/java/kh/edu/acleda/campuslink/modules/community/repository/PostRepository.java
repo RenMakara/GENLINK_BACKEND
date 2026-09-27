@@ -68,6 +68,27 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
         countQuery = "SELECT COUNT(p) FROM Post p WHERE p.deletedAt IS NULL AND p.community.id = :communityId")
     Page<Post> findByCommunity(@Param("communityId") UUID communityId, Pageable pageable);
 
+    @Query(value = "SELECT p FROM Post p LEFT JOIN FETCH p.user "
+        + "WHERE p.deletedAt IS NULL AND p.community.id = :communityId AND ("
+        + "p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC "
+        + "OR p.user.id = :viewerId "
+        + "OR (p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.FRIENDS "
+        + "AND p.user.id IN :friendIds) "
+        + "OR (p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.COMMUNITY "
+        + "AND p.community.id IN :communityIds))",
+        countQuery = "SELECT COUNT(p) FROM Post p WHERE p.deletedAt IS NULL AND p.community.id = :communityId AND ("
+            + "p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC "
+            + "OR p.user.id = :viewerId "
+            + "OR (p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.FRIENDS "
+            + "AND p.user.id IN :friendIds) "
+            + "OR (p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.COMMUNITY "
+            + "AND p.community.id IN :communityIds))")
+    Page<Post> findVisibleByCommunity(@Param("communityId") UUID communityId,
+                                     @Param("viewerId") UUID viewerId,
+                                     @Param("friendIds") Collection<UUID> friendIds,
+                                     @Param("communityIds") Collection<UUID> communityIds,
+                                     Pageable pageable);
+
     /** A community moderator's queue: live posts in the community that carry reports, most-reported first. */
     @Query(value = "SELECT p FROM Post p LEFT JOIN FETCH p.user "
         + "WHERE p.deletedAt IS NULL AND p.community.id = :communityId AND p.reportCount > 0 "
@@ -80,6 +101,17 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     Optional<Post> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
 
     Optional<Post> findByIdAndDeletedAtIsNull(UUID id);
+
+    boolean existsByIdAndDeletedAtIsNull(UUID id);
+
+    @Query("SELECT p FROM Post p WHERE p.id = :id AND p.deletedAt IS NULL")
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    Optional<Post> findByIdAndDeletedAtIsNullForUpdate(@Param("id") UUID id);
+
+    @Query("SELECT p FROM Post p WHERE p.id = :id AND p.user.id = :userId AND p.deletedAt IS NULL")
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    Optional<Post> findByIdAndUserIdAndDeletedAtIsNullForUpdate(@Param("id") UUID id,
+                                                                @Param("userId") UUID userId);
 
     /**
      * Counter updates go straight to the database rather than read-modify-write, so two

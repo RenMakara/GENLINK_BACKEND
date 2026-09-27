@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -150,6 +151,16 @@ class HashtagServiceImplTest {
         service.syncForPost(post, "no tags anymore");
 
         assertThat(dart.getUsageCount()).isEqualTo(2);
+    }
+
+    @Test
+    void trendingUsesOnlyTagsFromVisiblePublicPosts() {
+        when(hashtagRepository.findTrendingPublicTags(any())).thenReturn(List.of("public-tag"));
+
+        assertThat(service.trending(5)).containsExactly("public-tag");
+
+        verify(hashtagRepository).findTrendingPublicTags(any());
+        verify(hashtagRepository, never()).findByOrderByUsageCountDesc(any());
     }
 
     @SuppressWarnings("unchecked")

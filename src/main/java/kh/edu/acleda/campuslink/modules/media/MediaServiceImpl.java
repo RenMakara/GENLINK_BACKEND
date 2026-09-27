@@ -5,7 +5,9 @@ import kh.edu.acleda.campuslink.modules.media.dto.MediaResponse;
 import kh.edu.acleda.campuslink.modules.media.dto.PresignRequest;
 import kh.edu.acleda.campuslink.modules.media.dto.PresignResponse;
 import kh.edu.acleda.campuslink.modules.media.entity.MediaFile;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
 import kh.edu.acleda.campuslink.modules.media.entity.MediaPurpose;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 import kh.edu.acleda.campuslink.modules.media.entity.MediaStatus;
 import kh.edu.acleda.campuslink.modules.media.entity.MediaVisibility;
 import kh.edu.acleda.campuslink.modules.media.repository.MediaFileRepository;
@@ -17,12 +19,15 @@ import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.event.EventListener;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -162,12 +167,109 @@ public class MediaServiceImpl implements MediaService {
 
     @Override
     @Transactional
+    public void attachMedia(UUID mediaId, MediaResourceType resourceType, UUID resourceId,
+                            MediaAttachmentRole role, int order, MediaPurpose expectedPurpose,
+                            boolean publicContent) {
+        UUID ownerId = currentUserProvider.getCurrentUserId();
+        MediaFile media = repository.findByIdAndDeletedAtIsNullForUpdate(mediaId)
+            .orElseThrow(() -> new NotFoundException("Media not found"));
+        if (!media.getOwnerId().equals(ownerId)) {
+            throw new NotFoundException("Media not found");
+        }
+        if (media.getStatus() != MediaStatus.CONFIRMED || media.getPurpose() != expectedPurpose) {
+            throw new ApiException("Media is not available for this content", "MEDIA_NOT_ATTACHABLE");
+        }
+
+        boolean alreadyAttached = media.getAttachedResourceId() != null;
+        if (alreadyAttached && (!resourceId.equals(media.getAttachedResourceId())
+            || resourceType != media.getAttachedResourceType()
+            || role != media.getAttachmentRole()
+            || !Integer.valueOf(order).equals(media.getAttachmentOrder()))) {
+            throw new ApiException("Media is already attached to content", "MEDIA_ALREADY_ATTACHED");
+        }
+
+        media.setAttachedResourceType(resourceType);
+        media.setAttachedResourceId(resourceId);
+        media.setAttachmentRole(role);
+        media.setAttachmentOrder(order);
+        setVisibility(media, publicContent);
+        repository.save(media);
+    }
+
+    @Override
+    @Transactional
+    public boolean attachOwnedUrl(String url, MediaPurpose expectedPurpose, MediaResourceType resourceType,
+                                  UUID resourceId, MediaAttachmentRole role, int order, boolean publicContent) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+        UUID ownerId = currentUserProvider.getCurrentUserId();
+        MediaFile media = repository.findByOwnerIdAndPublicUrlAndPurposeAndDeletedAtIsNull(
+            ownerId, url.strip(), expectedPurpose).orElse(null);
+        if (media == null) {
+            return false;
+        }
+        attachMedia(media.getId(), resourceType, resourceId, role, order, expectedPurpose, publicContent);
+        return true;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AttachedMedia> resolveAttachedMedia(MediaResourceType resourceType, UUID resourceId) {
+        return repository.findByAttachedResourceTypeAndAttachedResourceIdAndDeletedAtIsNullOrderByAttachmentRoleAscAttachmentOrderAsc(
+                resourceType, resourceId).stream()
+            .filter(media -> media.getStatus() == MediaStatus.CONFIRMED)
+            .map(media -> new AttachedMedia(
+                media.getAttachmentRole(),
+                media.getAttachmentOrder() == null ? 0 : media.getAttachmentOrder(),
+                media.getVisibility() == MediaVisibility.PUBLIC && media.getPublicUrl() != null
+                    ? media.getPublicUrl()
+                    : storage.presignDownload(media.getStorageKey(),
+                        Duration.ofSeconds(properties.getPresignExpirySeconds()))))
+            .toList();
+    }
+
+    @Override
+    @Transactional
+    public void updateAttachedMediaVisibility(MediaResourceType resourceType, UUID resourceId,
+                                             boolean publicContent) {
+        UUID ownerId = currentUserProvider.getCurrentUserId();
+        List<MediaFile> files = repository
+            .findByAttachedResourceTypeAndAttachedResourceIdAndDeletedAtIsNullOrderByAttachmentRoleAscAttachmentOrderAsc(
+                resourceType, resourceId);
+        for (MediaFile media : files) {
+            if (!media.getOwnerId().equals(ownerId)) {
+                throw new NotFoundException("Content not found");
+            }
+            setVisibility(media, publicContent);
+        }
+        repository.saveAll(files);
+    }
+
+    @Override
+    @Transactional
     public void delete(UUID mediaId) {
         UUID ownerId = currentUserProvider.getCurrentUserId();
         MediaFile media = ownedActiveMedia(mediaId, ownerId);
         media.setDeletedAt(Instant.now());
         repository.save(media);
         log.debug("Soft-deleted media {} for user {}", mediaId, ownerId);
+    }
+
+    /** Revoke legacy public ACLs for media that the attachment backfill marked private. */
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void revokeLegacyPrivateUrls() {
+        List<MediaFile> legacyPrivateFiles = repository
+            .findByVisibilityAndPublicUrlIsNotNullAndDeletedAtIsNull(MediaVisibility.PRIVATE);
+        for (MediaFile media : legacyPrivateFiles) {
+            storage.makePrivate(media.getStorageKey());
+            media.setPublicUrl(null);
+        }
+        if (!legacyPrivateFiles.isEmpty()) {
+            repository.saveAll(legacyPrivateFiles);
+            log.info("Revoked public URLs for {} private media objects", legacyPrivateFiles.size());
+        }
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
@@ -180,6 +282,23 @@ public class MediaServiceImpl implements MediaService {
             throw new NotFoundException("Media not found");
         }
         return media;
+    }
+
+    private void setVisibility(MediaFile media, boolean publicContent) {
+        if (publicContent) {
+            if (media.getVisibility() != MediaVisibility.PUBLIC) {
+                storage.makePublic(media.getStorageKey());
+            }
+            media.setVisibility(MediaVisibility.PUBLIC);
+            media.setPublicUrl(storage.publicUrl(media.getStorageKey()));
+            return;
+        }
+
+        if (media.getVisibility() == MediaVisibility.PUBLIC) {
+            storage.makePrivate(media.getStorageKey());
+        }
+        media.setVisibility(MediaVisibility.PRIVATE);
+        media.setPublicUrl(null);
     }
 
     private void validateTypeAndSize(MediaPurpose purpose, String contentType, long sizeBytes) {

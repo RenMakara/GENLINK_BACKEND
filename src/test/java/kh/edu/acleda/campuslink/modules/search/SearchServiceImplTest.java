@@ -28,6 +28,9 @@ import kh.edu.acleda.campuslink.modules.community.repository.PollVoteRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 import kh.edu.acleda.campuslink.modules.profile.repository.SavedItemRepository;
 import kh.edu.acleda.campuslink.modules.search.dto.SearchCategory;
 import kh.edu.acleda.campuslink.modules.search.dto.response.SearchResultResponse;
@@ -60,6 +63,7 @@ class SearchServiceImplTest {
     private PollVoteRepository pollVoteRepository;
     private EventRsvpRepository eventRsvpRepository;
     private ForumReactionRepository forumReactionRepository;
+    private MediaService mediaService;
 
     private SearchServiceImpl searchService;
 
@@ -81,6 +85,7 @@ class SearchServiceImplTest {
         pollVoteRepository = mock(PollVoteRepository.class);
         eventRsvpRepository = mock(EventRsvpRepository.class);
         forumReactionRepository = mock(ForumReactionRepository.class);
+        mediaService = mock(MediaService.class);
 
         searchService = new SearchServiceImpl(
             userRepository,
@@ -94,8 +99,10 @@ class SearchServiceImplTest {
             pollOptionRepository,
             pollVoteRepository,
             eventRsvpRepository,
-            forumReactionRepository
+            forumReactionRepository,
+            mediaService
         );
+        when(mediaService.resolveAttachedMedia(any(), any())).thenReturn(List.of());
 
         viewerId = UUID.randomUUID();
 
@@ -237,6 +244,26 @@ class SearchServiceImplTest {
         assertThat(result.totalPosts()).isEqualTo(1);
         assertThat(result.totalEvents()).isEqualTo(1);
         assertThat(result.totalDiscussions()).isEqualTo(1);
+    }
+
+    @Test
+    void publicSearchResolvesAttachedImageMedia() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Post post = Post.builder().contentText("Flutter photo")
+            .visibility(Visibility.PUBLIC).postType(PostType.IMAGE).user(userEnat).build();
+        UUID postId = UUID.randomUUID();
+        ReflectionTestUtils.setField(post, "id", postId);
+        when(postRepository.searchPublicPosts(eq("photo"), eq(pageable)))
+            .thenReturn(new PageImpl<>(List.of(post), pageable, 1));
+        when(mediaService.resolveAttachedMedia(MediaResourceType.POST, postId)).thenReturn(List.of(
+            new MediaService.AttachedMedia(MediaAttachmentRole.IMAGE, 0, "https://cdn.example/photo.jpg")));
+
+        PageResponse<kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse> response =
+            searchService.searchPosts("photo", viewerId, pageable);
+
+        assertThat(response.content()).singleElement().extracting(
+            kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse::imageUrl)
+            .isEqualTo("https://cdn.example/photo.jpg");
     }
 
     @Test

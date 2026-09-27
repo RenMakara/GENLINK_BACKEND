@@ -28,6 +28,7 @@ import kh.edu.acleda.campuslink.modules.community.repository.PostReactionReposit
 import kh.edu.acleda.campuslink.modules.community.repository.PostReportRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
+import kh.edu.acleda.campuslink.modules.community.service.PostVisibilityService;
 import kh.edu.acleda.campuslink.modules.community.service.impl.PostServiceImpl;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PollCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.PollVoteRequest;
@@ -42,6 +43,7 @@ import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest
 import kh.edu.acleda.campuslink.modules.notification.event.NotificationEventListener;
 import kh.edu.acleda.campuslink.modules.notification.event.NotificationRequestedEvent;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationWriter;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.modules.profile.enums.SavedItemType;
 import kh.edu.acleda.campuslink.modules.profile.repository.SavedItemRepository;
@@ -97,6 +99,8 @@ class PostServiceImplTest {
     @Mock private PollVoteRepository pollVoteRepository;
     @Mock private NotificationEmitter notificationEmitter;
     @Mock private NotificationWriter notificationWriter;
+    @Mock private PostVisibilityService postVisibilityService;
+    @Mock private MediaService mediaService;
 
     private PostServiceImpl service;
     private User author;
@@ -107,7 +111,8 @@ class PostServiceImplTest {
         service = new PostServiceImpl(postRepository, postReactionRepository, postReportRepository,
             postRepostRepository, savedItemRepository, communityRepository, communityMemberRepository, followRepository,
             hashtagService, userRepository, currentUserProvider,
-            pollRepository, pollOptionRepository, pollVoteRepository, notificationEmitter);
+            pollRepository, pollOptionRepository, pollVoteRepository, notificationEmitter,
+            postVisibilityService, mediaService);
 
         author = new User();
         author.setEmail("author@example.com");
@@ -119,6 +124,10 @@ class PostServiceImplTest {
             .postType(PostType.TEXT).visibility(Visibility.PUBLIC)
             .likeCount(4).commentCount(2).build();
         ReflectionTestUtils.setField(post, "id", POST_ID);
+        when(postRepository.findByIdAndDeletedAtIsNullForUpdate(POST_ID)).thenReturn(Optional.of(post));
+        when(postRepository.findByIdAndUserIdAndDeletedAtIsNullForUpdate(POST_ID, USER_ID))
+            .thenReturn(Optional.of(post));
+        when(mediaService.resolveAttachedMedia(any(), any())).thenReturn(List.of());
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(author));
@@ -153,6 +162,18 @@ class PostServiceImplTest {
     }
 
     @Test
+    void creatingACommunityPostIncrementsItsCountOnce() {
+        Community community = communityWithId();
+        when(communityRepository.findByIdAndDeletedAtIsNull(community.getId())).thenReturn(Optional.of(community));
+        when(communityMemberRepository.findActiveCommunityIds(USER_ID)).thenReturn(List.of(community.getId()));
+
+        service.create(new PostCreateRequest("community post", null, null, PostType.TEXT,
+            Visibility.COMMUNITY, Language.ENGLISH, community.getId()));
+
+        verify(communityRepository, times(1)).adjustPostCount(community.getId(), 1);
+    }
+
+    @Test
     void createDefaultsTypeAndVisibilityWhenOmitted() {
         service.create(new PostCreateRequest("no type given", null, null, null, null, null));
 
@@ -160,6 +181,31 @@ class PostServiceImplTest {
         verify(postRepository).save(captor.capture());
         assertThat(captor.getValue().getPostType()).isEqualTo(PostType.TEXT);
         assertThat(captor.getValue().getVisibility()).isEqualTo(Visibility.PUBLIC);
+    }
+
+    @Test
+    void directPostReadUsesTheCentralVisibilityPolicy() {
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        doThrow(new NotFoundException("Post not found"))
+            .when(postVisibilityService).requireCanView(post, USER_ID);
+
+        assertThatThrownBy(() -> service.getById(POST_ID)).isInstanceOf(NotFoundException.class);
+        verify(mediaService, never()).resolveAttachedMedia(any(), any());
+    }
+
+    @Test
+    void authorizedRestrictedPostResolvesItsPrivateMediaAfterVisibilityCheck() {
+        post.setVisibility(Visibility.FRIENDS);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(mediaService.resolveAttachedMedia(any(), eq(POST_ID))).thenReturn(List.of(
+            new MediaService.AttachedMedia(
+                kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole.IMAGE,
+                0, "https://signed.example/private.jpg")));
+
+        PostResponse response = service.getById(POST_ID);
+
+        assertThat(response.imageUrl()).isEqualTo("https://signed.example/private.jpg");
+        verify(postVisibilityService).requireCanView(post, USER_ID);
     }
 
     @Test
@@ -268,6 +314,31 @@ class PostServiceImplTest {
     }
 
     @Test
+    void communityFeedUsesTheVisibilityFilteredQuery() {
+        UUID communityId = UUID.randomUUID();
+        var pageable = PageRequest.of(0, 20);
+        when(postRepository.findVisibleByCommunity(eq(communityId), eq(USER_ID),
+            anyCollection(), anyCollection(), eq(pageable))).thenReturn(new PageImpl<>(List.of()));
+
+        assertThat(service.getCommunityFeed(communityId, pageable).content()).isEmpty();
+
+        verify(postRepository).findVisibleByCommunity(eq(communityId), eq(USER_ID),
+            anyCollection(), anyCollection(), eq(pageable));
+    }
+
+    @Test
+    void repostHistoryUsesTheVisibilityFilteredQuery() {
+        var pageable = PageRequest.of(0, 20);
+        when(postRepostRepository.findVisibleByUserId(eq(USER_ID), anyCollection(),
+            anyCollection(), eq(pageable))).thenReturn(new PageImpl<>(List.of()));
+
+        assertThat(service.getReposts(pageable).content()).isEmpty();
+
+        verify(postRepostRepository).findVisibleByUserId(eq(USER_ID), anyCollection(),
+            anyCollection(), eq(pageable));
+    }
+
+    @Test
     void likeIsIdempotentAndDoesNotDoubleCount() {
         when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
         when(postReactionRepository.findByPostIdAndUserId(POST_ID, USER_ID))
@@ -289,6 +360,18 @@ class PostServiceImplTest {
 
         assertThat(count).isEqualTo(5);
         verify(postRepository).adjustLikeCount(POST_ID, 1);
+    }
+
+    @Test
+    void likingARestrictedPostRequiresVisibilityBeforeWritingReaction() {
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        doThrow(new NotFoundException("Post not found"))
+            .when(postVisibilityService).requireCanView(post, USER_ID);
+
+        assertThatThrownBy(() -> service.like(POST_ID)).isInstanceOf(NotFoundException.class);
+
+        verify(postReactionRepository, never()).save(any(PostReaction.class));
+        verify(postRepository, never()).adjustLikeCount(any(), org.mockito.ArgumentMatchers.anyInt());
     }
 
     @Test
@@ -316,6 +399,22 @@ class PostServiceImplTest {
         assertThat(response.repostCaption()).isEqualTo("Worth reading");
         assertThat(response.reposterId()).isEqualTo(USER_ID);
         verify(postRepository).adjustShareCount(POST_ID, 1);
+    }
+
+    @Test
+    void repostRequiresVisibilityBeforeWritingShare() {
+        UUID otherAuthorId = UUID.randomUUID();
+        User otherAuthor = new User();
+        ReflectionTestUtils.setField(otherAuthor, "id", otherAuthorId);
+        post.setUser(otherAuthor);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        doThrow(new NotFoundException("Post not found"))
+            .when(postVisibilityService).requireCanView(post, USER_ID);
+
+        assertThatThrownBy(() -> service.repost(POST_ID, new RepostRequest(null)))
+            .isInstanceOf(NotFoundException.class);
+
+        verify(postRepostRepository, never()).save(any(PostRepost.class));
     }
 
     @Test
@@ -377,12 +476,27 @@ class PostServiceImplTest {
         assertThat(post.getDeletedAt()).isNotNull();
         // Soft delete must release the post's hashtags, or trending overcounts deleted content.
         verify(hashtagService).clearForPost(post);
+        verify(communityRepository, never()).adjustPostCount(any(), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void authorDeletionDecrementsCommunityCountOnceAndRepeatedDeleteDoesNotDecrement() {
+        Community community = communityWithId();
+        post.setCommunity(community);
+        when(postRepository.findByIdAndUserIdAndDeletedAtIsNullForUpdate(POST_ID, USER_ID))
+            .thenReturn(Optional.of(post), Optional.empty());
+
+        service.delete(POST_ID);
+        assertThatThrownBy(() -> service.delete(POST_ID)).isInstanceOf(NotFoundException.class);
+
+        verify(communityRepository, times(1)).adjustPostCount(community.getId(), -1);
     }
 
     /** Someone else's post reads as not found, so the API does not confirm it exists. */
     @Test
     void deletingSomeoneElsesPostReadsAsNotFound() {
-        when(postRepository.findByIdAndUserIdAndDeletedAtIsNull(POST_ID, USER_ID)).thenReturn(Optional.empty());
+        when(postRepository.findByIdAndUserIdAndDeletedAtIsNullForUpdate(POST_ID, USER_ID))
+            .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.delete(POST_ID)).isInstanceOf(NotFoundException.class);
     }
@@ -410,6 +524,22 @@ class PostServiceImplTest {
         assertThat(post.getDeletedAt()).isNotNull();
         verify(communityRepository).adjustPostCount(community.getId(), -1);
         verify(hashtagService).clearForPost(post);
+    }
+
+    @Test
+    void repeatedModeratorDeletionDoesNotDecrementCommunityCountTwice() {
+        Community community = communityWithId();
+        post.setCommunity(community);
+        when(postRepository.findByIdAndDeletedAtIsNullForUpdate(POST_ID))
+            .thenReturn(Optional.of(post), Optional.empty());
+        when(communityMemberRepository.findByCommunityIdAndUserId(community.getId(), USER_ID))
+            .thenReturn(Optional.of(CommunityMember.builder()
+                .role(CommunityRole.MODERATOR).status(MemberStatus.ACTIVE).build()));
+
+        service.removeAsModerator(POST_ID);
+        assertThatThrownBy(() -> service.removeAsModerator(POST_ID)).isInstanceOf(NotFoundException.class);
+
+        verify(communityRepository, times(1)).adjustPostCount(community.getId(), -1);
     }
 
     @Test
@@ -448,7 +578,8 @@ class PostServiceImplTest {
         service = new PostServiceImpl(postRepository, postReactionRepository, postReportRepository,
             postRepostRepository, savedItemRepository, communityRepository, communityMemberRepository, followRepository,
             hashtagService, userRepository, currentUserProvider,
-            pollRepository, pollOptionRepository, pollVoteRepository, emitterWithWriterFailure());
+            pollRepository, pollOptionRepository, pollVoteRepository, emitterWithWriterFailure(),
+            postVisibilityService, mediaService);
 
         service.removeAsModerator(POST_ID);
 
@@ -619,6 +750,20 @@ class PostServiceImplTest {
     }
 
     @Test
+    void pollVotingRequiresVisibilityBeforeReadingOrWritingVotes() {
+        post.setPostType(PostType.POLL);
+        doThrow(new NotFoundException("Post not found"))
+            .when(postVisibilityService).requireCanView(post, USER_ID);
+
+        assertThatThrownBy(() -> service.vote(POST_ID, new PollVoteRequest(UUID.randomUUID())))
+            .isInstanceOf(NotFoundException.class);
+
+        verify(pollRepository, never()).findByPostId(POST_ID);
+        verify(pollVoteRepository, never()).save(any(PollVote.class));
+        verify(postRepository).findByIdAndDeletedAtIsNullForUpdate(POST_ID);
+    }
+
+    @Test
     void firstVoteIsRecordedAndTheTallyGoesUp() {
         PollFixture fixture = pollFixture();
         when(pollVoteRepository.findByPollIdAndUserId(fixture.pollId(), USER_ID)).thenReturn(Optional.empty());
@@ -637,9 +782,11 @@ class PostServiceImplTest {
 
         service.vote(POST_ID, new PollVoteRequest(fixture.optionAId()));
 
+        assertThat(existing.getOption()).isEqualTo(fixture.optionA());
         verify(pollOptionRepository).adjustVoteCount(fixture.optionBId(), -1);
         verify(pollOptionRepository).adjustVoteCount(fixture.optionAId(), 1);
         verify(pollVoteRepository).save(existing);
+        verify(postRepository).findByIdAndDeletedAtIsNullForUpdate(POST_ID);
     }
 
     @Test

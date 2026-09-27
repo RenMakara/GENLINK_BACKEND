@@ -17,6 +17,7 @@ import kh.edu.acleda.campuslink.modules.community.repository.PostCommentReaction
 import kh.edu.acleda.campuslink.modules.community.repository.PostCommentRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.CommentService;
+import kh.edu.acleda.campuslink.modules.community.service.PostVisibilityService;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationChannel;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationEmitter;
 import kh.edu.acleda.campuslink.modules.notification.service.NotificationRequest;
@@ -44,6 +45,7 @@ public class CommentServiceImpl implements CommentService {
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
     private final NotificationEmitter notificationEmitter;
+    private final PostVisibilityService postVisibilityService;
 
     @Autowired
     public CommentServiceImpl(PostCommentRepository commentRepository,
@@ -51,13 +53,25 @@ public class CommentServiceImpl implements CommentService {
                               PostRepository postRepository,
                               UserRepository userRepository,
                               CurrentUserProvider currentUserProvider,
-                              NotificationEmitter notificationEmitter) {
+                              NotificationEmitter notificationEmitter,
+                              PostVisibilityService postVisibilityService) {
         this.commentRepository = commentRepository;
         this.commentReactionRepository = commentReactionRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
         this.notificationEmitter = notificationEmitter;
+        this.postVisibilityService = postVisibilityService;
+    }
+
+    public CommentServiceImpl(PostCommentRepository commentRepository,
+                              PostCommentReactionRepository commentReactionRepository,
+                              PostRepository postRepository,
+                              UserRepository userRepository,
+                              CurrentUserProvider currentUserProvider,
+                              NotificationEmitter notificationEmitter) {
+        this(commentRepository, commentReactionRepository, postRepository, userRepository,
+            currentUserProvider, notificationEmitter, null);
     }
 
     public CommentServiceImpl(PostCommentRepository commentRepository,
@@ -65,7 +79,8 @@ public class CommentServiceImpl implements CommentService {
                               PostRepository postRepository,
                               UserRepository userRepository,
                               CurrentUserProvider currentUserProvider) {
-        this(commentRepository, commentReactionRepository, postRepository, userRepository, currentUserProvider, null);
+        this(commentRepository, commentReactionRepository, postRepository, userRepository,
+            currentUserProvider, null, null);
     }
 
     @Override
@@ -73,6 +88,7 @@ public class CommentServiceImpl implements CommentService {
     public CommentResponse add(UUID postId, CommentCreateRequest request) {
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
             .orElseThrow(() -> new NotFoundException("Post not found"));
+        postVisibilityService.requireCanView(post, currentUserProvider.getCurrentUserId());
         User author = loadCurrentUser();
 
         PostComment parent = resolveParent(request.parentCommentId(), postId);
@@ -100,12 +116,18 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<CommentResponse> list(UUID postId, Pageable pageable) {
+        Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
+            .orElseThrow(() -> new NotFoundException("Post not found"));
+        postVisibilityService.requireCanView(post, currentUserProvider.getCurrentUserId());
         return hydrate(commentRepository.findTopLevel(postId, pageable));
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponse<CommentResponse> replies(UUID parentCommentId, Pageable pageable) {
+        PostComment parent = commentRepository.findByIdAndDeletedAtIsNull(parentCommentId)
+            .orElseThrow(() -> new NotFoundException("Comment not found"));
+        postVisibilityService.requireCanView(parent.getPost(), currentUserProvider.getCurrentUserId());
         return hydrate(commentRepository.findReplies(parentCommentId, pageable));
     }
 
@@ -115,6 +137,7 @@ public class CommentServiceImpl implements CommentService {
         PostComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
             .orElseThrow(() -> new NotFoundException("Comment not found"));
         UUID userId = currentUserProvider.getCurrentUserId();
+        postVisibilityService.requireCanView(comment.getPost(), userId);
 
         // post_comment_reactions has UNIQUE(comment_id, user_id): a double tap must no-op
         // rather than 500, and the count must not drift.
@@ -135,6 +158,7 @@ public class CommentServiceImpl implements CommentService {
     public int unlike(UUID commentId) {
         PostComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
             .orElseThrow(() -> new NotFoundException("Comment not found"));
+        postVisibilityService.requireCanView(comment.getPost(), currentUserProvider.getCurrentUserId());
         return commentReactionRepository
             .findByCommentIdAndUserId(commentId, currentUserProvider.getCurrentUserId())
             .map(reaction -> {
@@ -167,6 +191,7 @@ public class CommentServiceImpl implements CommentService {
         UUID userId = currentUserProvider.getCurrentUserId();
         PostComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
             .orElseThrow(() -> new NotFoundException("Comment not found"));
+        postVisibilityService.requireCanView(comment.getPost(), userId);
 
         // Owner-scoped, and phrased as not found so it does not reveal the row exists.
         if (comment.getUser() == null || !comment.getUser().getId().equals(userId)) {

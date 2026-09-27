@@ -26,6 +26,10 @@ import kh.edu.acleda.campuslink.modules.community.repository.StoryRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.StoryReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.StoryViewRepository;
 import kh.edu.acleda.campuslink.modules.community.service.StoryService;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaPurpose;
+import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.modules.notification.repository.NotificationTemplateRepository;
@@ -58,6 +62,7 @@ public class StoryServiceImpl implements StoryService {
     private final CurrentUserProvider currentUserProvider;
     private final NotificationEmitter notificationEmitter;
     private final NotificationTemplateRepository notificationTemplateRepository;
+    private final MediaService mediaService;
 
     public StoryServiceImpl(StoryRepository storyRepository,
                             StoryViewRepository storyViewRepository,
@@ -65,7 +70,7 @@ public class StoryServiceImpl implements StoryService {
                             UserRepository userRepository,
                             CurrentUserProvider currentUserProvider) {
         this(storyRepository, storyViewRepository, null, followRepository, userRepository,
-            currentUserProvider, null, null);
+            currentUserProvider, null, null, null);
     }
 
     /** Kept for existing direct callers; Spring uses the constructor with StoryReactionRepository. */
@@ -77,7 +82,7 @@ public class StoryServiceImpl implements StoryService {
                             NotificationEmitter notificationEmitter,
                             NotificationTemplateRepository notificationTemplateRepository) {
         this(storyRepository, storyViewRepository, null, followRepository, userRepository,
-            currentUserProvider, notificationEmitter, notificationTemplateRepository);
+            currentUserProvider, notificationEmitter, notificationTemplateRepository, null);
     }
 
     @Autowired
@@ -88,7 +93,8 @@ public class StoryServiceImpl implements StoryService {
                             UserRepository userRepository,
                             CurrentUserProvider currentUserProvider,
                             @Autowired(required = false) NotificationEmitter notificationEmitter,
-                            @Autowired(required = false) NotificationTemplateRepository notificationTemplateRepository) {
+                            @Autowired(required = false) NotificationTemplateRepository notificationTemplateRepository,
+                            MediaService mediaService) {
         this.storyRepository = storyRepository;
         this.storyViewRepository = storyViewRepository;
         this.storyReactionRepository = storyReactionRepository;
@@ -97,6 +103,21 @@ public class StoryServiceImpl implements StoryService {
         this.currentUserProvider = currentUserProvider;
         this.notificationEmitter = notificationEmitter;
         this.notificationTemplateRepository = notificationTemplateRepository;
+        this.mediaService = mediaService;
+    }
+
+    /** Compatibility constructor retained for direct service tests. */
+    public StoryServiceImpl(StoryRepository storyRepository,
+                            StoryViewRepository storyViewRepository,
+                            StoryReactionRepository storyReactionRepository,
+                            FollowRepository followRepository,
+                            UserRepository userRepository,
+                            CurrentUserProvider currentUserProvider,
+                            NotificationEmitter notificationEmitter,
+                            NotificationTemplateRepository notificationTemplateRepository) {
+        this(storyRepository, storyViewRepository, storyReactionRepository, followRepository,
+            userRepository, currentUserProvider, notificationEmitter,
+            notificationTemplateRepository, null);
     }
 
     @Override
@@ -113,10 +134,15 @@ public class StoryServiceImpl implements StoryService {
             : StoryReplyPermission.EVERYONE;
         boolean allowReactions = request.allowReactions() != null ? request.allowReactions() : true;
 
+        String storedMediaUrl = request.mediaUrl();
+        if (request.mediaId() != null || visibility != Visibility.PUBLIC) {
+            storedMediaUrl = "";
+        }
+
         Instant now = Instant.now();
         Story story = storyRepository.save(Story.builder()
             .user(me)
-            .mediaUrl(request.mediaUrl())
+            .mediaUrl(storedMediaUrl)
             .mediaType(request.mediaType())
             .caption(request.caption())
             .visibility(visibility)
@@ -126,6 +152,22 @@ public class StoryServiceImpl implements StoryService {
             .build());
         log.info("Story created: id={} by user={} visibility={} expires={}",
             story.getId(), me.getId(), story.getVisibility(), story.getExpiresAt());
+        if (request.mediaId() != null || (request.mediaUrl() != null && !request.mediaUrl().isBlank())) {
+            if (mediaService == null && (request.mediaId() != null || visibility != Visibility.PUBLIC)) {
+                throw new ApiException("Media service is unavailable", "MEDIA_SERVICE_UNAVAILABLE");
+            }
+            if (request.mediaId() != null) {
+                mediaService.attachMedia(request.mediaId(), MediaResourceType.STORY, story.getId(),
+                    MediaAttachmentRole.STORY, 0, MediaPurpose.STORY, visibility == Visibility.PUBLIC);
+            } else if (mediaService != null) {
+                boolean attached = mediaService.attachOwnedUrl(request.mediaUrl(), MediaPurpose.STORY,
+                    MediaResourceType.STORY, story.getId(), MediaAttachmentRole.STORY, 0,
+                    visibility == Visibility.PUBLIC);
+                if (!attached && visibility != Visibility.PUBLIC) {
+                    throw new ApiException("Restricted stories require owned media uploads", "PRIVATE_MEDIA_REQUIRED");
+                }
+            }
+        }
         // The author's own story always reads as seen.
         return toStoryResponse(story, true, 0, false);
     }
@@ -302,10 +344,23 @@ public class StoryServiceImpl implements StoryService {
 
     private StoryResponse toStoryResponse(Story story, boolean seen,
                                           int reactionCount, boolean reactedByMe) {
+        String resolvedMediaUrl = story.getMediaUrl();
+        if (mediaService != null) {
+            List<MediaService.AttachedMedia> attached = mediaService.resolveAttachedMedia(
+                MediaResourceType.STORY, story.getId());
+            if (!attached.isEmpty()) {
+                resolvedMediaUrl = attached.get(0).url();
+            } else if (story.getVisibility() != Visibility.PUBLIC) {
+                resolvedMediaUrl = null;
+            }
+        } else if (story.getVisibility() != Visibility.PUBLIC && !story.getMediaUrl().isBlank()) {
+            // Direct unit-test callers have no media service; never return raw private URLs.
+            resolvedMediaUrl = null;
+        }
         return new StoryResponse(
             story.getId(),
             story.getMediaType(),
-            story.getMediaUrl(),
+            resolvedMediaUrl,
             story.getCaption(),
             seen,
             story.getCreatedAt(),

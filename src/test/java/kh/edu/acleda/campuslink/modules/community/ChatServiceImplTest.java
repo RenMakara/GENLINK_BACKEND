@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.ChangeChatRoleRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CreateGroupRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.RenameGroupRequest;
@@ -13,6 +15,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.response.ChatMemberRespons
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatMessageResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ChatRoomResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.ChatMessage;
+import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.entity.ChatRoom;
 import kh.edu.acleda.campuslink.modules.community.entity.ChatRoomMember;
 import kh.edu.acleda.campuslink.modules.community.entity.MessageRead;
@@ -25,7 +28,10 @@ import kh.edu.acleda.campuslink.modules.community.repository.ChatMessageReposito
 import kh.edu.acleda.campuslink.modules.community.repository.ChatRoomMemberRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.ChatRoomRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.MessageReadRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
+import kh.edu.acleda.campuslink.modules.community.service.PostVisibilityService;
 import kh.edu.acleda.campuslink.modules.community.service.impl.ChatServiceImpl;
+import kh.edu.acleda.campuslink.modules.media.MediaService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -40,12 +46,14 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -73,6 +81,12 @@ class ChatServiceImplTest {
     private CurrentUserProvider currentUserProvider;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private PostRepository postRepository;
+    @Mock
+    private PostVisibilityService postVisibilityService;
+    @Mock
+    private MediaService mediaService;
 
     private ChatServiceImpl service;
     private User me;
@@ -83,7 +97,8 @@ class ChatServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new ChatServiceImpl(roomRepository, memberRepository, messageRepository,
-                messageReadRepository, userRepository, currentUserProvider, eventPublisher);
+                messageReadRepository, userRepository, currentUserProvider, eventPublisher,
+                postRepository, postVisibilityService, mediaService, new ObjectMapper());
 
         me = userWithId(ME_ID, "me");
         other = userWithId(OTHER_ID, "other");
@@ -269,15 +284,96 @@ class ChatServiceImplTest {
             return m;
         });
 
-        String sharedJson = "{\"type\":\"POST\",\"id\":\"post-123\",\"title\":\"Tech Expo 2026\"}";
+        UUID postId = UUID.randomUUID();
+        Post publicPost = Post.builder().user(other).visibility(
+                kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC)
+                .contentText("Current public post").build();
+        ReflectionTestUtils.setField(publicPost, "id", postId);
+        when(postRepository.findByIdAndDeletedAtIsNull(postId)).thenReturn(Optional.of(publicPost));
+        String sharedJson = "{\"type\":\"POST\",\"id\":\"" + postId
+                + "\",\"title\":\"Tech Expo 2026\",\"content\":\"public preview\"}";
         ChatMessageResponse response = service.sendMessage(ROOM_ID,
                 new SendMessageRequest(MessageType.TEXT, "Check this out!", null, null, sharedJson));
 
         assertThat(response.messageId()).isEqualTo(MSG_ID);
         assertThat(response.content()).isEqualTo("Check this out!");
-        assertThat(response.sharedContent()).isEqualTo(sharedJson);
+        assertThat(response.sharedContent()).isEqualTo("{\"type\":\"POST\",\"id\":\"" + postId
+                + "\",\"title\":\"Current public post\",\"previewText\":\"Current public post\","
+                + "\"authorName\":\"other\"}");
         assertThat(response.mine()).isTrue();
         verify(roomRepository).touch(eq(ROOM_ID), any(Instant.class));
+    }
+
+    @Test
+    void restrictedPostShareStoresOnlyAnAuthorizedReference() throws Exception {
+        activeMembership();
+        UUID postId = UUID.randomUUID();
+        Post restrictedPost = Post.builder().user(me).visibility(
+                kh.edu.acleda.campuslink.modules.community.enums.Visibility.FRIENDS).build();
+        ReflectionTestUtils.setField(restrictedPost, "id", postId);
+        when(postRepository.findByIdAndDeletedAtIsNull(postId)).thenReturn(Optional.of(restrictedPost));
+        when(messageRepository.save(any(ChatMessage.class))).thenAnswer(i -> {
+            ChatMessage m = i.getArgument(0);
+            ReflectionTestUtils.setField(m, "id", MSG_ID);
+            ReflectionTestUtils.setField(m, "createdAt", Instant.now());
+            return m;
+        });
+        String raw = "{\"type\":\"POST\",\"id\":\"" + postId
+                + "\",\"title\":\"Secret title\",\"content\":\"secret body\",\"thumbnail\":\"https://cdn/private.jpg\"}";
+
+        ChatMessageResponse response = service.sendMessage(ROOM_ID,
+                new SendMessageRequest(MessageType.TEXT, "Shared", "https://cdn/private.jpg", null, raw));
+
+        assertThat(response.sharedContent()).isEqualTo(
+                "{\"type\":\"POST\",\"id\":\"" + postId + "\",\"title\":\"Shared a post\"}");
+        assertThat(response.mediaUrl()).isNull();
+        verify(postVisibilityService).requireCanView(restrictedPost, ME_ID);
+    }
+
+    @Test
+    void chatCannotShareAPostTheSenderCannotView() {
+        activeMembership();
+        UUID postId = UUID.randomUUID();
+        Post restrictedPost = Post.builder().user(other).visibility(
+                kh.edu.acleda.campuslink.modules.community.enums.Visibility.ONLY_ME).build();
+        ReflectionTestUtils.setField(restrictedPost, "id", postId);
+        when(postRepository.findByIdAndDeletedAtIsNull(postId)).thenReturn(Optional.of(restrictedPost));
+        doThrow(new NotFoundException("Post not found"))
+                .when(postVisibilityService).requireCanView(restrictedPost, ME_ID);
+        String raw = "{\"type\":\"POST\",\"id\":\"" + postId + "\",\"content\":\"secret\"}";
+
+        assertThatThrownBy(() -> service.sendMessage(ROOM_ID,
+                new SendMessageRequest(MessageType.TEXT, "Shared", null, null, raw)))
+                .isInstanceOf(NotFoundException.class);
+        verify(messageRepository, never()).save(any(ChatMessage.class));
+    }
+
+    @Test
+    void messageHistoryHidesLegacyRestrictedPostPreviewAndCopiedText() {
+        activeMembership();
+        UUID postId = UUID.randomUUID();
+        Post restrictedPost = Post.builder().user(other).visibility(
+                kh.edu.acleda.campuslink.modules.community.enums.Visibility.FRIENDS).build();
+        ReflectionTestUtils.setField(restrictedPost, "id", postId);
+        when(postRepository.findByIdAndDeletedAtIsNull(postId)).thenReturn(Optional.of(restrictedPost));
+        String legacySharedJson = "{\"type\":\"POST\",\"id\":\"" + postId
+                + "\",\"title\":\"Secret title\",\"previewText\":\"secret preview\","
+                + "\"thumbnailUrl\":\"https://cdn.example/private.jpg\"}";
+        ChatMessage historical = ChatMessage.builder().chatRoom(room).sender(other)
+                .messageType(MessageType.TEXT).content("secret copied into chat")
+                .mediaUrl("https://cdn.example/private.jpg")
+                .sharedContent(legacySharedJson).build();
+        ReflectionTestUtils.setField(historical, "id", MSG_ID);
+        ReflectionTestUtils.setField(historical, "createdAt", Instant.now());
+        when(messageRepository.findByChatRoomIdAndDeletedAtIsNull(eq(ROOM_ID), any()))
+                .thenReturn(new PageImpl<>(List.of(historical)));
+
+        var response = service.messages(ROOM_ID, PageRequest.of(0, 20)).content().get(0);
+
+        assertThat(response.content()).isEmpty();
+        assertThat(response.mediaUrl()).isNull();
+        assertThat(response.sharedContent()).isEqualTo(
+                "{\"type\":\"POST\",\"id\":\"" + postId + "\",\"title\":\"Shared a post\"}");
     }
 
     // ------------------------------------------------------------ delete/read

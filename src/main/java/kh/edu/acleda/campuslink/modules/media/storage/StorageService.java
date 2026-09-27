@@ -47,6 +47,9 @@ public interface StorageService {
      */
     void makePublic(String key);
 
+    /** Remove a public-read ACL where the provider supports per-object ACLs. */
+    void makePrivate(String key);
+
     /** Remove the object. Idempotent — a missing object is not an error. */
     void delete(String key);
 

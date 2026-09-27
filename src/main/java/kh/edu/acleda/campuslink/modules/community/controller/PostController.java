@@ -112,6 +112,11 @@ public class PostController {
         } catch (NotFoundException postNotFound) {
             // Older mobile builds sent forum discussion ids to this post URL. Keep that
             // request compatible while newer clients use /community/discussions/{id}/repost.
+            // An inaccessible post also reads as not-found; do not route it to a second
+            // content type and accidentally perform a discussion action on a colliding id.
+            if (postService.isActivePost(id)) {
+                throw postNotFound;
+            }
             discussionService.repost(id, request);
             return ResponseEntity.ok(ApiResponse.<Object>success("Discussion reposted", null));
         }
@@ -123,6 +128,9 @@ public class PostController {
         try {
             return ResponseEntity.ok(ApiResponse.<Object>success("Post unreposted", postService.unrepost(id)));
         } catch (NotFoundException postNotFound) {
+            if (postService.isActivePost(id)) {
+                throw postNotFound;
+            }
             discussionService.unrepost(id);
             return ResponseEntity.ok(ApiResponse.<Object>success("Discussion unreposted", null));
         }
