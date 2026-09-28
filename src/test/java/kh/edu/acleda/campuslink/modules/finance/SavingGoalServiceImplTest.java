@@ -76,6 +76,8 @@ class SavingGoalServiceImplTest {
         when(savingDepositRepository.save(any(SavingDeposit.class))).thenAnswer(i -> i.getArgument(0));
         when(savingGoalRepository.findByIdAndUserIdAndDeletedAtIsNull(GOAL_ID, USER_ID))
             .thenReturn(Optional.of(goal));
+        when(savingGoalRepository.findByIdAndUserIdAndDeletedAtIsNullForUpdate(GOAL_ID, USER_ID))
+            .thenReturn(Optional.of(goal));
     }
 
     @Test
@@ -95,6 +97,7 @@ class SavingGoalServiceImplTest {
             new SavingDepositRequest(new BigDecimal("40.00"), "allowance", null, null));
 
         verify(savingDepositRepository).save(any(SavingDeposit.class));
+        verify(savingGoalRepository).findByIdAndUserIdAndDeletedAtIsNullForUpdate(GOAL_ID, USER_ID);
         assertThat(r.currentAmount()).isEqualByComparingTo("40.00");
         assertThat(r.progressPercent()).isEqualTo(40);
         assertThat(r.status()).isEqualTo(SavingGoalStatus.IN_PROGRESS);
@@ -167,7 +170,7 @@ class SavingGoalServiceImplTest {
 
     @Test
     void updatingSomeoneElsesGoalReadsAsNotFound() {
-        when(savingGoalRepository.findByIdAndUserIdAndDeletedAtIsNull(GOAL_ID, USER_ID))
+        when(savingGoalRepository.findByIdAndUserIdAndDeletedAtIsNullForUpdate(GOAL_ID, USER_ID))
             .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.update(GOAL_ID,

@@ -99,6 +99,11 @@ class AutoSaveServiceImplTest {
         return g;
     }
 
+    private void stubGoalForUpdate(SavingGoal goal) {
+        when(savingGoalRepository.findByIdAndUserIdAndDeletedAtIsNullForUpdate(GOAL_ID, USER_ID))
+            .thenReturn(Optional.of(goal));
+    }
+
     private DemoWallet wallet(String usd) {
         DemoWallet w = DemoWallet.builder().user(user)
             .balanceUsd(new BigDecimal(usd)).balanceKhr(BigDecimal.ZERO).build();
@@ -162,6 +167,7 @@ class AutoSaveServiceImplTest {
     @Test
     void percentOfIncomeDebitsWalletAndGrowsGoal() {
         SavingGoal g = goal("1000.00", "0.00", SavingGoalStatus.IN_PROGRESS);
+        stubGoalForUpdate(g);
         DemoWallet w = wallet("500.00");
         AutoSaveRule r = rule(AutoSaveType.PERCENT_OF_INCOME, "10", g);
         when(autoSaveRuleRepository.findDue(any())).thenReturn(List.of(r));
@@ -174,6 +180,7 @@ class AutoSaveServiceImplTest {
         verify(ledgerService).debit(eq(w), eq(TransactionType.SAVING), eq(Currency.USD),
             eq(new BigDecimal("10.00")), any(), eq("AUTO_SAVE_RULE"), any());
         verify(savingDepositRepository).save(any(SavingDeposit.class));
+        verify(savingGoalRepository).findByIdAndUserIdAndDeletedAtIsNullForUpdate(GOAL_ID, USER_ID);
         assertThat(g.getCurrentAmount()).isEqualByComparingTo("10.00");
         assertThat(r.getNextRunDate()).isEqualTo(LocalDate.of(2026, 9, 1));
 
@@ -195,6 +202,7 @@ class AutoSaveServiceImplTest {
     @Test
     void roundUpSavesTheSpareChangeOfLastMonthsExpenses() {
         SavingGoal g = goal("1000.00", "0.00", SavingGoalStatus.IN_PROGRESS);
+        stubGoalForUpdate(g);
         DemoWallet w = wallet("100.00");
         AutoSaveRule r = rule(AutoSaveType.ROUND_UP, null, g);
         when(autoSaveRuleRepository.findDue(any())).thenReturn(List.of(r));
@@ -212,6 +220,7 @@ class AutoSaveServiceImplTest {
     @Test
     void skipsTheRunButStillAdvancesWhenWalletIsShort() {
         SavingGoal g = goal("1000.00", "0.00", SavingGoalStatus.IN_PROGRESS);
+        stubGoalForUpdate(g);
         wallet("5.00"); // less than the 10.00 the rule wants to save
         AutoSaveRule r = rule(AutoSaveType.PERCENT_OF_INCOME, "10", g);
         when(autoSaveRuleRepository.findDue(any())).thenReturn(List.of(r));
@@ -243,6 +252,7 @@ class AutoSaveServiceImplTest {
     @Test
     void completesTheGoalAndDeactivatesTheRule() {
         SavingGoal g = goal("8.00", "0.00", SavingGoalStatus.IN_PROGRESS);
+        stubGoalForUpdate(g);
         wallet("100.00");
         AutoSaveRule r = rule(AutoSaveType.PERCENT_OF_INCOME, "10", g);
         when(autoSaveRuleRepository.findDue(any())).thenReturn(List.of(r));
@@ -259,6 +269,7 @@ class AutoSaveServiceImplTest {
     @Test
     void aZeroAmountRunMovesNoMoney() {
         SavingGoal g = goal("1000.00", "0.00", SavingGoalStatus.IN_PROGRESS);
+        stubGoalForUpdate(g);
         AutoSaveRule r = rule(AutoSaveType.PERCENT_OF_INCOME, "10", g);
         when(autoSaveRuleRepository.findDue(any())).thenReturn(List.of(r));
         when(incomeRepository.sumForMonthByCurrency(USER_ID, Currency.USD, WINDOW_START, WINDOW_END))

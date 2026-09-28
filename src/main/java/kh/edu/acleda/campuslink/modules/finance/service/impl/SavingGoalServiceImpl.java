@@ -90,7 +90,7 @@ public class SavingGoalServiceImpl implements SavingGoalService {
     @Override
     @Transactional
     public SavingGoalResponse update(UUID id, SavingGoalCreateRequest request) {
-        SavingGoal goal = loadOwned(id);
+        SavingGoal goal = loadOwnedForUpdate(id);
         SavingGoalStatus statusBefore = goal.getStatus();
         goal.setTitle(request.title());
         goal.setTargetAmount(request.targetAmount());
@@ -108,7 +108,7 @@ public class SavingGoalServiceImpl implements SavingGoalService {
     @Override
     @Transactional
     public void delete(UUID id) {
-        SavingGoal goal = loadOwned(id);
+        SavingGoal goal = loadOwnedForUpdate(id);
         goal.setDeletedAt(Instant.now());
         savingGoalRepository.save(goal);
     }
@@ -116,7 +116,7 @@ public class SavingGoalServiceImpl implements SavingGoalService {
     @Override
     @Transactional
     public SavingGoalResponse deposit(UUID goalId, SavingDepositRequest request) {
-        SavingGoal goal = loadOwned(goalId);
+        SavingGoal goal = loadOwnedForUpdate(goalId);
         if (goal.getStatus() == SavingGoalStatus.CANCELLED) {
             throw new ApiException("Cannot deposit into a cancelled goal", "GOAL_CANCELLED");
         }
@@ -181,6 +181,12 @@ public class SavingGoalServiceImpl implements SavingGoalService {
 
     private SavingGoal loadOwned(UUID id) {
         return savingGoalRepository.findByIdAndUserIdAndDeletedAtIsNull(id, currentUserProvider.getCurrentUserId())
+            .orElseThrow(() -> new NotFoundException("Saving goal not found"));
+    }
+
+    private SavingGoal loadOwnedForUpdate(UUID id) {
+        return savingGoalRepository
+            .findByIdAndUserIdAndDeletedAtIsNullForUpdate(id, currentUserProvider.getCurrentUserId())
             .orElseThrow(() -> new NotFoundException("Saving goal not found"));
     }
 

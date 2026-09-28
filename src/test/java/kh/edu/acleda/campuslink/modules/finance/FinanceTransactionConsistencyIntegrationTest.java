@@ -7,20 +7,35 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.ExpenseCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.IncomeCreateRequest;
+import kh.edu.acleda.campuslink.modules.finance.dto.request.AutoSaveRuleCreateRequest;
+import kh.edu.acleda.campuslink.modules.finance.dto.request.RecurringTransactionCreateRequest;
+import kh.edu.acleda.campuslink.modules.finance.dto.request.SavingDepositRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.SavingGoalCreateRequest;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.ExpenseResponse;
 import kh.edu.acleda.campuslink.modules.finance.dto.response.IncomeResponse;
+import kh.edu.acleda.campuslink.modules.finance.dto.response.SavingGoalResponse;
 import kh.edu.acleda.campuslink.modules.finance.entity.DemoWallet;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
+import kh.edu.acleda.campuslink.modules.finance.enums.AutoSaveType;
+import kh.edu.acleda.campuslink.modules.finance.enums.RecurringFrequency;
+import kh.edu.acleda.campuslink.modules.finance.enums.RecurringType;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionDirection;
 import kh.edu.acleda.campuslink.modules.finance.enums.TransactionType;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoTransactionRepository;
 import kh.edu.acleda.campuslink.modules.finance.repository.DemoWalletRepository;
 import kh.edu.acleda.campuslink.modules.finance.service.ExpenseService;
 import kh.edu.acleda.campuslink.modules.finance.service.IncomeService;
+import kh.edu.acleda.campuslink.modules.finance.service.AutoSaveService;
 import kh.edu.acleda.campuslink.modules.finance.service.LedgerService;
+import kh.edu.acleda.campuslink.modules.finance.service.RecurringTransactionService;
 import kh.edu.acleda.campuslink.modules.finance.service.SavingGoalService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -45,6 +60,8 @@ class FinanceTransactionConsistencyIntegrationTest {
     @Autowired private IncomeService incomeService;
     @Autowired private ExpenseService expenseService;
     @Autowired private SavingGoalService savingGoalService;
+    @Autowired private RecurringTransactionService recurringTransactionService;
+    @Autowired private AutoSaveService autoSaveService;
     @Autowired private LedgerService ledgerService;
     @Autowired private DemoTransactionRepository transactionRepository;
     @Autowired private DemoWalletRepository walletRepository;
@@ -188,6 +205,114 @@ class FinanceTransactionConsistencyIntegrationTest {
 
         expenseService.delete(created.expenseId());
         assertBalance(wallet.getId(), currency, "200.00");
+    }
+
+    @Test
+    void concurrentSavingGoalDepositsAreBothPersisted() throws Exception {
+        DemoWallet wallet = authenticatedWallet("concurrent-saving", BigDecimal.ZERO, BigDecimal.ZERO);
+        SavingGoalResponse created = savingGoalService.create(new SavingGoalCreateRequest(
+            "Concurrent deposits", new BigDecimal("1000.00"), null, Currency.USD));
+        UUID goalId = created.savingGoalId();
+        String ownerEmail = wallet.getUser().getEmail();
+
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            var depositA = executor.submit(() -> concurrentDeposit(
+                ownerEmail, goalId, "50.00", ready, start));
+            var depositB = executor.submit(() -> concurrentDeposit(
+                ownerEmail, goalId, "30.00", ready, start));
+
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            depositA.get(20, TimeUnit.SECONDS);
+            depositB.get(20, TimeUnit.SECONDS);
+
+            SavingGoalResponse persisted = savingGoalService.getById(goalId);
+            assertThat(persisted.currentAmount()).isEqualByComparingTo("80.00");
+            assertThat(savingGoalService.deposits(goalId)).hasSize(2);
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void overlappingRecurringRunsMaterializeOneTransaction() throws Exception {
+        DemoWallet wallet = authenticatedWallet("concurrent-recurring", BigDecimal.ZERO, BigDecimal.ZERO);
+        LocalDate dueDate = LocalDate.now();
+        recurringTransactionService.create(new RecurringTransactionCreateRequest(
+            RecurringType.INCOME, "Recurring allowance", new BigDecimal("15.00"), Currency.USD,
+            "ALLOWANCE", RecurringFrequency.DAILY, false, dueDate, null));
+
+        runTwiceConcurrently(() -> recurringTransactionService.processDue(dueDate));
+
+        var incomes = incomeService.getMine(null, null, null, Currency.USD, PageRequest.of(0, 20));
+        assertThat(incomes.content()).hasSize(1);
+        assertBalance(wallet.getId(), Currency.USD, "15.00");
+        assertThat(recurringTransactionService.getMine()).hasSize(1);
+    }
+
+    @Test
+    void overlappingAutoSaveRunsMoveMoneyOnlyOnce() throws Exception {
+        DemoWallet wallet = authenticatedWallet("concurrent-autosave", BigDecimal.ZERO, BigDecimal.ZERO);
+        LocalDate runDate = LocalDate.now().withDayOfMonth(1).plusMonths(1);
+        LocalDate priorMonthIncomeDate = runDate.minusMonths(1).plusDays(10);
+        incomeService.create(new IncomeCreateRequest("Allowance", new BigDecimal("100.00"),
+            "ALLOWANCE", null, priorMonthIncomeDate, Currency.USD));
+        SavingGoalResponse goal = savingGoalService.create(new SavingGoalCreateRequest(
+            "Automation goal", new BigDecimal("1000.00"), null, Currency.USD));
+        autoSaveService.create(new AutoSaveRuleCreateRequest(
+            goal.savingGoalId(), AutoSaveType.PERCENT_OF_INCOME, new BigDecimal("10.00"), Currency.USD));
+
+        runTwiceConcurrently(() -> autoSaveService.processDue(runDate));
+
+        assertThat(savingGoalService.getById(goal.savingGoalId()).currentAmount())
+            .isEqualByComparingTo("10.00");
+        assertThat(savingGoalService.deposits(goal.savingGoalId())).hasSize(1);
+        assertBalance(wallet.getId(), Currency.USD, "90.00");
+        assertThat(autoSaveService.getMine()).hasSize(1);
+    }
+
+    private void runTwiceConcurrently(Callable<Integer> operation) throws Exception {
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        Callable<Integer> synchronizedOperation = () -> {
+            ready.countDown();
+            if (!start.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Timed out waiting to start scheduler run");
+            }
+            return operation.call();
+        };
+        try {
+            Future<Integer> first = executor.submit(synchronizedOperation);
+            Future<Integer> second = executor.submit(synchronizedOperation);
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            first.get(20, TimeUnit.SECONDS);
+            second.get(20, TimeUnit.SECONDS);
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    private SavingGoalResponse concurrentDeposit(String ownerEmail, UUID goalId, String amount,
+            CountDownLatch ready, CountDownLatch start) throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(ownerEmail, null, List.of()));
+        ready.countDown();
+        try {
+            if (!start.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Timed out waiting to start concurrent deposit");
+            }
+            return savingGoalService.deposit(goalId, new SavingDepositRequest(
+                new BigDecimal(amount), "concurrency regression", LocalDate.of(2026, 9, 1), false));
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 
     @ParameterizedTest

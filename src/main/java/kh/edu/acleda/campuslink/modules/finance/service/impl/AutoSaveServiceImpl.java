@@ -186,9 +186,17 @@ public class AutoSaveServiceImpl implements AutoSaveService {
 
     /** Move {@code amount} from the wallet into the goal, if the goal is live and funds are there. */
     private boolean applyDeposit(AutoSaveRule rule, BigDecimal amount, LocalDate runDate) {
-        SavingGoal goal = rule.getSavingGoal();
-        if (goal == null || goal.getDeletedAt() != null
-            || goal.getStatus() == SavingGoalStatus.CANCELLED) {
+        SavingGoal goalReference = rule.getSavingGoal();
+        if (goalReference == null) {
+            rule.setActive(false); // the goal is gone - retire the rule
+            return false;
+        }
+
+        // Serialize the scheduled contribution with manual deposits and other scheduled
+        // rules targeting this goal so the running total cannot be overwritten.
+        SavingGoal goal = savingGoalRepository.findByIdAndUserIdAndDeletedAtIsNullForUpdate(
+            goalReference.getId(), rule.getUser().getId()).orElse(null);
+        if (goal == null || goal.getStatus() == SavingGoalStatus.CANCELLED) {
             rule.setActive(false); // the goal is gone - retire the rule
             return false;
         }

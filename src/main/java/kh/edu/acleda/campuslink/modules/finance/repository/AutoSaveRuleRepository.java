@@ -4,8 +4,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import jakarta.persistence.LockModeType;
 import kh.edu.acleda.campuslink.modules.finance.entity.AutoSaveRule;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -16,6 +18,7 @@ public interface AutoSaveRuleRepository extends JpaRepository<AutoSaveRule, UUID
     List<AutoSaveRule> findByUserIdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID userId);
 
     /** Active rules due to run - the scheduler's work list. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM AutoSaveRule a WHERE a.active = true AND a.deletedAt IS NULL "
         + "AND a.nextRunDate <= :asOf")
     List<AutoSaveRule> findDue(@Param("asOf") LocalDate asOf);
