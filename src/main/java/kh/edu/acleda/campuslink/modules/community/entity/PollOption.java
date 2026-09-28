@@ -28,7 +28,7 @@ import lombok.Setter;
 public class PollOption extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "poll_id", nullable = true)
+    @JoinColumn(name = "poll_id", nullable = false)
     private Poll poll;
 
     @Column(name = "option_text", nullable = false, columnDefinition = "TEXT")

@@ -13,11 +13,9 @@ import kh.edu.acleda.campuslink.modules.community.dto.response.PollResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostLikerResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
-import kh.edu.acleda.campuslink.modules.community.service.DiscussionService;
 import kh.edu.acleda.campuslink.modules.community.service.PostService;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
-import kh.edu.acleda.campuslink.shared.exception.NotFoundException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -37,11 +35,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class PostController {
 
     private final PostService postService;
-    private final DiscussionService discussionService;
 
-    public PostController(PostService postService, DiscussionService discussionService) {
+    public PostController(PostService postService) {
         this.postService = postService;
-        this.discussionService = discussionService;
     }
 
     @PostMapping
@@ -107,33 +103,13 @@ public class PostController {
     public ResponseEntity<ApiResponse<Object>> repost(
         @PathVariable UUID id,
         @Valid @RequestBody(required = false) RepostRequest request) {
-        try {
-            return ResponseEntity.ok(ApiResponse.<Object>success("Post reposted", postService.repost(id, request)));
-        } catch (NotFoundException postNotFound) {
-            // Older mobile builds sent forum discussion ids to this post URL. Keep that
-            // request compatible while newer clients use /community/discussions/{id}/repost.
-            // An inaccessible post also reads as not-found; do not route it to a second
-            // content type and accidentally perform a discussion action on a colliding id.
-            if (postService.isActivePost(id)) {
-                throw postNotFound;
-            }
-            discussionService.repost(id, request);
-            return ResponseEntity.ok(ApiResponse.<Object>success("Discussion reposted", null));
-        }
+        return ResponseEntity.ok(ApiResponse.<Object>success("Post reposted", postService.repost(id, request)));
     }
 
     /** Remove the current user's repost. Repeating the request is a no-op. */
     @DeleteMapping("/{id}/repost")
     public ResponseEntity<ApiResponse<Object>> unrepost(@PathVariable UUID id) {
-        try {
-            return ResponseEntity.ok(ApiResponse.<Object>success("Post unreposted", postService.unrepost(id)));
-        } catch (NotFoundException postNotFound) {
-            if (postService.isActivePost(id)) {
-                throw postNotFound;
-            }
-            discussionService.unrepost(id);
-            return ResponseEntity.ok(ApiResponse.<Object>success("Discussion unreposted", null));
-        }
+        return ResponseEntity.ok(ApiResponse.<Object>success("Post unreposted", postService.unrepost(id)));
     }
 
     @PutMapping("/{id}")

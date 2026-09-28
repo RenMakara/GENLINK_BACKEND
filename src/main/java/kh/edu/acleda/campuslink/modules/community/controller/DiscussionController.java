@@ -7,11 +7,11 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.dto.request.CommentCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionCreateRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionReportRequest;
-import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedDiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.service.DiscussionService;
+import kh.edu.acleda.campuslink.shared.exception.ApiException;
 import kh.edu.acleda.campuslink.shared.response.ApiResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import org.springframework.data.domain.Pageable;
@@ -120,20 +120,17 @@ public class DiscussionController {
             Map.of("reactionCount", discussionService.unreact(discussionId))));
     }
 
-    /** Repost a forum discussion for the current user. Repeating the request is idempotent. */
+    /** Discussions are forum topics and cannot be reposted as feed posts. */
     @PostMapping("/{discussionId}/repost")
     public ResponseEntity<ApiResponse<Void>> repost(
-        @PathVariable UUID discussionId,
-        @Valid @RequestBody(required = false) RepostRequest request) {
-        discussionService.repost(discussionId, request);
-        return ResponseEntity.ok(ApiResponse.success("Discussion reposted", null));
+        @PathVariable UUID discussionId) {
+        throw new ApiException("Discussions cannot be reposted", "DISCUSSION_REPOST_NOT_SUPPORTED");
     }
 
-    /** Remove the current user's discussion repost. Repeating the request is a no-op. */
+    /** Discussion repost records remain readable as legacy history but cannot be changed. */
     @DeleteMapping("/{discussionId}/repost")
     public ResponseEntity<ApiResponse<Void>> unrepost(@PathVariable UUID discussionId) {
-        discussionService.unrepost(discussionId);
-        return ResponseEntity.ok(ApiResponse.success("Discussion unreposted", null));
+        throw new ApiException("Discussions cannot be reposted", "DISCUSSION_REPOST_NOT_SUPPORTED");
     }
 
     /** One report per user. Reporting twice is a silent no-op, not an error. */

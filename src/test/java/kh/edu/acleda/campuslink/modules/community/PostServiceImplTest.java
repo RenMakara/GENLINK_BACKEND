@@ -245,6 +245,23 @@ class PostServiceImplTest {
     }
 
     @Test
+    void onlyMeOwnerCanReadPostAndResolveItsPrivateMedia() {
+        post.setVisibility(Visibility.ONLY_ME);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(mediaService.resolveAttachedMedia(any(), eq(POST_ID))).thenReturn(List.of(
+            new MediaService.AttachedMedia(
+                kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole.IMAGE,
+                0, "https://signed.example/owner-only.jpg")));
+
+        PostResponse response = service.getById(POST_ID);
+
+        assertThat(response.visibility()).isEqualTo(Visibility.ONLY_ME);
+        assertThat(response.imageUrl()).isEqualTo("https://signed.example/owner-only.jpg");
+        verify(postVisibilityService).requireCanView(post, USER_ID);
+        verify(mediaService).resolveAttachedMedia(any(), eq(POST_ID));
+    }
+
+    @Test
     void createSyncsHashtags() {
         service.create(new PostCreateRequest("Hello #genlink", null, null, null, null, null));
 
@@ -780,6 +797,72 @@ class PostServiceImplTest {
         assertThat(response.postType()).isEqualTo(PostType.POLL);
         assertThat(pollCaptor.getValue().getDurationDays()).isEqualTo(7);
         assertThat(pollCaptor.getValue().getExpiresAt()).isNotNull();
+    }
+
+    @Test
+    void feedPollsKeepTheirOwnPostPollAndOptionIdentities() {
+        Post secondPost = Post.builder().user(author).contentText("Poll B")
+            .postType(PostType.POLL).visibility(Visibility.PUBLIC)
+            .likeCount(0).commentCount(0).shareCount(0).saveCount(0).reportCount(0).build();
+        UUID secondPostId = UUID.randomUUID();
+        ReflectionTestUtils.setField(secondPost, "id", secondPostId);
+        post.setPostType(PostType.POLL);
+        post.setContentText("Poll A");
+        when(postRepository.findVisibleFeed(eq(USER_ID), anyCollection(), anyCollection(), any()))
+            .thenReturn(new PageImpl<>(List.of(post, secondPost)));
+
+        UUID pollAId = UUID.randomUUID();
+        UUID pollBId = UUID.randomUUID();
+        Poll pollA = Poll.builder().post(post).question("Which feature do you like?").build();
+        Poll pollB = Poll.builder().post(secondPost).question("Which platform do you use?").build();
+        ReflectionTestUtils.setField(pollA, "id", pollAId);
+        ReflectionTestUtils.setField(pollB, "id", pollBId);
+        when(pollRepository.findByPostIdIn(anyCollection())).thenReturn(List.of(pollA, pollB));
+
+        UUID optionAId = UUID.randomUUID();
+        UUID optionBId = UUID.randomUUID();
+        PollOption optionA = PollOption.builder().poll(pollA).optionText("Community").voteCount(2).build();
+        PollOption optionB = PollOption.builder().poll(pollB).optionText("Telegram").voteCount(3).build();
+        ReflectionTestUtils.setField(optionA, "id", optionAId);
+        ReflectionTestUtils.setField(optionB, "id", optionBId);
+        when(pollOptionRepository.findByPollIdInOrderByCreatedAtAsc(anyCollection()))
+            .thenReturn(List.of(optionA, optionB));
+        when(pollVoteRepository.findByPollIdInAndUserId(anyCollection(), eq(USER_ID)))
+            .thenReturn(List.of());
+
+        var feed = service.getFeed(PageRequest.of(0, 20));
+
+        assertThat(feed.content()).hasSize(2);
+        PostResponse responseA = feed.content().get(0);
+        PostResponse responseB = feed.content().get(1);
+        assertThat(responseA.postId()).isEqualTo(POST_ID);
+        assertThat(responseA.poll().pollId()).isEqualTo(pollAId);
+        assertThat(responseA.poll().question()).isEqualTo("Which feature do you like?");
+        assertThat(responseA.poll().options()).extracting("optionId").containsExactly(optionAId);
+        assertThat(responseB.postId()).isEqualTo(secondPostId);
+        assertThat(responseB.poll().pollId()).isEqualTo(pollBId);
+        assertThat(responseB.poll().question()).isEqualTo("Which platform do you use?");
+        assertThat(responseB.poll().options()).extracting("optionId").containsExactly(optionBId);
+    }
+
+    @Test
+    void votingOnOnePollRejectsAnOptionOwnedByAnotherPoll() {
+        post.setPostType(PostType.POLL);
+        when(postRepository.findByIdAndDeletedAtIsNullForUpdate(POST_ID)).thenReturn(Optional.of(post));
+        UUID pollAId = UUID.randomUUID();
+        UUID pollBId = UUID.randomUUID();
+        Poll pollA = Poll.builder().post(post).question("Poll A").build();
+        ReflectionTestUtils.setField(pollA, "id", pollAId);
+        when(pollRepository.findByPostId(POST_ID)).thenReturn(Optional.of(pollA));
+        UUID optionFromPollB = UUID.randomUUID();
+        when(pollOptionRepository.findByIdAndPollId(optionFromPollB, pollAId))
+            .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.vote(POST_ID, new PollVoteRequest(optionFromPollB)))
+            .isInstanceOf(NotFoundException.class);
+
+        verify(pollVoteRepository, never()).save(any(PollVote.class));
+        verify(pollOptionRepository, never()).adjustVoteCount(any(), org.mockito.ArgumentMatchers.anyInt());
     }
 
     @Test
