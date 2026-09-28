@@ -18,6 +18,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedPostResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.Community;
 import kh.edu.acleda.campuslink.modules.community.entity.CommunityMember;
+import kh.edu.acleda.campuslink.modules.community.entity.Event;
 import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.modules.community.entity.PostReaction;
 import kh.edu.acleda.campuslink.modules.community.entity.PostReport;
@@ -28,12 +29,14 @@ import kh.edu.acleda.campuslink.modules.community.enums.PostType;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityMemberRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.CommunityRepository;
+import kh.edu.acleda.campuslink.modules.community.repository.EventRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.FollowRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostReactionRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostReportRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepostRepository;
 import kh.edu.acleda.campuslink.modules.community.repository.PostRepository;
 import kh.edu.acleda.campuslink.modules.community.service.HashtagService;
+import kh.edu.acleda.campuslink.modules.community.service.EventVisibility;
 import kh.edu.acleda.campuslink.modules.community.service.PostService;
 import kh.edu.acleda.campuslink.modules.community.service.PostVisibilityService;
 import kh.edu.acleda.campuslink.modules.media.MediaService;
@@ -100,6 +103,12 @@ public class PostServiceImpl implements PostService {
     private final NotificationEmitter notificationEmitter;
     private final PostVisibilityService postVisibilityService;
     private final MediaService mediaService;
+    private EventRepository eventRepository;
+
+    @Autowired
+    public void setEventRepository(EventRepository eventRepository) {
+        this.eventRepository = eventRepository;
+    }
 
     @Autowired
     public PostServiceImpl(PostRepository postRepository,
@@ -186,9 +195,14 @@ public class PostServiceImpl implements PostService {
         Post post = Post.builder()
             .user(author)
             .community(community)
+            .attachedEvent(resolveAttachedEvent(request.attachedEventId()))
             .contentText(request.contentText())
             .imageUrl(request.imageUrl())
             .videoUrl(videoUrl)
+            .location(request.location())
+            .linkUrl(request.linkUrl())
+            .linkPreviewTitle(request.linkPreviewTitle())
+            .linkPreviewDomain(request.linkPreviewDomain())
             .postType(resolvedType)
             .visibility(request.visibility() == null ? Visibility.PUBLIC : request.visibility())
             .language(request.language())
@@ -215,13 +229,26 @@ public class PostServiceImpl implements PostService {
     public PostResponse createPollPost(PollCreateRequest request) {
         User author = loadCurrentUser();
         Community community = resolveCommunity(request.communityId());
+        Visibility visibility = request.visibility() == null ? Visibility.PUBLIC : request.visibility();
+        PostCreateRequest mediaRequest = new PostCreateRequest(
+            request.caption(), request.imageUrl(), request.videoUrl(), PostType.POLL, visibility,
+            request.language(), request.communityId(), request.imageMediaIds(), request.videoMediaId(),
+            request.location(), request.linkUrl(), request.linkPreviewTitle(), request.linkPreviewDomain(),
+            request.attachedEventId(), request.question(), request.options(), request.durationDays(), true);
 
         Post post = Post.builder()
             .user(author)
             .community(community)
+            .attachedEvent(resolveAttachedEvent(request.attachedEventId()))
             .contentText(request.caption())
+            .imageUrl(request.imageUrl())
+            .videoUrl(request.videoUrl())
+            .location(request.location())
+            .linkUrl(request.linkUrl())
+            .linkPreviewTitle(request.linkPreviewTitle())
+            .linkPreviewDomain(request.linkPreviewDomain())
             .postType(PostType.POLL)
-            .visibility(request.visibility() == null ? Visibility.PUBLIC : request.visibility())
+            .visibility(visibility)
             .language(request.language())
             .likeCount(0)
             .commentCount(0)
@@ -230,6 +257,7 @@ public class PostServiceImpl implements PostService {
             .reportCount(0)
             .build();
         Post saved = postRepository.save(post);
+        attachPostMedia(saved, mediaRequest);
         if (community != null) {
             communityRepository.adjustPostCount(community.getId(), 1);
         }
@@ -238,7 +266,16 @@ public class PostServiceImpl implements PostService {
             hashtagService.syncForPost(saved, saved.getContentText());
         }
 
-        Poll poll = pollRepository.save(Poll.builder().post(saved).question(request.question()).build());
+        Integer durationDays = request.durationDays();
+        if (durationDays != null && (durationDays < 1 || durationDays > 30)) {
+            throw new ApiException("Poll duration must be between 1 and 30 days", "INVALID_POLL_DURATION");
+        }
+        Poll poll = pollRepository.save(Poll.builder()
+            .post(saved)
+            .question(request.question())
+            .durationDays(durationDays)
+            .expiresAt(durationDays == null ? null : Instant.now().plusSeconds(durationDays * 86400L))
+            .build());
         for (String optionText : request.options()) {
             pollOptionRepository.save(PollOption.builder()
                 .poll(poll)
@@ -266,6 +303,9 @@ public class PostServiceImpl implements PostService {
         }
         Poll poll = pollRepository.findByPostId(postId)
             .orElseThrow(() -> new NotFoundException("Poll not found"));
+        if (poll.getExpiresAt() != null && !poll.getExpiresAt().isAfter(Instant.now())) {
+            throw new ApiException("This poll has expired", "POLL_EXPIRED");
+        }
         PollOption option = pollOptionRepository.findByIdAndPollId(request.optionId(), poll.getId())
             .orElseThrow(() -> new NotFoundException("Poll option not found"));
         PollVote existing = pollVoteRepository.findByPollIdAndUserId(poll.getId(), userId).orElse(null);
@@ -466,18 +506,37 @@ public class PostServiceImpl implements PostService {
         if (request.language() != null) {
             post.setLanguage(request.language());
         }
+        if (request.replaceRichFields() || request.location() != null) {
+            post.setLocation(request.location());
+        }
+        if (request.replaceRichFields() || request.linkUrl() != null) {
+            post.setLinkUrl(request.linkUrl());
+        }
+        if (request.replaceRichFields() || request.linkPreviewTitle() != null) {
+            post.setLinkPreviewTitle(request.linkPreviewTitle());
+        }
+        if (request.replaceRichFields() || request.linkPreviewDomain() != null) {
+            post.setLinkPreviewDomain(request.linkPreviewDomain());
+        }
+        if (request.replaceRichFields() || request.attachedEventId() != null) {
+            post.setAttachedEvent(resolveAttachedEvent(request.attachedEventId()));
+        }
 
         Post saved = postRepository.save(post);
-        boolean hasNewMediaIds = (request.imageMediaIds() != null && !request.imageMediaIds().isEmpty())
-            || request.videoMediaId() != null;
-        boolean hasChangedMediaUrl = (request.imageUrl() != null && !request.imageUrl().equals(existingImageUrl))
-            || (request.videoUrl() != null && !request.videoUrl().equals(existingVideoUrl));
-        if (hasNewMediaIds || hasChangedMediaUrl) {
+        boolean mediaWasProvided = request.imageMediaIds() != null || request.imageUrl() != null
+            || request.videoMediaId() != null || request.videoUrl() != null;
+        if (mediaWasProvided) {
+            if (mediaService != null) {
+                mediaService.detachAttachedMedia(MediaResourceType.POST, saved.getId());
+            }
             attachPostMedia(saved, request);
-        }
-        if (mediaService != null) {
+        } else if (mediaService != null && request.visibility() != null) {
             mediaService.updateAttachedMediaVisibility(MediaResourceType.POST, saved.getId(),
                 saved.getVisibility() == Visibility.PUBLIC);
+        }
+
+        if (saved.getPostType() == PostType.POLL) {
+            updatePoll(saved, request);
         }
         // Editing the text can add or remove tags, so links are rebuilt, not appended.
         if (saved.getContentText() != null && !saved.getContentText().isBlank()) {
@@ -840,7 +899,22 @@ public class PostServiceImpl implements PostService {
             displayName(reposter),
             repost == null ? null : repost.getCaption(),
             reposter == null ? null : reposter.getId(),
-            repost == null ? null : post.getId()
+            repost == null ? null : post.getId(),
+            post.getLocation(),
+            post.getLinkUrl(),
+            post.getLinkPreviewTitle(),
+            post.getLinkPreviewDomain(),
+            post.getAttachedEvent() == null ? null : post.getAttachedEvent().getId(),
+            attachedMedia.stream()
+                .filter(media -> media.role() == MediaAttachmentRole.IMAGE && media.mediaId() != null)
+                .sorted(java.util.Comparator.comparingInt(MediaService.AttachedMedia::order))
+                .map(MediaService.AttachedMedia::mediaId)
+                .toList(),
+            attachedMedia.stream()
+                .filter(media -> media.role() == MediaAttachmentRole.VIDEO)
+                .map(MediaService.AttachedMedia::mediaId)
+                .filter(Objects::nonNull)
+                .findFirst().orElse(null)
         );
     }
 
@@ -926,13 +1000,59 @@ public class PostServiceImpl implements PostService {
                 .map(option -> new PollResponse.Option(option.getId(), option.getOptionText(), voteCountOf(option)))
                 .toList();
             byPost.put(poll.getPost().getId(), new PollResponse(
-                poll.getId(), poll.getQuestion(), totalVotes, myOption != null, myOption, optionDtos));
+                poll.getId(), poll.getQuestion(), totalVotes, myOption != null, myOption, optionDtos,
+                poll.getDurationDays(), poll.getExpiresAt()));
         }
         return byPost;
     }
 
     private int voteCountOf(PollOption option) {
         return option.getVoteCount() == null ? 0 : option.getVoteCount();
+    }
+
+    private Event resolveAttachedEvent(UUID eventId) {
+        if (eventId == null) return null;
+        if (eventRepository == null) {
+            throw new ApiException("Event service is unavailable", "EVENT_SERVICE_UNAVAILABLE");
+        }
+        Event event = eventRepository.findByIdAndDeletedAtIsNull(eventId)
+            .orElseThrow(() -> new NotFoundException("Event not found"));
+        if (!EventVisibility.canView(event, currentUserProvider.getCurrentUserId())) {
+            throw new NotFoundException("Event not found");
+        }
+        return event;
+    }
+
+    private void updatePoll(Post post, PostCreateRequest request) {
+        Poll poll = pollRepository.findByPostId(post.getId()).orElse(null);
+        if (poll == null) return;
+        boolean hasPollUpdate = request.pollQuestion() != null || request.pollOptions() != null
+            || request.pollDurationDays() != null || request.replaceRichFields();
+        if (!hasPollUpdate) return;
+        if (pollVoteRepository.existsByPollId(poll.getId())) {
+            throw new ApiException("A poll cannot be edited after it has votes", "POLL_ALREADY_VOTED");
+        }
+        if (request.pollQuestion() != null) poll.setQuestion(request.pollQuestion().trim());
+        if (request.pollDurationDays() != null || request.replaceRichFields()) {
+            Integer durationDays = request.pollDurationDays();
+            if (durationDays != null && (durationDays < 1 || durationDays > 30)) {
+                throw new ApiException("Poll duration must be between 1 and 30 days", "INVALID_POLL_DURATION");
+            }
+            poll.setDurationDays(durationDays);
+            poll.setExpiresAt(durationDays == null ? null : Instant.now().plusSeconds(durationDays * 86400L));
+        }
+        if (request.pollOptions() != null) {
+            if (request.pollOptions().size() < 2 || request.pollOptions().size() > 6
+                || request.pollOptions().stream().anyMatch(option -> option == null || option.isBlank())) {
+                throw new ApiException("A poll must have 2 to 6 non-empty options", "INVALID_POLL_OPTIONS");
+            }
+            pollOptionRepository.deleteByPollId(poll.getId());
+            for (String optionText : request.pollOptions()) {
+                pollOptionRepository.save(PollOption.builder()
+                    .poll(poll).optionText(optionText.trim()).voteCount(0).build());
+            }
+        }
+        pollRepository.save(poll);
     }
 
     private void emitPostLikeNotification(Post post, User liker) {

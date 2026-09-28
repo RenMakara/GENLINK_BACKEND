@@ -465,6 +465,46 @@ class DiscussionServiceImplTest {
         assertThat(row.likedByMe()).isTrue();
     }
 
+    @Test
+    void commentOwnerCanEditAnActiveComment() {
+        UUID commentId = UUID.randomUUID();
+        ForumComment comment = ForumComment.builder().discussion(discussion).user(author)
+            .content("before").likeCount(0).build();
+        ReflectionTestUtils.setField(comment, "id", commentId);
+        when(commentRepository.findByIdAndDeletedAtIsNull(commentId)).thenReturn(Optional.of(comment));
+
+        CommentResponse updated = service.updateComment(commentId, "after");
+
+        assertThat(updated.commentId()).isEqualTo(commentId);
+        assertThat(updated.content()).isEqualTo("after");
+        assertThat(updated.mine()).isTrue();
+        verify(commentRepository).save(comment);
+    }
+
+    @Test
+    void anotherUserCannotEditAComment() {
+        UUID commentId = UUID.randomUUID();
+        ForumComment comment = ForumComment.builder().discussion(discussion).user(author)
+            .content("before").likeCount(0).build();
+        ReflectionTestUtils.setField(comment, "id", commentId);
+        when(currentUserProvider.getCurrentUserId()).thenReturn(OTHER_ID);
+        when(commentRepository.findByIdAndDeletedAtIsNull(commentId)).thenReturn(Optional.of(comment));
+
+        assertThatThrownBy(() -> service.updateComment(commentId, "after"))
+            .isInstanceOf(NotFoundException.class);
+        verify(commentRepository, never()).save(comment);
+    }
+
+    @Test
+    void deletedCommentCannotBeEdited() {
+        UUID commentId = UUID.randomUUID();
+        when(commentRepository.findByIdAndDeletedAtIsNull(commentId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateComment(commentId, "after"))
+            .isInstanceOf(NotFoundException.class);
+        verify(commentRepository, never()).save(any(ForumComment.class));
+    }
+
     private ForumComment likableComment(int likeCount) {
         ForumComment comment = ForumComment.builder().discussion(discussion).user(author)
             .content("c").likeCount(likeCount).build();

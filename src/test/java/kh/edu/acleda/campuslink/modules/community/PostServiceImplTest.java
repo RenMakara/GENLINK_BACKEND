@@ -162,6 +162,42 @@ class PostServiceImplTest {
     }
 
     @Test
+    void createPersistsAndReturnsRichComposerFields() {
+        PostResponse response = service.create(new PostCreateRequest(
+            "Post with location and link", null, null, PostType.TEXT, Visibility.PUBLIC,
+            Language.ENGLISH, null, null, null, "Library", "https://example.com",
+            "Example", "example.com", null, null, null, null, false));
+
+        assertThat(response.location()).isEqualTo("Library");
+        assertThat(response.linkUrl()).isEqualTo("https://example.com");
+        assertThat(response.linkPreviewTitle()).isEqualTo("Example");
+        assertThat(response.linkPreviewDomain()).isEqualTo("example.com");
+        var captor = org.mockito.ArgumentCaptor.forClass(Post.class);
+        verify(postRepository).save(captor.capture());
+        assertThat(captor.getValue().getLocation()).isEqualTo("Library");
+        assertThat(captor.getValue().getLinkUrl()).isEqualTo("https://example.com");
+    }
+
+    @Test
+    void updatePersistsRichComposerFieldsForPostsOutsideTheFeed() {
+        when(postRepository.findByIdAndUserIdAndDeletedAtIsNull(POST_ID, USER_ID))
+            .thenReturn(Optional.of(post));
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+
+        PostResponse response = service.update(POST_ID, new PostCreateRequest(
+            "Edited post", null, null, null, null, null, null, null, null,
+            "Student center", "https://example.org", "Example Org", "example.org",
+            null, null, null, null, true));
+
+        assertThat(post.getContentText()).isEqualTo("Edited post");
+        assertThat(post.getLocation()).isEqualTo("Student center");
+        assertThat(post.getLinkUrl()).isEqualTo("https://example.org");
+        assertThat(response.location()).isEqualTo("Student center");
+        assertThat(response.linkPreviewTitle()).isEqualTo("Example Org");
+        verify(postRepository).save(post);
+    }
+
+    @Test
     void creatingACommunityPostIncrementsItsCountOnce() {
         Community community = communityWithId();
         when(communityRepository.findByIdAndDeletedAtIsNull(community.getId())).thenReturn(Optional.of(community));
@@ -730,14 +766,18 @@ class PostServiceImplTest {
 
         PostResponse response = service.createPollPost(new PollCreateRequest(
             "Pick one", "Best language?", List.of("Java", "Kotlin", "Dart"),
-            Visibility.PUBLIC, Language.ENGLISH, null));
+            Visibility.PUBLIC, Language.ENGLISH, null, 7, null, null, null,
+            null, null, null, null, null, null));
 
         var captor = org.mockito.ArgumentCaptor.forClass(Post.class);
         verify(postRepository).save(captor.capture());
         assertThat(captor.getValue().getPostType()).isEqualTo(PostType.POLL);
-        verify(pollRepository).save(any(Poll.class));
+        var pollCaptor = org.mockito.ArgumentCaptor.forClass(Poll.class);
+        verify(pollRepository).save(pollCaptor.capture());
         verify(pollOptionRepository, times(3)).save(any(PollOption.class));
         assertThat(response.postType()).isEqualTo(PostType.POLL);
+        assertThat(pollCaptor.getValue().getDurationDays()).isEqualTo(7);
+        assertThat(pollCaptor.getValue().getExpiresAt()).isNotNull();
     }
 
     @Test

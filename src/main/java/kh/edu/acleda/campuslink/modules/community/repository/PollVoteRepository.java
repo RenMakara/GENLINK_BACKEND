@@ -12,6 +12,8 @@ public interface PollVoteRepository extends JpaRepository<PollVote, UUID> {
 
     Optional<PollVote> findByPollIdAndUserId(UUID pollId, UUID userId);
 
+    boolean existsByPollId(UUID pollId);
+
     /** The viewer's votes across a page of polls, to resolve myOptionId without an N+1. */
     List<PollVote> findByPollIdInAndUserId(Collection<UUID> pollIds, UUID userId);
 }

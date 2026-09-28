@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import kh.edu.acleda.campuslink.modules.community.entity.Post;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import lombok.AllArgsConstructor;
@@ -33,5 +34,11 @@ public class Poll extends BaseEntity {
 
     @Column(name = "question", nullable = false, columnDefinition = "TEXT")
     private String question;
+
+    @Column(name = "duration_days")
+    private Integer durationDays;
+
+    @Column(name = "expires_at")
+    private Instant expiresAt;
 
 }

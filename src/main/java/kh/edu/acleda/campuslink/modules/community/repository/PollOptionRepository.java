@@ -18,6 +18,10 @@ public interface PollOptionRepository extends JpaRepository<PollOption, UUID> {
     /** Guards a vote: the option must belong to the poll being voted on. */
     Optional<PollOption> findByIdAndPollId(UUID id, UUID pollId);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM PollOption o WHERE o.poll.id = :pollId")
+    void deleteByPollId(@Param("pollId") UUID pollId);
+
     /**
      * Atomic tally change, so two people voting the same option at once cannot lose an
      * increment (mirrors PostRepository.adjustLikeCount). Clears the context so the

@@ -20,14 +20,30 @@ public record PostCreateRequest(
     Language language,
     UUID communityId,
     List<UUID> imageMediaIds,
-    UUID videoMediaId
+    UUID videoMediaId,
+    String location,
+    String linkUrl,
+    String linkPreviewTitle,
+    String linkPreviewDomain,
+    UUID attachedEventId,
+    String pollQuestion,
+    List<String> pollOptions,
+    Integer pollDurationDays,
+    boolean replaceRichFields
 ) {
+
+    public PostCreateRequest(String contentText, String imageUrl, String videoUrl,
+                             PostType postType, Visibility visibility, Language language,
+                             UUID communityId, List<UUID> imageMediaIds, UUID videoMediaId) {
+        this(contentText, imageUrl, videoUrl, postType, visibility, language, communityId,
+            imageMediaIds, videoMediaId, null, null, null, null, null, null, null, null, false);
+    }
 
     public PostCreateRequest(String contentText, String imageUrl, String videoUrl,
                              PostType postType, Visibility visibility, Language language,
                              UUID communityId) {
         this(contentText, imageUrl, videoUrl, postType, visibility, language,
-            communityId, List.of(), null);
+            communityId, null, null, null, null, null, null, null, null, null, null, false);
     }
 
     /**
@@ -41,7 +57,8 @@ public record PostCreateRequest(
         Language language,
         UUID communityId
     ) {
-        this(contentText, imageUrl, null, postType, visibility, language, communityId, List.of(), null);
+        this(contentText, imageUrl, null, postType, visibility, language, communityId,
+            null, null, null, null, null, null, null, null, null, null, false);
     }
 
     @AssertTrue(message = "Post must have content text, an image, or a video")
@@ -50,13 +67,19 @@ public record PostCreateRequest(
         boolean hasImage = (imageUrl != null && !imageUrl.isBlank())
             || (imageMediaIds != null && !imageMediaIds.isEmpty());
         boolean hasVideo = (videoUrl != null && !videoUrl.isBlank()) || videoMediaId != null;
-        return hasText || hasImage || hasVideo;
+        boolean hasStructuredContent = (location != null && !location.isBlank())
+            || (linkUrl != null && !linkUrl.isBlank()) || attachedEventId != null
+            || (pollQuestion != null && !pollQuestion.isBlank());
+        return hasText || hasImage || hasVideo || hasStructuredContent;
     }
 
     @AssertTrue(message = "Text posts must have non-blank content text")
     public boolean isValidForPostType() {
         if (postType == PostType.TEXT) {
-            return contentText != null && !contentText.isBlank();
+            return (contentText != null && !contentText.isBlank())
+                || (location != null && !location.isBlank())
+                || (linkUrl != null && !linkUrl.isBlank())
+                || attachedEventId != null;
         }
         if (postType == PostType.VIDEO) {
             return (videoUrl != null && !videoUrl.isBlank()) || videoMediaId != null

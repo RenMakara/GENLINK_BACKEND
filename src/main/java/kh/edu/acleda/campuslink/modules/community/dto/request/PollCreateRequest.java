@@ -23,6 +23,21 @@ public record PollCreateRequest(
     @NotNull @Size(min = 2, max = 6) List<@NotBlank String> options,
     Visibility visibility,
     Language language,
-    UUID communityId
+    UUID communityId,
+    Integer durationDays,
+    String location,
+    String linkUrl,
+    String linkPreviewTitle,
+    String linkPreviewDomain,
+    UUID attachedEventId,
+    String imageUrl,
+    String videoUrl,
+    List<UUID> imageMediaIds,
+    UUID videoMediaId
 ) {
+    public PollCreateRequest(String caption, String question, List<String> options,
+                             Visibility visibility, Language language, UUID communityId) {
+        this(caption, question, options, visibility, language, communityId,
+            null, null, null, null, null, null, null, null, null, null);
+    }
 }

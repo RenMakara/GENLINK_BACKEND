@@ -62,6 +62,9 @@ public interface DiscussionService {
 
     int unlikeComment(UUID commentId);
 
+    /** Edits an active comment owned by the caller. */
+    CommentResponse updateComment(UUID commentId, String content);
+
     void deleteComment(UUID commentId);
 
     // ---- Admin moderation (ROLE_ADMIN, enforced at the controller) ----

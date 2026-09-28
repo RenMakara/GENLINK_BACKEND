@@ -36,7 +36,14 @@ public record PostResponse(
     String repostedBy,
     String repostCaption,
     UUID reposterId,
-    UUID originalPostId
+    UUID originalPostId,
+    String location,
+    String linkUrl,
+    String linkPreviewTitle,
+    String linkPreviewDomain,
+    UUID eventId,
+    List<UUID> imageMediaIds,
+    UUID videoMediaId
 ) {
 
     /** Alias used by the mobile community model. */
@@ -66,7 +73,7 @@ public record PostResponse(
     ) {
         this(postId, author, contentText, imageUrl, null, postType, visibility,
             language, likeCount, commentCount, null, likedByMe, savedByMe, hashtags, poll,
-            createdAt, false, null, null, null, null);
+            createdAt, false, null, null, null, null, null, null, null, null, null, List.of(), null);
     }
 
     /** Backward-compatible constructor for callers that already provide videoUrl. */
@@ -89,7 +96,7 @@ public record PostResponse(
     ) {
         this(postId, author, contentText, imageUrl, videoUrl, postType, visibility,
             language, likeCount, commentCount, null, likedByMe, savedByMe, hashtags, poll,
-            createdAt, false, null, null, null, null);
+            createdAt, false, null, null, null, null, null, null, null, null, null, List.of(), null);
     }
 
     /** Public-safe author fields only: no email, no phone. */

@@ -45,10 +45,17 @@ public interface MediaService {
     /** Resolve resource media after the owning content service has authorized its viewer. */
     List<AttachedMedia> resolveAttachedMedia(MediaResourceType resourceType, UUID resourceId);
 
+    /** Detach all uploads from an owned resource before replacing its media set. */
+    void detachAttachedMedia(MediaResourceType resourceType, UUID resourceId);
+
     /** Apply a content audience change to every attachment owned by that resource. */
     void updateAttachedMediaVisibility(MediaResourceType resourceType, UUID resourceId, boolean publicContent);
 
-    record AttachedMedia(MediaAttachmentRole role, int order, String url) {}
+    record AttachedMedia(UUID mediaId, MediaAttachmentRole role, int order, String url) {
+        public AttachedMedia(MediaAttachmentRole role, int order, String url) {
+            this(null, role, order, url);
+        }
+    }
 
     /** Soft delete (owner only). The object is purged later by the cleanup job. */
     void delete(UUID mediaId);

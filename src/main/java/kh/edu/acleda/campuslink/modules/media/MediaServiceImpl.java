@@ -220,6 +220,7 @@ public class MediaServiceImpl implements MediaService {
                 resourceType, resourceId).stream()
             .filter(media -> media.getStatus() == MediaStatus.CONFIRMED)
             .map(media -> new AttachedMedia(
+                media.getId(),
                 media.getAttachmentRole(),
                 media.getAttachmentOrder() == null ? 0 : media.getAttachmentOrder(),
                 media.getVisibility() == MediaVisibility.PUBLIC && media.getPublicUrl() != null
@@ -227,6 +228,25 @@ public class MediaServiceImpl implements MediaService {
                     : storage.presignDownload(media.getStorageKey(),
                         Duration.ofSeconds(properties.getPresignExpirySeconds()))))
             .toList();
+    }
+
+    @Override
+    @Transactional
+    public void detachAttachedMedia(MediaResourceType resourceType, UUID resourceId) {
+        UUID ownerId = currentUserProvider.getCurrentUserId();
+        List<MediaFile> files = repository
+            .findByAttachedResourceTypeAndAttachedResourceIdAndDeletedAtIsNullOrderByAttachmentRoleAscAttachmentOrderAsc(
+                resourceType, resourceId);
+        for (MediaFile media : files) {
+            if (!media.getOwnerId().equals(ownerId)) {
+                throw new NotFoundException("Content not found");
+            }
+            media.setAttachedResourceType(null);
+            media.setAttachedResourceId(null);
+            media.setAttachmentRole(null);
+            media.setAttachmentOrder(null);
+        }
+        repository.saveAll(files);
     }
 
     @Override

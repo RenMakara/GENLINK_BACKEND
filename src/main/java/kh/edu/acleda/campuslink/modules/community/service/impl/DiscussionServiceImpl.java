@@ -351,6 +351,21 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     }
 
+    @Override
+    @Transactional
+    public CommentResponse updateComment(UUID commentId, String content) {
+        UUID userId = currentUserProvider.getCurrentUserId();
+        ForumComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
+            .orElseThrow(() -> new NotFoundException("Comment not found"));
+        if (comment.getUser() == null || !comment.getUser().getId().equals(userId)) {
+            throw new NotFoundException("Comment not found");
+        }
+        comment.setContent(content);
+        ForumComment saved = commentRepository.save(comment);
+        boolean liked = commentReactionRepository.findByCommentIdAndUserId(commentId, userId).isPresent();
+        return toCommentResponse(saved, userId, liked);
+    }
+
     /** Resolves likedByMe for the whole page in one query rather than per row. */
     private PageResponse<CommentResponse> hydrateComments(Page<ForumComment> page) {
         UUID viewerId = currentUserProvider.getCurrentUserId();

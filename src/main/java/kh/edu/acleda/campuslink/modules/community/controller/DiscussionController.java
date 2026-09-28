@@ -151,6 +151,13 @@ public class DiscussionController {
             discussionService.addComment(discussionId, request)));
     }
 
+    @PutMapping("/comments/{commentId}")
+    public ResponseEntity<ApiResponse<CommentResponse>> updateComment(
+        @PathVariable UUID commentId, @Valid @RequestBody CommentCreateRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Comment updated",
+            discussionService.updateComment(commentId, request.content())));
+    }
+
     /** Top-level comments only. Commenters are never anonymous - only the discussion author can be. */
     @GetMapping("/{discussionId}/comments")
     public ResponseEntity<ApiResponse<PageResponse<CommentResponse>>> comments(

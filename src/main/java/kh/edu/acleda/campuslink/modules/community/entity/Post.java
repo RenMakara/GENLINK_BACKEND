@@ -12,6 +12,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import kh.edu.acleda.campuslink.modules.community.enums.PostType;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
+import kh.edu.acleda.campuslink.modules.community.entity.Event;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.entity.BaseEntity;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -39,6 +40,10 @@ public class Post extends BaseEntity {
     @JoinColumn(name = "community_id")
     private Community community;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attached_event_id")
+    private Event attachedEvent;
+
     @Column(name = "content_text", columnDefinition = "TEXT")
     private String contentText;
 
@@ -47,6 +52,18 @@ public class Post extends BaseEntity {
 
     @Column(name = "video_url", columnDefinition = "TEXT")
     private String videoUrl;
+
+    @Column(name = "location", length = 255)
+    private String location;
+
+    @Column(name = "link_url", columnDefinition = "TEXT")
+    private String linkUrl;
+
+    @Column(name = "link_preview_title", length = 255)
+    private String linkPreviewTitle;
+
+    @Column(name = "link_preview_domain", length = 255)
+    private String linkPreviewDomain;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "post_type", nullable = false, length = 50)
