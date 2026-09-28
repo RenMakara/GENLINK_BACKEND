@@ -4,16 +4,22 @@ import kh.edu.acleda.campuslink.modules.community.entity.ForumDiscussion;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 import java.util.UUID;
+import jakarta.persistence.LockModeType;
 
 public interface ForumDiscussionRepository extends JpaRepository<ForumDiscussion, UUID> {
 
     Optional<ForumDiscussion> findByIdAndDeletedAtIsNull(UUID id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT d FROM ForumDiscussion d WHERE d.id = :id AND d.deletedAt IS NULL")
+    Optional<ForumDiscussion> findByIdAndDeletedAtIsNullForUpdate(@Param("id") UUID id);
 
     /** Owner-scoped: another user's id reads as not found, never forbidden. */
     Optional<ForumDiscussion> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);

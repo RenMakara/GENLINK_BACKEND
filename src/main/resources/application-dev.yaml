@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:16801/campuslink_db}
-    username: ${DB_USERNAME:campuslink_usr}
-    password: ${DB_PASSWORD:campuslink@168}
+    url: ${DB_URL:jdbc:postgresql://localhost:5435/mkr_db}
+    username: ${DB_USERNAME:mkr_user}
+    password: ${DB_PASSWORD:mkr_password}
   jpa:
     hibernate:
       ddl-auto: validate

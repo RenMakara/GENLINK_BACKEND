@@ -475,12 +475,13 @@ class StoryServiceImplTest {
     @Test
     void likeStoryEmitsNotificationToStoryAuthor() {
         Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
-        when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
+        when(storyRepository.findByIdAndDeletedAtIsNullForUpdate(STORY_ID)).thenReturn(Optional.of(theirs));
         when(storyReactionRepository.findByStoryIdAndUserId(STORY_ID, ME_ID)).thenReturn(Optional.empty());
         when(notificationTemplateRepository.existsByTemplateKey("COMMUNITY_STORY_LIKE")).thenReturn(true);
 
         service.likeStory(STORY_ID);
 
+        verify(storyRepository).findByIdAndDeletedAtIsNullForUpdate(STORY_ID);
         ArgumentCaptor<StoryReaction> reactionCaptor = ArgumentCaptor.forClass(StoryReaction.class);
         verify(storyReactionRepository).save(reactionCaptor.capture());
         assertThat(reactionCaptor.getValue().getStory()).isSameAs(theirs);
@@ -499,28 +500,47 @@ class StoryServiceImplTest {
     }
 
     @Test
-    void likeStoryRemovesExistingReactionWithoutSendingAnotherNotification() {
+    void repeatedLikeStoryKeepsTheExistingReactionAndDoesNotSendAnotherNotification() {
         Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
         StoryReaction existing = StoryReaction.builder()
             .story(theirs)
             .user(me)
             .reactionType("LIKE")
             .build();
-        when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
+        when(storyRepository.findByIdAndDeletedAtIsNullForUpdate(STORY_ID)).thenReturn(Optional.of(theirs));
         when(storyReactionRepository.findByStoryIdAndUserId(STORY_ID, ME_ID))
             .thenReturn(Optional.of(existing));
 
         service.likeStory(STORY_ID);
 
-        verify(storyReactionRepository).delete(existing);
+        verify(storyRepository).findByIdAndDeletedAtIsNullForUpdate(STORY_ID);
+        verify(storyReactionRepository, never()).delete(existing);
         verify(storyReactionRepository, never()).save(any(StoryReaction.class));
+        verify(notificationEmitter, never()).emit(any());
+    }
+
+    @Test
+    void unlikeStoryRemovesAnExistingReactionOnce() {
+        Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
+        StoryReaction existing = StoryReaction.builder()
+            .story(theirs)
+            .user(me)
+            .reactionType("LIKE")
+            .build();
+        when(storyRepository.findByIdAndDeletedAtIsNullForUpdate(STORY_ID)).thenReturn(Optional.of(theirs));
+        when(storyReactionRepository.findByStoryIdAndUserId(STORY_ID, ME_ID))
+            .thenReturn(Optional.of(existing));
+
+        service.unlikeStory(STORY_ID);
+
+        verify(storyReactionRepository).delete(existing);
         verify(notificationEmitter, never()).emit(any());
     }
 
     @Test
     void likeStoryDoesNotEmitNotificationWhenAuthorIsViewer() {
         Story mine = story(STORY_ID, me, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
-        when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(mine));
+        when(storyRepository.findByIdAndDeletedAtIsNullForUpdate(STORY_ID)).thenReturn(Optional.of(mine));
 
         service.likeStory(STORY_ID);
 
@@ -531,7 +551,7 @@ class StoryServiceImplTest {
     void likeStoryDoesNotEmitNotificationWhenReactionsDisabled() {
         Story theirs = story(STORY_ID, other, Instant.now().plus(Duration.ofHours(1)), Visibility.PUBLIC);
         theirs.setAllowReactions(false);
-        when(storyRepository.findByIdAndDeletedAtIsNull(STORY_ID)).thenReturn(Optional.of(theirs));
+        when(storyRepository.findByIdAndDeletedAtIsNullForUpdate(STORY_ID)).thenReturn(Optional.of(theirs));
 
         service.likeStory(STORY_ID);
 

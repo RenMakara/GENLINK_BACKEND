@@ -342,6 +342,16 @@ public class StoryServiceImpl implements StoryService {
         return story;
     }
 
+    /** Locks one active story while a reaction is changed to serialize concurrent retries. */
+    private Story loadActiveStoryForUpdate(UUID storyId) {
+        Story story = storyRepository.findByIdAndDeletedAtIsNullForUpdate(storyId)
+            .orElseThrow(() -> new NotFoundException("Story not found"));
+        if (story.getExpiresAt().isBefore(Instant.now())) {
+            throw new NotFoundException("Story not found");
+        }
+        return story;
+    }
+
     private StoryResponse toStoryResponse(Story story, boolean seen,
                                           int reactionCount, boolean reactedByMe) {
         String resolvedMediaUrl = story.getMediaUrl();
@@ -414,7 +424,7 @@ public class StoryServiceImpl implements StoryService {
     @Override
     @Transactional
     public void likeStory(UUID storyId) {
-        Story story = loadActiveStory(storyId);
+        Story story = loadActiveStoryForUpdate(storyId);
         UUID meId = currentUserProvider.getCurrentUserId();
         if (!canViewStory(story, meId)) {
             throw new NotFoundException("Story not found");
@@ -433,10 +443,7 @@ public class StoryServiceImpl implements StoryService {
             return;
         }
 
-        var existingReaction = storyReactionRepository.findByStoryIdAndUserId(storyId, meId);
-        if (existingReaction.isPresent()) {
-            storyReactionRepository.delete(existingReaction.get());
-            log.info("Story reaction removed by user {}: {}", meId, storyId);
+        if (storyReactionRepository.findByStoryIdAndUserId(storyId, meId).isPresent()) {
             return;
         }
 
@@ -447,6 +454,21 @@ public class StoryServiceImpl implements StoryService {
             .reactionType(DEFAULT_REACTION)
             .build());
         emitStoryLikeNotification(story, author, liker);
+    }
+
+    @Override
+    @Transactional
+    public void unlikeStory(UUID storyId) {
+        Story story = loadActiveStoryForUpdate(storyId);
+        UUID meId = currentUserProvider.getCurrentUserId();
+        if (!canViewStory(story, meId)) {
+            throw new NotFoundException("Story not found");
+        }
+        if (storyReactionRepository == null) {
+            return;
+        }
+        storyReactionRepository.findByStoryIdAndUserId(storyId, meId)
+            .ifPresent(storyReactionRepository::delete);
     }
 
     private void emitStoryLikeNotification(Story story, User author, User liker) {

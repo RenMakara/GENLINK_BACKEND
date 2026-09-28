@@ -383,6 +383,7 @@ class PostServiceImplTest {
         int count = service.like(POST_ID);
 
         assertThat(count).isEqualTo(4);
+        verify(postRepository).findByIdAndDeletedAtIsNullForUpdate(POST_ID);
         verify(postReactionRepository, never()).save(any(PostReaction.class));
         verify(postRepository, never()).adjustLikeCount(any(), org.mockito.ArgumentMatchers.anyInt());
     }
@@ -395,6 +396,7 @@ class PostServiceImplTest {
         int count = service.like(POST_ID);
 
         assertThat(count).isEqualTo(5);
+        verify(postRepository).findByIdAndDeletedAtIsNullForUpdate(POST_ID);
         verify(postRepository).adjustLikeCount(POST_ID, 1);
     }
 

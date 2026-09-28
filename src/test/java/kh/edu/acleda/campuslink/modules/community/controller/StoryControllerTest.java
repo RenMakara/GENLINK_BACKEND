@@ -132,7 +132,7 @@ class StoryControllerTest {
     }
 
     @Test
-    @DisplayName("POST /stories/{id}/like delegates to likeStory")
+    @DisplayName("POST /stories/{id}/like delegates to the idempotent like operation")
     void likeDelegatesToService() {
         UUID storyId = UUID.randomUUID();
 
@@ -141,6 +141,18 @@ class StoryControllerTest {
         assertThat(result.getBody()).isNotNull();
         assertThat(result.getBody().isSuccess()).isTrue();
         verify(storyService).likeStory(storyId);
+    }
+
+    @Test
+    @DisplayName("DELETE /stories/{id}/like delegates to the idempotent unlike operation")
+    void unlikeDelegatesToService() {
+        UUID storyId = UUID.randomUUID();
+
+        ResponseEntity<ApiResponse<Void>> result = controller.unlike(storyId);
+
+        assertThat(result.getBody()).isNotNull();
+        assertThat(result.getBody().isSuccess()).isTrue();
+        verify(storyService).unlikeStory(storyId);
     }
 
     @Test

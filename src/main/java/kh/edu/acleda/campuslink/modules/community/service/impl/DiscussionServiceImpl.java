@@ -185,7 +185,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     @Transactional
     public int react(UUID discussionId) {
-        ForumDiscussion discussion = loadDiscussion(discussionId);
+        ForumDiscussion discussion = loadDiscussionForUpdate(discussionId);
         UUID userId = currentUserProvider.getCurrentUserId();
 
         // forum_reactions has UNIQUE(discussion_id, user_id): a double tap must no-op
@@ -208,7 +208,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     @Transactional
     public int unreact(UUID discussionId) {
-        ForumDiscussion discussion = loadDiscussion(discussionId);
+        ForumDiscussion discussion = loadDiscussionForUpdate(discussionId);
         return reactionRepository
             .findByDiscussionIdAndUserId(discussionId, currentUserProvider.getCurrentUserId())
             .map(reaction -> {
@@ -313,7 +313,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     @Transactional
     public int likeComment(UUID commentId) {
-        ForumComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
+        ForumComment comment = commentRepository.findByIdAndDeletedAtIsNullForUpdate(commentId)
             .orElseThrow(() -> new NotFoundException("Comment not found"));
         UUID userId = currentUserProvider.getCurrentUserId();
 
@@ -337,7 +337,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     @Transactional
     public int unlikeComment(UUID commentId) {
-        ForumComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
+        ForumComment comment = commentRepository.findByIdAndDeletedAtIsNullForUpdate(commentId)
             .orElseThrow(() -> new NotFoundException("Comment not found"));
         return commentReactionRepository
             .findByCommentIdAndUserId(commentId, currentUserProvider.getCurrentUserId())
@@ -493,6 +493,11 @@ public class DiscussionServiceImpl implements DiscussionService {
 
     private ForumDiscussion loadDiscussion(UUID discussionId) {
         return discussionRepository.findByIdAndDeletedAtIsNull(discussionId)
+            .orElseThrow(() -> new NotFoundException("Discussion not found"));
+    }
+
+    private ForumDiscussion loadDiscussionForUpdate(UUID discussionId) {
+        return discussionRepository.findByIdAndDeletedAtIsNullForUpdate(discussionId)
             .orElseThrow(() -> new NotFoundException("Discussion not found"));
     }
 

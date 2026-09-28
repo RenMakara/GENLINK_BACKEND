@@ -2,6 +2,7 @@ package kh.edu.acleda.campuslink.modules.community.repository;
 
 import kh.edu.acleda.campuslink.modules.community.entity.Story;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -10,10 +11,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import jakarta.persistence.LockModeType;
 
 public interface StoryRepository extends JpaRepository<Story, UUID> {
 
     Optional<Story> findByIdAndDeletedAtIsNull(UUID id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM Story s WHERE s.id = :id AND s.deletedAt IS NULL")
+    Optional<Story> findByIdAndDeletedAtIsNullForUpdate(@Param("id") UUID id);
 
     /**
      * Active stories (not expired, not deleted) for a set of authors, oldest first so a

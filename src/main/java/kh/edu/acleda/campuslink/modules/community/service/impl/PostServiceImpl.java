@@ -681,7 +681,7 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public int like(UUID postId) {
         UUID userId = currentUserProvider.getCurrentUserId();
-        Post post = loadVisiblePost(postId, userId);
+        Post post = loadVisiblePostForUpdate(postId, userId);
 
         // post_reactions has UNIQUE(post_id, user_id), so a double tap must no-op
         // rather than 500 - and the count must not drift on the second tap.
@@ -704,7 +704,7 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public int unlike(UUID postId) {
         UUID userId = currentUserProvider.getCurrentUserId();
-        Post post = loadVisiblePost(postId, userId);
+        Post post = loadVisiblePostForUpdate(postId, userId);
 
         return postReactionRepository.findByPostIdAndUserId(postId, userId)
             .map(reaction -> {
@@ -776,6 +776,14 @@ public class PostServiceImpl implements PostService {
 
     private Post loadVisiblePost(UUID id, UUID viewerId) {
         Post post = postRepository.findByIdAndDeletedAtIsNull(id)
+            .orElseThrow(() -> new NotFoundException("Post not found"));
+        postVisibilityService.requireCanView(post, viewerId);
+        return post;
+    }
+
+    /** Serializes reaction changes for one post so the unique reaction row and counter stay in sync. */
+    private Post loadVisiblePostForUpdate(UUID id, UUID viewerId) {
+        Post post = postRepository.findByIdAndDeletedAtIsNullForUpdate(id)
             .orElseThrow(() -> new NotFoundException("Post not found"));
         postVisibilityService.requireCanView(post, viewerId);
         return post;

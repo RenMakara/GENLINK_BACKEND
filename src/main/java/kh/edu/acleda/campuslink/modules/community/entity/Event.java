@@ -35,7 +35,7 @@ import lombok.Setter;
 public class Event extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "organizer_id", nullable = true)
+    @JoinColumn(name = "organizer_id", nullable = false)
     private User organizer;
 
     @Column(name = "title", nullable = false, length = 180)

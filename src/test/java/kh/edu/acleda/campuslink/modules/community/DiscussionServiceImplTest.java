@@ -99,6 +99,8 @@ class DiscussionServiceImplTest {
         when(userRepository.findById(AUTHOR_ID)).thenReturn(Optional.of(author));
         when(userRepository.findById(OTHER_ID)).thenReturn(Optional.of(author));
         when(discussionRepository.findByIdAndDeletedAtIsNull(DISCUSSION_ID)).thenReturn(Optional.of(discussion));
+        when(discussionRepository.findByIdAndDeletedAtIsNullForUpdate(DISCUSSION_ID))
+            .thenReturn(Optional.of(discussion));
         when(discussionRepository.save(any(ForumDiscussion.class))).thenAnswer(i -> {
             ForumDiscussion d = i.getArgument(0);
             if (d.getId() == null) {
@@ -188,6 +190,7 @@ class DiscussionServiceImplTest {
             .thenReturn(Optional.of(ForumReaction.builder().build()));
 
         assertThat(service.react(DISCUSSION_ID)).isEqualTo(4);
+        verify(discussionRepository).findByIdAndDeletedAtIsNullForUpdate(DISCUSSION_ID);
         verify(reactionRepository, never()).save(any(ForumReaction.class));
         verify(discussionRepository, never()).adjustReactionCount(any(), anyInt());
     }
@@ -195,6 +198,7 @@ class DiscussionServiceImplTest {
     @Test
     void reactCreatesTheReactionAndIncrementsTheCount() {
         assertThat(service.react(DISCUSSION_ID)).isEqualTo(5);
+        verify(discussionRepository).findByIdAndDeletedAtIsNullForUpdate(DISCUSSION_ID);
         verify(discussionRepository).adjustReactionCount(DISCUSSION_ID, 1);
     }
 
@@ -427,6 +431,7 @@ class DiscussionServiceImplTest {
             .thenReturn(Optional.of(ForumCommentReaction.builder().build()));
 
         assertThat(service.likeComment(commentId)).isEqualTo(2);
+        verify(commentRepository).findByIdAndDeletedAtIsNullForUpdate(commentId);
         verify(commentReactionRepository, never()).save(any(ForumCommentReaction.class));
         verify(commentRepository, never()).adjustLikeCount(any(), anyInt());
     }
@@ -510,6 +515,8 @@ class DiscussionServiceImplTest {
             .content("c").likeCount(likeCount).build();
         ReflectionTestUtils.setField(comment, "id", UUID.randomUUID());
         when(commentRepository.findByIdAndDeletedAtIsNull(comment.getId())).thenReturn(Optional.of(comment));
+        when(commentRepository.findByIdAndDeletedAtIsNullForUpdate(comment.getId()))
+            .thenReturn(Optional.of(comment));
         return comment;
     }
 }

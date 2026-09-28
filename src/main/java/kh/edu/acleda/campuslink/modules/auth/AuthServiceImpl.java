@@ -107,7 +107,7 @@ public class AuthServiceImpl implements AuthService {
         String name = tokenData.name();
         String pictureUrl = tokenData.picture();
 
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailIgnoreCase(email)
             .map(existingUser -> {
                 log.info("Updating existing user: {}", email);
                 if (existingUser.getAccountStatus() == AccountStatus.BANNED) {

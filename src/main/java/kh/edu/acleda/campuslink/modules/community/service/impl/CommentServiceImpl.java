@@ -134,7 +134,7 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public int like(UUID commentId) {
-        PostComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
+        PostComment comment = commentRepository.findByIdAndDeletedAtIsNullForUpdate(commentId)
             .orElseThrow(() -> new NotFoundException("Comment not found"));
         UUID userId = currentUserProvider.getCurrentUserId();
         postVisibilityService.requireCanView(comment.getPost(), userId);
@@ -156,7 +156,7 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     public int unlike(UUID commentId) {
-        PostComment comment = commentRepository.findByIdAndDeletedAtIsNull(commentId)
+        PostComment comment = commentRepository.findByIdAndDeletedAtIsNullForUpdate(commentId)
             .orElseThrow(() -> new NotFoundException("Comment not found"));
         postVisibilityService.requireCanView(comment.getPost(), currentUserProvider.getCurrentUserId());
         return commentReactionRepository

@@ -55,11 +55,18 @@ public class StoryController {
         return ResponseEntity.ok(ApiResponse.success("Story marked as seen", null));
     }
 
-    /** Toggle a story reaction. Adds/removes one persisted reaction and notifies on add. */
+    /** Idempotently add the caller's story reaction. */
     @PostMapping("/{id}/like")
     public ResponseEntity<ApiResponse<Void>> like(@PathVariable UUID id) {
         storyService.likeStory(id);
-        return ResponseEntity.ok(ApiResponse.success("Story reaction updated", null));
+        return ResponseEntity.ok(ApiResponse.success("Story reaction added", null));
+    }
+
+    /** Idempotently remove the caller's story reaction. */
+    @DeleteMapping("/{id}/like")
+    public ResponseEntity<ApiResponse<Void>> unlike(@PathVariable UUID id) {
+        storyService.unlikeStory(id);
+        return ResponseEntity.ok(ApiResponse.success("Story reaction removed", null));
     }
 
     /** Who viewed a story. Owner only; a non-owner gets 404, not 403. */

@@ -170,6 +170,7 @@ class CommentServiceImplTest {
             .thenReturn(Optional.of(PostCommentReaction.builder().build()));
 
         assertThat(service.like(commentId)).isEqualTo(2);
+        verify(commentRepository).findByIdAndDeletedAtIsNullForUpdate(commentId);
         verify(commentReactionRepository, never()).save(any(PostCommentReaction.class));
         verify(commentRepository, never()).adjustLikeCount(any(), anyInt());
     }
@@ -181,6 +182,7 @@ class CommentServiceImplTest {
         when(commentReactionRepository.findByCommentIdAndUserId(commentId, USER_ID)).thenReturn(Optional.empty());
 
         assertThat(service.like(commentId)).isEqualTo(3);
+        verify(commentRepository).findByIdAndDeletedAtIsNullForUpdate(commentId);
         verify(commentRepository).adjustLikeCount(commentId, 1);
     }
 
@@ -212,6 +214,8 @@ class CommentServiceImplTest {
         PostComment comment = PostComment.builder().post(post).user(author).content("c").likeCount(likeCount).build();
         ReflectionTestUtils.setField(comment, "id", UUID.randomUUID());
         when(commentRepository.findByIdAndDeletedAtIsNull(comment.getId())).thenReturn(Optional.of(comment));
+        when(commentRepository.findByIdAndDeletedAtIsNullForUpdate(comment.getId()))
+            .thenReturn(Optional.of(comment));
         return comment;
     }
 

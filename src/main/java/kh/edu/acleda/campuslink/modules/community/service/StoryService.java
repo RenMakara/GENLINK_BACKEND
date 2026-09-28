@@ -31,6 +31,9 @@ public interface StoryService {
     /** Retrieves a single active story if the caller is authorized to view it. */
     StoryResponse getStoryById(UUID storyId);
 
-    /** Toggles the caller's reaction on an active story and notifies its author on add. */
+    /** Idempotently adds the caller's reaction to an active story. */
     void likeStory(UUID storyId);
+
+    /** Idempotently removes the caller's reaction from an active story. */
+    void unlikeStory(UUID storyId);
 }

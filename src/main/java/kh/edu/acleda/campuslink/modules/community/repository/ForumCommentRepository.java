@@ -4,12 +4,14 @@ import kh.edu.acleda.campuslink.modules.community.entity.ForumComment;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 import java.util.UUID;
+import jakarta.persistence.LockModeType;
 
 public interface ForumCommentRepository extends JpaRepository<ForumComment, UUID> {
 
@@ -29,6 +31,10 @@ public interface ForumCommentRepository extends JpaRepository<ForumComment, UUID
     Page<ForumComment> findReplies(@Param("parentId") UUID parentId, Pageable pageable);
 
     Optional<ForumComment> findByIdAndDeletedAtIsNull(UUID id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM ForumComment c WHERE c.id = :id AND c.deletedAt IS NULL")
+    Optional<ForumComment> findByIdAndDeletedAtIsNullForUpdate(@Param("id") UUID id);
 
     /** Atomic, like every other counter here: concurrent likes must not collide. */
     @Modifying

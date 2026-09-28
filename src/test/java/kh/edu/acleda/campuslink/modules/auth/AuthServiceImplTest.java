@@ -359,7 +359,7 @@ class AuthServiceImplTest {
         User user = activeUser("google@example.com");
         when(googleTokenVerifier.verify("google-id-token"))
             .thenReturn(new GoogleTokenVerifier.GoogleUser("google-sub", user.getEmail(), "Google User", null));
-        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailIgnoreCase(user.getEmail())).thenReturn(Optional.of(user));
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(socialAccountRepository.findByProviderAndProviderUserId(any(), any()))
             .thenReturn(Optional.empty());
