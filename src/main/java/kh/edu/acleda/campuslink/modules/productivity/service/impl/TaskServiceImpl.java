@@ -10,6 +10,7 @@ import kh.edu.acleda.campuslink.modules.productivity.dto.request.TaskCreateReque
 import kh.edu.acleda.campuslink.modules.productivity.dto.response.TaskResponse;
 import kh.edu.acleda.campuslink.modules.productivity.entity.Task;
 import kh.edu.acleda.campuslink.modules.productivity.repository.TaskRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.productivity.service.TaskService;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
@@ -29,15 +30,18 @@ public class TaskServiceImpl implements TaskService {
     private final RewardService rewardService;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final XpHistoryRepository xpHistoryRepository;
 
     public TaskServiceImpl(TaskRepository taskRepository,
                            RewardService rewardService,
                            UserRepository userRepository,
-                           CurrentUserProvider currentUserProvider) {
+                           CurrentUserProvider currentUserProvider,
+                           XpHistoryRepository xpHistoryRepository) {
         this.taskRepository = taskRepository;
         this.rewardService = rewardService;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
+        this.xpHistoryRepository = xpHistoryRepository;
     }
 
     @Override
@@ -105,6 +109,7 @@ public class TaskServiceImpl implements TaskService {
         Task task = loadOwned(id);
         boolean wasCompleted = Boolean.TRUE.equals(task.getCompleted());
         task.setCompleted(completed);
+        task.setCompletedAt(completed ? (wasCompleted ? task.getCompletedAt() : java.time.Instant.now()) : null);
         taskRepository.save(task);
         // XP only on the transition to completed, so toggling does not farm XP.
         if (completed && !wasCompleted) {
@@ -137,8 +142,10 @@ public class TaskServiceImpl implements TaskService {
     private TaskResponse toResponse(Task t) {
         boolean completed = Boolean.TRUE.equals(t.getCompleted());
         boolean overdue = t.getDueDate() != null && t.getDueDate().isBefore(LocalDateTime.now()) && !completed;
+        int xpEarned = xpHistoryRepository.findByUserIdAndSourceTypeAndSourceId(
+            t.getUser().getId(), XP_SOURCE, t.getId()).map(xp -> xp.getXpAmount()).orElse(0);
         return new TaskResponse(t.getId(), t.getTitle(), t.getDescription(), t.getPriority(),
-            t.getCategory(), t.getDueDate(), t.getReminderTime(), completed, overdue);
+            t.getCategory(), t.getDueDate(), t.getReminderTime(), completed, overdue, xpEarned);
     }
 
     private Task loadOwned(UUID id) {

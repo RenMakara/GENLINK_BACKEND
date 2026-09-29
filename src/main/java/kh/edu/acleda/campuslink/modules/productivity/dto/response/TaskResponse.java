@@ -16,6 +16,7 @@ public record TaskResponse(
     LocalDateTime dueDate,
     LocalDateTime reminderTime,
     boolean completed,
-    boolean overdue
+    boolean overdue,
+    int xpEarned
 ) {
 }

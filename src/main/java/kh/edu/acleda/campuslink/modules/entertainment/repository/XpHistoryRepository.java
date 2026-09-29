@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.Optional;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.XpHistory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +13,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface XpHistoryRepository extends JpaRepository<XpHistory, UUID> {
+
+    Optional<XpHistory> findByUserIdAndSourceTypeAndSourceId(UUID userId, String sourceType, UUID sourceId);
+
+    @Query("SELECT COALESCE(SUM(x.xpAmount), 0) FROM XpHistory x "
+        + "WHERE x.user.id = :userId AND x.createdAt >= :from AND x.createdAt < :to")
+    long sumByUserIdBetween(@Param("userId") UUID userId,
+                            @Param("from") Instant from,
+                            @Param("to") Instant to);
 
     interface SourceBreakdownProjection {
         String getSourceType();

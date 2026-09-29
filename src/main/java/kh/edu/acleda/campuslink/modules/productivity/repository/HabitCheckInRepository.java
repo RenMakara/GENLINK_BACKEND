@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.productivity.repository;
 
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -13,8 +14,16 @@ public interface HabitCheckInRepository extends JpaRepository<HabitCheckIn, UUID
 
     Optional<HabitCheckIn> findByHabitIdAndUserIdAndCheckInDate(UUID habitId, UUID userId, LocalDate checkInDate);
 
+    boolean existsByHabitIdAndUserIdAndCompletedTrueAndCheckInDateBetween(
+        UUID habitId, UUID userId, LocalDate from, LocalDate through);
+
+    boolean existsByUserIdAndCompletedTrueAndCreatedAtAfter(UUID userId, Instant after);
+
     /** All check-ins for a habit, newest first - used to compute streak and rate. */
     List<HabitCheckIn> findByHabitIdAndUserIdOrderByCheckInDateDesc(UUID habitId, UUID userId);
+
+    List<HabitCheckIn> findByHabitIdAndUserIdAndCheckInDateBetweenOrderByCheckInDateDesc(
+        UUID habitId, UUID userId, LocalDate from, LocalDate through);
 
     /** The user's completed check-ins for a day - backs the dashboard's per-habit flag. */
     List<HabitCheckIn> findByUserIdAndCheckInDateAndCompletedTrue(UUID userId, LocalDate checkInDate);

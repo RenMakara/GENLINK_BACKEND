@@ -21,6 +21,7 @@ import kh.edu.acleda.campuslink.modules.media.MediaService;
 import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
 import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.DailyChallengeRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
 import kh.edu.acleda.campuslink.modules.finance.entity.Budget;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingGoal;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
@@ -62,6 +63,7 @@ class MobileHomeBffServiceImplTest {
     @Mock private CommunityMemberRepository communityMemberRepository;
     @Mock private PostRepository postRepository;
     @Mock private MediaService mediaService;
+    @Mock private XpHistoryRepository xpHistoryRepository;
 
     private MobileHomeBffServiceImpl service;
     private User user;
@@ -71,7 +73,7 @@ class MobileHomeBffServiceImplTest {
         service = new MobileHomeBffServiceImpl(userRepository, habitRepository, habitCheckInRepository,
             taskRepository, motivationContentRepository, dailyChallengeRepository, budgetRepository,
             expenseRepository, savingGoalRepository, eventRsvpRepository, communityRepository,
-            communityMemberRepository, postRepository, mediaService);
+            communityMemberRepository, postRepository, mediaService, xpHistoryRepository);
         user = new User();
         user.setEmail(EMAIL);
         user.setFullName("Sok");

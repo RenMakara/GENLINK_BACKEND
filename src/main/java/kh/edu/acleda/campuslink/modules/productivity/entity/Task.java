@@ -54,6 +54,9 @@ public class Task extends BaseEntity {
     @Column(name = "completed", nullable = false)
     private Boolean completed;
 
+    @Column(name = "completed_at")
+    private Instant completedAt;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
 

@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, UUID> {
 
+    boolean existsByUserIdAndCompletedAtIsNotNullAndCreatedAtAfter(UUID userId, java.time.Instant after);
+
     /** True once the user has already earned XP on this quiz - XP is once per quiz. */
     boolean existsByQuizIdAndUserIdAndXpEarnedGreaterThan(UUID quizId, UUID userId, int xpEarned);
 

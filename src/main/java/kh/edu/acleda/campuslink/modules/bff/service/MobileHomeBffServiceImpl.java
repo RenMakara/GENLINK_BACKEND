@@ -3,6 +3,7 @@ package kh.edu.acleda.campuslink.modules.bff.service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -25,6 +26,7 @@ import kh.edu.acleda.campuslink.modules.media.entity.MediaAttachmentRole;
 import kh.edu.acleda.campuslink.modules.media.entity.MediaResourceType;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.DailyChallenge;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.DailyChallengeRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
 import kh.edu.acleda.campuslink.modules.finance.entity.Budget;
 import kh.edu.acleda.campuslink.modules.finance.entity.SavingGoal;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
@@ -78,6 +80,7 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
     private final CommunityMemberRepository communityMemberRepository;
     private final PostRepository postRepository;
     private final MediaService mediaService;
+    private final XpHistoryRepository xpHistoryRepository;
 
     public MobileHomeBffServiceImpl(UserRepository userRepository,
                                     HabitRepository habitRepository,
@@ -92,7 +95,8 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
                                     CommunityRepository communityRepository,
                                     CommunityMemberRepository communityMemberRepository,
                                     PostRepository postRepository,
-                                    MediaService mediaService) {
+                                    MediaService mediaService,
+                                    XpHistoryRepository xpHistoryRepository) {
         this.userRepository = userRepository;
         this.habitRepository = habitRepository;
         this.habitCheckInRepository = habitCheckInRepository;
@@ -107,6 +111,7 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
         this.communityMemberRepository = communityMemberRepository;
         this.postRepository = postRepository;
         this.mediaService = mediaService;
+        this.xpHistoryRepository = xpHistoryRepository;
     }
 
     @Override
@@ -116,13 +121,14 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
             .orElseThrow(() -> new NotFoundException("User not found"));
         Currency selectedCurrency = currency == null ? Currency.USD : currency;
         UUID userId = user.getId();
-        LocalDate today = LocalDate.now();
+        ZoneId zone = ZoneId.of("Asia/Phnom_Penh");
+        LocalDate today = LocalDate.now(zone);
         LocalDateTime now = LocalDateTime.now();
 
         return new MobileHomeResponse(
             new MobileHomeResponse.HomeUser(userId, user.getFullName(), user.getAvatarUrl(),
                 user.getLevel(), user.getTotalXp()),
-            todayProgress(userId, today),
+            todayProgress(userId, today, zone),
             dailyChallenge(now, language),
             financeSnapshot(userId, today, selectedCurrency),
             upcomingEvent(userId, now),
@@ -132,12 +138,14 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
         );
     }
 
-    private MobileHomeResponse.TodayProgress todayProgress(UUID userId, LocalDate today) {
+    private MobileHomeResponse.TodayProgress todayProgress(UUID userId, LocalDate today, ZoneId zone) {
         return new MobileHomeResponse.TodayProgress(
             habitCheckInRepository.countByUserIdAndCheckInDateAndCompletedTrue(userId, today),
             habitRepository.countByUserIdAndDeletedAtIsNull(userId),
             taskRepository.countByUserIdAndDeletedAtIsNullAndCompletedTrue(userId),
-            taskRepository.countByUserIdAndDeletedAtIsNull(userId)
+            taskRepository.countByUserIdAndDeletedAtIsNull(userId),
+            xpHistoryRepository.sumByUserIdBetween(userId,
+                today.atStartOfDay(zone).toInstant(), today.plusDays(1).atStartOfDay(zone).toInstant())
         );
     }
 

@@ -14,6 +14,7 @@ import kh.edu.acleda.campuslink.modules.entertainment.repository.UserChallengeRe
 import kh.edu.acleda.campuslink.modules.entertainment.service.ChallengeRewardNotifier;
 import kh.edu.acleda.campuslink.modules.entertainment.service.RewardService;
 import kh.edu.acleda.campuslink.modules.entertainment.service.impl.ChallengeServiceImpl;
+import kh.edu.acleda.campuslink.modules.entertainment.service.impl.ChallengeActivityVerifier;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -51,6 +52,7 @@ class ChallengeServiceImplTest {
     @Mock private ChallengeRewardNotifier challengeRewardNotifier;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private ChallengeActivityVerifier activityVerifier;
 
     private ChallengeServiceImpl service;
     private User user;
@@ -59,7 +61,7 @@ class ChallengeServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new ChallengeServiceImpl(challengeRepository, userChallengeRepository, rewardService,
-            challengeRewardNotifier, userRepository, currentUserProvider);
+            challengeRewardNotifier, userRepository, currentUserProvider, activityVerifier);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
         challenge = DailyChallenge.builder().titleEn("Take a quiz").descriptionEn("d")
@@ -72,6 +74,8 @@ class ChallengeServiceImplTest {
         when(challengeRepository.findByIdAndDeletedAtIsNull(CH_ID)).thenReturn(Optional.of(challenge));
         when(userChallengeRepository.save(any(UserChallenge.class))).thenAnswer(i -> i.getArgument(0));
         when(userChallengeRepository.findByUserIdAndChallengeId(USER_ID, CH_ID)).thenReturn(Optional.empty());
+        when(userChallengeRepository.findByUserIdAndChallengeIdForUpdate(USER_ID, CH_ID)).thenReturn(Optional.empty());
+        when(activityVerifier.hasQualifyingActivity(any(), eq(USER_ID), any())).thenReturn(true);
     }
 
     private UserChallenge userChallenge(ChallengeStatus status) {
@@ -100,9 +104,26 @@ class ChallengeServiceImplTest {
     }
 
     @Test
+    void completionRequiresServerVerifiedActivity() {
+        UserChallenge joined = userChallenge(ChallengeStatus.IN_PROGRESS);
+        when(userChallengeRepository.findByUserIdAndChallengeIdForUpdate(USER_ID, CH_ID))
+            .thenReturn(Optional.of(joined));
+        when(activityVerifier.hasQualifyingActivity(ChallengeType.QUIZ, USER_ID, joined.getCreatedAt()))
+            .thenReturn(false);
+
+        assertThatThrownBy(() -> service.complete(CH_ID, EN))
+            .isInstanceOf(ApiException.class).hasMessageContaining("related activity");
+        assertThat(joined.getStatus()).isEqualTo(ChallengeStatus.IN_PROGRESS);
+        verify(userChallengeRepository, never()).save(any(UserChallenge.class));
+    }
+
+    @Test
     void completeMovesInProgressToCompleted() {
-        when(userChallengeRepository.findByUserIdAndChallengeId(USER_ID, CH_ID))
-            .thenReturn(Optional.of(userChallenge(ChallengeStatus.IN_PROGRESS)));
+        UserChallenge joined = userChallenge(ChallengeStatus.IN_PROGRESS);
+        when(userChallengeRepository.findByUserIdAndChallengeIdForUpdate(USER_ID, CH_ID))
+            .thenReturn(Optional.of(joined));
+        when(activityVerifier.hasQualifyingActivity(ChallengeType.QUIZ, USER_ID, joined.getCreatedAt()))
+            .thenReturn(true);
 
         ChallengeResponse r = service.complete(CH_ID, EN);
 
@@ -117,9 +138,21 @@ class ChallengeServiceImplTest {
     }
 
     @Test
+    void anotherUsersChallengeCannotBeCompletedOrClaimed() {
+        when(userChallengeRepository.findByUserIdAndChallengeIdForUpdate(USER_ID, CH_ID))
+            .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.complete(CH_ID, EN))
+            .isInstanceOf(ApiException.class).hasMessageContaining("Join the challenge");
+        assertThatThrownBy(() -> service.claim(CH_ID, EN))
+            .isInstanceOf(ApiException.class).hasMessageContaining("Join the challenge");
+        verify(rewardService, never()).award(any(), any(), any(), anyInt());
+    }
+
+    @Test
     void claimAwardsXpOnceAndMarksClaimed() {
         UserChallenge completed = userChallenge(ChallengeStatus.COMPLETED);
-        when(userChallengeRepository.findByUserIdAndChallengeId(USER_ID, CH_ID))
+        when(userChallengeRepository.findByUserIdAndChallengeIdForUpdate(USER_ID, CH_ID))
             .thenReturn(Optional.of(completed));
 
         ChallengeResponse r = service.claim(CH_ID, EN);
@@ -131,7 +164,7 @@ class ChallengeServiceImplTest {
 
     @Test
     void claimRequiresCompletion() {
-        when(userChallengeRepository.findByUserIdAndChallengeId(USER_ID, CH_ID))
+        when(userChallengeRepository.findByUserIdAndChallengeIdForUpdate(USER_ID, CH_ID))
             .thenReturn(Optional.of(userChallenge(ChallengeStatus.IN_PROGRESS)));
 
         assertThatThrownBy(() -> service.claim(CH_ID, EN))
@@ -141,7 +174,7 @@ class ChallengeServiceImplTest {
 
     @Test
     void claimCannotBeDoneTwice() {
-        when(userChallengeRepository.findByUserIdAndChallengeId(USER_ID, CH_ID))
+        when(userChallengeRepository.findByUserIdAndChallengeIdForUpdate(USER_ID, CH_ID))
             .thenReturn(Optional.of(userChallenge(ChallengeStatus.CLAIMED)));
 
         assertThatThrownBy(() -> service.claim(CH_ID, EN))

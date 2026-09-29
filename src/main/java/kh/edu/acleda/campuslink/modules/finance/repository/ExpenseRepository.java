@@ -12,11 +12,14 @@ import jakarta.persistence.LockModeType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
+
+    boolean existsByUserIdAndDeletedAtIsNullAndCreatedAtAfter(UUID userId, Instant after);
 
     Optional<Expense> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
 

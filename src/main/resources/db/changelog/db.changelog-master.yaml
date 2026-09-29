@@ -167,3 +167,5 @@ databaseChangeLog:
       file: db/changelog/changes/0082-community-rich-post-fields.sql
   - include:
       file: db/changelog/changes/0083-one-poll-per-post.sql
+  - include:
+      file: db/changelog/changes/0084-productivity-challenge-evidence.sql

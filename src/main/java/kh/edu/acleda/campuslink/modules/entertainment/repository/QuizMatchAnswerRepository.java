@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface QuizMatchAnswerRepository extends JpaRepository<QuizMatchAnswer, UUID> {
     boolean existsByMatchIdAndPlayerIdAndQuestionId(UUID matchId, UUID playerId, UUID questionId);
+
+    long countByMatchIdAndPlayerId(UUID matchId, UUID playerId);
 }

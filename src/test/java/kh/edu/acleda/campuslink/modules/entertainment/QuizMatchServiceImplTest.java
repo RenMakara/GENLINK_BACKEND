@@ -127,6 +127,19 @@ class QuizMatchServiceImplTest {
     }
 
     @Test
+    void skippedAnswerIsPersistedWithoutScore() {
+        QuizQuestion question = question();
+        when(questionRepository.findByIdAndQuizId(QUESTION_ID, QUIZ_ID)).thenReturn(Optional.of(question));
+
+        assertThat(service.submitAnswer(MATCH_ID, P1_ID, QUESTION_ID, null).player1Score()).isZero();
+
+        ArgumentCaptor<QuizMatchAnswer> answer = ArgumentCaptor.forClass(QuizMatchAnswer.class);
+        verify(answerRepository).save(answer.capture());
+        assertThat(answer.getValue().getOption()).isNull();
+        assertThat(answer.getValue().isCorrect()).isFalse();
+    }
+
+    @Test
     void waitingMatchCannotBeFinished() {
         match.setStatus(QuizMatchStatus.WAITING);
         match.setPlayer2(null);
@@ -139,12 +152,40 @@ class QuizMatchServiceImplTest {
     @Test
     void completedMatchIsIdempotentAndUsesLockedLookup() {
         match.setPlayer1Score(20);
+        when(questionRepository.countByQuizId(QUIZ_ID)).thenReturn(1L);
+        when(answerRepository.countByMatchIdAndPlayerId(MATCH_ID, P1_ID)).thenReturn(1L);
+        when(answerRepository.countByMatchIdAndPlayerId(MATCH_ID, P2_ID)).thenReturn(1L);
         service.finishMatch(MATCH_ID, P1_ID);
         assertThat(match.getStatus()).isEqualTo(QuizMatchStatus.COMPLETED);
         service.finishMatch(MATCH_ID, P2_ID);
 
         verify(matchRepository, times(2)).findByIdForUpdate(MATCH_ID);
         verify(rewardService, times(1)).award(p1, "QUIZ_MATCH", MATCH_ID, 50);
+    }
+
+    @Test
+    void matchCannotFinishUntilBothPlayersAnswerOrSkipEveryQuestion() {
+        when(questionRepository.countByQuizId(QUIZ_ID)).thenReturn(2L);
+        when(answerRepository.countByMatchIdAndPlayerId(MATCH_ID, P1_ID)).thenReturn(2L);
+        when(answerRepository.countByMatchIdAndPlayerId(MATCH_ID, P2_ID)).thenReturn(1L);
+
+        assertThatThrownBy(() -> service.finishMatch(MATCH_ID, P1_ID))
+            .isInstanceOf(ApiException.class).hasMessageContaining("every question");
+        assertThat(match.getStatus()).isEqualTo(QuizMatchStatus.IN_PROGRESS);
+        verify(rewardService, never()).award(any(), any(), any(), any(Integer.class));
+    }
+
+    @Test
+    void zeroScoreTieAwardsTheTieRewardOnlyAfterEveryQuestionIsAnsweredOrSkipped() {
+        when(questionRepository.countByQuizId(QUIZ_ID)).thenReturn(1L);
+        when(answerRepository.countByMatchIdAndPlayerId(MATCH_ID, P1_ID)).thenReturn(1L);
+        when(answerRepository.countByMatchIdAndPlayerId(MATCH_ID, P2_ID)).thenReturn(1L);
+
+        assertThat(service.finishMatch(MATCH_ID, P1_ID).status()).isEqualTo(QuizMatchStatus.COMPLETED);
+
+        assertThat(match.getWinner()).isNull();
+        verify(rewardService).award(p1, "QUIZ_MATCH", MATCH_ID, 20);
+        verify(rewardService).award(p2, "QUIZ_MATCH", MATCH_ID, 20);
     }
 
     @Test

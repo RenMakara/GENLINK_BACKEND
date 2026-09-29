@@ -19,6 +19,8 @@ public record HabitResponse(
     LocalTime reminderTime,
     int streakCount,
     BigDecimal completionRate,
-    boolean checkedInToday
+    boolean checkedInToday,
+    boolean checkedInThisWeek,
+    int xpEarned
 ) {
 }

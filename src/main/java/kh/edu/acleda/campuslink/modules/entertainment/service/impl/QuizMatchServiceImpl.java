@@ -91,10 +91,10 @@ public class QuizMatchServiceImpl implements QuizMatchService {
 
         QuizQuestion question = quizQuestionRepository.findByIdAndQuizId(questionId, match.getQuiz().getId())
             .orElseThrow(() -> new ApiException("Question does not belong to this quiz", "INVALID_MATCH_QUESTION"));
-        QuizOption option = quizOptionRepository.findByIdAndQuestionId(optionId, questionId)
+        QuizOption option = optionId == null ? null : quizOptionRepository.findByIdAndQuestionId(optionId, questionId)
             .orElseThrow(() -> new ApiException("Option does not belong to this question", "INVALID_MATCH_OPTION"));
         User player = match.getPlayer1().getId().equals(userId) ? match.getPlayer1() : match.getPlayer2();
-        boolean isCorrect = option.getCorrect() != null && option.getCorrect();
+        boolean isCorrect = option != null && Boolean.TRUE.equals(option.getCorrect());
 
         // Record the answer
         QuizMatchAnswer answer = new QuizMatchAnswer();
@@ -130,6 +130,15 @@ public class QuizMatchServiceImpl implements QuizMatchService {
         }
         if (match.getStatus() != QuizMatchStatus.IN_PROGRESS) {
             throw new ApiException("Only an in-progress match can be finished", "MATCH_NOT_IN_PROGRESS");
+        }
+
+        long questions = quizQuestionRepository.countByQuizId(match.getQuiz().getId());
+        long player1Answers = quizMatchAnswerRepository.countByMatchIdAndPlayerId(matchId, match.getPlayer1().getId());
+        long player2Answers = match.getPlayer2() == null ? 0
+            : quizMatchAnswerRepository.countByMatchIdAndPlayerId(matchId, match.getPlayer2().getId());
+        if (questions == 0 || player1Answers < questions || player2Answers < questions) {
+            throw new ApiException("Both players must answer or skip every question before the match can finish",
+                "MATCH_QUESTIONS_INCOMPLETE");
         }
 
         match.setStatus(QuizMatchStatus.COMPLETED);

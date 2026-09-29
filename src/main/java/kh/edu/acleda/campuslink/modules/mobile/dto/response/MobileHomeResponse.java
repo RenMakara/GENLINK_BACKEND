@@ -38,7 +38,8 @@ public record MobileHomeResponse(
         long habitsCompletedToday,
         long habitsTotal,
         long tasksCompleted,
-        long tasksTotal
+        long tasksTotal,
+        long xpEarned
     ) {}
 
     public record ChallengePreview(

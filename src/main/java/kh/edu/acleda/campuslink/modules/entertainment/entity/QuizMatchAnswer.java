@@ -28,7 +28,7 @@ public class QuizMatchAnswer extends BaseEntity {
     private QuizQuestion question;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "option_id", nullable = false)
+    @JoinColumn(name = "option_id")
     private QuizOption option;
 
     @Column(name = "is_correct", nullable = false)

@@ -59,6 +59,7 @@ class FocusSessionServiceImplTest {
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(userRepository.findByIdForUpdate(USER_ID)).thenReturn(Optional.of(user));
         when(focusSessionRepository.findFirstByUserIdAndStatusInOrderByStartedAtDesc(
             eq(USER_ID), any())).thenReturn(Optional.empty());
         when(focusSessionRepository.save(any(FocusSession.class))).thenAnswer(i -> {
@@ -192,12 +193,15 @@ class FocusSessionServiceImplTest {
     @Test
     void leavingDoesNotAwardXpAndIsIdempotent() {
         FocusSession active = session(25, false);
+        active.setStartedAt(LocalDateTime.now().minusMinutes(2));
+        active.setActiveStartedAt(active.getStartedAt());
         when(focusSessionRepository.findByIdAndUserIdForUpdate(SESSION_ID, USER_ID))
             .thenReturn(Optional.of(active));
 
         FocusSessionResponse abandoned = service.abandon(SESSION_ID);
         assertThat(abandoned.status()).isEqualTo(FocusSessionStatus.ABANDONED);
         assertThat(abandoned.xpEarned()).isZero();
+        assertThat(abandoned.focusedSeconds()).isGreaterThanOrEqualTo(119);
         verify(rewardService, never()).award(any(), any(), any(), anyInt());
 
         assertThat(service.abandon(SESSION_ID).status()).isEqualTo(FocusSessionStatus.ABANDONED);
@@ -214,6 +218,7 @@ class FocusSessionServiceImplTest {
 
         assertThat(response.sessionId()).isEqualTo(SESSION_ID);
         verify(focusSessionRepository, never()).save(any(FocusSession.class));
+        verify(userRepository).findByIdForUpdate(USER_ID);
     }
 
     @Test

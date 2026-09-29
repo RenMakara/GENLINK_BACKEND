@@ -27,6 +27,11 @@ public interface FocusSessionRepository extends JpaRepository<FocusSession, UUID
     Optional<FocusSession> findFirstByUserIdAndStatusInOrderByStartedAtDesc(
         UUID userId, Collection<FocusSessionStatus> statuses);
 
+    long countByUserIdAndStatusIn(UUID userId, Collection<FocusSessionStatus> statuses);
+
+    boolean existsByUserIdAndStatusAndUpdatedAtAfter(
+        UUID userId, FocusSessionStatus status, java.time.Instant after);
+
     Page<FocusSession> findByUserIdAndCompletedTrueOrderByStartedAtDesc(
         UUID userId, Pageable pageable);
 

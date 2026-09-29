@@ -8,6 +8,7 @@ import kh.edu.acleda.campuslink.modules.productivity.dto.request.TaskCreateReque
 import kh.edu.acleda.campuslink.modules.productivity.dto.response.TaskResponse;
 import kh.edu.acleda.campuslink.modules.productivity.entity.Task;
 import kh.edu.acleda.campuslink.modules.productivity.repository.TaskRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
 import kh.edu.acleda.campuslink.modules.productivity.service.impl.TaskServiceImpl;
 import kh.edu.acleda.campuslink.modules.user.UserRepository;
 import kh.edu.acleda.campuslink.modules.user.entity.User;
@@ -40,13 +41,15 @@ class TaskServiceImplTest {
     @Mock private kh.edu.acleda.campuslink.modules.entertainment.service.RewardService rewardService;
     @Mock private UserRepository userRepository;
     @Mock private CurrentUserProvider currentUserProvider;
+    @Mock private XpHistoryRepository xpHistoryRepository;
 
     private TaskServiceImpl service;
     private User user;
 
     @BeforeEach
     void setUp() {
-        service = new TaskServiceImpl(taskRepository, rewardService, userRepository, currentUserProvider);
+        service = new TaskServiceImpl(taskRepository, rewardService, userRepository, currentUserProvider,
+            xpHistoryRepository);
         user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
 

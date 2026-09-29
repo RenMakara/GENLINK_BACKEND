@@ -23,6 +23,8 @@ public interface EventRsvpRepository extends JpaRepository<EventRsvp, UUID> {
 
     Optional<EventRsvp> findByEventIdAndUserId(UUID eventId, UUID userId);
 
+    boolean existsByUserIdAndStatusAndUpdatedAtAfter(UUID userId, RsvpStatus status, java.time.Instant after);
+
     /** Batched for a list page: which of these events the viewer has responded to. */
     @Query("SELECT r FROM EventRsvp r WHERE r.user.id = :userId AND r.event.id IN :eventIds")
     List<EventRsvp> findByUserIdAndEventIdIn(@Param("userId") UUID userId,

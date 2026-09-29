@@ -19,6 +19,8 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
 
     Optional<Task> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
 
+    boolean existsByUserIdAndCompletedTrueAndCompletedAtAfter(UUID userId, java.time.Instant after);
+
     /** Incomplete first, then earliest due date (Postgres sorts NULL due dates last). */
     List<Task> findByUserIdAndDeletedAtIsNullOrderByCompletedAscDueDateAsc(UUID userId);
 

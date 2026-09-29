@@ -55,6 +55,10 @@ public class FocusSessionServiceImpl implements FocusSessionService {
     public FocusSessionResponse start(FocusSessionStartRequest request) {
         validateStart(request);
         UUID userId = currentUserProvider.getCurrentUserId();
+        // Serialize starts for this user before checking for an active row. The partial
+        // unique index remains the final guard if another writer bypasses this service.
+        User user = userRepository.findByIdForUpdate(userId)
+            .orElseThrow(() -> new NotFoundException("User not found"));
         FocusSession existing = focusSessionRepository
             .findFirstByUserIdAndStatusInOrderByStartedAtDesc(userId, ACTIVE_STATUSES)
             .orElse(null);
@@ -70,7 +74,7 @@ public class FocusSessionServiceImpl implements FocusSessionService {
 
         LocalDateTime now = LocalDateTime.now();
         FocusSession session = focusSessionRepository.save(FocusSession.builder()
-            .user(loadCurrentUser())
+            .user(user)
             .mode(normalizeMode(request.mode()))
             .durationMinutes(request.durationMinutes())
             // Sound is intentionally not part of the deadline MVP.
@@ -166,12 +170,16 @@ public class FocusSessionServiceImpl implements FocusSessionService {
             return toResponse(session);
         }
 
+        LocalDateTime now = LocalDateTime.now();
+        if (session.getStatus() == FocusSessionStatus.ACTIVE) {
+            session.setFocusedSeconds(currentFocusedSeconds(session, now));
+        }
         session.setStatus(FocusSessionStatus.ABANDONED);
         session.setCompleted(false);
         session.setXpEarned(0);
         session.setActiveStartedAt(null);
         session.setPausedAt(null);
-        session.setEndedAt(LocalDateTime.now());
+        session.setEndedAt(now);
         return toResponse(focusSessionRepository.save(session));
     }
 
@@ -324,14 +332,15 @@ public class FocusSessionServiceImpl implements FocusSessionService {
         return value == null ? 0 : value;
     }
 
+    private User loadCurrentUser() {
+        return userRepository.findById(currentUserProvider.getCurrentUserId())
+            .orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
     private FocusSession loadOwnedForUpdate(UUID id) {
         return focusSessionRepository
             .findByIdAndUserIdForUpdate(id, currentUserProvider.getCurrentUserId())
             .orElseThrow(() -> new NotFoundException("Focus session not found"));
     }
 
-    private User loadCurrentUser() {
-        return userRepository.findById(currentUserProvider.getCurrentUserId())
-            .orElseThrow(() -> new NotFoundException("User not found"));
-    }
 }

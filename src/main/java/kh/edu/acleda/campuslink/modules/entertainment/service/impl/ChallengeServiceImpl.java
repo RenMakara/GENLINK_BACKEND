@@ -33,19 +33,22 @@ public class ChallengeServiceImpl implements ChallengeService {
     private final ChallengeRewardNotifier challengeRewardNotifier;
     private final UserRepository userRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final ChallengeActivityVerifier activityVerifier;
 
     public ChallengeServiceImpl(DailyChallengeRepository challengeRepository,
                                 UserChallengeRepository userChallengeRepository,
                                 RewardService rewardService,
                                 ChallengeRewardNotifier challengeRewardNotifier,
                                 UserRepository userRepository,
-                                CurrentUserProvider currentUserProvider) {
+                                CurrentUserProvider currentUserProvider,
+                                ChallengeActivityVerifier activityVerifier) {
         this.challengeRepository = challengeRepository;
         this.userChallengeRepository = userChallengeRepository;
         this.rewardService = rewardService;
         this.challengeRewardNotifier = challengeRewardNotifier;
         this.userRepository = userRepository;
         this.currentUserProvider = currentUserProvider;
+        this.activityVerifier = activityVerifier;
     }
 
     @Override
@@ -85,9 +88,14 @@ public class ChallengeServiceImpl implements ChallengeService {
     @Override
     @Transactional
     public ChallengeResponse complete(UUID challengeId, Language language) {
-        UserChallenge uc = loadJoined(challengeId);
+        UserChallenge uc = loadJoinedForUpdate(challengeId);
         // Idempotent: only the IN_PROGRESS -> COMPLETED transition does anything.
         if (uc.getStatus() == ChallengeStatus.IN_PROGRESS) {
+            if (!activityVerifier.hasQualifyingActivity(
+                    uc.getChallenge().getChallengeType(), currentUserProvider.getCurrentUserId(), uc.getCreatedAt())) {
+                throw new ApiException("Complete the related activity before completing this challenge",
+                    "CHALLENGE_ACTIVITY_NOT_FOUND");
+            }
             uc.setStatus(ChallengeStatus.COMPLETED);
             uc.setCompletedAt(LocalDateTime.now());
             uc.setProgress(100);
@@ -99,7 +107,7 @@ public class ChallengeServiceImpl implements ChallengeService {
     @Override
     @Transactional
     public ChallengeResponse claim(UUID challengeId, Language language) {
-        UserChallenge uc = loadJoined(challengeId);
+        UserChallenge uc = loadJoinedForUpdate(challengeId);
         if (uc.getStatus() == ChallengeStatus.CLAIMED) {
             throw new ApiException("Reward already claimed", "CHALLENGE_ALREADY_CLAIMED");
         }
@@ -136,6 +144,12 @@ public class ChallengeServiceImpl implements ChallengeService {
     private UserChallenge loadJoined(UUID challengeId) {
         return userChallengeRepository
             .findByUserIdAndChallengeId(currentUserProvider.getCurrentUserId(), challengeId)
+            .orElseThrow(() -> new ApiException("Join the challenge first", "CHALLENGE_NOT_JOINED"));
+    }
+
+    private UserChallenge loadJoinedForUpdate(UUID challengeId) {
+        return userChallengeRepository
+            .findByUserIdAndChallengeIdForUpdate(currentUserProvider.getCurrentUserId(), challengeId)
             .orElseThrow(() -> new ApiException("Join the challenge first", "CHALLENGE_NOT_JOINED"));
     }
 

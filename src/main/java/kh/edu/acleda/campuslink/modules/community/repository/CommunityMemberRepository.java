@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.time.Instant;
 
 public interface CommunityMemberRepository extends JpaRepository<CommunityMember, UUID> {
     Optional<CommunityMember> findByCommunityIdAndUserId(UUID communityId, UUID userId);
@@ -36,6 +37,8 @@ public interface CommunityMemberRepository extends JpaRepository<CommunityMember
     boolean existsByCommunityIdAndUserId(UUID communityId, UUID userId);
 
     boolean existsByCommunityIdAndUserIdAndStatus(UUID communityId, UUID userId, MemberStatus status);
+
+    boolean existsByUserIdAndStatusAndJoinedAtAfter(UUID userId, MemberStatus status, Instant after);
 
     long countByCommunityId(UUID communityId);
 

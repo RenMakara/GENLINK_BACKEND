@@ -7,9 +7,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.Quiz;
 import kh.edu.acleda.campuslink.modules.entertainment.entity.QuizMatch;
+import kh.edu.acleda.campuslink.modules.entertainment.entity.QuizQuestion;
 import kh.edu.acleda.campuslink.modules.entertainment.enums.QuizDifficulty;
 import kh.edu.acleda.campuslink.modules.entertainment.enums.QuizMatchStatus;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizMatchRepository;
+import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizQuestionRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.QuizRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.repository.XpHistoryRepository;
 import kh.edu.acleda.campuslink.modules.entertainment.service.QuizMatchService;
@@ -30,6 +32,7 @@ class QuizMatchConcurrencyIntegrationTest {
     @Autowired private QuizMatchService matchService;
     @Autowired private QuizMatchRepository matchRepository;
     @Autowired private QuizRepository quizRepository;
+    @Autowired private QuizQuestionRepository quizQuestionRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private XpHistoryRepository xpHistoryRepository;
     @Autowired private RewardService rewardService;
@@ -52,6 +55,13 @@ class QuizMatchConcurrencyIntegrationTest {
         match.setPlayer2Score(10);
         match.setStatus(QuizMatchStatus.IN_PROGRESS);
         match = matchRepository.saveAndFlush(match);
+
+        QuizQuestion question = quizQuestionRepository.saveAndFlush(
+            QuizQuestion.builder().quiz(quiz).questionTextEn("Question " + suffix).build());
+        // A timeout is recorded as a skipped answer, so the server can tell that both
+        // players finished the full question set before awarding the result.
+        matchService.submitAnswer(match.getId(), p1.getId(), question.getId(), null);
+        matchService.submitAnswer(match.getId(), p2.getId(), question.getId(), null);
 
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
