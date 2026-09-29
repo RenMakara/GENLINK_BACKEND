@@ -68,7 +68,8 @@ public class UserServiceImpl implements UserService {
             user.getPreferredLanguage(),
             user.getRole(),
             user.isActive(),
-            user.hasPassword()
+            user.hasPassword(),
+            user.getAuthProvider()
         );
     }
 }

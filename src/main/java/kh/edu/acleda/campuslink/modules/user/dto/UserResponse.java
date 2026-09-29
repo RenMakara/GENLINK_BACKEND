@@ -1,6 +1,7 @@
 package kh.edu.acleda.campuslink.modules.user.dto;
 
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
+import kh.edu.acleda.campuslink.modules.user.entity.AuthProvider;
 import kh.edu.acleda.campuslink.modules.user.entity.Role;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 import kh.edu.acleda.campuslink.shared.enums.Language;
@@ -24,5 +25,6 @@ public record UserResponse(
     Language preferredLanguage,
     Role role,
     boolean active,
-    boolean hasPassword
+    boolean hasPassword,
+    AuthProvider authProvider
 ) {}
