@@ -160,7 +160,7 @@ class BudgetServiceImplTest {
     @Test
     void categoryBreakdownSubtractsSpentFromAllocated() {
         when(budgetCategoryRepository.findByBudgetId(BUDGET_ID)).thenReturn(List.of(
-            BudgetCategory.builder().budget(budget).category("FOOD")
+            BudgetCategory.builder().budget(budget).category("Food")
                 .allocatedAmount(new BigDecimal("100.00")).build()));
         when(expenseRepository.sumByCategoryAndCurrency(eq(USER_ID), any(), any(), any())).thenReturn(List.<Object[]>of(
             new Object[]{"FOOD", new BigDecimal("30.00")}));

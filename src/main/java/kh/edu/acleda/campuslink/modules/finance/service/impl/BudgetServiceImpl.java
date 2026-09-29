@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.dto.request.BudgetCategoryRequest;
@@ -191,17 +192,21 @@ public class BudgetServiceImpl implements BudgetService {
         Map<String, BigDecimal> spentByCategory = new HashMap<>();
         for (Object[] row : expenseRepository.sumByCategoryAndCurrency(userId, currency, start, end)) {
             if (row[0] != null) {
-                spentByCategory.put((String) row[0], (BigDecimal) row[1]);
+                spentByCategory.merge(normalizeCategory((String) row[0]), (BigDecimal) row[1], BigDecimal::add);
             }
         }
         return budgetCategoryRepository.findByBudgetId(budgetId).stream()
             .map(bc -> {
-                BigDecimal spent = orZero(spentByCategory.get(bc.getCategory()));
+                BigDecimal spent = orZero(spentByCategory.get(normalizeCategory(bc.getCategory())));
                 return new BudgetResponse.CategoryBudget(
                     bc.getCategory(), bc.getAllocatedAmount(), spent,
                     bc.getAllocatedAmount().subtract(spent));
             })
             .toList();
+    }
+
+    private String normalizeCategory(String category) {
+        return category.trim().toUpperCase(Locale.ROOT);
     }
 
 
