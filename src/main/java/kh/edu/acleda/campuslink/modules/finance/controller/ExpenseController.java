@@ -48,7 +48,7 @@ public class ExpenseController {
         @RequestParam(required = false) Integer month,
         @RequestParam(required = false) Integer year,
         @RequestParam(required = false) Currency currency,
-        @PageableDefault(size = 20, sort = "expenseDate", direction = Sort.Direction.DESC) Pageable pageable) {
+        @PageableDefault(size = 20, sort = {"expenseDate", "createdAt"}, direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success("Expenses retrieved",
             expenseService.getMine(category, month, year, currency, pageable)));
     }
