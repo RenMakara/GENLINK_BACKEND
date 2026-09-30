@@ -6,6 +6,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionReportRe
 import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionLikerResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedDiscussionResponse;
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import org.springframework.data.domain.Pageable;
@@ -38,6 +39,9 @@ public interface DiscussionService {
     int react(UUID discussionId);
 
     int unreact(UUID discussionId);
+
+    /** Returns the paged liker list for the discussion author. */
+    PageResponse<DiscussionLikerResponse> getLikers(UUID discussionId, Pageable pageable);
 
     /** Creates or returns the caller's existing discussion repost. */
     void repost(UUID discussionId, RepostRequest request);

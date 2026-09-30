@@ -9,6 +9,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionCreateRe
 import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionReportRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionLikerResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedDiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.service.DiscussionService;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
@@ -118,6 +119,16 @@ public class DiscussionController {
     public ResponseEntity<ApiResponse<Map<String, Integer>>> unreact(@PathVariable UUID discussionId) {
         return ResponseEntity.ok(ApiResponse.success("Reaction removed",
             Map.of("reactionCount", discussionService.unreact(discussionId))));
+    }
+
+    /** The discussion author can inspect a paged list of users who reacted. */
+    @GetMapping("/{discussionId}/reactions")
+    public ResponseEntity<ApiResponse<PageResponse<DiscussionLikerResponse>>> getReactions(
+        @PathVariable UUID discussionId,
+        @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+        Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success("Discussion reactions retrieved",
+            discussionService.getLikers(discussionId, pageable)));
     }
 
     /** Discussions are forum topics and cannot be reposted as feed posts. */

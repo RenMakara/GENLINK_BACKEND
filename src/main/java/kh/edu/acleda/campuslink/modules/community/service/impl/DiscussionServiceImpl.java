@@ -13,6 +13,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.request.DiscussionReportRe
 import kh.edu.acleda.campuslink.modules.community.dto.request.RepostRequest;
 import kh.edu.acleda.campuslink.modules.community.dto.response.CommentResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionResponse;
+import kh.edu.acleda.campuslink.modules.community.dto.response.DiscussionLikerResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.PostResponse;
 import kh.edu.acleda.campuslink.modules.community.dto.response.ReportedDiscussionResponse;
 import kh.edu.acleda.campuslink.modules.community.entity.DiscussionReport;
@@ -217,6 +218,28 @@ public class DiscussionServiceImpl implements DiscussionService {
                 return discussion.getReactionCount() - 1;
             })
             .orElseGet(discussion::getReactionCount);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<DiscussionLikerResponse> getLikers(UUID discussionId, Pageable pageable) {
+        UUID userId = currentUserProvider.getCurrentUserId();
+        discussionRepository.findByIdAndUserIdAndDeletedAtIsNull(discussionId, userId)
+            .orElseThrow(() -> new NotFoundException("Discussion not found"));
+
+        Page<ForumReaction> reactions = reactionRepository.findByDiscussionId(discussionId, pageable);
+        return PageResponse.from(reactions, reaction -> {
+            User user = reaction.getUser();
+            return new DiscussionLikerResponse(
+                user != null ? user.getId() : reaction.getId(),
+                user != null && user.getFullName() != null && !user.getFullName().isBlank()
+                    ? user.getFullName()
+                    : user != null ? user.getUsername() : "User",
+                user != null ? user.getUsername() : "user",
+                user != null ? user.getAvatarUrl() : null,
+                reaction.getCreatedAt()
+            );
+        });
     }
 
     @Override
