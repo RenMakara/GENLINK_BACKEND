@@ -82,8 +82,7 @@ public class InterestServiceImpl implements InterestService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException("User not found"));
 
-        // Replace wholesale: the onboarding step submits the full selection, and the
-        // unique (user_id, interest_id) constraint makes incremental merging pointless.
+        // Replace wholesale: the onboarding step submits the full selection.
         userInterestRepository.deleteByUserId(userId);
         userInterestRepository.flush();
 

@@ -7,15 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Persists audit entries in a transaction of their own.
- *
- * <p>Separate bean on purpose: the propagation boundary only applies to calls that go
- * through the proxy, and it lets {@link SecurityAuditService} wrap the call in a
- * try/catch from <em>outside</em> the transaction. Swallowing the exception inside the
- * boundary would leave the transaction marked rollback-only and surface as an
- * UnexpectedRollbackException at commit.
- */
+/** Persists audit entries in a transaction of their own. */
 @Component
 @RequiredArgsConstructor
 public class SecurityAuditWriter {

@@ -1,4 +1,4 @@
--- Chat Phase 2: group member roles + one pinned message per room.
+-- Adds group roles and one pinned message per room.
 
 -- Member role. OWNER (creator), ADMIN (manages members / rename / pin), MEMBER (default).
 ALTER TABLE chat_room_members ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'MEMBER';

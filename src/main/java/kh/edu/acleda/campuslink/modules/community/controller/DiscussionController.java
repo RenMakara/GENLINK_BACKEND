@@ -63,12 +63,7 @@ public class DiscussionController {
         return ResponseEntity.ok(ApiResponse.success("My discussions retrieved", discussionService.getMine(pageable)));
     }
 
-    /**
-     * Admin moderation queue: reported discussions, most-reported first. ROLE_ADMIN only -
-     * the forum is category-scoped, not community-scoped, so there is no community moderator
-     * to defer to. Also a literal path declared before /{discussionId} so it is not shadowed.
-     * The queue reveals the author even for anonymous discussions (moderation accountability).
-     */
+    /** Admin moderation queue: reported discussions, most-reported first. */
     @GetMapping("/reported")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<PageResponse<ReportedDiscussionResponse>>> reportedDiscussions(
@@ -77,10 +72,7 @@ public class DiscussionController {
             discussionService.reportedDiscussions(pageable)));
     }
 
-    /**
-     * Profile-only repost history. Reposts are deliberately not merged into the forum
-     * browse response; this endpoint is what makes them visible on the reposter's profile.
-     */
+    /** Profile-only repost history. */
     @GetMapping("/reposts")
     public ResponseEntity<ApiResponse<PageResponse<DiscussionResponse>>> getReposts(
         @RequestParam(required = false) UUID userId,

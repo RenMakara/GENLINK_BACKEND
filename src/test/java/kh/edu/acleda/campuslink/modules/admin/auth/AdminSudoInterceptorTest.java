@@ -28,9 +28,7 @@ class AdminSudoInterceptorTest {
 
     @BeforeEach
     void setUp() {
-        // findAndRegisterModules() so this mapper matches the one Spring injects in
-        // production - a bare ObjectMapper cannot serialise the Instant on ApiResponse, which
-        // would make this test fail for a reason the real code never hits.
+        // findAndRegisterModules() so this mapper matches the one Spring injects in production.
         interceptor = new AdminSudoInterceptor(sudoService, new ObjectMapper().findAndRegisterModules());
         response = new MockHttpServletResponse();
     }
@@ -55,10 +53,7 @@ class AdminSudoInterceptorTest {
         return new HandlerMethod(type.getDeclaredConstructor().newInstance(), type.getMethod(method));
     }
 
-    // -------------------------------------------------------------------------------
     // AC#1
-    // -------------------------------------------------------------------------------
-
     @Test
     void refusesAHighTierActionWithoutSudo() throws Exception {
         when(sudoService.isOpen()).thenReturn(false);
@@ -97,10 +92,7 @@ class AdminSudoInterceptorTest {
         assertThat(response.getStatus()).isEqualTo(200);
     }
 
-    // -------------------------------------------------------------------------------
     // Scope
-    // -------------------------------------------------------------------------------
-
     /** Ordinary endpoints must not require sudo, or the window becomes a login mode. */
     @Test
     void leavesUnannotatedEndpointsAlone() throws Exception {

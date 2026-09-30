@@ -74,10 +74,7 @@ public class CommunityController {
         return ResponseEntity.ok(ApiResponse.success("Community deleted", null));
     }
 
-    /**
-     * Idempotent - backs the Join button. A PUBLIC community is joined at once; a PRIVATE
-     * one returns requestPending=true until an owner/admin approves the request.
-     */
+    /** Idempotent - backs the Join button. */
     @PostMapping("/{communityId}/join")
     public ResponseEntity<ApiResponse<CommunityResponse>> join(@PathVariable UUID communityId) {
         return ResponseEntity.ok(ApiResponse.success("Community joined", communityService.join(communityId)));
@@ -120,10 +117,7 @@ public class CommunityController {
         return ResponseEntity.ok(ApiResponse.success("Join request rejected", null));
     }
 
-    /**
-     * Promote/demote a member to ADMIN, MODERATOR or MEMBER. Owner or admin only; an admin
-     * may only manage moderators and members. Use transfer-ownership to change the owner.
-     */
+    /** Promote/demote a member to ADMIN, MODERATOR or MEMBER. */
     @PutMapping("/{communityId}/members/{userId}/role")
     public ResponseEntity<ApiResponse<CommunityMemberResponse>> changeMemberRole(
         @PathVariable UUID communityId, @PathVariable UUID userId,

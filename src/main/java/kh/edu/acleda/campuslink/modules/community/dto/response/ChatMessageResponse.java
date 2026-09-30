@@ -4,12 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.enums.MessageType;
 
-/**
- * One message, renderable without a follow-up call.
- *
- * @param mine    resolved server-side so the client can align the bubble without knowing its own id
- * @param replyTo a shallow preview of the replied-to message (null when this is not a reply)
- */
+/** One message, renderable without a follow-up call. */
 public record ChatMessageResponse(
     UUID messageId,
     UUID roomId,

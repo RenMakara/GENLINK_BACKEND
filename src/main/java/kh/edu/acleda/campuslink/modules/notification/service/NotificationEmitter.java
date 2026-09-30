@@ -4,11 +4,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Small internal port for domain modules that need to request a notification.
- * The implementation publishes an application event. Persistence is deliberately handled by
- * the notification event listener after the source transaction commits.
- */
+/** Small internal port for domain modules that need to request a notification. */
 public interface NotificationEmitter {
 
     void emit(NotificationRequest request);

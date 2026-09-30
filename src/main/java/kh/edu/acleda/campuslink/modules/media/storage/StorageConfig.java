@@ -15,11 +15,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.net.URI;
 
-/**
- * Wires the S3 client/presigner from {@link StorageProperties}. This and
- * {@link S3StorageService} are the only classes that reference the AWS SDK, so
- * the provider is swappable without touching anything else.
- */
+/** Wires the S3 client/presigner from {@link StorageProperties}. */
 @Configuration
 @EnableConfigurationProperties({StorageProperties.class,
     kh.edu.acleda.campuslink.modules.media.MediaCleanupProperties.class})

@@ -24,20 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * The second factor: {@code /admin/auth/mfa/verify} (ADM-023).
- *
- * <p>Turns a challenge plus a code into a real admin session. This is the only place in the
- * application that mints a {@code typ=ADMIN} token, which is what makes "an admin session
- * always passed through TOTP" a property of the design rather than a convention.
- *
- * <h2>The challenge is spent either way</h2>
- *
- * Five wrong codes void it (SSOT §10.6); one right code retires it. Both go through
- * {@link AdminMfaChallengeStore}. Without the second half, a challenge lifted from a proxy log
- * would stay usable for the rest of its five minutes and mint a further session that needed
- * neither the password nor a code, because the real login had already supplied both.
- */
+/** The second factor: {@code /admin/auth/mfa/verify} (ADM-023). */
 @Slf4j
 @Service
 public class AdminMfaVerificationService {
@@ -92,9 +79,7 @@ public class AdminMfaVerificationService {
         }
 
         if (challengeStore.isVoidedByAttempts(challenge.id())) {
-            // Five wrong codes. This is rate limiting, so it answers 429 RATE_LIMITED rather
-            // than "expired" - telling someone who mistyped that their session lapsed sends
-            // them straight back round the loop instead of telling them to stop (DoD, §10.6).
+            // Five wrong codes.
             securityAuditService.logFailure(EVENT_FAILED, challenge.email(), "CHALLENGE_ATTEMPTS_EXCEEDED");
             throw new RateLimitedException(
                 "Too many incorrect codes. Please sign in again to start over.");
@@ -118,28 +103,20 @@ public class AdminMfaVerificationService {
         return issueSession(admin, remaining);
     }
 
-    /**
-     * Tries the code as TOTP, then as a recovery code.
-     *
-     * @return recovery codes left when a recovery code was spent, {@code -1L} when TOTP was
-     *     used, or null when neither matched.
-     */
+    /** Tries the code as TOTP, then as a recovery code. */
     private Long accept(AdminUser admin, String code) {
         byte[] secret = Base32.decode(fieldEncryptor.decrypt(admin.getTotpSecret()));
         if (totpGenerator.verify(secret, code, Instant.now())) {
             return -1L;
         }
 
-        // Only reached when the TOTP check failed, so a recovery code costs one wasted HMAC -
-        // microseconds. Trying recovery first would instead cost up to ten BCrypt comparisons
-        // on every ordinary sign-in, which is about a second.
+        // Only reached when the TOTP check failed, so a recovery code costs one wasted HMAC - microseconds.
         Optional<String> consumed = recoveryCodeService.consume(admin.getRecoveryCodes(), code);
         if (consumed.isEmpty()) {
             return null;
         }
 
-        // Persisted before any token is issued. If this write were skipped or reordered, a
-        // recovery code would remain spendable after use, which is AC#2 exactly.
+        // Persisted before any token is issued.
         admin.setRecoveryCodes(consumed.get());
         adminUserRepository.save(admin);
 
@@ -182,10 +159,7 @@ public class AdminMfaVerificationService {
     private record Challenge(String email, String id) {
     }
 
-    /**
-     * Validates the challenge token. Same checks as the enrolment routes: this endpoint is
-     * {@code permitAll}, so nothing else stands in front of it.
-     */
+    /** Validates the challenge token. */
     private Challenge parseChallenge(String challengeToken) {
         if (challengeToken == null || challengeToken.isBlank() || !jwtService.validateToken(challengeToken)) {
             throw new UnauthorizedException("Your sign-in session has expired. Please sign in again.");
@@ -196,8 +170,7 @@ public class AdminMfaVerificationService {
         }
         String challengeId = jwtService.getTokenId(challengeToken);
         if (challengeId == null || challengeId.isBlank()) {
-            // Every challenge this codebase issues carries a jti. One without it cannot be
-            // attempt-limited or retired, so it is refused rather than trusted.
+            // Every challenge this codebase issues carries a jti.
             log.warn("Challenge token with no jti presented to /mfa/verify");
             throw new UnauthorizedException("Your sign-in session has expired. Please sign in again.");
         }

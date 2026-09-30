@@ -37,11 +37,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     Page<Expense> findByUser(@Param("userId") UUID userId, @Param("category") String category,
                              @Param("currency") Currency currency, Pageable pageable);
 
-    /**
-     * Expenses within a half-open date range [start, end). Split from findByUser so the
-     * dates only appear in comparisons, never in an `IS NULL` check - a bare date param
-     * in IS NULL breaks on PostgreSQL (could not determine data type).
-     */
+    /** Expenses within a half-open date range [start, end). */
     @Query(value = "SELECT e FROM Expense e WHERE e.user.id = :userId AND e.deletedAt IS NULL "
         + "AND (:category IS NULL OR e.category = :category) "
         + "AND (:currency IS NULL OR e.currency = :currency) "

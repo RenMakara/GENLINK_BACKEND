@@ -358,8 +358,7 @@ public class AdminDashboardQueryRepositoryImpl implements AdminDashboardQueryRep
             return dateTime.toLocalDate();
         }
         if (value instanceof Timestamp timestamp) {
-            // A PostgreSQL date projection can be materialised as a timestamp by a provider;
-            // it already represents the local calendar bucket, so do not apply UTC+7 again.
+            // A PostgreSQL date projection can be materialised as a timestamp by a provider.
             return timestamp.toLocalDateTime().toLocalDate();
         }
         if (value instanceof java.util.Date date) {

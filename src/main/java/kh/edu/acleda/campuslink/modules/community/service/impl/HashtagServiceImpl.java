@@ -23,14 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class HashtagServiceImpl implements HashtagService {
 
-    /**
-     * Must start with a letter, so "#1" and "#123" are not tags.
-     *
-     * <p>\p{M} is required, not decorative: Khmer writes a syllable as a consonant plus
-     * vowel signs and coeng, which Unicode classifies as marks rather than letters.
-     * Without it "#បច្ចេកវិទ្យា" is silently truncated at the first vowel sign, and \w
-     * would drop Khmer entirely.
-     */
+    /** Must start with a letter, so "#1" and "#123" are not tags. */
     private static final Pattern HASHTAG = Pattern.compile("#([\\p{L}][\\p{L}\\p{M}\\p{N}_]{0,49})");
     private static final int MAX_TAGS_PER_POST = 10;
 
@@ -48,10 +41,7 @@ public class HashtagServiceImpl implements HashtagService {
     public void syncForPost(Post post, String contentText) {
         Set<String> tags = extract(contentText);
 
-        // Editing a post rebuilds its links, so drop the old ones (decrementing their usage
-        // counts) first. Without this, re-syncing an edited post re-incremented all its current
-        // tags on top of the old count, inflating trending on every edit. Net effect for an
-        // unchanged tag is -1 then +1 = 0.
+        // Editing a post rebuilds its links, so drop the old ones (decrementing their usage counts) first.
         clearForPost(post);
         if (tags.isEmpty()) {
             return;
@@ -77,7 +67,6 @@ public class HashtagServiceImpl implements HashtagService {
     @Transactional
     public void clearForPost(Post post) {
         // Decrement the usage count of every tag this post was linked to, then remove the links.
-        // Without this a deleted post left its tags inflating trending indefinitely.
         for (PostHashtag oldLink : postHashtagRepository.findByPostId(post.getId())) {
             Hashtag hashtag = oldLink.getHashtag();
             int current = hashtag.getUsageCount() == null ? 0 : hashtag.getUsageCount();
@@ -108,10 +97,7 @@ public class HashtagServiceImpl implements HashtagService {
         return hashtagRepository.findTrendingPublicTags(PageRequest.of(0, limit));
     }
 
-    /**
-     * Lower-cased and de-duplicated: #Flutter and #flutter are one tag, and repeating a
-     * tag in one post must not count twice or breach the unique (post, hashtag) index.
-     */
+    /** Lower-cased and de-duplicated: #Flutter and #flutter are one tag. */
     private Set<String> extract(String contentText) {
         if (contentText == null || contentText.isBlank()) {
             return Set.of();

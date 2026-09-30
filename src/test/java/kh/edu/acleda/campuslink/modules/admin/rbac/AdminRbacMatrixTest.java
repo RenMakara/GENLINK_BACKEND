@@ -36,15 +36,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.security.access.prepost.PreAuthorize;
 
-/**
- * Executable guardrails for the seven-role matrix in SSOT §5.4.
- *
- * <p>The seed is parsed and compared with a deliberately duplicated expected matrix. This is
- * intentional: changing a role grant without changing this test is a security-review failure,
- * rather than a silently accepted data change. Representative controller methods are checked in
- * the same parameterized suite so the stored grant and the actual method-security contract cannot
- * drift apart.
- */
+/** Executable guardrails for the seven-role matrix in SSOT §5.4. */
 class AdminRbacMatrixTest {
 
     private static final String MIGRATION = "db/changelog/changes/0041-create-admin-tables.sql";
@@ -161,10 +153,7 @@ class AdminRbacMatrixTest {
             .map(Arguments::of);
     }
 
-    /**
-     * These are the implemented permission boundaries. Planned groups such as finance,
-     * analytics and audit are still checked at the matrix level until their endpoints exist.
-     */
+    /** These are the implemented permission boundaries. */
     private static List<EndpointContract> representativeEndpoints() {
         return List.of(
             EndpointContract.read("dashboard summary", AdminDashboardController.class, "summary",

@@ -14,14 +14,7 @@ public class AdminUniversityFacetRepository {
     @PersistenceContext
     private EntityManager entityManager;
 
-    /**
-     * Returns the most common live, non-blank university names matching the optional query.
-     *
-     * <p>The explicit non-null predicate keeps this query eligible for the partial
-     * {@code idx_users_university} index. The leading-wildcard typeahead match can still require
-     * a broader scan for non-empty queries, which is preferable to introducing an unapproved
-     * index or dependency for this bounded facet.
-     */
+    /** Returns the most common live, non-blank university names matching the optional query. */
     public List<String> findUniversities(String query) {
         String normalizedQuery = query == null ? "" : query.trim();
         List<?> results = entityManager.createNativeQuery("""

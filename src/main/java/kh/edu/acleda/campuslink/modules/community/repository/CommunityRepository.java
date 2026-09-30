@@ -23,11 +23,7 @@ public interface CommunityRepository extends JpaRepository<Community, UUID> {
 
     boolean existsBySlug(String slug);
 
-    /**
-     * Biggest public communities the user has not joined, for the home suggestions.
-     * excludedIds must be non-empty; callers pass a dummy id when the user has no
-     * memberships, because "NOT IN ()" is invalid SQL.
-     */
+    /** Biggest public communities the user has not joined, for the home suggestions. */
     @Query("SELECT c FROM Community c WHERE c.deletedAt IS NULL AND c.privacy = :privacy "
         + "AND c.id NOT IN :excludedIds ORDER BY c.memberCount DESC")
     List<Community> findSuggestions(CommunityPrivacy privacy, Collection<UUID> excludedIds, Pageable pageable);

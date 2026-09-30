@@ -10,10 +10,7 @@ public final class EventVisibility {
     private EventVisibility() {
     }
 
-    /**
-     * Published events are public. Non-published events are visible only to their
-     * organizer, and soft-deleted events are never visible.
-     */
+    /** Published events are public. */
     public static boolean canView(Event event, UUID viewerId) {
         if (event == null || event.getDeletedAt() != null) {
             return false;
@@ -26,10 +23,7 @@ public final class EventVisibility {
             && viewerId.equals(event.getOrganizer().getId());
     }
 
-    /**
-     * Normal attendee registration is available only for published events.
-     * Owner-only visibility of a draft does not grant permission to RSVP to it.
-     */
+    /** Normal attendee registration is available only for published events. */
     public static boolean canRsvp(Event event, UUID viewerId) {
         return canView(event, viewerId) && event.getStatus() == EventStatus.PUBLISHED;
     }

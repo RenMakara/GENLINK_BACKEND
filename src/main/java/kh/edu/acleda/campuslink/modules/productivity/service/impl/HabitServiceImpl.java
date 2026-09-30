@@ -193,11 +193,7 @@ public class HabitServiceImpl implements HabitService {
         return days;
     }
 
-    /**
-     * Consecutive completed days ending today, or yesterday when today is not yet done -
-     * so an unbroken streak is not "lost" just because the user has not checked in yet
-     * today.
-     */
+    /** Consecutive completed days ending today, or yesterday when today is not yet done. */
     private int currentStreak(Set<LocalDate> completedDays, LocalDate today, String frequency) {
         if ("WEEKLY".equals(frequency)) {
             LocalDate cursor = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));

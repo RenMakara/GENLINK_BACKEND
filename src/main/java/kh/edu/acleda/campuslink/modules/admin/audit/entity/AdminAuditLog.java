@@ -21,18 +21,7 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/**
- * One privileged admin action, successful or not.
- *
- * <p><strong>Append-only.</strong> There is no update or delete path at any permission level,
- * in the API or the UI - an audit log an admin can edit is not an audit log. Setters exist
- * only so the writer can populate a new row; nothing should ever re-save an existing one.
- *
- * <p>Rows are written in a {@code REQUIRES_NEW} transaction rather than the caller's. The
- * codebase has already been burned by the alternative: {@code SecurityAuditService} wrote
- * failures inside the caller's transaction, so the caller logged, threw, and the audit row
- * rolled back with it - failed logins were never recorded.
- */
+/** One privileged admin action, successful or not. */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -43,10 +32,7 @@ import org.hibernate.type.SqlTypes;
 @AttributeOverride(name = "id", column = @Column(name = "admin_audit_log_id", nullable = false, updatable = false))
 public class AdminAuditLog extends BaseEntity {
 
-    /**
-     * Null where there is no admin to attribute the action to: the bootstrap runner that
-     * creates the very first SUPER_ADMIN, and failed logins.
-     */
+    /** Null where there is no admin to attribute the action to. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "admin_user_id")
     private AdminUser adminUser;
@@ -85,10 +71,7 @@ public class AdminAuditLog extends BaseEntity {
     @Column(name = "request_id", length = 64)
     private String requestId;
 
-    /**
-     * Groups the rows of one bulk operation. Bulk actions write one row per affected user -
-     * "admin X banned 50 users" as a single line is not an audit trail.
-     */
+    /** Groups the rows of one bulk operation. */
     @Column(name = "batch_id")
     private UUID batchId;
 

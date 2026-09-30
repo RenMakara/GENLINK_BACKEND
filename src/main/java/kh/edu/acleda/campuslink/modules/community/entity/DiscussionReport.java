@@ -16,11 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Backs forum_discussions.report_count. The reporter is recorded so moderators can
- * see who flagged what, and so the unique constraint can make the count mean
- * "distinct people" rather than "taps".
- */
+/** Backs forum_discussions.report_count. */
 @Getter
 @Setter
 @NoArgsConstructor

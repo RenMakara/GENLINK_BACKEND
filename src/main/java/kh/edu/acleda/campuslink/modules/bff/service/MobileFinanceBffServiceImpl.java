@@ -30,16 +30,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Aggregates the Finance screen. Reads across the finance repositories directly - the
- * BFF layer is exactly where cross-entity coupling belongs, so it does not leak into
- * the finance services (which are current-user scoped and would not fit the by-email
- * BFF entry point).
- *
- * <p>Spend is computed live from expenses, never read from Budget.spentAmount: that
- * cached column is set at create and never maintained (spend is derived on read), so
- * reading it would always show 0.
- */
+/** Aggregates the Finance screen. */
 @Service
 public class MobileFinanceBffServiceImpl implements MobileFinanceBffService {
 

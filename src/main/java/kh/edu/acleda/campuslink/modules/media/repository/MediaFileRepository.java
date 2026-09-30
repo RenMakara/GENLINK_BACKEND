@@ -36,19 +36,11 @@ public interface MediaFileRepository extends JpaRepository<MediaFile, UUID> {
     List<MediaFile> findByVisibilityAndPublicUrlIsNotNullAndDeletedAtIsNull(
         kh.edu.acleda.campuslink.modules.media.entity.MediaVisibility visibility);
 
-    /**
-     * Per-owner duplicate detection: an existing confirmed object with the same
-     * bytes. Used to short-circuit a re-upload of identical content.
-     */
+    /** Per-owner duplicate detection: an existing confirmed object with the same bytes. */
     Optional<MediaFile> findFirstByOwnerIdAndChecksumSha256AndStatusAndDeletedAtIsNull(
         UUID ownerId, String checksumSha256, MediaStatus status);
 
-    /**
-     * Orphan cleanup: presigned but never confirmed.
-     *
-     * <p>Paged, like the anonymisation sweep — these run unattended, and an
-     * unbounded query would be one backlog away from an OOM on a 768 MB container.
-     */
+    /** Orphan cleanup: presigned but never confirmed. */
     List<MediaFile> findByStatusAndCreatedAtBeforeAndDeletedAtIsNull(
         MediaStatus status, Instant cutoff, Pageable pageable);
 

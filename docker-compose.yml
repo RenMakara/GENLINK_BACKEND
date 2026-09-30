@@ -2,7 +2,7 @@
 name: genlink
 
 services:
-  # ── PostgreSQL ────────────────────────────────────────────────────────
+  # PostgreSQL
   postgres:
     # Pinned to a minor-stable tag. Never use `latest` in production: a
     # silent major upgrade can make the data directory unreadable.
@@ -36,52 +36,19 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ── Spring Boot ───────────────────────────────────────────────────────
+  # Spring Boot
   app:
     build:
       context: .
       dockerfile: Dockerfile
     image: genlink-api:latest
 
-    # ── LOAD-BEARING. Do not remove without reading this. ────────────────
-    # A fixed container_name means Docker refuses to start a second copy of
-    # this service: `docker compose up --scale app=2` fails outright instead
-    # of silently running two. That is not naming tidiness — four security
-    # controls are only correct because exactly one instance exists:
-    #
-    #   1. Login/password rate limiting (AuthRateLimitService) is an in-memory
-    #      ConcurrentHashMap. On two replicas an attacker simply spreads
-    #      attempts across them and the limiter stops limiting.
-    #   2. Per-IP request throttling on /api/v1/auth/** (RateLimitFilter ->
-    #      RateLimitService) holds its bucket4j buckets in another in-memory
-    #      ConcurrentHashMap. Same failure, and it is easy to miss because it
-    #      is a servlet filter rather than a call in the service layer: two
-    #      replicas simply double the effective limit.
-    #   3. Admin permission caching (AdminPermissionCache) has no TTL — it
-    #      relies on evict-on-write, which only reaches the node that handled
-    #      the write. On two replicas a revoked admin permission would stay
-    #      live on the other one. That is a security bug, not staleness.
-    #   4. MFA challenge state (AdminMfaChallengeStore) is a third in-memory
-    #      ConcurrentHashMap. It enforces "5 TOTP attempts per challenge" and
-    #      "a challenge is single-use". On two replicas an attacker gets five
-    #      guesses PER REPLICA, and a spent challenge stays replayable on the
-    #      node that did not see it spent — a second admin session for free.
-    #
-    # BEFORE REMOVING THIS LINE to scale horizontally, all four must move to
-    # Redis. Redis is already declared below behind the `cache` profile, but
-    # the app has no spring-boot-starter-data-redis dependency yet, so it
-    # cannot talk to it — adding that dependency is the first step.
-    #
-    # Migrating only some of them is the dangerous outcome: the interlock then
-    # looks removable while a per-instance control is still in place.
-    #
-    # See docs/admin-dashboard.md §14.6.
-    # ─────────────────────────────────────────────────────────────────────
+    # Keep one API instance: rate limits, permission cache, and MFA state are in memory.
+    # Move all in-memory controls to Redis before scaling.
     container_name: genlink-api
     restart: unless-stopped
 
-    # Every value comes from .env — nothing secret is written in this file,
-    # so docker-compose.yml stays safe to commit.
+    # Load values from .env; keep secrets out of this file.
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       DB_URL: ${DB_URL}
@@ -122,24 +89,18 @@ services:
 
     depends_on:
       postgres:
-        # Waits for pg_isready, not just "container started". Liquibase runs
-        # at boot and would fail against a database still initialising.
+        # Wait for PostgreSQL to finish starting before Liquibase runs.
         condition: service_healthy
 
     ports:
-      # Loopback only. Nginx (on the host) proxies to this; the port is
-      # never reachable from the internet. Keeping it bound lets you curl
-      # the app directly from the EC2 instance while debugging.
+      # Loopback only.
       - "127.0.0.1:8888:8888"
 
-    # Caps the JVM. Combined with MaxRAMPercentage=75 in the Dockerfile
-    # this gives roughly a 576 MB heap and leaves room for Postgres.
-    # Raise it if your EC2 instance is larger than 2 GB.
+    # Limit container memory to 768 MB.
     mem_limit: 768m
 
     healthcheck:
-      # /actuator/health is permitAll() in SecurityConfig, so this needs no
-      # token. `wget --spider` avoids installing curl in the image.
+      # The health endpoint is public; wget avoids adding curl to the image.
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8888/actuator/health || exit 1"]
       interval: 15s
       timeout: 5s
@@ -153,21 +114,13 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ── Redis (optional, OFF by default) ──────────────────────────────────
-  #
-  # Started only with:  docker compose --profile cache up -d
-  #
-  # Leave it off for now. The application has `spring-boot-starter-cache`
-  # but NOT `spring-boot-starter-data-redis`, so Spring cannot talk to
-  # Redis yet — running it today would consume RAM and serve no traffic.
-  # Turn it on in the same commit that adds the dependency.
+  # Optional Redis cache; start it with --profile cache.
   redis:
     image: redis:7-alpine
     container_name: genlink-redis
     restart: unless-stopped
     profiles: ["cache"]
-    # `--save ""` disables snapshotting: as a pure cache there is nothing
-    # worth persisting, and it avoids fork-related memory spikes.
+    # Disable persistence for this cache to avoid disk and fork overhead.
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "127.0.0.1:6379:6379"
@@ -184,6 +137,5 @@ services:
 
 volumes:
   postgres_data:
-    # Explicitly named so it is easy to find, back up and restore:
-    #   docker volume inspect genlink_postgres_data
+    # Named volume for simple backup and restore.
     name: genlink_postgres_data

@@ -11,17 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * A staff role. Seven are seeded by migration 0041; more can be added as data.
- *
- * <p>Roles are data so that changing who can do what is an INSERT rather than a deploy.
- * Permissions, by contrast, are code - see {@code Permission}.
- *
- * <p>{@code SUPER_ADMIN} is a row here like any other, but carries <strong>no</strong>
- * {@code role_permissions}: it implicitly holds every permission, resolved in code. Seeding
- * its grants as well would create a second source of truth that drifts the moment a new
- * permission is added.
- */
+/** A staff role. */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -43,10 +33,7 @@ public class AdminRole extends BaseEntity {
     @Column(name = "description", length = 255)
     private String description;
 
-    /**
-     * True for the seven roles shipped with the product. System roles may be renamed and
-     * re-permissioned but never deleted - deleting one would strand every admin holding it.
-     */
+    /** True for the seven roles shipped with the product. */
     @Column(name = "is_system", nullable = false)
     private boolean isSystem;
 }

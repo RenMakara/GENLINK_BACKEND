@@ -151,8 +151,7 @@ public class AdminRoleUpdateService {
                     + String.join(", ", duplicates), VALIDATION_ERROR);
         }
 
-        // Persist and audit in the enum's stable order. The response/read path uses the same
-        // order, so a request is deterministic regardless of checkbox traversal order.
+        // Persist and audit in the enum's stable order.
         return Permission.values().length == normalized.size()
             ? Permission.allCodes()
             : Arrays.stream(Permission.values())

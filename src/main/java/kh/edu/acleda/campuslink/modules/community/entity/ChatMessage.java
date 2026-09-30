@@ -48,8 +48,7 @@ public class ChatMessage extends BaseEntity {
     @Column(name = "media_url", columnDefinition = "TEXT")
     private String mediaUrl;
 
-    // Optional: only reply messages set this. The DB column is nullable; the previous
-    // nullable=false was wrong metadata (a normal message has no reply target).
+    // Optional: only reply messages set this.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reply_to_message_id", nullable = true)
     private ChatMessage replyToMessage;

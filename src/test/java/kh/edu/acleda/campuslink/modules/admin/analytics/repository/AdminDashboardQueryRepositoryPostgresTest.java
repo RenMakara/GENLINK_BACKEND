@@ -19,13 +19,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
-/**
- * PostgreSQL regression coverage for the DAU/MAU proxy.
- *
- * <p>The dashboard query deliberately uses PostgreSQL's date-series and timestamp operators, so
- * H2 is not an adequate proof of the production query. CI supplies a disposable PostgreSQL URL;
- * local runs without that variable keep the normal test suite independent of a database server.
- */
+/** PostgreSQL regression coverage for the DAU/MAU proxy. */
 @SpringBootTest
 @ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "GENLINK_TEST_POSTGRES_URL", matches = ".+")

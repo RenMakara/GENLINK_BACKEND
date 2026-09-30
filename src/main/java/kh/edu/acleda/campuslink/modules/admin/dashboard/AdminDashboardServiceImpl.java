@@ -13,13 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-/**
- * Assembles the dashboard response while keeping each read independently optional.
- *
- * <p>The query repository deliberately owns its own read-only transaction. This service does
- * not wrap all sections in one transaction: if a database aggregate fails, the failing query
- * must not poison the transaction needed by the remaining cards and panels.
- */
+/** Assembles the dashboard response while keeping each read independently optional. */
 @Slf4j
 @Service
 public class AdminDashboardServiceImpl implements AdminDashboardService {
@@ -113,8 +107,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             }
         }
 
-        // Keep zero-valued statuses in the response so the donut legend remains stable across
-        // deployments and an empty dev database still has the five SSOT categories.
+        // Keep zero-valued statuses in the response.
         return List.of(
             AccountStatus.PENDING,
             AccountStatus.ACTIVE,
@@ -146,8 +139,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         try {
             return supplier.get();
         } catch (RuntimeException ex) {
-            // The endpoint is intentionally a partial-success response. Keep the exception out
-            // of the HTTP layer, but retain enough context to diagnose the failed aggregate.
+            // The endpoint is intentionally a partial-success response.
             log.warn("Admin dashboard section '{}' unavailable: {}", section, ex.getMessage());
             return null;
         }

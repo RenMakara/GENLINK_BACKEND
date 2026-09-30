@@ -22,10 +22,7 @@ public class NotificationEventListener {
         this.legacyNotificationWriter = null;
     }
 
-    /**
-     * Compatibility constructor for existing unit tests that exercise the old direct writer
-     * boundary. Spring uses the autowired outbox constructor in the application.
-     */
+    /** Compatibility constructor for existing unit tests that exercise the old direct writer boundary. */
     public NotificationEventListener(NotificationWriter notificationWriter) {
         this.notificationOutboxService = null;
         this.legacyNotificationWriter = notificationWriter;

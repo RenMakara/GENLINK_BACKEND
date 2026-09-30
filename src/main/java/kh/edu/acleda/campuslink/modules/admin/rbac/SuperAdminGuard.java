@@ -8,29 +8,7 @@ import kh.edu.acleda.campuslink.shared.exception.ForbiddenException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/**
- * The three guards that stop the team escalating its own privileges or locking itself out
- * (SSOT §5.1 D5, ADM-031).
- *
- * <h2>In the service layer, never the controller</h2>
- *
- * Required by the definition of done, and for a reason worth stating: these must hold for
- * <em>every</em> path that changes an admin's role or active state, including ones that do not
- * come from an HTTP request - a future bulk import, an admin CLI, a data migration. A guard in
- * a controller protects one door in a building that will grow more doors.
- *
- * <h2>Why {@code SUPER_ADMIN} is special-cased in code, not data</h2>
- *
- * It implicitly holds every permission and is the only role that can grant
- * {@code rbac:manage}. Expressing "only a SUPER_ADMIN may appoint a SUPER_ADMIN" as a
- * permission row would make it editable by anyone holding {@code rbac:manage} - which is the
- * loop this closes (SSOT §5.1 D5).
- *
- * <p>The endpoints that call these arrive in Phase 5 (`POST /admin/admins`,
- * `PUT /admin/admins/{id}/role`, `POST /admin/admins/{id}/deactivate`, and
- * `POST /admin/admins/{id}/reset-mfa`). The guards are built first so the endpoints are
- * written against them rather than around them.
- */
+/** The three guards that stop the team escalating its own privileges or locking itself out (SSOT §5.1 D5, ADM-031). */
 @Slf4j
 @Component
 public class SuperAdminGuard {
@@ -43,15 +21,7 @@ public class SuperAdminGuard {
         this.adminUserRepository = adminUserRepository;
     }
 
-    /**
-     * Guard 1 — nobody edits their own role or deactivates themselves.
-     *
-     * <p>Not about protecting an admin from a mistake. It is what stops a compromised session
-     * from quietly promoting itself, and it puts a second person's name against every privilege
-     * increase in the audit trail.
-     *
-     * @throws ApiException {@code ADMIN_SELF_MODIFICATION} (400)
-     */
+    /** Guard 1 — nobody edits their own role or deactivates themselves. */
     public void ensureNotSelf(AdminUser actor, AdminUser target) {
         requireBoth(actor, target);
         if (isSamePerson(actor, target)) {
@@ -63,18 +33,7 @@ public class SuperAdminGuard {
         }
     }
 
-    /**
-     * Identity by admin id, falling back to the account's email.
-     *
-     * <p>Both are unique per person - {@code admin_users.user_id} is UNIQUE, so one user has at
-     * most one profile - and the email is what the security context carries, so it is available
-     * on every path the id is.
-     *
-     * <p><strong>Throws rather than returning false when neither can be compared.</strong> An
-     * earlier version read {@code actor.getId() != null && actor.getId().equals(...)}, which
-     * silently answered "not the same person" for an entity with no id yet. A guard that fails
-     * open is worse than no guard, because the call site believes it ran.
-     */
+    /** Identity by admin id, falling back to the account's email. */
     private static boolean isSamePerson(AdminUser actor, AdminUser target) {
         if (actor.getId() != null && target.getId() != null) {
             return actor.getId().equals(target.getId());
@@ -93,19 +52,7 @@ public class SuperAdminGuard {
         return admin.getUser() == null ? null : admin.getUser().getEmail();
     }
 
-    /**
-     * Guard 2 — the last active {@code SUPER_ADMIN} cannot be demoted or deactivated.
-     *
-     * <p>With none left, nobody can appoint one from inside the product: {@code SUPER_ADMIN}
-     * is the only role that can grant {@code rbac:manage}. The only way back is the bootstrap
-     * runner - which needs a redeploy with {@code app.admin.bootstrap-email} set, by someone
-     * with environment access. Recovery is a deployment, not a support ticket.
-     *
-     * <p>Counts <em>active, non-deleted</em> holders, which is the same population the
-     * bootstrap guard uses - a deactivated {@code SUPER_ADMIN} is not a way back in.
-     *
-     * @throws ApiException {@code ADMIN_LAST_SUPER_ADMIN} (400)
-     */
+    /** Guard 2 — the last active {@code SUPER_ADMIN} cannot be demoted or deactivated. */
     public void ensureNotLastSuperAdmin(AdminUser target) {
         if (target == null) {
             throw new IllegalArgumentException("target is required");
@@ -124,19 +71,7 @@ public class SuperAdminGuard {
         }
     }
 
-    /**
-     * Guard 3 — only a {@code SUPER_ADMIN} may create or modify another.
-     *
-     * <p>Both directions matter, and the second is the one that is easy to miss: an
-     * {@code ADMIN} holding {@code rbac:manage} must not be able to <em>demote</em> a
-     * {@code SUPER_ADMIN} either. Guarding only the assignment would leave the whole tier
-     * removable by the tier below it.
-     *
-     * @param newRoleCode the role being assigned, or null when only the target matters
-     *     (deactivation, MFA reset).
-     * @throws ForbiddenException (403) — a permission failure, not a validation one, so it is
-     *     reported the way every other missing-permission answer is (SSOT §8 C-1).
-     */
+    /** Guard 3 — only a {@code SUPER_ADMIN} may create or modify another. */
     public void ensureMayManage(AdminUser actor, AdminUser target, String newRoleCode) {
         requireBoth(actor, target);
         if (isSuperAdmin(actor)) {
@@ -156,13 +91,7 @@ public class SuperAdminGuard {
         }
     }
 
-    /**
-     * All three, in the order a role change needs them.
-     *
-     * <p>Offered so a call site cannot apply two of the three and look complete. Self first
-     * because it is the cheapest and needs no query; the last-SUPER_ADMIN count runs only once
-     * the actor is known to be entitled to act at all.
-     */
+    /** All three, in the order a role change needs them. */
     public void ensureMayChangeRole(AdminUser actor, AdminUser target, String newRoleCode) {
         ensureNotSelf(actor, target);
         ensureMayManage(actor, target, newRoleCode);
@@ -179,13 +108,7 @@ public class SuperAdminGuard {
         ensureNotLastSuperAdmin(target);
     }
 
-    /**
-     * Guards an MFA reset for another administrator.
-     *
-     * <p>An MFA reset is account recovery, not a role change: it must still be performed by a
-     * different admin and a non-SUPER_ADMIN cannot use it to touch a SUPER_ADMIN, but it must
-     * not apply the last-SUPER_ADMIN guard because the target's role is unchanged.
-     */
+    /** Guards an MFA reset for another administrator. */
     public void ensureMayResetMfa(AdminUser actor, AdminUser target) {
         ensureNotSelf(actor, target);
         ensureMayManage(actor, target, null);

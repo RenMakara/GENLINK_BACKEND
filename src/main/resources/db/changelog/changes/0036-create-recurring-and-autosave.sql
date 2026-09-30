@@ -1,10 +1,7 @@
 --liquibase formatted sql
 
 --changeset genlink:0036-create-recurring-and-autosave
--- Phase 5 (see backend/docs/FINANCE_LEDGER_PLAN.md): automation over the ledger.
--- recurring_transactions materialise into a real income/expense (and move the wallet) on a
--- schedule; auto_save_rules move money into a saving goal each month. A daily scheduled job
--- (RecurringFinanceJob) drains both by next_run_date.
+-- Adds recurring transactions and automatic savings rules.
 
 CREATE TABLE IF NOT EXISTS recurring_transactions (
     recurring_id UUID PRIMARY KEY,

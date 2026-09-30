@@ -8,7 +8,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** ADM-022 AC#3 and AC#4. */
+/** Tests one-time admin recovery code generation and use. */
 class RecoveryCodeServiceTest {
 
     /** Strength 4: ten hashes at the production cost would make this suite crawl. */
@@ -43,10 +43,7 @@ class RecoveryCodeServiceTest {
         assertThat(codes.json()).contains("hash").contains("usedAt");
     }
 
-    /**
-     * AC#4, the one that justifies JSONB over a single hash column: spending one code must
-     * leave the other nine usable. A concatenated column could only invalidate all or none.
-     */
+    /** AC#4, the one that justifies JSONB over a single hash column: spending one code must leave the other nine usable. */
     @Test
     void consumingOneCodeLeavesTheOtherNineValid() {
         RecoveryCodeService.GeneratedCodes codes = service.generate();
@@ -100,10 +97,7 @@ class RecoveryCodeServiceTest {
             .allMatch(code -> code.matches("[ABCDEFGHJKMNPQRSTVWXYZ0-9]{5}-[ABCDEFGHJKMNPQRSTVWXYZ0-9]{5}"));
     }
 
-    /**
-     * I, L, O and U are absent on purpose: these are transcribed by hand by someone already
-     * locked out, and 0/O or 1/I confusion costs an attempt.
-     */
+    /** I, L, O and U are absent on purpose: these are transcribed by hand by someone already locked out. */
     @Test
     void omitsConfusableCharacters() {
         String allCodes = String.join("", service.generate().plaintext());

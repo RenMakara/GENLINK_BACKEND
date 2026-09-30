@@ -1,8 +1,7 @@
 --liquibase formatted sql
 
 --changeset genlink:0064-add-profile-cover-preset
--- The client bundles ten approved covers. Persisting the small preset id makes
--- the selected cover available everywhere the profile is rendered.
+-- The client bundles ten approved covers.
 ALTER TABLE users
     ADD COLUMN IF NOT EXISTS cover_preset INTEGER NOT NULL DEFAULT 0;
 

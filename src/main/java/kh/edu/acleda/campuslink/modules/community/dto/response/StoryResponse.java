@@ -6,14 +6,7 @@ import kh.edu.acleda.campuslink.modules.community.enums.StoryMediaType;
 import kh.edu.acleda.campuslink.modules.community.enums.StoryReplyPermission;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 
-/**
- * One story rendered for a viewer.
- *
- * @param seen whether the viewer has already seen this story; the viewer's own stories
- *             always read as seen.
- * @param reactionCount total number of users who reacted to the story.
- * @param reactedByMe whether the current viewer has reacted to the story.
- */
+/** One story rendered for a viewer. */
 public record StoryResponse(
     UUID storyId,
     StoryMediaType mediaType,

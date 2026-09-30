@@ -9,19 +9,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-/**
- * Pins the day-boundary cases from SSOT §9.5.
- *
- * <p>Worth a dedicated test because the failure mode is invisible: a wrong conversion shifts
- * every chart by seven hours while still producing plausible-looking numbers. Nothing throws,
- * and reviewing it from Phnom Penh will not reveal it either.
- */
+/** Pins the day-boundary cases from SSOT §9.5. */
 class AnalyticsTimeZoneTest {
 
-    /**
-     * The three cases the design calls out. The third is the one that breaks under the wrong
-     * single-clause conversion: 17:30Z is already the next day in Cambodia.
-     */
+    /** The three cases the design calls out. */
     @ParameterizedTest(name = "{0} (UTC) buckets to {1} in Phnom Penh")
     @CsvSource({
         "2026-08-01T02:00:00Z, 2026-08-01",   // 09:00 local, same day
@@ -60,10 +51,7 @@ class AnalyticsTimeZoneTest {
             .isEqualTo(24L * 60 * 60 * 1000);
     }
 
-    /**
-     * The whole point of the class. Both clauses must be present, in this order: the first
-     * declares the naive column to be UTC, the second converts it to local.
-     */
+    /** The whole point of the class. */
     @Test
     @DisplayName("the SQL fragment converts UTC to local, not the other way round")
     void sqlFragmentUsesBothAtTimeZoneClauses() {

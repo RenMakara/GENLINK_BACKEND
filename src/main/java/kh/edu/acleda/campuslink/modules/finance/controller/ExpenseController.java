@@ -53,10 +53,7 @@ public class ExpenseController {
             expenseService.getMine(category, month, year, currency, pageable)));
     }
 
-    /**
-     * Spending summary for a month, for the chart. Defaults to the current month.
-     * Literal path, declared before /{id} so it cannot be shadowed.
-     */
+    /** Spending summary for a month, for the chart. */
     @GetMapping("/summary")
     public ResponseEntity<ApiResponse<MonthlySummaryResponse>> summary(
         @RequestParam(required = false) Integer month,

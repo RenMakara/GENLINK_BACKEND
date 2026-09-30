@@ -5,39 +5,25 @@ import org.springframework.mock.web.MockHttpServletRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Client-IP resolution, which is a security control rather than a logging nicety: it keys the
- * login rate-limit buckets and it is what {@code security_audit_logs} records.
- */
+/** Client-IP resolution, which is a security control. */
 class RequestMetadataUtilTest {
 
     private static final String REAL_CLIENT = "203.0.113.7";
     private static final String SPOOFED = "1.2.3.4";
 
-    // ---------------------------------------------------------------------------------
     // The bug these pin.
-    //
-    // X-Forwarded-For used to be read first. A client can prepend to it, and nginx appended
-    // rather than overwrote, so the first entry was attacker-controlled - which made the
-    // per-IP admin login lockout (SSOT §10.6) bypassable by rotating one header.
-    // ---------------------------------------------------------------------------------
 
     @Test
     void prefersXRealIpOverAForgedForwardedForChain() {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        // What nginx produces when a caller sends their own X-Forwarded-For and the config
-        // appends to it. X-Real-IP is set from $remote_addr and cannot be forged.
+        // What nginx produces when a caller sends their own X-Forwarded-For and the config appends to it.
         request.addHeader("X-Forwarded-For", SPOOFED + ", " + REAL_CLIENT);
         request.addHeader("X-Real-IP", REAL_CLIENT);
 
         assertThat(RequestMetadataUtil.getClientIp(request)).isEqualTo(REAL_CLIENT);
     }
 
-    /**
-     * The property that actually matters: an attacker varying the header must keep landing in
-     * the same rate-limit bucket. Testing the resolved address rather than the limiter itself,
-     * because this is the input the limiter keys on.
-     */
+    /** The property that actually matters: an attacker varying the header must keep landing in the same rate-limit bucket. */
     @Test
     void rotatingTheForwardedForHeaderDoesNotChangeTheResolvedAddress() {
         String[] spoofs = {"1.2.3.4", "5.6.7.8", "9.10.11.12", "203.0.113.99"};
@@ -62,15 +48,8 @@ class RequestMetadataUtilTest {
         assertThat(RequestMetadataUtil.getClientIp(request)).isEqualTo(REAL_CLIENT);
     }
 
-    // ---------------------------------------------------------------------------------
     // Fallbacks
-    // ---------------------------------------------------------------------------------
-
-    /**
-     * Behind a proxy that sets only X-Forwarded-For. Still the first entry - with the corrected
-     * nginx config the header carries exactly one address - but this path is only as
-     * trustworthy as the proxy in front, which is why X-Real-IP wins above.
-     */
+    /** Behind a proxy that sets only X-Forwarded-For. */
     @Test
     void fallsBackToForwardedForWhenXRealIpIsAbsent() {
         MockHttpServletRequest request = new MockHttpServletRequest();
@@ -122,8 +101,6 @@ class RequestMetadataUtilTest {
         assertThat(RequestMetadataUtil.getClientIp(null)).isNull();
         assertThat(RequestMetadataUtil.getCurrentClientIp()).isNull();
     }
-
-    // ---------------------------------------------------------------------------------
 
     @Test
     void readsTheUserAgent() {

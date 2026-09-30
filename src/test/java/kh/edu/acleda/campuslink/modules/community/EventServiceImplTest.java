@@ -508,10 +508,7 @@ class EventServiceImplTest {
             .hasMessageContaining("full");
     }
 
-    /**
-     * The ordering that matters: charging first and then discovering the event is full
-     * takes someone's money for nothing.
-     */
+    /** The ordering that matters: charging first and then discovering the event is full takes someone's money for nothing. */
     @Test
     void aFullPaidEventIsRejectedBeforeTheWalletIsTouched() {
         event.setIsPaid(true);

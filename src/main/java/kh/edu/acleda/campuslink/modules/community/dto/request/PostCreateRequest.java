@@ -7,10 +7,7 @@ import kh.edu.acleda.campuslink.modules.community.enums.PostType;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 
-/**
- * @param communityId optional. Set it to post into a community; required in practice
- *                    for visibility = COMMUNITY, which is otherwise visible to nobody.
- */
+/** @param communityId optional. Set it to post into a community; required in practice */
 public record PostCreateRequest(
     String contentText,
     String imageUrl,

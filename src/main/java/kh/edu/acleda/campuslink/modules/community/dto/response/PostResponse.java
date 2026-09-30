@@ -8,13 +8,7 @@ import kh.edu.acleda.campuslink.modules.community.enums.PostType;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 
-/**
- * A feed row, renderable without a follow-up call.
- *
- * @param likedByMe resolved server-side; without it the client would fire one request
- *                  per post just to colour the like button
- * @param savedByMe same, for the save toggle
- */
+/** A feed row, renderable without a follow-up call. */
 public record PostResponse(
     UUID postId,
     AuthorSummary author,

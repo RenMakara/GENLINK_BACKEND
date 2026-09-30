@@ -28,13 +28,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-/**
- * Criteria API query for the admin user directory.
- *
- * <p>Optional conditions are added only when present. This is intentionally a custom Criteria
- * repository rather than a long JPQL string with nullable-parameter guards: that structure is
- * safe for PostgreSQL enum, date and timestamp parameters and keeps the sort whitelist in code.
- */
+/** Criteria API query for the admin user directory. */
 @Repository
 public class AdminUserListRepository {
 

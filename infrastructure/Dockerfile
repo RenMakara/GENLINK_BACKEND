@@ -1,12 +1,12 @@
-# Build jar file
+# Build the application JAR.
 FROM gradle:8.8.0-jdk21 AS builder
 
-# copy project file
+# Copy source and build files.
 COPY . .
 
 RUN gradle clean build --no-demon
 
-# stack 2 run jar
+# Run the JAR on Java 21.
 FROM eclipse-temurin:21-jre-jummy
 WORKDIR /app
 

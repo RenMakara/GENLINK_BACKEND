@@ -58,8 +58,7 @@ class QuizMatchConcurrencyIntegrationTest {
 
         QuizQuestion question = quizQuestionRepository.saveAndFlush(
             QuizQuestion.builder().quiz(quiz).questionTextEn("Question " + suffix).build());
-        // A timeout is recorded as a skipped answer, so the server can tell that both
-        // players finished the full question set before awarding the result.
+        // A timeout is recorded as a skipped answer.
         matchService.submitAnswer(match.getId(), p1.getId(), question.getId(), null);
         matchService.submitAnswer(match.getId(), p2.getId(), question.getId(), null);
 

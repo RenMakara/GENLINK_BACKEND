@@ -85,9 +85,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/**").authenticated()
                 .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            // Before the enrolment guard: a signed-out token should be refused outright rather
-            // than evaluated for anything else. Both run after authentication, so they can see
-            // who the caller claims to be.
+            // Before the enrolment guard: a signed-out token should be refused outright.
             .addFilterAfter(adminSessionRevocationFilter, JwtAuthenticationFilter.class)
             // An admin whose MFA was reset while holding a live token must not keep reaching
             // the admin surface.
@@ -96,14 +94,7 @@ public class SecurityConfig {
     }
 
 
-    /**
-     * Two policies, admin first.
-     *
-     * <p>{@code UrlBasedCorsConfigurationSource} returns the <strong>first</strong> registered
-     * pattern that matches, not the most specific one, so the order of these two registrations
-     * is what makes the admin rule apply at all. Registering {@code /**} first would silently
-     * hand the admin API the mobile wildcard, and nothing about the code would look wrong.
-     */
+    /** Two policies, admin first. */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -112,14 +103,7 @@ public class SecurityConfig {
         return source;
     }
 
-    /**
-     * The admin portal: an explicit allow-list, never a wildcard (SSOT §10.9).
-     *
-     * <p>Empty by default. Under the MVP's path-based routing the portal and API share one
-     * origin, so nothing is cross-origin and CORS never runs; the list exists for the eventual
-     * subdomain split. Empty means every cross-origin admin request is refused, which is the
-     * safe reading of "not configured yet".
-     */
+    /** The admin portal: an explicit allow-list, never a wildcard (SSOT §10.9). */
     private CorsConfiguration adminCorsConfiguration() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(corsProperties.getAdminOrigins());
@@ -128,20 +112,12 @@ public class SecurityConfig {
         // So the portal can quote a request id in a support report - it is the same id that
         // appears in our logs and in admin_audit_logs (ADM-008).
         configuration.setExposedHeaders(List.of("x-request-id"));
-        // Legal only because the origins above are explicit; the browser refuses this
-        // combination with a wildcard. Needed for the httpOnly refresh cookie (SSOT §10.9).
+        // Legal only because the origins above are explicit; the browser refuses this combination with a wildcard.
         configuration.setAllowCredentials(true);
         return configuration;
     }
 
-    /**
-     * Mobile, unchanged.
-     *
-     * <p>Still a wildcard, and deliberately left alone: the Flutter app is not a browser, sends
-     * a bearer token rather than a cookie, and is not subject to the same-origin policy that
-     * makes a wildcard dangerous. Narrowing it here would be an unrelated change to a shipped
-     * client (SSOT §10.9, ADM-028 AC#2).
-     */
+    /** Mobile API CORS policy. */
     private CorsConfiguration mobileCorsConfiguration() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("*"));

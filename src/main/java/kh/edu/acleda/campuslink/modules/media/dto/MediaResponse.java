@@ -6,10 +6,7 @@ import kh.edu.acleda.campuslink.modules.media.entity.MediaPurpose;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Media metadata returned to the client. For PUBLIC media {@code url} is the CDN
- * URL; feature modules store the {@code mediaId} and render {@code url}.
- */
+/** Media metadata returned to the client. */
 public record MediaResponse(
     UUID mediaId,
     String url,

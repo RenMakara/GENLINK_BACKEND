@@ -8,15 +8,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 
-/**
- * Creates a poll, which is a {@code POLL} post carrying a question and its options.
- *
- * @param caption     optional free text shown as the post body; the question lives in
- *                    {@code question}, so this can be left blank.
- * @param options     2-6 non-blank choices. Single-choice voting is enforced by a unique
- *                    (poll, user) row, so there is no need to cap selections here.
- * @param communityId optional; set it to post the poll into a community you are in.
- */
+/** Creates a poll, which is a {@code POLL} post carrying a question and its options. */
 public record PollCreateRequest(
     String caption,
     @NotBlank String question,

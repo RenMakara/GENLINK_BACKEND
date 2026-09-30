@@ -21,23 +21,13 @@ public interface StoryRepository extends JpaRepository<Story, UUID> {
     @Query("SELECT s FROM Story s WHERE s.id = :id AND s.deletedAt IS NULL")
     Optional<Story> findByIdAndDeletedAtIsNullForUpdate(@Param("id") UUID id);
 
-    /**
-     * Active stories (not expired, not deleted) for a set of authors, oldest first so a
-     * viewer plays a person's stories in order. The author is fetched for the feed header.
-     */
+    /** Active stories (not expired, not deleted) for a set of authors, oldest first so a viewer plays a person's stories in order. */
     @Query("SELECT s FROM Story s JOIN FETCH s.user "
         + "WHERE s.user.id IN :authorIds AND s.expiresAt > :now AND s.deletedAt IS NULL "
         + "ORDER BY s.createdAt ASC")
     List<Story> findActiveByAuthors(@Param("authorIds") Collection<UUID> authorIds, @Param("now") Instant now);
 
-    /**
-     * Active stories visible to the viewer:
-     * - The author is in authorIds (people the viewer follows + the viewer).
-     * - Visibility rules enforced at the database level:
-     *   1) The viewer is the author (viewer always sees own stories regardless of visibility).
-     *   2) OR visibility is PUBLIC.
-     *   3) OR visibility is FRIENDS and the author is in friendIds (mutual accepted follows).
-     */
+    /** Active stories visible to the viewer: - The author is in authorIds (people the viewer follows + the viewer). */
     @Query("SELECT s FROM Story s JOIN FETCH s.user "
         + "WHERE s.user.id IN :authorIds "
         + "AND s.expiresAt > :now "

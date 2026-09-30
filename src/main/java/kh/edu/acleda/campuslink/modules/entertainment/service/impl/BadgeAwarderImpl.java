@@ -19,11 +19,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Auto-unlocks the named milestone badges after XP lands. Rules are keyed by the badge's
- * `code`, evaluated against xp_history counts per source and the user's total XP. Runs
- * inside the reward transaction, so an unlock is committed with the XP that earned it.
- */
+/** Auto-unlocks the named milestone badges after XP lands. */
 @Service
 public class BadgeAwarderImpl implements BadgeAwarder {
 

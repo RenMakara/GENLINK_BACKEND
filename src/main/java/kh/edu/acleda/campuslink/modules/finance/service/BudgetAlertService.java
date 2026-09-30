@@ -6,10 +6,7 @@ import kh.edu.acleda.campuslink.modules.finance.entity.Expense;
 import kh.edu.acleda.campuslink.modules.finance.enums.BudgetStatus;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
-/**
- * Evaluates live budget thresholds around an expense mutation and emits crossing alerts.
- * Notification persistence is delegated to the notification module.
- */
+/** Evaluates live budget thresholds around an expense mutation and emits crossing alerts. */
 public interface BudgetAlertService {
 
     /** Returns the live status before an expense is created or moved into a scope. */

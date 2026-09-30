@@ -298,8 +298,7 @@ public class AdminNotificationServiceImpl implements AdminNotificationService {
             if (safeParameters.size() > MAX_PARAMETER_COUNT) {
                 throw new IllegalArgumentException("Too many notification parameters");
             }
-            // Both paths are checked before any event is published. A Khmer user must not be
-            // the first one to discover a missing placeholder in an admin-authored template.
+            // Both paths are checked before any event is published.
             templateRenderer.render(template, Language.ENGLISH, safeParameters);
             templateRenderer.render(template, Language.KHMER, safeParameters);
         } catch (IllegalArgumentException exception) {

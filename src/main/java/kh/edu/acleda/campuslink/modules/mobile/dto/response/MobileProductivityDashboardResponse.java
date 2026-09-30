@@ -4,10 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * The Productivity screen in one call (BFF-lite). Every section degrades independently:
- * a new user gets a well-formed body with zero counts, empty lists and a null motivation.
- */
+/** The Productivity screen in one call (BFF-lite). */
 public record MobileProductivityDashboardResponse(
     HabitsToday habits,
     TasksSummary tasks,

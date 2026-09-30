@@ -83,14 +83,8 @@ class AdminRecoveryCodeServiceTest {
         return original.plaintext();
     }
 
-    // -------------------------------------------------------------------------------
     // AC#1 - the old set is fully invalid afterwards.
-    // -------------------------------------------------------------------------------
-
-    /**
-     * The reason regeneration exists is distrust of the old set. Every previous code must stop
-     * working - including the ones never spent, which are exactly the ones still on paper.
-     */
+    /** The reason regeneration exists is distrust of the old set. */
     @Test
     void everyOldCodeFailsAfterRegeneration() {
         List<String> oldCodes = givenExistingCodes();
@@ -176,15 +170,8 @@ class AdminRecoveryCodeServiceTest {
         verify(adminUserRepository).save(admin);
     }
 
-    // -------------------------------------------------------------------------------
     // AC#2 - requires sudo, and is audited.
-    // -------------------------------------------------------------------------------
-
-    /**
-     * The sudo window is enforced by the interceptor, which is tested separately - what can
-     * still go wrong is the annotation simply not being on the method. A fresh set of codes is
-     * a permanent bypass of the second factor, so a stolen session alone must not mint one.
-     */
+    /** The sudo window is enforced by the interceptor. */
     @Test
     void theEndpointIsAnnotatedRequiresSudo() throws Exception {
         assertThat(AdminAuthController.class
@@ -204,10 +191,7 @@ class AdminRecoveryCodeServiceTest {
             .logSuccess(eq("ADMIN_RECOVERY_CODES_REGENERATED"), any(User.class), eq(EMAIL));
     }
 
-    // -------------------------------------------------------------------------------
     // Refusals
-    // -------------------------------------------------------------------------------
-
     /** Codes only mean anything alongside a confirmed second factor. */
     @Test
     void refusesAnAdminWhoHasNotEnrolled() {

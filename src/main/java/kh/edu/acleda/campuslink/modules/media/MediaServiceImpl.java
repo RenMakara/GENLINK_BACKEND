@@ -30,12 +30,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Orchestrates the presign → confirm → serve → delete lifecycle. The backend
- * never touches the bytes: it signs, validates metadata, and records. Size and
- * type are enforced here on every request, independent of any client-side
- * compression.
- */
+/** Orchestrates the presign → confirm → serve → delete lifecycle. */
 @Slf4j
 @Service
 public class MediaServiceImpl implements MediaService {

@@ -16,23 +16,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/**
- * Refuses admin access tokens whose session has been signed out (ADM-024 AC#3).
- *
- * <p>A JWT is valid until it expires; nothing about signing out changes that on its own. This
- * is the piece that makes {@code POST /admin/auth/logout} mean "now" rather than "within ten
- * minutes" - the difference that matters on a shared or unattended machine.
- *
- * <h2>Why here and not in JwtAuthenticationFilter</h2>
- *
- * {@code JwtAuthenticationFilter} is shared infrastructure serving both APIs, and session
- * revocation is an admin concern (R1). Admin tokens are only accepted on
- * {@code /api/v1/admin/**} anyway, so checking here covers every route one can reach.
- *
- * <p>Runs on every admin route including {@code /auth/logout}: signing out twice is harmless
- * and the second call is already a no-op, whereas exempting it would leave a revoked token
- * with one endpoint it could still call.
- */
+/** Refuses admin access tokens whose session has been signed out (ADM-024 AC#3). */
 @Slf4j
 @Component
 public class AdminSessionRevocationFilter extends OncePerRequestFilter {
@@ -67,13 +51,10 @@ public class AdminSessionRevocationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Clearing the context matters: JwtAuthenticationFilter has already populated it, and
-        // leaving an authenticated principal behind on a rejected request is how a later
-        // filter or an async handler ends up trusting a signed-out session.
+        // Clearing the context matters: JwtAuthenticationFilter has already populated it.
         SecurityContextHolder.clearContext();
 
-        // Warn rather than debug: a token being replayed after logout is either a stale tab or
-        // someone using a token they should not have. Neither is routine.
+        // Warn when a signed-out admin token is reused.
         log.warn("Refused a signed-out admin session on {}", request.getRequestURI());
 
         response.setStatus(HttpStatus.UNAUTHORIZED.value());

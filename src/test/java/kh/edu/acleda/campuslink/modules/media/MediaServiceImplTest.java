@@ -306,7 +306,7 @@ class MediaServiceImplTest {
         verify(repository, never()).save(any());
     }
 
-    // ── resolveConfirmedUrl (Phase 2 integration primitive) ────────────────
+    // resolveConfirmedUrl integration
 
     @Test
     void resolveConfirmedUrlReturnsCdnUrlForOwnedConfirmedPublicMedia() {

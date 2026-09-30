@@ -89,10 +89,7 @@ public class AdminRoleReadService {
             adminCount);
     }
 
-    /**
-     * SUPER_ADMIN is implicit in code and deliberately has no stored grants. For other roles,
-     * stale database codes are omitted and valid codes are returned in enum/catalogue order.
-     */
+    /** SUPER_ADMIN is implicit in code and deliberately has no stored grants. */
     private List<String> permissionCodes(AdminRole role) {
         if (SUPER_ADMIN.equals(role.getCode())) {
             return Permission.allCodes();

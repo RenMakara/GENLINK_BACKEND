@@ -116,10 +116,7 @@ class AdminSudoServiceTest {
         return totpGenerator.generate(secret, Instant.now());
     }
 
-    // -------------------------------------------------------------------------------
     // Opening the window
-    // -------------------------------------------------------------------------------
-
     @Test
     void aValidTotpCodeOpensTheWindow() {
         assertThat(service.isOpen()).isFalse();
@@ -178,14 +175,8 @@ class AdminSudoServiceTest {
         verify(securityAuditService).logFailure(eq("ADMIN_SUDO_FAILED"), any(User.class), eq(EMAIL), anyString());
     }
 
-    // -------------------------------------------------------------------------------
     // AC#3 - per session
-    // -------------------------------------------------------------------------------
-
-    /**
-     * The scenario the whole control exists for: re-authenticating here must not arm a browser
-     * left open somewhere else.
-     */
+    /** The scenario the whole control exists for: re-authenticating here must not arm a browser left open somewhere else. */
     @Test
     void aSecondSessionDoesNotInheritTheWindow() {
         service.open(new SudoRequest(currentCode(), null));
@@ -199,10 +190,7 @@ class AdminSudoServiceTest {
         assertThat(service.isOpen()).isFalse();
     }
 
-    // -------------------------------------------------------------------------------
     // Session resolution
-    // -------------------------------------------------------------------------------
-
     @Test
     void refusesToOpenAWindowWithoutAResolvableSession() {
         bindRequestWithToken(null);

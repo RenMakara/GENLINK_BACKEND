@@ -92,8 +92,6 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         // A password change invalidates every existing sign-in, including this one.
-        // Revoking refresh tokens alone is not enough - access tokens are stateless
-        // and would keep working until they expire, so bump the token version too.
         user.incrementTokenVersion();
         userRepository.save(user);
 
@@ -134,12 +132,7 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
             .toList();
     }
 
-    /**
-     * Revokes one device's refresh token. Note the access token already issued to that
-     * device stays valid until it expires: token versioning is per-user, so bumping it
-     * here would sign every other device out too. Per-session cut-off would need a jti
-     * denylist. Use revokeAllSessions when immediate cut-off matters.
-     */
+    /** Revokes one device's refresh token. */
     @Override
     @Transactional
     public void revokeSession(UUID sessionId) {
@@ -174,12 +167,7 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
             .toList();
     }
 
-    /**
-     * Soft delete per DB_STANDARDS: the row survives so that content the user authored
-     * keeps a resolvable author, but the account is closed and every credential is cut off.
-     * The email, username and phone stay reserved by their unique constraints, so the
-     * address cannot be re-registered - restoring an account is a deliberate admin action.
-     */
+    /** Soft delete per DB_STANDARDS: the row survives. */
     @Override
     @Transactional
     public void deleteCurrentAccount(DeleteAccountRequest request) {
@@ -190,9 +178,7 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
             throw new NotFoundException("User not found");
         }
 
-        // Holding an access token should not be enough to destroy an account - an unlocked
-        // phone would be. Local accounts re-enter their password; social-only accounts have
-        // none to check, so the token is all there is.
+        // Holding an access token should not be enough to destroy an account - an unlocked phone would be.
         if (user.getPasswordHash() != null) {
             String clientIp = RequestMetadataUtil.getCurrentClientIp();
             authRateLimitService.checkAccountDeleteAllowed(user.getEmail(), clientIp);
@@ -211,8 +197,7 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         user.setStatusBeforeDeletion(user.getAccountStatus());
         user.setAccountStatus(AccountStatus.DELETED);
         user.setDeletedAt(Instant.now());
-        // Same reasoning as changePassword: revoking refresh tokens alone leaves the
-        // stateless access token working until it expires, so the version must move too.
+        // Increment tokenVersion to invalidate active access tokens.
         user.incrementTokenVersion();
         userRepository.save(user);
 

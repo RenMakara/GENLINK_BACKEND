@@ -15,14 +15,7 @@ import org.hibernate.annotations.UuidGenerator;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Metadata for one stored object. The bytes live in object storage; this row is
- * the record of truth for ownership, integrity, and lifecycle.
- *
- * <p>Deliberately does not extend BaseEntity: media has its own lifecycle
- * timestamps ({@code created_at}, {@code uploaded_at}, {@code confirmed_at},
- * {@code deleted_at}) and does not need the created-by/updated-by audit columns.
- */
+/** Metadata for one stored object. */
 @Getter
 @Setter
 @Entity

@@ -2,10 +2,7 @@ package kh.edu.acleda.campuslink.modules.finance.dto.response;
 
 import java.util.List;
 
-/**
- * The Learning Dashboard: overall progress plus a per-topic breakdown across the six
- * canonical topics (each listed even when it has no lessons yet).
- */
+/** Learning progress by topic and overall. */
 public record LiteracyDashboardResponse(
     int totalLessons,
     int completedLessons,

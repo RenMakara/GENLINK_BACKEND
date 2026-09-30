@@ -79,10 +79,7 @@ class AdminBootstrapRunnerTest {
         return captor.getValue();
     }
 
-    // -------------------------------------------------------------------------------
     // AC#1 - with the property set and no admin existing, the user is promoted.
-    // -------------------------------------------------------------------------------
-
     @Test
     void promotesTheNamedUserToSuperAdmin() {
         run();
@@ -102,15 +99,8 @@ class AdminBootstrapRunnerTest {
         verify(userRepository).save(user);
     }
 
-    // -------------------------------------------------------------------------------
     // AC#4 - first login forces TOTP enrolment.
-    // -------------------------------------------------------------------------------
-
-    /**
-     * The promoted account must arrive with no confirmed second factor, so sign-in routes it
-     * through enrolment. A bootstrap that pre-set TOTP would mean the first admin's second
-     * factor was chosen by whoever ran the deploy.
-     */
+    /** The promoted account must arrive with no confirmed second factor, so sign-in routes it through enrolment. */
     @Test
     void leavesTotpUnconfirmedSoTheFirstSignInMustEnrol() {
         run();
@@ -122,15 +112,8 @@ class AdminBootstrapRunnerTest {
         assertThat(admin.isEnrolled()).isFalse();
     }
 
-    // -------------------------------------------------------------------------------
     // AC#2 - the guard. The most important behaviour in the task.
-    // -------------------------------------------------------------------------------
-
-    /**
-     * Without this, anyone able to set an environment variable could promote themselves on the
-     * next restart - a permanent privilege-escalation path left behind by a checklist step
-     * nobody performed.
-     */
+    /** Without this, anyone able to set an environment variable could promote themselves on the next restart. */
     @Test
     void doesNothingWhileAnActiveSuperAdminExists() {
         when(adminUserRepository.countByAdminRoleCodeAndActiveTrueAndDeletedAtIsNull("SUPER_ADMIN"))
@@ -143,10 +126,7 @@ class AdminBootstrapRunnerTest {
         verify(auditWriter, never()).writeInCurrentTransaction(any());
     }
 
-    /**
-     * The guard is checked before the named user is read at all, so a running system cannot be
-     * probed for which addresses exist by restarting and watching the logs.
-     */
+    /** The guard is checked before the named user is read at all. */
     @Test
     void doesNotEvenLookUpTheUserWhenAnAdminAlreadyExists() {
         when(adminUserRepository.countByAdminRoleCodeAndActiveTrueAndDeletedAtIsNull("SUPER_ADMIN"))
@@ -157,10 +137,7 @@ class AdminBootstrapRunnerTest {
         verify(userRepository, never()).findByEmail(anyString());
     }
 
-    // -------------------------------------------------------------------------------
     // Not configured
-    // -------------------------------------------------------------------------------
-
     @Test
     void doesNothingWhenThePropertyIsUnset() {
         properties.setBootstrapEmail(null);
@@ -190,10 +167,7 @@ class AdminBootstrapRunnerTest {
         verify(userRepository).findByEmail(EMAIL);
     }
 
-    // -------------------------------------------------------------------------------
     // AC#3 - refusals promote nobody.
-    // -------------------------------------------------------------------------------
-
     @Test
     void refusesAnAddressWithNoAccount() {
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
@@ -214,11 +188,7 @@ class AdminBootstrapRunnerTest {
         assertThat(user.getRole()).isEqualTo(Role.USER);
     }
 
-    /**
-     * Anything other than ACTIVE is treated as disabled by {@code CustomUserDetailsService}, so
-     * promoting one would create an admin who cannot sign in - a bootstrap that appears to have
-     * worked and has not.
-     */
+    /** Anything other than ACTIVE is treated as disabled by {@code CustomUserDetailsService}. */
     @Test
     void refusesAnAccountThatCouldNotSignInAnyway() {
         user.setAccountStatus(AccountStatus.PENDING);
@@ -239,11 +209,7 @@ class AdminBootstrapRunnerTest {
         verify(adminUserRepository, never()).save(any());
     }
 
-    /**
-     * Reachable when the only admin profile holds a non-SUPER_ADMIN role: the guard passes, but
-     * the unique constraint on {@code user_id} would reject the insert. Better a clear log line
-     * than a constraint violation at startup.
-     */
+    /** Reachable when the only admin profile holds a non-SUPER_ADMIN role. */
     @Test
     void refusesAUserWhoAlreadyHasAnAdminProfile() {
         // Matched by any(): BaseEntity generates ids, so an unsaved User has none to stub on.
@@ -254,13 +220,7 @@ class AdminBootstrapRunnerTest {
         verify(adminUserRepository, never()).save(any());
     }
 
-    /**
-     * The check must span SOFT-DELETED profiles too. {@code admin_users.user_id} is UNIQUE
-     * unconditionally, so a deactivated profile still holds the slot - and soft delete is the
-     * natural way to "clear" an admin in this codebase. Missing this would turn a clear refusal
-     * into a constraint violation out of an ApplicationRunner, which stops the app from
-     * starting: an admin-provisioning mistake becoming a total outage.
-     */
+    /** The check must span SOFT-DELETED profiles too. */
     @Test
     void refusesWhenTheExistingAdminProfileIsOnlySoftDeleted() {
         when(adminUserRepository.existsByUserId(any())).thenReturn(true);
@@ -282,10 +242,7 @@ class AdminBootstrapRunnerTest {
         verify(userRepository, never()).save(any());
     }
 
-    /**
-     * A refusal must not stop the application. This container also serves the mobile API, so a
-     * typo in an admin-provisioning property must not become an outage for every user.
-     */
+    /** A refusal must not stop the application. */
     @Test
     void aRefusalDoesNotThrow() {
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
@@ -293,10 +250,7 @@ class AdminBootstrapRunnerTest {
         org.assertj.core.api.Assertions.assertThatCode(this::run).doesNotThrowAnyException();
     }
 
-    // -------------------------------------------------------------------------------
     // AC#5 - the audit row, with a null admin_user_id.
-    // -------------------------------------------------------------------------------
-
     @Test
     void writesAnAuditRowWithNoActingAdmin() {
         run();

@@ -25,15 +25,7 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, UUID> 
             + "AND (:type IS NULL OR o.type = :type)")
     Page<Opportunity> browseAll(@Param("type") String type, Pageable pageable);
 
-    /**
-     * Active opportunities: deadline in the future, or open-ended (deadline null).
-     *
-     * <p>Split from browseAll on purpose. Putting activeFrom in a `:activeFrom IS NULL`
-     * check made PostgreSQL fail with "could not determine data type of parameter" - a
-     * bare date parameter in an IS NULL test has no type to infer, unlike a string
-     * (which Postgres defaults to text). Here activeFrom only ever appears in
-     * `o.deadline >= :activeFrom`, where the column gives it a type.
-     */
+    /** Active opportunities: deadline in the future, or open-ended (deadline null). */
     @Query(value = "SELECT o FROM Opportunity o WHERE o.deletedAt IS NULL "
         + "AND (:type IS NULL OR o.type = :type) "
         + "AND (o.deadline IS NULL OR o.deadline >= :activeFrom)",

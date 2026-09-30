@@ -5,23 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/**
- * Who the caller is and what they may do - the single call the portal's permission model rests
- * on (SSOT §8.1).
- *
- * <p>The sidebar, every {@code usePermission} check and every disabled button read from this.
- * That makes it the one response where being wrong is worse than being absent: a permission
- * listed here but not actually held shows an admin a button that fails when they press it,
- * which reads as a broken tool rather than a boundary.
- *
- * @param permissions codes such as {@code user:read}, without the {@code PERM_} prefix that
- *     Spring Security uses internally. Resolved from the caller's own granted authorities, so
- *     it cannot drift from what authorization enforces.
- * @param lastLoginAt UTC, like every timestamp the API emits (SSOT §9.5). The portal renders it
- *     in Asia/Phnom_Penh.
- * @param totpConfirmedAt UTC timestamp when this admin completed TOTP enrolment, or {@code null}
- *     when the account is not enrolled.
- */
+/** Who the caller is and what they may do - the single call the portal's permission model rests on (SSOT §8.1). */
 public record AdminMeResponse(
     @Schema(description = "Admin profile id, not the user id", example = "2c9f077e-6e35-49ee-944b-235168f07372")
     UUID adminUserId,

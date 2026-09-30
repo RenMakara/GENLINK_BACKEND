@@ -9,10 +9,7 @@ import java.util.UUID;
 
 public interface FollowService {
 
-    /**
-     * Idempotent. Resolves to ACCEPTED for an open profile, or PENDING when the target
-     * is PRIVATE and must approve.
-     */
+    /** Idempotent. */
     FollowResponse follow(UUID targetUserId);
 
     void unfollow(UUID targetUserId);

@@ -14,12 +14,7 @@ import kh.edu.acleda.campuslink.modules.user.entity.Role;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 
-/**
- * Admin-only user detail projection for the Profile and Account tabs.
- *
- * <p>This is intentionally separate from mobile profile DTOs. It contains operational account
- * state, but never a password hash, Google identifier, token, or other credential material.
- */
+/** Admin-only user detail projection for the Profile and Account tabs. */
 public record AdminUserDetailResponse(
     UUID userId,
     String fullName,

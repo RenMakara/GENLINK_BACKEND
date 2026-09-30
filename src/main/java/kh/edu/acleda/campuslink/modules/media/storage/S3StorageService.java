@@ -25,10 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * S3-backed {@link StorageService}. The only class besides {@link StorageConfig}
- * that touches the AWS SDK — everything else is provider-neutral.
- */
+/** S3-backed {@link StorageService}. */
 @Slf4j
 @Service
 @Profile("!test")

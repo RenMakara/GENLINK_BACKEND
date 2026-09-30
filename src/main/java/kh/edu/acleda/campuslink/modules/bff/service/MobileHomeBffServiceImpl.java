@@ -49,16 +49,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Aggregates the Home Super Dashboard.
- *
- * <p>This is the BFF-lite pattern: one call for a dashboard that would otherwise cost
- * the client eight. Reading across domains is what this module exists for, so the
- * coupling lives here rather than leaking into the domain modules.
- *
- * <p>Every card degrades independently - a user with no budget still gets their
- * habits, motivation and feed. Missing cards come back null, not as an error.
- */
+/** Aggregates the Home Super Dashboard. */
 @Service
 public class MobileHomeBffServiceImpl implements MobileHomeBffService {
 
@@ -185,8 +176,7 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
             .map(SavingGoal::getCurrentAmount).filter(java.util.Objects::nonNull)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Spend is computed live from expenses, NOT the stale budget.spentAmount counter (which
-        // nothing maintains, so it always read 0). Mirrors the finance-dashboard BFF.
+        // Calculate spend from expenses; the stored counter is not maintained.
         BigDecimal total = budget == null ? null : budget.getTotalBudget();
         BigDecimal spent = null;
         BigDecimal remaining = null;
@@ -246,10 +236,7 @@ public class MobileHomeBffServiceImpl implements MobileHomeBffService {
             .toList();
     }
 
-    /**
-     * Rotates by day of year rather than at random, so the card is stable if the
-     * screen is refreshed, and there is no scheduler or extra table to maintain.
-     */
+    /** Rotates by day of year rather than at random,. */
     private MobileHomeResponse.MotivationCard dailyMotivation(LocalDate today, Language language) {
         List<MotivationContent> contents = motivationContentRepository.findByDeletedAtIsNull();
         if (contents.isEmpty()) {

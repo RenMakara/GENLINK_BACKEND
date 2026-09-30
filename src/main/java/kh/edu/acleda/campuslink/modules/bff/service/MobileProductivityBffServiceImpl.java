@@ -37,14 +37,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Aggregates the Productivity screen. Reads the productivity repositories directly (the
- * BFF layer is where cross-entity coupling belongs) and resolves the user by email, like
- * the home BFF.
- *
- * <p>Goal progress is read from the stored goal columns, which Phase 3 keeps in sync on
- * every milestone change - so the dashboard avoids a per-goal milestone query.
- */
+/** Aggregates the Productivity screen. */
 @Service
 public class MobileProductivityBffServiceImpl implements MobileProductivityBffService {
 
@@ -153,10 +146,7 @@ public class MobileProductivityBffServiceImpl implements MobileProductivityBffSe
             orZero(summary.totalXp()));
     }
 
-    /**
-     * One motivation card, rotated by day of year (stable on refresh) over a stable order,
-     * mirroring the home dashboard. Null when nothing is seeded.
-     */
+    /** One motivation card, rotated by day of year (stable on refresh) over a stable order, mirroring the home dashboard. */
     private MotivationCard motivation(Language language) {
         List<MotivationContent> contents = motivationRepository.findByDeletedAtIsNull();
         if (contents.isEmpty()) {

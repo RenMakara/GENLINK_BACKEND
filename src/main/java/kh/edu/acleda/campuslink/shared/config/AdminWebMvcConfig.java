@@ -5,12 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/**
- * Registers the sudo guard (ADM-025).
- *
- * <p>Scoped to {@code /api/v1/admin/**}: the annotation only means anything there, and leaving
- * the interceptor off the mobile paths keeps it out of the hot path entirely.
- */
+/** Registers the sudo guard (ADM-025). */
 @Configuration
 public class AdminWebMvcConfig implements WebMvcConfigurer {
 

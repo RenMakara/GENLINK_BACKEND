@@ -426,7 +426,7 @@ class ChatServiceImplTest {
         assertThatThrownBy(() -> service.getRoom(ROOM_ID)).isInstanceOf(NotFoundException.class);
     }
 
-    // ------------------------------------------------ Phase 2: group management
+    // Group management
 
     @Test
     void renamingAGroupRequiresAnAdminRole() {

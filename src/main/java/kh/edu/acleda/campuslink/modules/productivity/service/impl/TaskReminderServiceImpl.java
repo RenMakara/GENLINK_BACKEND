@@ -17,10 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Finds configured task reminders in a small overlap window and emits retry-safe notifications.
- * Persistence still happens in Notification's after-commit transaction.
- */
+/** Finds configured task reminders in a small overlap window and emits retry-safe notifications. */
 @Slf4j
 @Service
 public class TaskReminderServiceImpl implements TaskReminderService {

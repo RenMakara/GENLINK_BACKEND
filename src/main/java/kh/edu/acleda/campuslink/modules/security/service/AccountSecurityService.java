@@ -24,9 +24,6 @@ public interface AccountSecurityService {
 
     List<SecurityActivityResponse> getRecentActivity();
 
-    /**
-     * Soft-deletes the authenticated caller's own account and revokes every credential
-     * issued to it. Exposed over REST as {@code DELETE /api/v1/users/me}.
-     */
+    /** Soft-deletes the authenticated caller's own account and revokes every credential issued to it. */
     void deleteCurrentAccount(DeleteAccountRequest request);
 }

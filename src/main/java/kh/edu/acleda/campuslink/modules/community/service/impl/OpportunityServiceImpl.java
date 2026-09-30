@@ -40,8 +40,7 @@ public class OpportunityServiceImpl implements OpportunityService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<OpportunityResponse> browse(String type, boolean includeExpired, Pageable pageable) {
-        // Two methods rather than one with a nullable date param: a bare date in an
-        // `IS NULL` check breaks on PostgreSQL (could not determine data type).
+        // Two methods rather than one with a nullable date param.
         Page<Opportunity> page = includeExpired
             ? opportunityRepository.browseAll(type, pageable)
             : opportunityRepository.browseActive(type, LocalDate.now(), pageable);

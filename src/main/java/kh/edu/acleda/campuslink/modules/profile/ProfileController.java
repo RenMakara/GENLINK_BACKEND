@@ -53,12 +53,7 @@ public class ProfileController {
         return ResponseEntity.ok(ApiResponse.success("Profile updated", response));
     }
 
-    /**
-     * Set the avatar. Preferred: pass {@code avatarMediaId} of a confirmed media
-     * upload — the server resolves it to the object's CDN URL, guaranteeing the
-     * avatar points at a real, owned upload. {@code avatarUrl} is still accepted
-     * for a directly-supplied URL (e.g. a Google avatar from social login).
-     */
+    /** Set the avatar. */
     @PostMapping("/avatar")
     public ResponseEntity<ApiResponse<ProfileResponse>> updateAvatar(
         @AuthenticationPrincipal UserDetails userDetails,
@@ -71,10 +66,7 @@ public class ProfileController {
         return ResponseEntity.ok(ApiResponse.success("Avatar updated", response));
     }
 
-    /**
-     * Nested under /public/ so a username can never collide with the sibling
-     * literal routes (/me, /settings, /portfolio).
-     */
+    /** Nested under /public/ so a username can never collide with the sibling literal routes (/me, /settings, /portfolio). */
     @GetMapping("/public/{username}")
     public ResponseEntity<ApiResponse<PublicProfileResponse>> publicProfile(
         @AuthenticationPrincipal UserDetails userDetails,

@@ -15,10 +15,7 @@ import jakarta.persistence.LockModeType;
 
 public interface ForumCommentRepository extends JpaRepository<ForumComment, UUID> {
 
-    /**
-     * Top-level comments only; replies hang off parentCommentId and come from findReplies.
-     * countQuery is explicit because JOIN FETCH cannot be counted.
-     */
+    /** Top-level comments only; replies hang off parentCommentId and come from findReplies. */
     @Query(value = "SELECT c FROM ForumComment c LEFT JOIN FETCH c.user "
         + "WHERE c.discussion.id = :discussionId AND c.deletedAt IS NULL AND c.parentComment IS NULL",
         countQuery = "SELECT COUNT(c) FROM ForumComment c "

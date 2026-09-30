@@ -4,11 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/**
- * @param savedByMe resolved server-side so a list does not fire a request per row to
- *                  colour the bookmark - backs the "Save Opp-ty" action
- * @param expired   deadline is in the past; the client can grey out Apply
- */
+/** @param savedByMe resolved server-side so a list does not fire a request per row to */
 public record OpportunityResponse(
     UUID opportunityId,
     String title,

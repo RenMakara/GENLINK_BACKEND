@@ -4,12 +4,7 @@ import java.util.Collection;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 
-/**
- * UserDetails carrying the account's current token version.
- *
- * <p>The JWT filter already loads the user on every request, so exposing the version
- * here lets it reject superseded access tokens without a second query.
- */
+/** UserDetails carrying the account's current token version. */
 public class AuthenticatedUser extends User {
 
     private final int tokenVersion;

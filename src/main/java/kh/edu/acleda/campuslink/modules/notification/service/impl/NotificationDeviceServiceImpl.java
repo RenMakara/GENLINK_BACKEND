@@ -90,8 +90,7 @@ public class NotificationDeviceServiceImpl implements NotificationDeviceService 
                 .build();
         }
 
-        // A mobile installation can change accounts. Re-associate the token so the previous
-        // account cannot continue receiving notifications after logout/login on the device.
+        // A mobile installation can change accounts.
         device.setUser(user);
         device.setPlatform(request.platform());
         device.setTokenCiphertext(fieldEncryptor.encrypt(token));

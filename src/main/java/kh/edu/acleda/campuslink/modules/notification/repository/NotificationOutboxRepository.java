@@ -19,10 +19,7 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
     boolean existsByRecipientUserIdAndChannelAndDedupeKey(
         UUID recipientUserId, NotificationChannel channel, String dedupeKey);
 
-    /**
-     * Claims the oldest due rows while holding database row locks. The surrounding transaction
-     * keeps the lock until each row has a terminal or retry status.
-     */
+    /** Claims the oldest due rows while holding database row locks. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM NotificationOutbox o "
         + "WHERE o.status = :status AND o.nextAttemptAt <= :now "

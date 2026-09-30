@@ -10,10 +10,7 @@ import java.util.UUID;
 
 public interface SavedItemService {
 
-    /**
-     * @param itemType optional filter; null returns every saved item
-     * @param language localises titles of system content (motivation, lessons, shorts)
-     */
+    /** @param itemType optional filter; null returns every saved item */
     List<SavedItemResponse> getMine(SavedItemType itemType, Language language);
 
     /** Idempotent: saving an already-saved item returns the existing row. */

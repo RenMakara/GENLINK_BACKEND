@@ -4,13 +4,7 @@ import java.util.List;
 import java.util.function.Function;
 import org.springframework.data.domain.Page;
 
-/**
- * Pagination envelope for list endpoints, carried inside {@link ApiResponse} so the
- * response shape in API_STANDARDS does not change.
- *
- * <p>Exists because Spring's Page serialises its internal Pageable, which is unstable
- * across versions and leaks sort/offset internals the client has no use for.
- */
+/** Pagination envelope for list endpoints, carried inside {@link ApiResponse}. */
 public record PageResponse<T>(
     List<T> content,
     int page,

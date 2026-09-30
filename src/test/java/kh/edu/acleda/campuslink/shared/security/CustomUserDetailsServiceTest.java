@@ -38,14 +38,7 @@ class CustomUserDetailsServiceTest {
         return new CustomUserDetailsService(userRepository, adminAuthorityProvider);
     }
 
-    /**
-     * ADM-010 AC#1, and regression test S2 of the five pinned in testing-plan.md.
-     *
-     * <p>{@code enabled} is an allow-list ({@code == ACTIVE}), which is what let SUSPENDED be
-     * added without touching any security class. If someone ever "simplifies" it into a
-     * deny-list such as {@code != BANNED}, suspension becomes cosmetic - the user keeps full
-     * API access - and nothing else would catch it.
-     */
+    /** ADM-010 AC#1, and regression test S2 of the five pinned in testing-plan.md. */
     @ParameterizedTest(name = "{0} account is disabled")
     @EnumSource(value = AccountStatus.class, names = {"PENDING", "BANNED", "SUSPENDED", "DELETED"})
     void onlyActiveAccountsAreEnabled(AccountStatus status) {

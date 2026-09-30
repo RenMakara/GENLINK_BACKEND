@@ -111,10 +111,7 @@ class SavedItemServiceImplTest {
         assertThat(row.imageUrl()).isEqualTo("https://img");
     }
 
-    /**
-     * item_id is not a foreign key, so the target can vanish. The row must survive and
-     * report itself unavailable rather than render blank.
-     */
+    /** item_id is not a foreign key, so the target can vanish. */
     @Test
     void rowIsMarkedUnavailableWhenTheTargetHasBeenDeleted() {
         when(savedItemRepository.findByUserIdOrderBySavedAtDesc(USER_ID)).thenReturn(List.of(savedPost()));

@@ -13,14 +13,7 @@ import kh.edu.acleda.campuslink.modules.community.enums.EventMode;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 
-/**
- * Event creation/update payload shared by the organizer flow and the API.
- *
- * @param mode ONLINE requires meetingUrl; IN_PERSON requires locationName
- * @param paid the Free/Paid toggle from the Create Event flow
- * @param price required when paid; settled against the demo wallet, never real money
- * @param currency required when paid; selects the wallet balance to debit (USD or KHR)
- */
+/** Event creation/update payload shared by the organizer flow and the API. */
 public record EventCreateRequest(
     @NotBlank @Size(max = 180) String title,
     String description,
@@ -43,10 +36,7 @@ public record EventCreateRequest(
     Currency currency
 ) {
 
-    /**
-     * Source-compatible constructor for callers written before event currency was added.
-     * Paid legacy requests use USD, matching the previous RSVP behaviour.
-     */
+    /** Source-compatible constructor for callers written before event currency was added. */
     public EventCreateRequest(String title, String description, String category,
                               String coverImageUrl, LocalDateTime startDateTime,
                               LocalDateTime endDateTime, EventMode mode, String meetingUrl,
@@ -58,10 +48,7 @@ public record EventCreateRequest(
             paid, price, Boolean.TRUE.equals(paid) ? Currency.USD : null);
     }
 
-    /**
-     * Source-compatible constructor for older backend callers. The legacy single
-     * date/time represented the event start, so use a one-hour default end time.
-     */
+    /** Source-compatible constructor for older backend callers. */
     public EventCreateRequest(String title, String description, String category,
                               String coverImageUrl, LocalDateTime dateTime,
                               String locationName, Integer attendeeLimit,

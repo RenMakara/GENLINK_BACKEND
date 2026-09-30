@@ -22,10 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.test.util.ReflectionTestUtils;
 
-/**
- * Resolution logic, with the cache bean called directly (no Spring proxy, so no caching).
- * Caching behaviour itself is covered by {@link AdminPermissionCacheTest}.
- */
+/** Resolution logic, with the cache bean called directly (no Spring proxy, so no caching). */
 @ExtendWith(MockitoExtension.class)
 class AdminAuthorityProviderImplTest {
 
@@ -106,9 +103,7 @@ class AdminAuthorityProviderImplTest {
         provider.authoritiesFor(ADMIN_EMAIL);
         provider.authoritiesFor(ADMIN_EMAIL);
 
-        // Uncached (no proxy here), so both calls hit the repository. That is the property
-        // that makes a revoked permission take effect on the next request rather than when
-        // the token expires.
+        // Uncached (no proxy here), so both calls hit the repository.
         verify(adminUserRepository, times(2)).findActiveByUserEmail(ADMIN_EMAIL);
     }
 

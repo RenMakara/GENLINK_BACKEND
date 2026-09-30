@@ -18,19 +18,7 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/**
- * A staff member: an existing {@link User} plus an admin profile.
- *
- * <p>Admins are not a separate identity. That reuses BCrypt, JWT issuance, refresh tokens,
- * session revocation, {@code token_version}, rate limiting and {@code security_audit_logs} -
- * all built, tested, and already carrying bug fixes. A parallel identity system would need
- * every one of those rebuilt, and would need them to be correct.
- *
- * <p><strong>Hard delete is effectively impossible once this admin has acted:</strong>
- * {@code admin_audit_logs} references it with no cascade, so Postgres rejects the delete. That
- * is deliberate - you must not be able to erase yourself from the audit trail by removing your
- * profile. Revocation is {@link #active} = false plus {@link #deletedAt}.
- */
+/** A staff member: an existing {@link User} plus an admin profile. */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -54,11 +42,7 @@ public class AdminUser extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     private boolean active;
 
-    /**
-     * TOTP shared secret. <strong>A credential.</strong> Encrypted before it reaches this
-     * field, with a key from environment configuration - never plaintext, never returned in an
-     * API response after enrolment, never logged. Same discipline as hashing refresh tokens.
-     */
+    /** TOTP shared secret. */
     @Column(name = "totp_secret", columnDefinition = "TEXT")
     private String totpSecret;
 
@@ -69,13 +53,7 @@ public class AdminUser extends BaseEntity {
     @Column(name = "totp_confirmed_at")
     private Instant totpConfirmedAt;
 
-    /**
-     * Ten single-use recovery codes as {@code [{"hash": "...", "usedAt": null}]}, BCrypt-hashed.
-     *
-     * <p>JSONB rather than one concatenated string because the codes are individually
-     * consumable - a single hash column could not record which of the ten had been spent, so
-     * using one would have to invalidate all ten or none.
-     */
+    /** Ten single-use recovery codes as {@code [{"hash": "...", "usedAt": null}]}, BCrypt-hashed. */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "recovery_codes")
     private String recoveryCodes;

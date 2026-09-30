@@ -1,9 +1,7 @@
 --liquibase formatted sql
 
 --changeset genlink:0048-finance-wallet-consistency
--- Persist whether an expense affected the demo wallet. Existing wallet-paid expenses are
--- reconstructed from their successful debit ledger entry; all other existing expenses remain
--- tracking-only. This is additive and keeps old request/response clients working.
+-- Persist whether an expense affected the demo wallet.
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS paid_from_wallet BOOLEAN NOT NULL DEFAULT FALSE;
 
 UPDATE expenses e

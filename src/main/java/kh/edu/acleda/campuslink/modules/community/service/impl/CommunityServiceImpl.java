@@ -85,8 +85,7 @@ public class CommunityServiceImpl implements CommunityService {
             .postCount(0)
             .build());
 
-        // The creator is the first member, otherwise the community starts with an owner
-        // who is not in it and memberCount disagrees with community_members.
+        // The creator is the first member, otherwise the community starts.
         memberRepository.save(CommunityMember.builder()
             .community(community)
             .user(creator)
@@ -110,8 +109,7 @@ public class CommunityServiceImpl implements CommunityService {
             category, pageable.getPageNumber(), pageable.getPageSize(), userId);
         // Private communities are not browsable: you reach them by direct link.
         Page<Community> page = communityRepository.findDiscoverable(CommunityPrivacy.PUBLIC, category, pageable);
-        // Resolve every row's role in one query rather than one lookup per community (the N+1
-        // discovery had), matching the batched pattern used by the feed and saved items.
+        // Resolve every row's role in one query rather than one lookup per community (the N+1 discovery had).
         Map<UUID, CommunityRole> myRoles = activeRolesFor(userId, page.getContent());
         return PageResponse.from(page,
             community -> toResponse(community, myRoles.get(community.getId()), false));
@@ -193,10 +191,7 @@ public class CommunityServiceImpl implements CommunityService {
         community.setDeletedAt(Instant.now());
         communityRepository.save(community);
 
-        // Destructive and irreversible from the API: it takes the community away from
-        // every member at once, and a soft delete leaves nothing else to point at when
-        // someone asks where it went. memberCount is included because that is the blast
-        // radius.
+        // Destructive and irreversible from the API.
         log.info("Community soft-deleted: id={} slug={} members={} by user={}",
             communityId, community.getSlug(), community.getMemberCount(),
             currentUserProvider.getCurrentUserId());
@@ -207,9 +202,7 @@ public class CommunityServiceImpl implements CommunityService {
     public CommunityResponse join(UUID communityId) {
         Community community = loadCommunity(communityId);
         UUID userId = currentUserProvider.getCurrentUserId();
-        // A PRIVATE community must not be joinable by anyone holding its id: membership is
-        // requested and an owner/admin approves it. Without this gate PRIVATE only hid the
-        // community from discovery while letting anyone in through the direct link.
+        // A PRIVATE community must not be joinable by anyone holding its id.
         boolean requiresApproval = community.getPrivacy() == CommunityPrivacy.PRIVATE;
         log.debug("Join requested: community={} user={} requiresApproval={}", communityId, userId, requiresApproval);
 
@@ -333,9 +326,7 @@ public class CommunityServiceImpl implements CommunityService {
     public void rejectJoinRequest(UUID communityId, UUID userId) {
         loadManageable(communityId);
         CommunityMember member = pendingRequest(communityId, userId);
-        // REMOVED rather than deleted: the row is the record that a request was declined,
-        // and the unique (community_id, user_id) constraint forbids a fresh row anyway.
-        // A later join re-opens it as PENDING through the rejoin path.
+        // REMOVED rather than deleted: the row is the record.
         member.setStatus(MemberStatus.REMOVED);
         memberRepository.save(member);
         log.info("Join request rejected: community={} user={} by manager={}",
@@ -376,8 +367,7 @@ public class CommunityServiceImpl implements CommunityService {
         if (target.getRole() == CommunityRole.OWNER) {
             throw new ApiException("The owner's role cannot be changed here", "COMMUNITY_ROLE_OWNER_IMMUTABLE");
         }
-        // An admin may only manage moderators and members - it must not mint a peer admin or
-        // demote another admin. Administering admins is reserved to the owner.
+        // An admin may only manage moderators and members - it must not mint a peer admin or demote another admin.
         if (callerRole == CommunityRole.ADMIN
             && (target.getRole() == CommunityRole.ADMIN || newRole == CommunityRole.ADMIN)) {
             throw new ApiException("Only the owner can assign or change the admin role",
@@ -415,8 +405,7 @@ public class CommunityServiceImpl implements CommunityService {
             .filter(member -> member.getStatus() == MemberStatus.ACTIVE)
             .orElseThrow(() -> new NotFoundException("Member not found"));
 
-        // The outgoing owner stays on as an ADMIN. Dropping them to MEMBER would lock them out
-        // of the community they built and could leave nobody able to help administer it.
+        // The outgoing owner stays on as an ADMIN.
         currentOwner.setRole(CommunityRole.ADMIN);
         newOwner.setRole(CommunityRole.OWNER);
         memberRepository.save(currentOwner);
@@ -518,11 +507,7 @@ public class CommunityServiceImpl implements CommunityService {
             .orElseThrow(() -> new NotFoundException("User not found"));
     }
 
-    /**
-     * Slugs are derived from the name, never supplied by the client, and collisions get
-     * a numeric suffix. Khmer names normalise away to nothing, so those fall back to a
-     * generated slug rather than producing an empty one.
-     */
+    /** Slugs are derived from the name, never supplied by the client, and collisions get a numeric suffix. */
     private String uniqueSlug(String name) {
         String base = Normalizer.normalize(name, Normalizer.Form.NFKD)
             .replaceAll("[^\\p{Alnum}\\s-]", "")

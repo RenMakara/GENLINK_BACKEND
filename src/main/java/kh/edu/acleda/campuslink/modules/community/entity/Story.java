@@ -21,10 +21,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * An ephemeral media post. A story is visible only until {@code expiresAt} (24h after
- * creation); the feed filters expired rows out rather than deleting them.
- */
+/** An ephemeral media post. */
 @Getter
 @Setter
 @NoArgsConstructor

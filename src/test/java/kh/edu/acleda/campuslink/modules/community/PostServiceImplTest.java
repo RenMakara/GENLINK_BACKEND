@@ -131,8 +131,7 @@ class PostServiceImplTest {
 
         when(currentUserProvider.getCurrentUserId()).thenReturn(USER_ID);
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(author));
-        // Stand in for JPA assigning the generated id on save; without it the service
-        // reads a null id back, which is not how it behaves against a real database.
+        // Stand in for JPA assigning the generated id on save.
         when(postRepository.save(any(Post.class))).thenAnswer(invocation -> {
             Post saved = invocation.getArgument(0);
             if (saved.getId() == null) {

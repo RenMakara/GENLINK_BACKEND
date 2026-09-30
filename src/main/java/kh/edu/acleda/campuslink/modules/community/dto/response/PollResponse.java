@@ -4,14 +4,7 @@ import java.util.List;
 import java.util.UUID;
 import java.time.Instant;
 
-/**
- * A poll rendered for one viewer, embedded in the {@code POLL} post it belongs to.
- *
- * @param totalVotes  sum of every option's count, so the client can draw percentages
- *                    without a second pass.
- * @param hasVoted    whether the viewer has already voted; {@code myOptionId} names which.
- * @param myOptionId  the option the viewer picked, or null if they have not voted.
- */
+/** A poll rendered for one viewer, embedded in the {@code POLL} post it belongs to. */
 public record PollResponse(
     UUID pollId,
     String question,

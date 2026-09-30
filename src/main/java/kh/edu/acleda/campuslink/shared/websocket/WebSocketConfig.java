@@ -7,17 +7,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
-/**
- * STOMP-over-WebSocket for real-time chat (Phase 3).
- *
- * <p>Delivery is push-only through per-user queues: the server sends each member their own copy
- * (see {@code ChatRealtimeListener}), so no client subscribes to a shared room topic and there is
- * nothing to authorize per subscription. REST stays the source of truth; the socket only pushes
- * an already-persisted message.
- *
- * <p>Uses the in-memory simple broker — correct only for a single instance, which the
- * docker-compose interlock already enforces (same constraint as the rate limiter and MFA store).
- */
+/** Configures STOMP over WebSocket for real-time chat. */
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
@@ -30,9 +20,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // The handshake is permitted in SecurityConfig; the trust boundary is the JWT on the
-        // STOMP CONNECT frame (StompAuthChannelInterceptor), not the HTTP origin. Nginx forwards
-        // the upgrade here (see deploy/nginx/genlink.conf).
+        // The handshake is permitted in SecurityConfig.
         registry.addEndpoint("/ws").setAllowedOriginPatterns("*");
     }
 

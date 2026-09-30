@@ -23,11 +23,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * A template that materialises into a real {@link Income} or {@link Expense} on a schedule -
- * the "set it and forget it" side of the tracker. The scheduler advances {@link #nextRunDate}
- * by {@link #frequency} each time it fires.
- */
+/** A template that materialises into a real {@link Income} or {@link Expense} on a schedule. */
 @Getter
 @Setter
 @NoArgsConstructor

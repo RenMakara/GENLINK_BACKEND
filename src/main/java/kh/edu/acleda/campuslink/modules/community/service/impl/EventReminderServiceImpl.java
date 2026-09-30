@@ -21,10 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Finds attendees whose event is roughly one day away and emits retry-safe in-app reminders.
- * Persistence still happens in Notification's after-commit transaction.
- */
+/** Finds attendees whose event is roughly one day away and emits retry-safe in-app reminders. */
 @Slf4j
 @Service
 public class EventReminderServiceImpl implements EventReminderService {

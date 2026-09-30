@@ -45,10 +45,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * ADM-023. Real crypto throughout - encryptor, TOTP and BCrypt all run for real, so "a valid
- * code" means a code the production algorithm actually produced.
- */
+/** Tests admin MFA challenge and recovery code verification. */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AdminMfaVerificationServiceTest {
@@ -120,10 +117,7 @@ class AdminMfaVerificationServiceTest {
         return totpGenerator.generate(secret, Instant.now());
     }
 
-    // -------------------------------------------------------------------------------
     // AC#1 - a correct code issues a typ=ADMIN token with a 10-minute TTL.
-    // -------------------------------------------------------------------------------
-
     @Test
     void issuesAdminTokensForAValidTotpCode() {
         AdminTokenResponse response = service.verify(CHALLENGE, currentCode());
@@ -134,14 +128,7 @@ class AdminMfaVerificationServiceTest {
         assertThat(response.expiresInSeconds()).isEqualTo(600);
     }
 
-    /**
-     * The type claim is what confines the token to /api/v1/admin/**.
-     *
-     * <p>Asserted through {@code generateAdminAccessToken}, which always stamps
-     * {@code typ=ADMIN} - that the claim really is written is pinned one level down, in
-     * {@code JwtTokenProviderTest}. The dedicated method exists because ADM-024 needs a session
-     * id on the token so logout can revoke this session without touching the others.
-     */
+    /** The type claim is what confines the token to /api/v1/admin/**. */
     @Test
     void theAccessTokenIsIssuedWithTheAdminType() {
         service.verify(CHALLENGE, currentCode());
@@ -192,10 +179,7 @@ class AdminMfaVerificationServiceTest {
         assertThat(service.verify(CHALLENGE, currentCode()).recoveryCodesRemaining()).isNull();
     }
 
-    // -------------------------------------------------------------------------------
     // AC#2 - a reused recovery code is rejected.
-    // -------------------------------------------------------------------------------
-
     @Test
     void acceptsARecoveryCode() {
         AdminTokenResponse response = service.verify(CHALLENGE, recoveryCodes.get(0));
@@ -207,8 +191,7 @@ class AdminMfaVerificationServiceTest {
     @Test
     void rejectsARecoveryCodeOnSecondUse() {
         service.verify(CHALLENGE, recoveryCodes.get(0));
-        // A fresh challenge: the first one was retired by the successful sign-in above, so
-        // reusing it would fail for the wrong reason and prove nothing about the code.
+        // A fresh challenge: the first one was retired by the successful sign-in above.
         when(jwtService.getTokenId(CHALLENGE)).thenReturn("challenge-2");
 
         assertThatThrownBy(() -> service.verify(CHALLENGE, recoveryCodes.get(0)))
@@ -237,10 +220,7 @@ class AdminMfaVerificationServiceTest {
         verify(adminUserRepository, org.mockito.Mockito.atLeastOnce()).save(admin);
     }
 
-    // -------------------------------------------------------------------------------
     // AC#3 - an unenrolled admin is refused.
-    // -------------------------------------------------------------------------------
-
     @Test
     void refusesAnUnenrolledAdminWithNotEnrolled() {
         admin.setTotpConfirmedAt(null);
@@ -264,10 +244,7 @@ class AdminMfaVerificationServiceTest {
             .hasMessageContaining("expired");
     }
 
-    // -------------------------------------------------------------------------------
     // AC#4 - five wrong codes void the challenge.
-    // -------------------------------------------------------------------------------
-
     @Test
     void fiveWrongCodesVoidTheChallengeSoTheSixthCannotSucceed() {
         for (int attempt = 0; attempt < 5; attempt++) {
@@ -275,11 +252,7 @@ class AdminMfaVerificationServiceTest {
                 .isInstanceOf(UnauthorizedException.class);
         }
 
-        // The sixth carries a CORRECT code and must still be refused - otherwise the cap only
-        // limits how many wrong guesses fit, not how long the challenge stays attackable.
-        //
-        // 429 RATE_LIMITED, not 401: ADM-027 separated "you ran out of attempts" from "this
-        // challenge was already spent", because they need different answers from the portal.
+        // The sixth carries a CORRECT code and must still be refused.
         assertThatThrownBy(() -> service.verify(CHALLENGE, currentCode()))
             .isInstanceOf(RateLimitedException.class)
             .hasFieldOrPropertyWithValue("errorCode", "RATE_LIMITED");
@@ -295,10 +268,7 @@ class AdminMfaVerificationServiceTest {
                 .isEqualTo(AdminErrorCode.ADMIN_MFA_INVALID));
     }
 
-    // -------------------------------------------------------------------------------
     // AC#5 - every failure writes a security_audit_logs row.
-    // -------------------------------------------------------------------------------
-
     @Test
     void auditsAWrongCode() {
         assertThatThrownBy(() -> service.verify(CHALLENGE, "000000")).isInstanceOf(RuntimeException.class);
@@ -324,10 +294,7 @@ class AdminMfaVerificationServiceTest {
         verify(securityAuditService).logFailure(eq("ADMIN_MFA_FAILED"), eq(EMAIL), eq("CHALLENGE_VOID"));
     }
 
-    // -------------------------------------------------------------------------------
     // Single use (a decision, not in the SSOT - see AdminMfaChallengeStore).
-    // -------------------------------------------------------------------------------
-
     @Test
     void aChallengeCannotBeReplayedAfterASuccessfulSignIn() {
         service.verify(CHALLENGE, currentCode());
@@ -337,10 +304,7 @@ class AdminMfaVerificationServiceTest {
             .hasMessageContaining("expired");
     }
 
-    // -------------------------------------------------------------------------------
     // This endpoint is permitAll, so these checks are the only guard.
-    // -------------------------------------------------------------------------------
-
     @Test
     void rejectsAnAdminAccessTokenInPlaceOfAChallenge() {
         when(jwtService.getTokenType(CHALLENGE)).thenReturn(TokenType.ADMIN);

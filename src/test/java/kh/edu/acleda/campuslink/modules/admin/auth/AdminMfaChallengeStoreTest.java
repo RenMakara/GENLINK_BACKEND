@@ -50,11 +50,7 @@ class AdminMfaChallengeStoreTest {
         assertThat(store.remainingAttempts("c2")).isEqualTo(5);
     }
 
-    /**
-     * The single-use decision. A challenge lifted from a proxy log after a successful sign-in
-     * must not mint a second session - it would need neither the password nor a code, because
-     * the real login already spent both.
-     */
+    /** The single-use decision. */
     @Test
     void aSpentChallengeCannotBeUsedAgain() {
         store.spend("c1");
@@ -73,10 +69,7 @@ class AdminMfaChallengeStoreTest {
         assertThat(store.isUsable("c1")).isFalse();
     }
 
-    /**
-     * Retired, not forgotten. Removing the entry would make the next presentation of the same
-     * token look like a challenge nobody had touched, which is the replay this prevents.
-     */
+    /** Retired, not forgotten. */
     @Test
     void failingAgainstASpentChallengeDoesNotReviveIt() {
         store.spend("c1");

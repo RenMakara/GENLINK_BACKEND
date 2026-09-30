@@ -13,10 +13,7 @@ public interface StoryService {
     /** Posts a story that expires 24h from now. */
     StoryResponse createStory(StoryCreateRequest request);
 
-    /**
-     * The story bar: active stories from people the viewer follows plus their own,
-     * grouped by author. The viewer's own group comes first, then unseen groups.
-     */
+    /** The story bar: active stories from people the viewer follows plus their own, grouped by author. */
     List<StoryFeedItem> getStoriesFeed();
 
     /** Marks a story seen for the caller. Idempotent; viewing your own story records nothing. */

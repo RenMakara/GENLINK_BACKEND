@@ -19,13 +19,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * PostgreSQL regression coverage for the nine ADM-113 projection queries.
- *
- * <p>The repository intentionally uses PostgreSQL date-series and timestamp expressions. H2 is
- * not a sufficient substitute for the production query, so this class runs only when CI or a
- * developer supplies a disposable PostgreSQL URL.
- */
+/** PostgreSQL regression coverage for the nine ADM-113 projection queries. */
 @SpringBootTest
 @ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "GENLINK_TEST_POSTGRES_URL", matches = ".+")
@@ -185,9 +179,7 @@ class AdminAnalyticsQueryRepositoryPostgresTest {
         System.out.println("ADM-114 growth query EXPLAIN ANALYZE:\n"
             + String.join("\n", measuredPlan));
 
-        // This is a planner usability check, not a production session setting. The local
-        // transaction is rolled back after the test, while the EXPLAIN matches the growth
-        // query's created_at/status/deleted_at predicates.
+        // This is a planner usability check, not a production session setting.
         jdbcTemplate.execute("SET LOCAL enable_seqscan = off");
         String plan = String.join("\n", jdbcTemplate.query(
             """

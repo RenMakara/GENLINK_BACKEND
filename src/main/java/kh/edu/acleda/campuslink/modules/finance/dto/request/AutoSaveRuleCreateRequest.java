@@ -7,12 +7,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.enums.AutoSaveType;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
-/**
- * Sets up an automatic monthly saving into a goal.
- *
- * @param percent  required for PERCENT_OF_INCOME (e.g. 10.00 = 10%); ignored for ROUND_UP.
- * @param currency USD or KHR; defaults to USD when omitted (and must match the goal's currency).
- */
+/** Sets up an automatic monthly saving into a goal. */
 public record AutoSaveRuleCreateRequest(
     @NotNull UUID savingGoalId,
     @NotNull AutoSaveType type,

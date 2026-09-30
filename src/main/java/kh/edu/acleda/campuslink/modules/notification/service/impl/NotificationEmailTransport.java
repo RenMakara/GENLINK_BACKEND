@@ -17,10 +17,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 
-/**
- * Generic notification email transport. It intentionally does not depend on the auth OTP mail
- * service, because notification email has different retry and failure semantics.
- */
+/** Generic notification email transport. */
 @Slf4j
 @Component
 public class NotificationEmailTransport implements NotificationTransport {

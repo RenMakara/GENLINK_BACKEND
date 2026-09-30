@@ -192,9 +192,7 @@ public class AdminAuditLogQueryService {
         try {
             return objectMapper.readTree(raw);
         } catch (JsonProcessingException exception) {
-            // Preserve legacy/corrupt snapshots as a JSON string instead of failing the whole
-            // detail response. New writes are produced by AdminAuditService.toJson and remain
-            // structured JSON trees.
+            // Preserve legacy/corrupt snapshots as a JSON string instead of failing the whole detail response.
             return TextNode.valueOf(raw);
         }
     }

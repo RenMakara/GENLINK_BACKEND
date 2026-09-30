@@ -35,10 +35,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * ADM-021. The endpoint's whole job is to be uninformative, so most of this file is about what
- * an attacker can <em>not</em> learn from it.
- */
+/** Tests the admin password and MFA sign-in flow. */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AdminAuthServiceImplTest {
@@ -62,11 +59,7 @@ class AdminAuthServiceImplTest {
 
     private AdminAuthServiceImpl service;
 
-    /**
-     * A real BCrypt encoder, not a mock. The timing decoy is only meaningful if an actual hash
-     * comparison happens, and a mocked encoder would return instantly and prove nothing.
-     * Strength 4 keeps the suite fast; the cost factor is irrelevant to what is asserted.
-     */
+    /** A real BCrypt encoder, not a mock. */
     private PasswordEncoder passwordEncoder;
 
     @BeforeEach
@@ -79,10 +72,7 @@ class AdminAuthServiceImplTest {
         when(jwtService.generateAdminMfaChallengeToken(anyString(), anyString())).thenReturn(CHALLENGE_TOKEN);
     }
 
-    // -----------------------------------------------------------------------------------
     // AC#1 - valid admin credentials yield a challenge, never a session.
-    // -----------------------------------------------------------------------------------
-
     @Test
     void issuesChallengeTokenForValidAdminCredentials() {
         givenUserExists();
@@ -131,12 +121,7 @@ class AdminAuthServiceImplTest {
         verify(authRateLimitService).clearAdminLoginFailures(eq(EMAIL), any());
     }
 
-    // -----------------------------------------------------------------------------------
     // AC#2 - every rejection is indistinguishable.
-    //
-    // Regression test for the enumeration hole: if these ever diverge, the endpoint tells an
-    // attacker which addresses are administrators.
-    // -----------------------------------------------------------------------------------
 
     @Test
     void wrongPasswordAndNonAdminUserProduceIdenticalRejections() {
@@ -176,10 +161,7 @@ class AdminAuthServiceImplTest {
         assertThat(unknownEmail.getMessage()).isEqualTo(wrongPassword.getMessage());
     }
 
-    /**
-     * The admin lookup must not happen before the password is verified, or the endpoint answers
-     * "is this an admin?" for free, without any credential and faster than a real attempt.
-     */
+    /** The admin lookup must not happen before the password is verified. */
     @Test
     void doesNotConsultTheAdminTableUntilThePasswordIsVerified() {
         givenUserExists();
@@ -191,12 +173,7 @@ class AdminAuthServiceImplTest {
         verify(adminUserRepository, never()).findActiveByUserEmail(anyString());
     }
 
-    /**
-     * Timing: an unknown address must still spend a password comparison, or it answers in a
-     * millisecond where a real attempt takes a hundred and the two are separable with a
-     * stopwatch. Asserted structurally rather than by measuring the clock - a timing assertion
-     * would be flaky on CI and would tell us less.
-     */
+    /** Timing: an unknown address must still spend a password comparison. */
     @Test
     void spendsAPasswordComparisonEvenWhenTheAddressIsUnknown() {
         PasswordEncoder countingEncoder = new CountingEncoder();
@@ -214,10 +191,7 @@ class AdminAuthServiceImplTest {
             .isEqualTo(before + 1);
     }
 
-    // -----------------------------------------------------------------------------------
     // AC#4 - every failure is auditable.
-    // -----------------------------------------------------------------------------------
-
     @Test
     void writesAnAuditRowWhenThePasswordIsWrong() {
         givenUserExists();
@@ -253,10 +227,7 @@ class AdminAuthServiceImplTest {
         verify(securityAuditService).logFailure(eq("ADMIN_LOGIN_FAILED"), any(User.class), eq(EMAIL), anyString());
     }
 
-    /**
-     * The audit row carries the real reason even though the response does not. That asymmetry
-     * is the point: operators can tell the cases apart, callers cannot.
-     */
+    /** The audit row carries the real reason even though the response does not. */
     @Test
     void recordsTheRealReasonInTheAuditTrailButNotInTheResponse() {
         givenUserExists();
@@ -269,10 +240,7 @@ class AdminAuthServiceImplTest {
         assertThat(thrown.getMessage()).doesNotContain("ADMIN").doesNotContain("admin");
     }
 
-    // -----------------------------------------------------------------------------------
     // Rate limiting (SSOT §10.6)
-    // -----------------------------------------------------------------------------------
-
     @Test
     void refusesWithRateLimitedOnceTheAdminBucketIsBlocked() {
         when(authRateLimitService.isAdminLoginBlocked(eq(EMAIL), any())).thenReturn(true);
@@ -285,8 +253,6 @@ class AdminAuthServiceImplTest {
         verify(securityAuditService).logFailure(eq("ADMIN_LOGIN_BLOCKED"), eq(EMAIL), anyString());
     }
 
-    // -----------------------------------------------------------------------------------
-
     private void givenUserExists() {
         User user = new User();
         user.setEmail(EMAIL);
@@ -294,11 +260,7 @@ class AdminAuthServiceImplTest {
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
     }
 
-    /*
-     * doReturn/doThrow rather than when(...): the tests that compare two rejections re-stub
-     * this mock mid-method, and the when(...) form calls the mock to record the stub - which
-     * throws the exception configured a moment earlier, failing the test on its own setup.
-     */
+    /* doReturn/doThrow rather than when(...): the tests. */
     private void givenPasswordIsCorrect() {
         org.mockito.Mockito.doReturn(null).when(authenticationManager).authenticate(any());
     }

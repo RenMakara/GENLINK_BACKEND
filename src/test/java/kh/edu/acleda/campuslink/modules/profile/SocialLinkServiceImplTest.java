@@ -74,10 +74,7 @@ class SocialLinkServiceImplTest {
         assertThat(existing.getUrl()).isEqualTo("https://github.com/new");
     }
 
-    /**
-     * Profile links are rendered tappable, so a javascript: URL stored here would run
-     * when another user opened the profile.
-     */
+    /** Profile links are rendered tappable, so a javascript: URL stored here would run when another user opened the profile. */
     @Test
     void upsertRejectsANonHttpUrl() {
         assertThatThrownBy(() -> service.upsert(

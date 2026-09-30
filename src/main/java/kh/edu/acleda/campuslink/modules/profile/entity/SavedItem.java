@@ -39,11 +39,7 @@ public class SavedItem extends BaseEntity {
     @Column(name = "item_type", nullable = false, length = 80)
     private SavedItemType itemType;
 
-    /**
-     * Deliberately not a foreign key: this table is polymorphic, so the referenced
-     * row lives in a different table per item_type. Nothing stops the target being
-     * deleted, so readers must tolerate ids that no longer resolve.
-     */
+    /** Deliberately not a foreign key: this table is polymorphic, so the referenced row lives in a different table per item_type. */
     @Column(name = "item_id", nullable = false)
     private UUID itemId;
 

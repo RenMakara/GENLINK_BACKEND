@@ -1,8 +1,7 @@
 --liquibase formatted sql
 
 --changeset genlink:0073-seed-community-opportunities
--- Seed initial opportunities across various categories (INTERNSHIP, SCHOLARSHIP, JOB, HACKATHON, VOLUNTEER)
--- so that students have active, functional opportunities to browse, bookmark, and apply for.
+-- Seed initial opportunities across various categories (INTERNSHIP.
 INSERT INTO opportunities (
     opportunity_id,
     title,

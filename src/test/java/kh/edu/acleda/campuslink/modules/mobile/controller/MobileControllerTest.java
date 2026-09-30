@@ -23,8 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Locks the still-deferred mobile event-detail endpoint as an honest {@code NOT_IMPLEMENTED}
- * response and verifies that mobile notifications delegate to their BFF service. */
+/** Locks the still-deferred mobile event-detail endpoint as an honest {@code NOT_IMPLEMENTED} response. */
 @ExtendWith(MockitoExtension.class)
 class MobileControllerTest {
 

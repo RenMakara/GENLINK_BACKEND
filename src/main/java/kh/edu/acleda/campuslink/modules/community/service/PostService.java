@@ -21,16 +21,10 @@ public interface PostService {
     /** Creates a POLL post: a post carrying a question and its options. */
     PostResponse createPollPost(PollCreateRequest request);
 
-    /**
-     * Casts or moves the caller's single vote. Re-voting a different option moves the vote
-     * (adjusting both tallies); re-voting the same option is a no-op. @return the poll afterwards.
-     */
+    /** Casts or moves the caller's single vote. */
     PollResponse vote(UUID postId, PollVoteRequest request);
 
-    /**
-     * The personalised feed, newest first: public posts, the viewer's own, friends-only
-     * posts from mutual follows, and community posts from communities they are in.
-     */
+    /** The personalised feed, newest first: public posts. */
     PageResponse<PostResponse> getFeed(Pageable pageable);
 
     PageResponse<PostResponse> getCommunityFeed(UUID communityId, Pageable pageable);
@@ -55,10 +49,7 @@ public interface PostService {
 
     void delete(UUID id);
 
-    /**
-     * Removes a post as a community moderator. Allowed to OWNER / ADMIN / MODERATOR of the
-     * post's community; distinct from {@link #delete} which is author-only. Soft delete.
-     */
+    /** Removes a post as a community moderator. */
     void removeAsModerator(UUID postId);
 
     /** Flags a post for moderator review. Idempotent per user - one report per person. */

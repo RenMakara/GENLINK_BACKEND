@@ -27,10 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * This service used to be a stub that returned hardcoded values and persisted
- * nothing, so these tests exist mainly to pin that it really reads and writes.
- */
+/** This service used to be a stub that returned hardcoded values. */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class UserSettingServiceImplTest {
@@ -71,14 +68,7 @@ class UserSettingServiceImplTest {
         assertThat(response.biometricEnabled()).isFalse();
     }
 
-    /**
-     * ENGLISH is the intended default (confirmed 2026-07-17), so settings must inherit
-     * it rather than invent one. The data dictionary and language plan still say KHMER
-     * and are the documents that are out of date.
-     *
-     * <p>Null is unrepresentable in practice - the setter coerces it - so this also pins
-     * that the service does not reintroduce a default of its own.
-     */
+    /** ENGLISH is the intended default (confirmed 2026-07-17), so settings must inherit it rather than invent one. */
     @Test
     void settingsInheritTheUserLanguageDefaultingToEnglish() {
         user.setPreferredLanguage(null);

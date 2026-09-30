@@ -23,13 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-/**
- * Step-up re-authentication (SSOT §10.7, ADM-025).
- *
- * <p>Opens a five-minute window against the caller's <em>session</em>, which high-tier actions
- * require via {@link RequiresSudo}. Being signed in is not enough for the things that cannot be
- * undone; the person has to still be at the keyboard.
- */
+/** Step-up re-authentication (SSOT §10.7, ADM-025). */
 @Slf4j
 @Service
 public class AdminSudoService {
@@ -62,13 +56,7 @@ public class AdminSudoService {
         this.jwtService = jwtService;
     }
 
-    /**
-     * Re-authenticates with a password or a fresh TOTP code and opens the window.
-     *
-     * <p>Either factor is accepted, as SSOT §10.7 specifies. A TOTP code is the stronger of the
-     * two here: a password can be recovered from a manager on the unlocked machine that this
-     * control exists to defend against, whereas a code requires the phone.
-     */
+    /** Re-authenticates with a password or a fresh TOTP code and opens the window. */
     @Transactional(readOnly = true)
     public SudoResponse open(SudoRequest request) {
         String sessionId = currentSessionId();
@@ -123,10 +111,7 @@ public class AdminSudoService {
         return totpGenerator.verify(secret, code.trim(), Instant.now());
     }
 
-    /**
-     * Reuses the configured {@link AuthenticationManager} so step-up applies the same encoder
-     * and account-status rules as sign-in, rather than a second comparison that can drift.
-     */
+    /** Reuses the configured {@link AuthenticationManager}. */
     private boolean verifyPassword(String email, String password) {
         if (password == null || password.isBlank()) {
             return false;
@@ -139,13 +124,7 @@ public class AdminSudoService {
         }
     }
 
-    /**
-     * The session this request belongs to, read from the access token's {@code jti}.
-     *
-     * <p>Taken from the token rather than the {@code SecurityContext} because the context holds
-     * the principal, not which of that principal's sessions is calling - and the whole point of
-     * AC#3 is that two sessions are different.
-     */
+    /** The session this request belongs to, read from the access token's {@code jti}. */
     String currentSessionId() {
         if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes)) {
             return null;

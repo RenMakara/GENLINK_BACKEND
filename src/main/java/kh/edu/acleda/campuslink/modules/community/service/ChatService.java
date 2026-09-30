@@ -13,10 +13,7 @@ import kh.edu.acleda.campuslink.modules.community.dto.response.ChatRoomSummaryRe
 import kh.edu.acleda.campuslink.shared.response.PageResponse;
 import org.springframework.data.domain.Pageable;
 
-/**
- * Direct and group messaging (Phase 1, REST). Every operation requires the caller to be an
- * ACTIVE member of the room; a non-member sees "not found", never a hint the room exists.
- */
+/** REST messaging for active room members. */
 public interface ChatService {
 
     /** Open (or reuse) the 1:1 room with another user. Idempotent. */
@@ -64,7 +61,7 @@ public interface ChatService {
     /** Total unread messages across all the caller's rooms — for a badge. */
     long totalUnread();
 
-    // ------------------------------------------------------- Phase 2: groups
+    // Group messages
 
     /** Rename a group. Admin/owner only. */
     ChatRoomResponse renameGroup(UUID roomId, RenameGroupRequest request);

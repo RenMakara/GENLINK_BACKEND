@@ -46,8 +46,7 @@ public class SuspiciousLoginNotifierImpl implements SuspiciousLoginNotifier {
             List<SecurityAuditLog> previousLogins = securityAuditLogRepository
                 .findTop50ByUserAndEventTypeAndSuccessTrueOrderByCreatedAtDesc(user, LOGIN_EVENT);
 
-            // Do not alert on a first login or after a deployment where there is no complete
-            // historical fingerprint yet. That avoids treating missing legacy metadata as risk.
+            // Do not alert on a first login or after a deployment where there is no complete historical fingerprint yet.
             boolean hasComparableBaseline = previousLogins.stream().anyMatch(this::hasContext);
             if (!hasComparableBaseline || previousLogins.stream()
                 .anyMatch(entry -> matchesContext(entry, currentIp, currentUserAgent))) {

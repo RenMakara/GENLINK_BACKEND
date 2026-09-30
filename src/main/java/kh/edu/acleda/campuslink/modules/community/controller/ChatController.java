@@ -134,7 +134,7 @@ public class ChatController {
             Map.of("unreadCount", chatService.totalUnread())));
     }
 
-    // ---------------------------------------------- group management (Phase 2)
+    // Group management
 
     /** Rename a group. Admin/owner only. */
     @PutMapping("/{roomId}")

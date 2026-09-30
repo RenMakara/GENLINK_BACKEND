@@ -16,14 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-/**
- * The way privileged actions get recorded. Every mutating admin endpoint calls this.
- *
- * <p>Fills in the actor, IP, user agent and correlation id from the current request, so call
- * sites only describe what they did. The correlation id ties the row back to the application
- * log lines for the same request, which is most of what makes an audit trail usable during an
- * incident.
- */
+/** The way privileged actions get recorded. */
 @Service
 public class AdminAuditService {
 
@@ -77,14 +70,7 @@ public class AdminAuditService {
             .build());
     }
 
-    /**
-     * Records an event, choosing the transaction by outcome.
-     *
-     * <p>The try/catch sits outside the writer's transaction boundary on purpose - see
-     * {@link AdminAuditWriter}. Auditing must never be the reason an admin action fails, but
-     * swallowing the exception inside the boundary would poison the caller's transaction and
-     * do exactly that.
-     */
+    /** Records an event, choosing the transaction by outcome. */
     public void record(AdminAuditEvent event) {
         try {
             AdminAuditLog entry = toEntity(event);
@@ -94,24 +80,13 @@ public class AdminAuditService {
                 writer.writeInCurrentTransaction(entry);
             }
         } catch (Exception ex) {
-            // Losing an audit row is bad; failing the admin action because auditing broke is
-            // worse. Logged at error because a silent gap in the trail is not acceptable
-            // either - someone has to notice.
+            // Losing an audit row is bad; failing the admin action because auditing broke is worse.
             log.error("Failed to write admin audit row for action {} on {} {}: {}",
                 event.action(), event.targetType(), event.targetId(), ex.getMessage(), ex);
         }
     }
 
-    /**
-     * Serialises a before/after snapshot.
-     *
-     * <p><strong>Pass a DTO, record or Map - never a JPA entity.</strong> An entity drags in
-     * lazy proxies, which either throw outside a session or quietly serialise half the object
-     * graph into the audit row.
-     *
-     * @return the JSON, or null if it could not be serialised - a snapshot is never worth
-     *     failing the action for.
-     */
+    /** Serialises a before/after snapshot. */
     public String toJson(Object snapshot) {
         if (snapshot == null) {
             return null;
@@ -143,17 +118,7 @@ public class AdminAuditService {
         return entry;
     }
 
-    /**
-     * The acting admin, as a reference rather than a loaded entity.
-     *
-     * <p>The identity lookup is the one already cached for permission resolution, so this adds
-     * no query on the request path; {@code getReferenceById} then supplies the foreign key
-     * without a second select.
-     *
-     * @return null when there is no acting admin - the bootstrap runner that creates the first
-     *     SUPER_ADMIN, and any failure recorded before authentication completed. The column is
-     *     nullable for exactly these cases.
-     */
+    /** The acting admin, as a reference rather than a loaded entity. */
     private kh.edu.acleda.campuslink.modules.admin.rbac.entity.AdminUser currentAdminReference() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || authentication.getName() == null) {

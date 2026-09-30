@@ -40,13 +40,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * ADM-022 enrolment flow.
- *
- * <p>Crypto is real here - the encryptor, the TOTP generator and BCrypt all run for real, with
- * only the repository, the token service and auditing stubbed. Mocking the encryptor would let
- * "encrypted" mean whatever the mock returned, and AC#2 is precisely the claim that it does not.
- */
+/** ADM-022 enrolment flow. */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AdminMfaEnrolmentServiceTest {
@@ -87,15 +81,8 @@ class AdminMfaEnrolmentServiceTest {
         when(adminUserRepository.findActiveByUserEmail(EMAIL)).thenReturn(Optional.of(admin));
     }
 
-    // -------------------------------------------------------------------------------
     // AC#1 - the otpauth:// URI is what an authenticator app expects.
-    // -------------------------------------------------------------------------------
-
-    /**
-     * Conformance to the Key Uri Format, which is the closest thing to "a standard app accepts
-     * it" that a unit test can assert. The end-to-end check - scanning it with a real
-     * authenticator - is a manual step and is listed in the report.
-     */
+    /** Conformance to the Key Uri Format, which is the closest thing to "a standard app accepts it" that a unit test can assert. */
     @Test
     void buildsAConformantOtpauthUri() {
         MfaEnrolResponse response = service.enrol(CHALLENGE);
@@ -131,10 +118,7 @@ class AdminMfaEnrolmentServiceTest {
         assertThat(totpGenerator.verify(secret, totpGenerator.generate(secret, now), now)).isTrue();
     }
 
-    // -------------------------------------------------------------------------------
     // AC#2 - the stored secret is unreadable.
-    // -------------------------------------------------------------------------------
-
     @Test
     void persistsTheSecretEncryptedNotAsGiven() {
         MfaEnrolResponse response = service.enrol(CHALLENGE);
@@ -163,10 +147,7 @@ class AdminMfaEnrolmentServiceTest {
         assertThat(fieldEncryptor.decrypt(admin.getTotpSecret())).isEqualTo(second);
     }
 
-    // -------------------------------------------------------------------------------
     // Confirm
-    // -------------------------------------------------------------------------------
-
     @Test
     void confirmingWithAValidCodeEnablesTotp() {
         String code = codeFor(service.enrol(CHALLENGE).secret());
@@ -198,10 +179,7 @@ class AdminMfaEnrolmentServiceTest {
             .hasMessageContaining("Start enrolment");
     }
 
-    // -------------------------------------------------------------------------------
     // AC#3 - recovery codes are returned exactly once.
-    // -------------------------------------------------------------------------------
-
     @Test
     void recoveryCodesAreIssuedOnlyAtConfirmNotAtEnrol() {
         MfaEnrolResponse response = service.enrol(CHALLENGE);
@@ -241,10 +219,7 @@ class AdminMfaEnrolmentServiceTest {
         }
     }
 
-    // -------------------------------------------------------------------------------
     // These routes are permitAll, so this check is the only thing guarding them.
-    // -------------------------------------------------------------------------------
-
     @Test
     void rejectsAnAdminAccessTokenWhereAChallengeIsRequired() {
         when(jwtService.getTokenType(CHALLENGE)).thenReturn(TokenType.ADMIN);
@@ -277,8 +252,6 @@ class AdminMfaEnrolmentServiceTest {
         when(adminUserRepository.findActiveByUserEmail(EMAIL)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.enrol(CHALLENGE)).isInstanceOf(UnauthorizedException.class);
     }
-
-    // -------------------------------------------------------------------------------
 
     private String codeFor(String base32Secret) {
         return totpGenerator.generate(Base32.decode(base32Secret), Instant.now());

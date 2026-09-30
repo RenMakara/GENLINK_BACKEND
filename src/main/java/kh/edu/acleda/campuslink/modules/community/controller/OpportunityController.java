@@ -23,11 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * The Opportunity Hub (internships, scholarships, hackathons, jobs, volunteering).
- * Opportunities are admin-managed content - the table has no owner - so browse and
- * read are open to any authenticated user, but create/update/delete require ADMIN.
- */
+/** The Opportunity Hub (internships, scholarships, hackathons, jobs, volunteering). */
 @RestController
 @RequestMapping("/api/v1/community/opportunities")
 @Tag(name = "Community - Opportunities")

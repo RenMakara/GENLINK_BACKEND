@@ -11,13 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-/**
- * Verifies Google ID tokens against Google's public keys.
- *
- * <p>Needs only the OAuth client id - no service-account credentials. A Flutter app
- * ships a separate client id per platform, and the token's audience is whichever one
- * signed in, so {@code app.google.client-id} accepts a comma-separated list.
- */
+/** Verifies Google ID tokens against Google's public keys. */
 @Slf4j
 @Service
 public class GoogleTokenVerifier {

@@ -210,7 +210,6 @@ class AdminNotificationServiceImplTest {
     private User activeUser(UUID id) {
         User user = org.mockito.Mockito.mock(User.class);
         // This helper is shared by tests that may stop before recipient eligibility is read.
-        // Lenient stubs keep those setup-only details from masking the behavior under test.
         lenient().when(user.getId()).thenReturn(id);
         lenient().when(user.getAccountStatus()).thenReturn(AccountStatus.ACTIVE);
         lenient().when(user.getDeletedAt()).thenReturn(null);

@@ -99,10 +99,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         portfolioItemRepository.save(item);
     }
 
-    /**
-     * Scoping the lookup by owner means another user's id resolves to "not found"
-     * rather than leaking that the row exists.
-     */
+    /** Scoping the lookup by owner means another user's id resolves to "not found" rather than leaking that the row exists. */
     private PortfolioItem loadOwned(UUID portfolioId) {
         UUID userId = currentUserProvider.getCurrentUserId();
         return portfolioItemRepository.findByIdAndUserIdAndDeletedAtIsNull(portfolioId, userId)

@@ -18,10 +18,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
-/**
- * Executes the real 0048 SQL against an isolated PostgreSQL schema. Configure
- * {@code GENLINK_TEST_POSTGRES_URL} (and optionally username/password) to enable it.
- */
+/** Executes the real 0048 SQL against an isolated PostgreSQL schema. */
 @JdbcTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = Replace.NONE)

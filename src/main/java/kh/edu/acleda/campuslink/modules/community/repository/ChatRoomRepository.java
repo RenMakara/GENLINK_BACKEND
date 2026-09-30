@@ -12,10 +12,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, UUID> {
 
-    /**
-     * The existing 1:1 room shared by two users, if any. Keeps private chats idempotent — opening
-     * a chat with someone you already message reuses the room rather than forking a second thread.
-     */
+    /** The existing 1:1 room shared by two users, if any. */
     @Query("SELECT r FROM ChatRoom r WHERE r.chatType = :type "
         + "AND EXISTS (SELECT 1 FROM ChatRoomMember a WHERE a.chatRoom = r AND a.user.id = :userA) "
         + "AND EXISTS (SELECT 1 FROM ChatRoomMember b WHERE b.chatRoom = r AND b.user.id = :userB)")
@@ -23,10 +20,7 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, UUID> {
                                               @Param("userA") UUID userA,
                                               @Param("userB") UUID userB);
 
-    /**
-     * Bumps last-activity so the chat list can sort by it. A message send touches the room here
-     * rather than re-saving the whole entity; {@code updated_at} is a real, updatable column.
-     */
+    /** Bumps last-activity so the chat list can sort by it. */
     @Modifying
     @Query("UPDATE ChatRoom r SET r.updatedAt = :now WHERE r.id = :roomId")
     void touch(@Param("roomId") UUID roomId, @Param("now") Instant now);

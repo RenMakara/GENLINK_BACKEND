@@ -29,11 +29,7 @@ import kh.edu.acleda.campuslink.shared.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Rule-based insights over the finance data. Each rule is a plain comparison against this
- * month vs last month (and the saving goals); there is no ML here, just thresholds a student
- * can reason about. Every rule is currency-scoped and best-effort matched to a lesson.
- */
+/** Rule-based insights over the finance data. */
 @Service
 public class InsightServiceImpl implements InsightService {
 

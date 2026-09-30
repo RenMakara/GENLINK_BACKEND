@@ -35,8 +35,7 @@ public class QuizMatchServiceImpl implements QuizMatchService {
     private final UserRepository userRepository;
     private final RewardService rewardService;
 
-    // Single-instance matchmaking queue: quizId -> the persisted WAITING match. The
-    // project deliberately runs one application instance while using the simple broker.
+    // Single-instance matchmaking queue: quizId -> the persisted WAITING match.
     private final ConcurrentHashMap<UUID, UUID> waitingMatchIds = new ConcurrentHashMap<>();
 
     @Override

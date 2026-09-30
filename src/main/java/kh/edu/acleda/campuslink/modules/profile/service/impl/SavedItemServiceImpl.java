@@ -52,11 +52,7 @@ public class SavedItemServiceImpl implements SavedItemService {
         return items.stream().map(item -> toResponse(item, previews.get(item.getItemId()))).toList();
     }
 
-    /**
-     * Batched per type so the whole list costs one query per distinct type, not one
-     * per saved item. That is the entire point of hydrating here rather than making
-     * the client fetch each item.
-     */
+    /** Batched per type so the whole list costs one query per distinct type, not one per saved item. */
     private Map<UUID, SavedItemPreview> loadPreviews(List<SavedItem> items, Language language) {
         if (items.isEmpty()) {
             return Map.of();
@@ -84,10 +80,7 @@ public class SavedItemServiceImpl implements SavedItemService {
             }
         }
 
-        // The unique key is the database backstop. Locking the user's row first
-        // closes the check-then-insert window across application instances, so two
-        // simultaneous saves resolve to one row instead of surfacing a constraint
-        // violation as an unexpected 500.
+        // The unique key is the database backstop.
         User user = userRepository.findByIdForUpdate(userId)
             .orElseThrow(() -> new NotFoundException("User not found"));
 

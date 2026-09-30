@@ -23,10 +23,7 @@ public class InsightController {
         this.insightService = insightService;
     }
 
-    /**
-     * Actionable nudges for a month, in one currency (mixing KHR and USD would be meaningless).
-     * Defaults to the current month and USD.
-     */
+    /** Actionable nudges for a month, in one currency (mixing KHR and USD would be meaningless). */
     @GetMapping
     public ResponseEntity<ApiResponse<FinanceInsightsResponse>> insights(
         @RequestParam(required = false) Currency currency,

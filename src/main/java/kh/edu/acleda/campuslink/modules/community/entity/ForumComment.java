@@ -38,11 +38,7 @@ public class ForumComment extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
-    /**
-     * Null for a top-level comment - only replies have a parent. Threading is one level
-     * deep: a reply to a reply attaches to the same top-level parent (see resolveParent),
-     * so the client never renders arbitrary nesting. Mirrors PostComment.
-     */
+    /** Null for a top-level comment - only replies have a parent. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_comment_id")
     private ForumComment parentComment;

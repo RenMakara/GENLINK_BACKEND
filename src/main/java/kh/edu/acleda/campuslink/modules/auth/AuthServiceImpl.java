@@ -161,11 +161,7 @@ public class AuthServiceImpl implements AuthService {
 
         User existing = userRepository.findByEmail(request.email()).orElse(null);
 
-        // A soft-deleted account still owns its email through the UNIQUE constraint, so
-        // rejecting it here would strand the owner: unable to log in AND unable to sign
-        // up again. Inside the grace period the deletion is simply undone. Past it,
-        // AccountAnonymizationService has already released the address, so `existing` is
-        // null and this proceeds as an ordinary new registration.
+        // A soft-deleted account still owns its email through the UNIQUE constraint.
         if (existing != null && existing.getAccountStatus() == AccountStatus.DELETED) {
             reactivateDeletedAccount(existing, request);
             return;
@@ -201,19 +197,7 @@ public class AuthServiceImpl implements AuthService {
         log.info("User registered and OTP sent to {}", request.email());
     }
 
-    /**
-     * Restores an account the user deleted, reusing the existing row.
-     *
-     * <p>This is a recovery, not a fresh signup: the same person is coming back inside
-     * the grace window, so XP, badges and their existing posts are kept. Only the
-     * details supplied on the form are overwritten. Once the grace period expires the
-     * row is anonymised and its email freed, so a stranger who later registers a
-     * recycled address never reaches this path — they get a brand new account.
-     *
-     * <p>The account returns as PENDING and unverified, which forces the OTP round trip:
-     * proof of mailbox control is what separates the real owner from someone who merely
-     * knows the address.
-     */
+    /** Restores an account the user deleted, reusing the existing row. */
     private void reactivateDeletedAccount(User user, RegisterRequest request) {
         requireUsernameAvailable(request, user.getId());
         requirePhoneAvailable(request, user.getId());
@@ -239,12 +223,7 @@ public class AuthServiceImpl implements AuthService {
         log.info("Reactivated previously deleted account and OTP sent to {}", request.email());
     }
 
-    /**
-     * Rejects a username already held by a <em>different</em> account.
-     *
-     * @param selfId the account being reactivated, which is allowed to keep its own
-     *               username; null when registering a new user, where any match is a clash
-     */
+    /** Rejects a username already held by a different account. */
     private void requireUsernameAvailable(RegisterRequest request, UUID selfId) {
         boolean takenByAnother = userRepository.findByUsername(request.username())
             .map(owner -> !owner.getId().equals(selfId))
@@ -287,9 +266,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         try {
-            // A resend is issued with RESEND_VERIFICATION, so it must be checked
-            // before the original REGISTER OTP. Otherwise the original record is
-            // always selected and every resent code is rejected as invalid.
+            // A resend is issued with RESEND_VERIFICATION, so it must be checked before the original REGISTER OTP.
             otpService.verify(user, request.otp(), OtpPurpose.RESEND_VERIFICATION, OtpPurpose.REGISTER);
         } catch (ApiException ex) {
             securityAuditService.logFailure("VERIFY_OTP_FAILED", user, request.email(), ex.getErrorCode());
@@ -315,9 +292,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void resendOtp(String email) {
         log.info("Resending OTP to: {}", email);
-        // Delegates to the hardened path. This endpoint used to answer USER_NOT_FOUND
-        // and "already verified" on a public route, which let anyone enumerate which
-        // emails are registered. Both routes now behave identically.
+        // Delegates to the hardened path.
         resendVerificationOtp(new ResendVerificationOtpRequest(email));
     }
 

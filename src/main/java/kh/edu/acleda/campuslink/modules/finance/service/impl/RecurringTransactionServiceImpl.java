@@ -153,8 +153,7 @@ public class RecurringTransactionServiceImpl implements RecurringTransactionServ
                 .paidFromWallet(false).build());
             if (template.isFromWallet()) {
                 if (debitIfFunded(user, currency, template.getAmount(), expense)) {
-                    // Keep the expense's payment state aligned with the ledger. This also lets
-                    // later edits/deletes refund the wallet only when a debit really happened.
+                    // Keep the expense's payment state aligned with the ledger.
                     expense.setPaidFromWallet(true);
                     expenseRepository.save(expense);
                 }
@@ -164,12 +163,7 @@ public class RecurringTransactionServiceImpl implements RecurringTransactionServ
             template.getType(), template.getId(), user.getId(), currency, template.getAmount(), runDate);
     }
 
-    /**
-     * A wallet-funded recurring expense debits the wallet only when the funds are there. Unlike a
-     * manual expense (which rejects outright on a low balance), automation must not fail the whole
-     * batch, so the expense is still tracked and the debit is skipped with a warning. Checking the
-     * balance up front avoids throwing inside the batch transaction and marking it rollback-only.
-     */
+    /** A wallet-funded recurring expense debits the wallet only when the funds are there. */
     private boolean debitIfFunded(User user, Currency currency, BigDecimal amount, Expense expense) {
         DemoWallet wallet = demoWalletService.getOrCreateWalletEntity(user);
         BigDecimal balance = currency == Currency.KHR ? wallet.getBalanceKhr() : wallet.getBalanceUsd();

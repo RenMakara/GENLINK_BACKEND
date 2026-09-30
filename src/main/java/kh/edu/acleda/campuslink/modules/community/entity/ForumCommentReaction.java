@@ -16,10 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Backs forum_comments.like_count. One row per (comment, user); the unique constraint makes
- * the count mean "distinct people" rather than "taps". Mirrors {@link ForumReaction}.
- */
+/** Backs forum_comments.like_count. */
 @Getter
 @Setter
 @NoArgsConstructor

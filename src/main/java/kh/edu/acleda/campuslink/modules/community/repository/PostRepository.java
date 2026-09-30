@@ -16,17 +16,11 @@ import java.util.UUID;
 
 public interface PostRepository extends JpaRepository<Post, UUID> {
 
-    /**
-     * Recent public posts for the home feed preview. Joins the author eagerly:
-     * the preview reads user.fullName, which would otherwise fire one query per post.
-     */
+    /** Recent public posts for the home feed preview. */
     @Query("SELECT p FROM Post p LEFT JOIN FETCH p.user WHERE p.deletedAt IS NULL AND p.visibility = :visibility ORDER BY p.createdAt DESC")
     List<Post> findFeedPreview(Visibility visibility, Pageable pageable);
 
-    /**
-     * The feed. countQuery is given explicitly because JOIN FETCH cannot appear in a
-     * count query, and Spring would otherwise fail to derive one.
-     */
+    /** The feed. */
     @Query(value = "SELECT p FROM Post p LEFT JOIN FETCH p.user "
         + "WHERE p.deletedAt IS NULL AND p.visibility = :visibility",
         countQuery = "SELECT COUNT(p) FROM Post p WHERE p.deletedAt IS NULL AND p.visibility = :visibility")
@@ -36,14 +30,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
         countQuery = "SELECT COUNT(p) FROM Post p WHERE p.deletedAt IS NULL AND p.user.id = :userId")
     Page<Post> findByAuthor(@Param("userId") UUID userId, Pageable pageable);
 
-    /**
-     * The personalised feed: everything the viewer is entitled to see.
-     *
-     * <p>PUBLIC is open, FRIENDS needs a mutual accepted follow, COMMUNITY needs an
-     * active membership, and the viewer always sees their own posts regardless of
-     * visibility. friendIds and communityIds must be non-empty - "IN ()" is invalid
-     * SQL - so callers pass a placeholder id when the viewer has neither.
-     */
+    /** The personalised feed: everything the viewer is entitled to see. */
     @Query(value = "SELECT p FROM Post p LEFT JOIN FETCH p.user WHERE p.deletedAt IS NULL AND ("
         + "p.visibility = kh.edu.acleda.campuslink.modules.community.enums.Visibility.PUBLIC "
         + "OR p.user.id = :viewerId "
@@ -113,10 +100,7 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     Optional<Post> findByIdAndUserIdAndDeletedAtIsNullForUpdate(@Param("id") UUID id,
                                                                 @Param("userId") UUID userId);
 
-    /**
-     * Counter updates go straight to the database rather than read-modify-write, so two
-     * concurrent likes cannot both read 4 and both write 5.
-     */
+    /** Counter updates go straight to the database rather than read-modify-write. */
     @Modifying
     @Query("UPDATE Post p SET p.likeCount = p.likeCount + :delta WHERE p.id = :postId")
     void adjustLikeCount(@Param("postId") UUID postId, @Param("delta") int delta);

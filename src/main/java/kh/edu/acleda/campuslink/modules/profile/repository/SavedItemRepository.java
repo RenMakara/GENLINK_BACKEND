@@ -21,10 +21,7 @@ public interface SavedItemRepository extends JpaRepository<SavedItem, UUID> {
 
     boolean existsByUserIdAndItemTypeAndItemId(UUID userId, SavedItemType itemType, UUID itemId);
 
-    /**
-     * Which of these items the user has saved, in one query. Lets a feed page resolve
-     * every save toggle at once instead of asking per row.
-     */
+    /** Which of these items the user has saved, in one query. */
     @Query("SELECT s.itemId FROM SavedItem s "
         + "WHERE s.user.id = :userId AND s.itemType = :itemType AND s.itemId IN :itemIds")
     List<UUID> findSavedItemIds(@Param("userId") UUID userId,

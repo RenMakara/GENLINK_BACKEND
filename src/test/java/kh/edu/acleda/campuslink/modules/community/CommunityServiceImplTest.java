@@ -115,10 +115,7 @@ class CommunityServiceImplTest {
             .thenReturn(List.of(activeManager(owner, CommunityRole.OWNER)));
     }
 
-    /**
-     * Discovery resolves every row's role in ONE batched query, never one lookup per community
-     * (the N+1 this fixed). The per-row findByCommunityIdAndUserId must not be touched here.
-     */
+    /** Discovery resolves every row's role in ONE batched query, never one lookup per community (the N+1 this fixed). */
     @Test
     void discoverResolvesRolesInOneBatchQuery() {
         Community other = Community.builder().name("Dart KH").slug("dart-kh")
@@ -228,11 +225,7 @@ class CommunityServiceImplTest {
         verify(notificationEmitter, never()).emit(any(NotificationRequest.class));
     }
 
-    /**
-     * The bug this closes: PRIVATE only hid the community from discovery. Anyone with the id
-     * could still join outright and read its feed. Joining must now create a pending request,
-     * not a membership.
-     */
+    /** The bug this closes: PRIVATE only hid the community from discovery. */
     @Test
     void joiningAPrivateCommunityCreatesAPendingRequestNotAMembership() {
         community.setPrivacy(CommunityPrivacy.PRIVATE);

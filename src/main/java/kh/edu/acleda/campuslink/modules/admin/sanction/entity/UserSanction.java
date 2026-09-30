@@ -23,14 +23,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * One enforcement action against a user: a warning, a suspension or a ban.
- *
- * <p>This table is the <em>history</em>; the user's current state stays on
- * {@code users.account_status}. The split means the hot path ("is this user allowed in?")
- * reads one column on {@code users}, while "what have we done about this user?" is one ordered
- * query here.
- */
+/** One enforcement action against a user: a warning, a suspension or a ban. */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -70,14 +63,7 @@ public class UserSanction extends BaseEntity {
     @Column(name = "message_km", columnDefinition = "TEXT")
     private String messageKm;
 
-    /**
-     * The {@code account_status} this sanction replaced, restored when it is lifted.
-     *
-     * <p><strong>This field is why lifting is correct.</strong> Setting {@code ACTIVE}
-     * unconditionally on unban would promote a {@code PENDING} user - registered but never
-     * email-verified - into a verified account they never earned. Captured at creation,
-     * restored on lift and on automatic expiry.
-     */
+    /** The {@code account_status} this sanction replaced, restored when it is lifted. */
     @Enumerated(EnumType.STRING)
     @Column(name = "previous_status", nullable = false, length = 30)
     private AccountStatus previousStatus;

@@ -37,10 +37,7 @@ springdoc:
 logging:
   level:
     root: info
-    # App logs stay at INFO; framework chatter is capped to WARN so production
-    # logs read as "what our app did", not Spring/Tomcat/Hibernate internals.
-    # root stays INFO so startup ("Started ... in Ns", "Tomcat started on 8888")
-    # and health remain visible.
+    # App logs stay at INFO; framework chatter is capped to WARN.
     kh.edu.acleda.campuslink: info
     org.hibernate: warn
     org.hibernate.SQL: warn

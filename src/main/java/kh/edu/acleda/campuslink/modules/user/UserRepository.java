@@ -36,13 +36,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     List<User> findByAccountStatusAndDeletedAtIsNullOrderById(
         AccountStatus accountStatus, Pageable pageable);
 
-    /**
-     * Soft-deleted accounts whose grace period has run out, oldest first.
-     *
-     * <p>Paged rather than unbounded: the anonymisation job runs unattended, and a
-     * single query that loads every expired account would be one bad day away from
-     * an OOM on a 768 MB container.
-     */
+    /** Soft-deleted accounts whose grace period has run out, oldest first. */
     List<User> findByAccountStatusAndDeletedAtBeforeOrderByDeletedAtAsc(
         AccountStatus accountStatus, Instant cutoff, Pageable pageable);
 
@@ -50,11 +44,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
         return existsByPhoneNumber(phone);
     }
 
-    /**
-     * Case-insensitive, partial-match search across username, full name, and university.
-     * Soft-deleted and banned accounts are excluded. Matches are ranked: exact username match
-     * first, then prefix username match, then prefix name match, then alphabetical.
-     */
+    /** Case-insensitive, partial-match search across username, full name, and university. */
     @Query(value = """
         SELECT u FROM User u
         WHERE u.deletedAt IS NULL

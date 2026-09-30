@@ -1,10 +1,7 @@
 --liquibase formatted sql
 
 --changeset genlink:0024-add-badge-code-and-seed
--- Badges auto-unlock on milestones (per the Entertainment reward flow). The free-text
--- `requirement` stays as the human-readable description; a stable `code` links each named
--- badge to its unlock rule in BadgeAwarderImpl. English names/descriptions only; Khmer is
--- a content-team task.
+-- Badges auto-unlock on milestones (per the Entertainment reward flow).
 ALTER TABLE badges ADD COLUMN IF NOT EXISTS code VARCHAR(80);
 CREATE UNIQUE INDEX IF NOT EXISTS uk_badges_code ON badges(code);
 

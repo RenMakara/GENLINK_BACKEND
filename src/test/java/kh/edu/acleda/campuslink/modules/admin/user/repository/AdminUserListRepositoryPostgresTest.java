@@ -53,8 +53,7 @@ class AdminUserListRepositoryPostgresTest {
         UUID pending = insertUser("pending", "PENDING", "2026-09-23 12:00:00", "pending@example.com");
         UUID deleted = insertUser("deleted", "DELETED", "2026-09-23 12:00:00", "deleted@example.com");
 
-        // Keep activity outside the dashboard regression window so this fixture cannot change
-        // ADM-046's shared PostgreSQL activity assertions when Gradle runs classes in parallel.
+        // Keep activity outside the dashboard regression window.
         insertRefresh(active, "2030-09-23 12:00:00");
         insertRefresh(pending, "2030-09-23 13:00:00");
         insertRefresh(deleted, "2030-09-23 14:00:00");

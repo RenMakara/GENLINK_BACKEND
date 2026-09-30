@@ -12,7 +12,7 @@ import kh.edu.acleda.campuslink.modules.admin.analytics.dto.request.AdminAnalyti
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-/** PostgreSQL read-only aggregates for the fixed Phase 6 analytics dashboards. */
+/** PostgreSQL read-only aggregates for analytics dashboards. */
 @Repository
 @Transactional(readOnly = true)
 public class AdminAnalyticsQueryRepositoryImpl implements AdminAnalyticsQueryRepository {

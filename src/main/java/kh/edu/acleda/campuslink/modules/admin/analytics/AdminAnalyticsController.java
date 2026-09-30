@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Permission-gated read boundary for the fixed Phase 6 analytics dashboards. */
+/** Permission-gated read boundary for analytics dashboards. */
 @Tag(name = "Admin - Analytics", description = "Fixed product analytics aggregates")
 @RestController
 @RequestMapping("/api/v1/admin/analytics")

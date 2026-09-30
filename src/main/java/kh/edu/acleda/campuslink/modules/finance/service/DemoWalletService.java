@@ -15,17 +15,10 @@ public interface DemoWalletService {
     /** The current user's wallet, created on first access. */
     WalletResponse getOrCreate();
 
-    /**
-     * Get-or-create the current user's wallet ENTITY, so other finance services (income,
-     * expense, saving) can move money through {@link LedgerService}. Internal use only - REST
-     * responses always use {@link WalletResponse}, never the entity.
-     */
+    /** Get-or-create the current user's wallet ENTITY. */
     DemoWallet getOrCreateWalletEntity();
 
-    /**
-     * Get-or-create a specific user's wallet ENTITY, for background work (the recurring/auto-save
-     * scheduler) that runs without a current-user security context. Internal use only.
-     */
+    /** Get-or-create a specific user's wallet ENTITY. */
     DemoWallet getOrCreateWalletEntity(User user);
 
     /** Simulated deposit. */
@@ -34,10 +27,7 @@ public interface DemoWalletService {
     /** Simulated KHQR payment; debits the balance. */
     WalletResponse pay(WalletPaymentRequest request);
 
-    /**
-     * Credits a simulated reward (e.g. the learning-budget bonus for passing a literacy
-     * quiz) to the current user's wallet as a REWARD transaction.
-     */
+    /** Credits a simulated reward to the current wallet. */
     WalletResponse creditReward(java.math.BigDecimal amount, String reason);
 
     PageResponse<TransactionResponse> transactions(Pageable pageable);

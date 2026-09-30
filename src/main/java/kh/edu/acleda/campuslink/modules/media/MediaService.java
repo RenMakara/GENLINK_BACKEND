@@ -22,15 +22,7 @@ public interface MediaService {
     /** A URL to read the media — CDN for PUBLIC, presigned GET for PRIVATE. */
     String downloadUrl(UUID mediaId);
 
-    /**
-     * The CDN URL of a confirmed, PUBLIC media object owned by the caller.
-     *
-     * <p>The integration primitive for feature modules (avatar, post, event): a
-     * feature accepts a {@code mediaId} and calls this to obtain a URL that is
-     * provably a real, owned, confirmed upload — rather than trusting an arbitrary
-     * client-supplied string. Throws if the media is missing, not owned, not
-     * confirmed, or not public.
-     */
+    /** The CDN URL of a confirmed, PUBLIC media object owned by the caller. */
     String resolveConfirmedUrl(UUID mediaId);
 
     /** Attach an owned, confirmed upload to exactly one post/story resource. */

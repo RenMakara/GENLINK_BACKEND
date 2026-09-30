@@ -51,21 +51,14 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.success("Poll created", postService.createPollPost(request)));
     }
 
-    /**
-     * Cast or move your single vote on a poll. Re-voting a different option moves it;
-     * re-voting the same option is a no-op. Returns the poll with fresh tallies.
-     */
+    /** Cast or move your single vote on a poll. */
     @PostMapping("/{id}/poll/vote")
     public ResponseEntity<ApiResponse<PollResponse>> vote(@PathVariable UUID id,
                                                           @Valid @RequestBody PollVoteRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Vote recorded", postService.vote(id, request)));
     }
 
-    /**
-     * The personalised feed: public posts, your own, friends-only posts from mutual
-     * follows, and posts in communities you have joined. Rows arrive with author,
-     * likedByMe, savedByMe and hashtags.
-     */
+    /** The personalised feed: public posts, your own. */
     @GetMapping("/feed")
     public ResponseEntity<ApiResponse<PageResponse<PostResponse>>> feed(
         @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
@@ -124,10 +117,7 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.success("Post deleted", null));
     }
 
-    /**
-     * Remove a post as a community moderator (OWNER/ADMIN/MODERATOR of the post's community).
-     * Distinct from DELETE /{id}, which is author-only. A non-moderator gets 404, not 403.
-     */
+    /** Remove a post as a community moderator (OWNER/ADMIN/MODERATOR of the post's community). */
     @DeleteMapping("/{id}/moderate")
     public ResponseEntity<ApiResponse<Void>> removeAsModerator(@PathVariable UUID id) {
         postService.removeAsModerator(id);
@@ -142,10 +132,7 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.success("Post reported", null));
     }
 
-    /**
-     * A community moderator's queue: reported posts in the community, most-reported first.
-     * OWNER/ADMIN/MODERATOR only; a non-moderator gets 404.
-     */
+    /** A community moderator's queue: reported posts in the community, most-reported first. */
     @GetMapping("/community/{communityId}/reported")
     public ResponseEntity<ApiResponse<PageResponse<ReportedPostResponse>>> reportedPosts(
         @PathVariable UUID communityId,

@@ -4,12 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
-/**
- * Spending for one month: the total plus a per-category breakdown for the chart.
- *
- * @param byCategory biggest first; a null category (expense saved without one) is
- *                   reported as "UNCATEGORIZED" so the client never renders a blank slice
- */
+/** Spending for one month: the total plus a per-category breakdown for the chart. */
 public record MonthlySummaryResponse(
     int month,
     int year,

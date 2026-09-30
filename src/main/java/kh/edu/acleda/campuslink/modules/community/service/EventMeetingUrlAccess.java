@@ -10,10 +10,7 @@ public final class EventMeetingUrlAccess {
     private EventMeetingUrlAccess() {
     }
 
-    /**
-     * A meeting URL is available only to the organizer or an active RSVP attendee.
-     * JOINED is the existing active-attendee status used by EventService and reminders.
-     */
+    /** A meeting URL is available only to the organizer or an active RSVP attendee. */
     public static boolean canViewMeetingUrl(Event event, UUID viewerId, RsvpStatus rsvpStatus) {
         if (event == null || viewerId == null) {
             return false;

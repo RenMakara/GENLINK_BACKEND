@@ -5,13 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * The read-only payload for the admin overview page.
- *
- * <p>Each top-level member is nullable on purpose. The dashboard is a BFF-lite endpoint: a
- * broken aggregate should make only its card, chart or panel render an empty state, rather than
- * turning the whole overview into an error page.
- */
+/** The read-only payload for the admin overview page. */
 public record AdminDashboardSummaryResponse(
     KpiSummary summary,
     List<UserGrowthPoint> userGrowth,
@@ -22,7 +16,7 @@ public record AdminDashboardSummaryResponse(
     List<RecentRegistration> recentRegistrations
 ) {
 
-    /** Seven Phase 2 KPI cards. Open reports is intentionally deferred to Phase 7. */
+    /** Seven KPI cards; open reports are excluded. */
     public record KpiSummary(
         Long totalUsers,
         Double totalUsersDelta,

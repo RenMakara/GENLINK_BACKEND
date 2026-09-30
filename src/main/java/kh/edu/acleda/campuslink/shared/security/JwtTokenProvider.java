@@ -35,12 +35,7 @@ public class JwtTokenProvider implements JwtService {
         this.secretKey = resolveSecretKey(properties, environment);
     }
 
-    /**
-     * The signing key comes from app.jwt.secret. When it is absent we auto-generate an
-     * ephemeral key ONLY under a dev/local/test profile, so local runs need no config. In
-     * any other case startup fails: a per-instance random secret would reject tokens across
-     * instances and log everyone out on every restart.
-     */
+    /** The signing key comes from app.jwt.secret. */
     private static SecretKey resolveSecretKey(JwtProperties properties, Environment environment) {
         String secret = properties.getSecret();
         if (secret != null && !secret.isBlank()) {
@@ -93,21 +88,14 @@ public class JwtTokenProvider implements JwtService {
             .compact();
     }
 
-    /**
-     * Admin tokens are deliberately shorter-lived than mobile ones. A stolen mobile token
-     * reaches one person's data; a stolen admin token reaches everyone's.
-     */
+    /** Admin tokens are deliberately shorter-lived than mobile ones. */
     private long accessTokenTtlMs(TokenType tokenType) {
         return tokenType == TokenType.ADMIN
             ? properties.getAdminAccessTokenExpirationMs()
             : properties.getAccessTokenExpirationMs();
     }
 
-    /**
-     * Deliberately carries no {@code tv} claim. The token version is what makes an access token
-     * revocable, and this token authenticates nothing, so including one would only suggest it
-     * did.
-     */
+    /** Deliberately carries no {@code tv} claim. */
     @Override
     public String generateAdminMfaChallengeToken(String username, String challengeId) {
         Instant now = Instant.now();

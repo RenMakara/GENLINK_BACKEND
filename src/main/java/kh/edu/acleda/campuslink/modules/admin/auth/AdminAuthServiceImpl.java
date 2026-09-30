@@ -24,25 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * The password half of admin sign-in.
- *
- * <h2>Every rejection looks the same</h2>
- *
- * Wrong password, unknown email, an ordinary user who is not staff, a revoked admin, a banned
- * account - all produce byte-identical responses. Anything else turns this endpoint into an
- * oracle for "which of our users are administrators", which is the list an attacker most wants
- * and the one we can least afford to hand out. It is the same reasoning already applied to
- * {@code resend-otp} in the mobile flow.
- *
- * <p>Uniformity has to cover <em>timing</em>, not just the body. Returning early for an unknown
- * email would answer in about a millisecond where a real comparison takes roughly a hundred, so
- * the two are trivially separable with a stopwatch and no account needed. Hence
- * {@link #equaliseTiming}.
- *
- * <p>The distinguishing detail goes to {@code security_audit_logs} instead, where it is useful
- * and not visible to the caller.
- */
+/** The password half of admin sign-in. */
 @Slf4j
 @Service
 public class AdminAuthServiceImpl implements AdminAuthService {
@@ -62,14 +44,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
 
-    /**
-     * A throwaway BCrypt hash nothing will ever match, used to spend the same time verifying a
-     * password for an email that does not exist.
-     *
-     * <p>Generated from the injected encoder rather than hard-coded, so it always carries that
-     * encoder's cost factor. A literal would silently stop equalising anything the day the cost
-     * is raised - and it would still look correct in review.
-     */
+    /** A throwaway BCrypt hash nothing will ever match. */
     private final String timingDecoyHash;
     private final PasswordEncoder passwordEncoder;
 
@@ -98,16 +73,12 @@ public class AdminAuthServiceImpl implements AdminAuthService {
     @Override
     @Transactional
     public AdminMfaChallengeResponse login(AdminLoginRequest request) {
-        // Used exactly as supplied, like the mobile flow. Registration stores the address as
-        // typed and `findByEmail` is an exact match, so lower-casing here would make an admin
-        // registered as `Name@genlink.kh` permanently unable to sign in. The rate limiter
-        // normalises its own key, so buckets are still case-insensitive.
+        // Used exactly as supplied, like the mobile flow.
         String email = request.email();
         String clientIp = RequestMetadataUtil.getCurrentClientIp();
 
         if (authRateLimitService.isAdminLoginBlocked(email, clientIp)) {
-            // Audited: repeated blocks on the admin endpoint are the signal that someone is
-            // working through a credential list, and they are invisible unless recorded.
+            // Audited: repeated blocks on the admin endpoint are the signal.
             securityAuditService.logFailure(EVENT_BLOCKED, email, "RATE_LIMITED");
             throw new RateLimitedException("Too many login attempts. Please try again later.");
         }
@@ -122,8 +93,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             throw reject(email, user, clientIp, "BAD_PASSWORD");
         }
 
-        // Deliberately after the password check. Asking first would answer "is this address an
-        // admin?" without any password at all, and would answer it faster than a real attempt.
+        // Deliberately after the password check.
         AdminUser admin = adminUserRepository.findActiveByUserEmail(email).orElse(null);
         if (admin == null) {
             throw reject(email, user, clientIp, "NOT_AN_ACTIVE_ADMIN");
@@ -135,8 +105,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         String challengeToken = jwtService.generateAdminMfaChallengeToken(email, challengeId);
         securityAuditService.logSuccess(EVENT_CHALLENGED, user, email);
 
-        // Info, not debug: a successful password step for an administrator is worth having in
-        // the application log even when the audit table is not to hand. No token is logged.
+        // Log successful admin password steps, but never issued tokens.
         log.info("Admin password step accepted for {}; MFA challenge issued", email);
 
         return new AdminMfaChallengeResponse(
@@ -145,18 +114,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             !admin.isEnrolled());
     }
 
-    /**
-     * Verifies the password through the configured {@link AuthenticationManager}, so admin
-     * sign-in uses exactly the same provider, encoder and account-status rules as every other
-     * login rather than a second implementation that can drift from it.
-     *
-     * <p>{@link UnauthorizedException} is caught alongside {@link AuthenticationException}
-     * because {@code CustomUserDetailsService} throws the former, not
-     * {@code UsernameNotFoundException}, when an account disappears between the lookup above
-     * and this call. It is not an {@code AuthenticationException}, so it would otherwise
-     * escape as a differently-shaped 401 - and a distinguishable response is the one thing
-     * this method must not produce.
-     */
+    /** Verifies the password through the configured {@link AuthenticationManager}. */
     private boolean passwordAccepted(String email, String rawPassword) {
         try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, rawPassword));
@@ -166,19 +124,12 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         }
     }
 
-    /**
-     * Spends a password verification against a hash that cannot match, so that an email with no
-     * account costs the same as one with a wrong password.
-     */
+    /** Spends a password verification against a hash. */
     private void equaliseTiming(String rawPassword) {
         passwordEncoder.matches(rawPassword == null ? "" : rawPassword, timingDecoyHash);
     }
 
-    /**
-     * Records the attempt and builds the one rejection every failure path throws.
-     *
-     * @param reason written to the audit row only. It must never reach the response.
-     */
+    /** Records the attempt and builds the one rejection every failure path throws. */
     private UnauthorizedException reject(String email, User user, String clientIp, String reason) {
         authRateLimitService.recordAdminLoginFailure(email, clientIp);
         if (user == null) {

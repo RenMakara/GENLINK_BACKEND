@@ -5,12 +5,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.community.enums.CommunityPrivacy;
 import kh.edu.acleda.campuslink.modules.community.enums.CommunityRole;
 
-/**
- * @param myRole         null when the caller is not an active member; drives Join vs Leave
- *                       and whether admin controls are shown, without a second request
- * @param requestPending true when the caller has asked to join a PRIVATE community and is
- *                       awaiting approval; lets the client render "Requested" instead of "Join"
- */
+/** @param myRole null when the caller is not an active member; drives Join vs Leave */
 public record CommunityResponse(
     UUID communityId,
     String name,

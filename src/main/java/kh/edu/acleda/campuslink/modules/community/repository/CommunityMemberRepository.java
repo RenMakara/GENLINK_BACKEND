@@ -20,10 +20,7 @@ public interface CommunityMemberRepository extends JpaRepository<CommunityMember
 
     List<CommunityMember> findByUserId(UUID userId);
 
-    /**
-     * One viewer's memberships across a page of communities, in a single query — so a listing
-     * can resolve every row's role without a per-row lookup (the discover N+1).
-     */
+    /** One viewer's memberships across a page of communities. */
     List<CommunityMember> findByUserIdAndCommunityIdInAndStatus(UUID userId,
                                                                Collection<UUID> communityIds,
                                                                MemberStatus status);

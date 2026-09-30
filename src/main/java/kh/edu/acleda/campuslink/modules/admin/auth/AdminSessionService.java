@@ -59,15 +59,7 @@ public class AdminSessionService {
         this.jwtProperties = jwtProperties;
     }
 
-    /**
-     * The caller's identity and resolved permissions.
-     *
-     * <p>Permissions come from the authenticated principal's own granted authorities - the very
-     * collection {@code @PreAuthorize} evaluates - rather than a second lookup against roles.
-     * Two independent resolutions would eventually disagree, and the failure is nasty: the
-     * portal renders an action the backend then refuses, which looks like a bug in the tool
-     * rather than a permission boundary.
-     */
+    /** The caller's identity and resolved permissions. */
     @Transactional(readOnly = true)
     public AdminMeResponse me() {
         String email = currentEmail();
@@ -87,14 +79,7 @@ public class AdminSessionService {
             admin.getTotpConfirmedAt());
     }
 
-    /**
-     * Exchanges a refresh token for a new access token, rotating the refresh token.
-     *
-     * <p>Rotation is what makes theft detectable: the old token is revoked as it is spent, so
-     * if it is ever presented again {@code RefreshTokenService} treats that as reuse and
-     * revokes every token the account holds. A stolen token is therefore usable at most once,
-     * and using it locks out whoever was slower - including the thief.
-     */
+    /** Exchanges a refresh token for a new access token, rotating the refresh token. */
     @Transactional
     public AdminTokenResponse refresh(String refreshToken) {
         RefreshTokenRotation rotation;
@@ -112,8 +97,7 @@ public class AdminSessionService {
 
         User user = rotation.user();
 
-        // Checked after rotation, not before: staff access can be revoked while a session is
-        // live, and a refresh token that outlives the admin profile must not mint admin tokens.
+        // Checked after rotation, not before: staff access can be revoked.
         AdminUser admin = adminUserRepository.findActiveByUserEmail(user.getEmail())
             .orElseThrow(() -> {
                 securityAuditService.logFailure(EVENT_REFRESH_FAILED, user, user.getEmail(),
@@ -141,16 +125,7 @@ public class AdminSessionService {
             null);
     }
 
-    /**
-     * Ends this session: the refresh token is revoked in the database, and the access token's
-     * session id is registered so it stops working immediately rather than in up to ten
-     * minutes.
-     *
-     * @param accessToken the bearer token being signed out, needed for its session id.
-     * @param refreshToken optional. Absent when the portal has already dropped the cookie;
-     *     logout must still succeed, because a logout that can fail is one an admin will walk
-     *     away from believing it worked.
-     */
+    /** Ends this session: the refresh token is revoked in the database. */
     @Transactional
     public void logout(String accessToken, String refreshToken) {
         String email = currentEmail();
@@ -168,9 +143,7 @@ public class AdminSessionService {
             String sessionId = jwtService.getTokenId(accessToken);
             sessionRegistry.revoke(sessionId,
                 Instant.now().plusMillis(jwtProperties.getAdminAccessTokenExpirationMs()));
-            // An open sudo window must not outlive the session that opened it. Without this a
-            // signed-out session's id could be reissued while still armed for high-tier
-            // actions - unlikely, and not a risk worth carrying for one line (ADM-025).
+            // An open sudo window must not outlive the session that opened it.
             sudoRegistry.close(sessionId);
         }
 
@@ -178,13 +151,7 @@ public class AdminSessionService {
         log.info("Admin {} signed out", email);
     }
 
-    /**
-     * Permission codes held by the caller, with Spring's {@code PERM_} prefix removed.
-     *
-     * <p>{@code ROLE_*} authorities are filtered out - they are the mobile role model, not the
-     * admin permission model, and leaking {@code ROLE_ADMIN} into this list would invite the
-     * frontend to gate on it.
-     */
+    /** Permission codes held by the caller, with Spring's {@code PERM_} prefix removed. */
     private static List<String> currentPermissions() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null) {

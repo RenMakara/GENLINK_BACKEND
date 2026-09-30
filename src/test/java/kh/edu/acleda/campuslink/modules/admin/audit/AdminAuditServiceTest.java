@@ -73,11 +73,7 @@ class AdminAuditServiceTest {
         MDC.clear();
     }
 
-    /**
-     * The bug this guards, already shipped once in {@code SecurityAuditService}: a failing
-     * action logs and then throws, rolling its transaction back. If the audit row shared that
-     * transaction it would vanish - losing exactly the events the log exists for.
-     */
+    /** The bug this guards, already shipped once in {@code SecurityAuditService}. */
     @Test
     @DisplayName("a FAILURE is written in its own transaction, so it survives the caller's rollback")
     void failureIsWrittenInANewTransaction() {
@@ -89,10 +85,7 @@ class AdminAuditServiceTest {
         assertThat(entry.getValue().getErrorCode()).isEqualTo("USER_ALREADY_BANNED");
     }
 
-    /**
-     * The mirror-image danger: a SUCCESS row that outlives a rolled-back operation would have
-     * the log asserting something that never happened.
-     */
+    /** SUCCESS audit rows roll back with the operation. */
     @Test
     @DisplayName("a SUCCESS joins the caller's transaction, so it dies with a rollback")
     void successJoinsTheCallersTransaction() {
@@ -146,10 +139,7 @@ class AdminAuditServiceTest {
         assertThat(entry.getValue().getRequestId()).isEqualTo("req-1234");
     }
 
-    /**
-     * Bootstrap creates the first SUPER_ADMIN with nobody authenticated, and a pre-auth
-     * failure has no actor either. The column is nullable for exactly these cases.
-     */
+    /** Bootstrap creates the first SUPER_ADMIN with nobody authenticated, and a pre-auth failure has no actor either. */
     @Test
     @DisplayName("records an unattributed action when there is no acting admin")
     void tolerAtesNoAuthenticatedAdmin() {
@@ -172,11 +162,7 @@ class AdminAuditServiceTest {
         assertThat(entry.getValue().getAdminUser()).isNull();
     }
 
-    /**
-     * Auditing must never be the reason an admin action fails. Note the catch lives outside
-     * the writer's transaction boundary - swallowing it inside would mark that transaction
-     * rollback-only and blow up the caller at commit instead.
-     */
+    /** Auditing must never be the reason an admin action fails. */
     @Test
     @DisplayName("a writer failure is swallowed rather than breaking the audited action")
     void writerFailureDoesNotPropagate() {

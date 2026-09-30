@@ -15,43 +15,19 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
-/**
- * Scrubs personal data from accounts whose deletion grace period has expired.
- *
- * <p>Deletion here is a two-stage process. {@code deleteCurrentAccount} only flips the
- * status to {@link AccountStatus#DELETED} and stamps {@code deletedAt}, which locks the
- * account but keeps every field intact — so a user who changes their mind can register
- * again with the same email and get their account back. This class is the second stage:
- * once {@link #GRACE_PERIOD_DAYS} have passed, the personal fields are overwritten for
- * good and the email, username and phone are released for anyone to use.
- *
- * <p>The row itself is never deleted. 49 foreign keys point at {@code users} and 46 of
- * them have no {@code ON DELETE} clause, so a hard delete would be rejected by Postgres
- * for any account with a single post, habit or OTP behind it. Keeping the row also keeps
- * other people's content coherent: replies to a departed user still resolve, and simply
- * read as "Deleted User".
- */
+/** Scrubs personal data from accounts whose deletion grace period has expired. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AccountAnonymizationService {
 
-    /**
-     * How long a soft-deleted account stays recoverable. Long enough to cover the
-     * "I deleted it by accident" case, short enough that data is not kept forever.
-     */
+    /** How long a soft-deleted account stays recoverable. */
     public static final int GRACE_PERIOD_DAYS = 30;
 
-    /**
-     * Accounts scrubbed per run. Bounds both the transaction and the memory used; a
-     * backlog larger than this simply finishes on the following day.
-     */
+    /** Accounts scrubbed per run. */
     private static final int BATCH_LIMIT = 500;
 
-    /**
-     * RFC 2606 reserves {@code .invalid} as a TLD that can never resolve, so a scrubbed
-     * address cannot receive mail even if some future code path tries to send to it.
-     */
+    /** RFC 2606 reserves {@code .invalid} as a TLD that can never resolve. */
     private static final String ANONYMOUS_EMAIL_DOMAIN = "@genlinkkh.invalid";
 
     private static final String ANONYMOUS_FULL_NAME = "Deleted User";
@@ -60,11 +36,7 @@ public class AccountAnonymizationService {
     private final SocialAccountRepository socialAccountRepository;
     private final MediaCleanupService mediaCleanupService;
 
-    /**
-     * Anonymises every account past its grace period, up to {@link #BATCH_LIMIT}.
-     *
-     * @return how many accounts were scrubbed
-     */
+    /** Anonymises every account past its grace period, up to {@link #BATCH_LIMIT}. */
     @Transactional
     public int anonymizeExpiredAccounts() {
         Instant cutoff = Instant.now().minus(Duration.ofDays(GRACE_PERIOD_DAYS));
@@ -88,18 +60,11 @@ public class AccountAnonymizationService {
         return expired.size();
     }
 
-    /**
-     * Overwrites every field that identifies a person, and frees the unique columns.
-     *
-     * <p>The user id is the source of the replacement values, which guarantees they are
-     * unique without a lookup and keeps the operation idempotent — running it twice
-     * produces the same row rather than a second collision.
-     */
+    /** Overwrites every field that identifies a person, and frees the unique columns. */
     private void anonymize(User user) {
         String token = user.getId().toString().replace("-", "").substring(0, 12);
 
-        // Unique columns: rewritten rather than nulled, because email and username are
-        // NOT NULL. This is what lets the original address be registered again.
+        // Unique columns: rewritten rather than nulled, because email and username are NOT NULL.
         user.setEmail("deleted-" + token + ANONYMOUS_EMAIL_DOMAIN);
         user.setUsername("deleted_" + token);
         user.setPhoneNumber(null);
@@ -118,9 +83,7 @@ public class AccountAnonymizationService {
         user.setPasswordHash(null);
         user.setGoogleId(null);
         user.setAuthProvider(AuthProvider.LOCAL);
-        // A scrubbed row is no longer restorable. Clearing the captured lifecycle state gives
-        // the admin restore path an unambiguous USER_ANONYMISED signal, including for rows that
-        // were deleted before the current recovery implementation existed.
+        // A scrubbed row is no longer restorable.
         user.setStatusBeforeDeletion(null);
 
         // Access tokens are stateless and validated against this version, so bumping it
@@ -129,9 +92,7 @@ public class AccountAnonymizationService {
 
         socialAccountRepository.deleteByUser(user);
 
-        // Their uploads are personal data too. Soft-deleting starts the media
-        // module's own grace period, so MediaCleanupJob purges the bytes rather
-        // than leaving them in the bucket after the person is gone.
+        // Their uploads are personal data too.
         mediaCleanupService.softDeleteAllOwnedBy(user.getId());
 
         log.debug("Anonymised account {}", user.getId());

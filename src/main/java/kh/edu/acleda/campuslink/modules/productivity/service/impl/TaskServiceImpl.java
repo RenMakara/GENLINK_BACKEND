@@ -61,11 +61,7 @@ public class TaskServiceImpl implements TaskService {
         return toResponse(task);
     }
 
-    /**
-     * Filters are applied in memory: a user's task list is small and bounded, so this
-     * avoids a dynamic query - and the `:param IS NULL` trick that broke on PostgreSQL
-     * for the opportunities date filter.
-     */
+    /** Filters are applied in memory: a user's task list is small. */
     @Override
     @Transactional(readOnly = true)
     public List<TaskResponse> getMine(String category, String priority, Boolean completed, String scope) {

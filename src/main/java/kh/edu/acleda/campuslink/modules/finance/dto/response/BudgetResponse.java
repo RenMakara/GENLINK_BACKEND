@@ -6,13 +6,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.enums.BudgetStatus;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
-/**
- * spentAmount, remainingAmount and status are computed live from expenses, not read
- * from the stored counters - so they never drift.
- *
- * @param categories empty on the list endpoint (kept light); populated on the detail
- *                   and current-month endpoints
- */
+/** spentAmount, remainingAmount and status are computed live from expenses. */
 public record BudgetResponse(
     UUID budgetId,
     Integer month,

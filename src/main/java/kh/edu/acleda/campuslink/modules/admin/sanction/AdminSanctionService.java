@@ -31,14 +31,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Transactional user-enforcement operations for the Admin portal (ADM-077).
- *
- * <p>The user row is locked before checking or creating a sanction. That makes the
- * "already banned" guard correct when two staff requests arrive at the same time, and it keeps
- * the status update, sanction history row, token-version bump and refresh-token revocation in
- * one transaction.
- */
+/** Transactional user-enforcement operations for the Admin portal (ADM-077). */
 @Service
 public class AdminSanctionService {
 
@@ -311,8 +304,6 @@ public class AdminSanctionService {
             }
 
             // Match the action services' lock order: target user first, then the sanction row.
-            // Reloading after the user lock prevents a concurrent unban or expiry run from being
-            // overwritten by this request.
             User user = lockedUser(referenceUser.getId(), ACTION_LIFT, reason);
             ensureNotAnonymised(user, referenceUser.getId(), ACTION_LIFT, reason);
             UserSanction sanction = userSanctionRepository.findByIdForUpdate(sanctionId)

@@ -17,13 +17,7 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface AdminUserRepository extends JpaRepository<AdminUser, UUID> {
 
-    /**
-     * Resolves the admin profile during authentication.
-     *
-     * <p>Fetches the role eagerly for this query only: the caller immediately needs it to
-     * resolve permissions, so a lazy proxy would cost a second query on every authenticated
-     * admin request.
-     */
+    /** Resolves the admin profile during authentication. */
     @Query("SELECT a FROM AdminUser a JOIN FETCH a.adminRole "
         + "WHERE a.user.email = :email AND a.active = true AND a.deletedAt IS NULL")
     Optional<AdminUser> findActiveByUserEmail(String email);
@@ -47,23 +41,10 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, UUID> {
     @EntityGraph(attributePaths = {"user", "adminRole"})
     Page<AdminUser> findAll(Pageable pageable);
 
-    /**
-     * Any admin profile for this user, <strong>including a soft-deleted one</strong>.
-     *
-     * <p>{@code admin_users.user_id} is UNIQUE unconditionally, so a soft-deleted profile still
-     * occupies the slot. The bootstrap runner needs this rather than the deleted-aware lookup
-     * above: checking only for a live profile would let it attempt an insert that the
-     * constraint rejects, turning a clear refusal into a failed application start.
-     */
+    /** Any admin profile for this user, including a soft-deleted one . */
     boolean existsByUserId(UUID userId);
 
-    /**
-     * The short-circuit on the authentication hot path.
-     *
-     * <p>Every authenticated request - overwhelmingly mobile, from users who are not staff -
-     * asks this before doing any permission work. It must stay a cheap indexed existence
-     * check, backed by {@code idx_admin_users_active}, and its result is cached.
-     */
+    /** The short-circuit on the authentication hot path. */
     boolean existsByUserIdAndActiveTrueAndDeletedAtIsNull(UUID userId);
 
     Page<AdminUser> findByDeletedAtIsNull(Pageable pageable);
@@ -72,9 +53,6 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, UUID> {
     @EntityGraph(attributePaths = "adminRole")
     List<AdminUser> findByUserIdIn(Collection<UUID> userIds);
 
-    /**
-     * Guards the "cannot demote the last SUPER_ADMIN" rule. Counting rather than listing
-     * keeps the check cheap and makes the intent obvious at the call site.
-     */
+    /** Guards the "cannot demote the last SUPER_ADMIN" rule. */
     long countByAdminRoleCodeAndActiveTrueAndDeletedAtIsNull(String roleCode);
 }

@@ -180,9 +180,7 @@ public class EventServiceImpl implements EventService {
         event.setDeletedAt(Instant.now());
         eventRepository.save(event);
 
-        // attendeeCount is the blast radius, and on a paid event those people were
-        // charged with no refund path. If anyone ever asks "where did my money go",
-        // this line is the trail.
+        // attendeeCount is the blast radius, and on a paid event those people were charged with no refund path.
         log.info("Event soft-deleted: id={} attendees={} paid={} by user={}",
             eventId, event.getAttendeeCount(), Boolean.TRUE.equals(event.getIsPaid()),
             currentUserProvider.getCurrentUserId());
@@ -198,15 +196,11 @@ public class EventServiceImpl implements EventService {
     @Transactional
     public RsvpResponse rsvp(UUID eventId, EventRegistrationRequest registration) {
         User attendee = loadCurrentUser();
-        // Serialize all RSVP transitions for this event. The database unique key is
-        // still the final guard, but the event lock makes the check/seat/state
-        // transition deterministic under duplicate and cancel races.
+        // Serialize all RSVP transitions for this event.
         Event event = loadEventForRsvp(eventId);
         UUID userId = attendee.getId();
 
-        // Drafts are visible to their organizer, but normal attendee registration is
-        // published-only. Keep this check after the row lock so the final status is
-        // checked in the same serialized transition as capacity and RSVP state.
+        // Drafts are visible to their organizer, but normal attendee registration is published-only.
         if (!EventVisibility.canRsvp(event, userId)) {
             throw new NotFoundException("Event not found");
         }
@@ -219,8 +213,6 @@ public class EventServiceImpl implements EventService {
         EventRsvp existing = rsvpRepository.findByEventIdAndUserId(eventId, userId).orElse(null);
         if (existing != null && existing.getStatus() == RsvpStatus.JOINED) {
             // Idempotent: RSVP backs a button, and (event_id, user_id) is unique.
-            // If an older client joined without a body, accept the later full form
-            // without charging or awarding XP a second time.
             if (registration != null) {
                 applyRegistration(existing, registration);
                 rsvpRepository.save(existing);
@@ -228,11 +220,7 @@ public class EventServiceImpl implements EventService {
             return new RsvpResponse(eventId, RsvpStatus.JOINED, event.getAttendeeCount(), 0, null, false);
         }
 
-        // Reserve the seat atomically BEFORE payment, and before anything else that
-        // could charge or reward. If it comes back 0 the event is full and no money
-        // has moved. Because the whole method is one transaction, a later failure -
-        // insufficient balance throws from settlePayment - rolls this reservation back,
-        // releasing the seat. That is why reserve-then-pay is safe here.
+        // Reserve the seat atomically BEFORE payment, and before anything else that could charge or reward.
         if (eventRepository.reserveSeat(eventId) == 0) {
             throw new ApiException("Event is full", "EVENT_FULL");
         }
@@ -266,8 +254,7 @@ public class EventServiceImpl implements EventService {
     @Transactional
     public void cancelRsvp(UUID eventId) {
         UUID userId = currentUserProvider.getCurrentUserId();
-        // Lock before reading the RSVP so two cancellations cannot both observe
-        // JOINED and both release the same seat. RSVP creation uses the same lock.
+        // Lock before reading the RSVP so two cancellations cannot both observe JOINED and both release the same seat.
         eventRepository.findByIdForUpdate(eventId);
         EventRsvp rsvp = rsvpRepository.findByEventIdAndUserId(eventId, userId)
             .orElseThrow(() -> new NotFoundException("RSVP not found"));
@@ -284,19 +271,13 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<CommunityMemberResponse> attendees(UUID eventId, Pageable pageable) {
-        // Follow the existing owner-scoped Event convention: non-owners receive the
-        // same not-found response as missing/deleted events before attendee data is queried.
+        // Follow the existing owner-scoped Event convention.
         loadOwned(eventId);
         return PageResponse.from(rsvpRepository.findAttendees(eventId, RsvpStatus.JOINED, pageable),
             rsvp -> new CommunityMemberResponse(summary(rsvp.getUser()), null, rsvp.getCreatedAt()));
     }
 
-    /**
-     * Simulated payment. Deducts the demo wallet and records a demo_transaction; there
-     * is no real KHQR transfer anywhere in this path.
-     *
-     * @return the payment settlement, or null when the event is free
-     */
+    /** Simulated payment. */
     private PaymentSettlement settlePayment(Event event, UUID userId) {
         if (!Boolean.TRUE.equals(event.getIsPaid()) || event.getPrice() == null) {
             return null;
@@ -306,22 +287,16 @@ public class EventServiceImpl implements EventService {
                 "DEMO_WALLET_NOT_FOUND"));
 
         BigDecimal price = event.getPrice();
-        // debit enforces sufficient funds (throws DEMO_WALLET_INSUFFICIENT_BALANCE before any
-        // write), subtracts the balance, and records the DEBIT row linked back to the event.
+        // debit enforces sufficient funds (throws DEMO_WALLET_INSUFFICIENT_BALANCE before any write).
         Currency currency = event.getCurrency();
         if (currency == null) {
-            // Protect legacy or manually-created rows that predate event currency. New paid
-            // events are rejected at creation/update time, and the migration backfills old paid
-            // rows to USD, but this keeps the RSVP failure explicit if neither ran.
+            // Protect legacy or manually-created rows that predate event currency.
             throw new ApiException("Paid event currency is missing", "EVENT_CURRENCY_MISSING");
         }
         DemoTransaction transaction = ledgerService.debit(wallet, TransactionType.EVENT_PAYMENT, currency, price,
             "Simulated payment for event: " + event.getTitle(), "EVENT", event.getId());
 
-        // The only place a balance moves outside the finance module. It is simulated,
-        // but "my wallet is wrong" is otherwise untraceable: the success path never
-        // reaches GlobalExceptionHandler, so nothing else would record it. Says
-        // SIMULATED out loud so a log reader never mistakes it for a real payment.
+        // The only place a balance moves outside the finance module.
         log.info("SIMULATED wallet debit: user={} event={} currency={} amount={} balanceAfter={}",
             userId, event.getId(), currency, price, balanceFor(wallet, currency));
         return new PaymentSettlement(price, transaction == null ? null : transaction.getId());

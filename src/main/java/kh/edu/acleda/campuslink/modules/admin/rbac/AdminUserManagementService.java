@@ -115,8 +115,7 @@ public class AdminUserManagementService {
             AdminRole role = role(request == null ? null : request.roleId());
             AdminUser candidate = candidate(user, role);
 
-            // Run the shared guard before the duplicate check so a same-user promotion remains
-            // ADMIN_SELF_MODIFICATION rather than leaking an implementation detail.
+            // Run the shared guard before the duplicate check.
             superAdminGuard.ensureMayChangeRole(actor, candidate, role.getCode());
             ensurePromotable(user);
             if (adminUserRepository.existsByUserId(targetUserId)) {

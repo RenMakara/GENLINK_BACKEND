@@ -68,16 +68,8 @@ class JwtTokenProviderTest {
             .hasMessageContaining("at least");
     }
 
-    // ---------------------------------------------------------------------------------
     // Admin access token with a session id (ADM-024)
-    // ---------------------------------------------------------------------------------
-
-    /**
-     * The claim that confines this token to {@code /api/v1/admin/**}.
-     *
-     * <p>Pinned here rather than only at the call site: {@code generateAdminAccessToken} is the
-     * one place that decides it, and a caller can no longer pass the wrong type by mistake.
-     */
+    /** The claim that confines this token to {@code /api/v1/admin/**}. */
     @Test
     void adminAccessTokenCarriesTheAdminTypeAndSessionId() {
         profiles("prod");
@@ -90,10 +82,7 @@ class JwtTokenProviderTest {
         org.assertj.core.api.Assertions.assertThat(provider.getUsername(token)).isEqualTo("admin@genlink.kh");
     }
 
-    /**
-     * The version claim must survive: without it {@code isTokenVersionCurrent} fails closed and
-     * every admin token would be rejected on the next request.
-     */
+    /** The version claim must survive: without it {@code isTokenVersionCurrent} fails closed. */
     @Test
     void adminAccessTokenKeepsTheTokenVersion() {
         profiles("prod");
@@ -117,10 +106,7 @@ class JwtTokenProviderTest {
         org.assertj.core.api.Assertions.assertThat(provider.getTokenId(second)).isEqualTo("session-2");
     }
 
-    // ---------------------------------------------------------------------------------
     // MFA challenge token (ADM-021)
-    // ---------------------------------------------------------------------------------
-
     @Test
     void challengeTokenCarriesTheChallengeTypeAndNotAnAccessType() {
         profiles("prod");
@@ -128,8 +114,7 @@ class JwtTokenProviderTest {
 
         String token = provider.generateAdminMfaChallengeToken("admin@genlink.kh", "challenge-1");
 
-        // The claim is the entire access-control story for this token: the filter compares it
-        // against what the route requires, and no route requires this value.
+        // The claim is the entire access-control story for this token.
         org.assertj.core.api.Assertions.assertThat(provider.getTokenType(token))
             .isEqualTo(TokenType.ADMIN_MFA_CHALLENGE);
         org.assertj.core.api.Assertions.assertThat(provider.getUsername(token))
@@ -137,12 +122,7 @@ class JwtTokenProviderTest {
         org.assertj.core.api.Assertions.assertThat(provider.getTokenId(token)).isEqualTo("challenge-1");
     }
 
-    /**
-     * No {@code tv} claim. Token version is what makes an access token revocable; carrying one
-     * here would imply this token is a session, and {@code isTokenVersionCurrent} fails closed
-     * on a null version, so its absence also means the filter could never accept it even if
-     * the type check were removed.
-     */
+    /** No {@code tv} claim. */
     @Test
     void challengeTokenCarriesNoTokenVersion() {
         profiles("prod");
@@ -157,8 +137,7 @@ class JwtTokenProviderTest {
     void challengeTokenExpiresInFiveMinutesByDefault() {
         profiles("prod");
         JwtProperties properties = props(STRONG_SECRET);
-        // Not set by props(): the default is the contract, so that no environment has to
-        // configure it and none can quietly lengthen the window by omission.
+        // Not set by props(): the default is the contract.
         org.assertj.core.api.Assertions.assertThat(properties.getAdminMfaChallengeExpirationMs())
             .isEqualTo(300_000L);
 

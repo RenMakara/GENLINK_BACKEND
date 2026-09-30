@@ -4,13 +4,7 @@ import java.time.Instant;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.stereotype.Component;
 
-/**
- * Process-local last-outcome view of transactional mail delivery.
- *
- * <p>The registry intentionally stores no recipient, message or provider detail. It is reset on
- * restart, which is why a fresh process reports {@link Outcome#NEVER_RUN} rather than guessing
- * that mail is healthy.
- */
+/** Process-local last-outcome view of transactional mail delivery. */
 @Component
 public class MailDeliveryRegistry {
 

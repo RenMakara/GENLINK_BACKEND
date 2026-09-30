@@ -6,13 +6,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
-/**
- * Minimal process-local registry for the scheduled jobs surfaced by the admin health panel.
- *
- * <p>This is deliberately not persistent. A restart clears the timestamps and makes the honest
- * state {@link Outcome#NEVER_RUN}; ADM-048 can add durable history without changing the health
- * endpoint contract.
- */
+/** Minimal process-local registry for the scheduled jobs surfaced by the admin health panel. */
 @Component
 public class ScheduledJobRunRegistry {
 

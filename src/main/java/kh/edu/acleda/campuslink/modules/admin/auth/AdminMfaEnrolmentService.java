@@ -21,26 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * TOTP enrolment: {@code /admin/auth/mfa/enrol} then {@code /admin/auth/mfa/confirm} (ADM-022).
- *
- * <h2>Authorised by the challenge token, not an admin session</h2>
- *
- * SSOT §8.1 lists both routes as "authenticated", which cannot be what happens for a *first*
- * enrolment: an admin token is only issued after TOTP succeeds, so requiring one would mean an
- * admin needs TOTP to set up TOTP. The bootstrap admin (ADM-030) could never sign in at all.
- *
- * <p>These therefore accept the 5-minute challenge token from the password step - the only
- * credential an unenrolled admin holds. It still proves the password, and it expires quickly.
- * <strong>Flagged for confirmation; the SSOT has not been changed.</strong>
- *
- * <h2>Two steps, not one</h2>
- *
- * Enrol stores the secret but leaves {@code totp_confirmed_at} null, so nothing is switched on
- * until the admin has proved their app produces matching codes. Marking someone enrolled
- * against a secret their authenticator never accepted locks them out permanently at the next
- * login, with no recovery codes issued yet to dig them out.
- */
+/** TOTP enrolment: {@code /admin/auth/mfa/enrol} then {@code /admin/auth/mfa/confirm} (ADM-022). */
 @Slf4j
 @Service
 public class AdminMfaEnrolmentService {
@@ -73,13 +54,7 @@ public class AdminMfaEnrolmentService {
         this.securityAuditService = securityAuditService;
     }
 
-    /**
-     * Issues a fresh secret and the URI the portal renders as a QR code.
-     *
-     * <p>Re-callable while enrolment is unconfirmed, and each call replaces the previous
-     * secret. That is deliberate: an admin who scanned a QR code and then lost the page has to
-     * be able to start again, and an unconfirmed secret grants nothing.
-     */
+    /** Issues a fresh secret and the URI the portal renders as a QR code. */
     @Transactional
     public MfaEnrolResponse enrol(String challengeToken) {
         AdminUser admin = resolveFromChallenge(challengeToken);
@@ -94,8 +69,7 @@ public class AdminMfaEnrolmentService {
         byte[] secret = totpGenerator.generateSecret();
         String base32Secret = Base32.encode(secret);
 
-        // Encrypted before it touches the entity, so the plaintext never reaches Hibernate's
-        // dirty-checking snapshot, a SQL log, or a persistence-layer exception message.
+        // Encrypt the secret before assigning it to the entity.
         admin.setTotpSecret(fieldEncryptor.encrypt(base32Secret));
         admin.setTotpEnabled(false);
         adminUserRepository.save(admin);
@@ -107,11 +81,7 @@ public class AdminMfaEnrolmentService {
         return new MfaEnrolResponse(base32Secret, otpauthUri(emailOf(admin), base32Secret));
     }
 
-    /**
-     * Verifies the first code, switches TOTP on, and returns the recovery codes.
-     *
-     * @return the ten codes - the only time they exist in plaintext.
-     */
+    /** Verifies the first code, switches TOTP on, and returns the recovery codes. */
     @Transactional
     public MfaConfirmResponse confirm(String challengeToken, String code) {
         AdminUser admin = resolveFromChallenge(challengeToken);
@@ -146,14 +116,7 @@ public class AdminMfaEnrolmentService {
         return new MfaConfirmResponse(codes.plaintext());
     }
 
-    /**
-     * Validates the challenge token and loads the admin it names.
-     *
-     * <p>The type check is the part that matters. Without it an ordinary {@code ADMIN} access
-     * token - or a mobile one - would be accepted here, and since these routes are
-     * {@code permitAll} in {@code SecurityConfig}, this method is the only thing standing in
-     * front of them.
-     */
+    /** Validates the challenge token and loads the admin it names. */
     private AdminUser resolveFromChallenge(String challengeToken) {
         if (challengeToken == null || challengeToken.isBlank() || !jwtService.validateToken(challengeToken)) {
             throw new UnauthorizedException("Your sign-in session has expired. Please sign in again.");
@@ -167,14 +130,7 @@ public class AdminMfaEnrolmentService {
                 "Your sign-in session has expired. Please sign in again."));
     }
 
-    /**
-     * {@code otpauth://totp/Issuer:account?secret=...&issuer=...&algorithm=SHA1&digits=6&period=30}
-     *
-     * <p>The parameters are spelled out even though they are the defaults. Some authenticator
-     * apps do not apply the defaults the Key Uri Format specifies, and an app that quietly
-     * assumes SHA-256 or an 8-digit code produces numbers that never match - which presents to
-     * the admin as "the QR code is broken".
-     */
+    /** Builds the TOTP enrollment URI. */
     private static String otpauthUri(String account, String base32Secret) {
         return "otpauth://totp/" + encode(ISSUER) + ":" + encodeAccount(account)
             + "?secret=" + base32Secret
@@ -189,14 +145,7 @@ public class AdminMfaEnrolmentService {
         return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
-    /**
-     * As {@link #encode}, but leaves {@code @} alone.
-     *
-     * <p>The account part of the label is an email address. {@code @} is a legal path
-     * character and the Key Uri Format's own example leaves it literal; percent-encoding it is
-     * still valid, but an app that splits the label on {@code :} without URL-decoding then
-     * shows the admin {@code admin%40genlink.kh}, which reads as a broken QR code.
-     */
+    /** As {@link #encode}, but leaves {@code @} alone. */
     private static String encodeAccount(String account) {
         return encode(account).replace("%40", "@");
     }

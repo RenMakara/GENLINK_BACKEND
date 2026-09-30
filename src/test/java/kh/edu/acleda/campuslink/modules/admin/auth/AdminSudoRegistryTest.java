@@ -26,17 +26,13 @@ class AdminSudoRegistryTest {
         assertThat(registry.isOpen(SESSION)).isTrue();
     }
 
-    // -------------------------------------------------------------------------------
     // AC#2 - exactly five minutes.
-    // -------------------------------------------------------------------------------
-
     @Test
     void theWindowLastsFiveMinutes() {
         Instant before = Instant.now();
         Instant expiry = registry.open(SESSION);
 
-        // Asserted as a range rather than an equality: the clock moves between the two reads,
-        // and a test that demands exactness here fails intermittently for no useful reason.
+        // Asserted as a range rather than an equality.
         assertThat(Duration.between(before, expiry).toSeconds())
             .isBetween(299L, 301L);
         assertThat(AdminSudoRegistry.WINDOW).isEqualTo(Duration.ofMinutes(5));
@@ -53,10 +49,7 @@ class AdminSudoRegistryTest {
         assertThat(registry.secondsRemaining(SESSION)).isZero();
     }
 
-    /**
-     * Reopening restarts the five minutes rather than extending an existing window. Opening is
-     * a deliberate re-authentication, so a fresh five minutes is exactly what it should buy.
-     */
+    /** Reopening restarts the five minutes rather than extending an existing window. */
     @Test
     void reopeningRestartsTheClock() {
         Instant first = registry.open(SESSION);
@@ -66,12 +59,7 @@ class AdminSudoRegistryTest {
         assertThat(registry.isOpen(SESSION)).isTrue();
     }
 
-    // -------------------------------------------------------------------------------
     // AC#3 - per session, never per user.
-    //
-    // This is the whole point of the control: re-authenticating on a laptop must not arm
-    // destructive actions in a browser someone left open elsewhere.
-    // -------------------------------------------------------------------------------
 
     @Test
     void aSecondSessionDoesNotInheritTheWindow() {
@@ -92,14 +80,8 @@ class AdminSudoRegistryTest {
         assertThat(registry.isOpen(OTHER_SESSION)).isTrue();
     }
 
-    // -------------------------------------------------------------------------------
     // Expiry and hygiene
-    // -------------------------------------------------------------------------------
-
-    /**
-     * The behaviour AC#2 actually asks for: the window must <em>close</em> at five minutes.
-     * Driven by a movable clock rather than a sleep, so it takes microseconds and cannot flake.
-     */
+    /** The behaviour AC#2 actually asks for: the window must close at five minutes. */
     @Test
     void theWindowClosesAfterFiveMinutes() {
         MovableClock clock = new MovableClock(Instant.parse("2026-08-07T09:00:00Z"));

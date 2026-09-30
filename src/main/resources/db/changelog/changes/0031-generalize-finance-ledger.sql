@@ -1,11 +1,7 @@
 --liquibase formatted sql
 
 --changeset genlink:0031-generalize-finance-ledger
--- demo_transactions is already the money ledger; this generalises it into THE ledger for the
--- unified finance flow (see backend/docs/FINANCE_LEDGER_PLAN.md, Phase 0). Adds a direction
--- (CREDIT/DEBIT), a link back to whatever caused the row (related_type + related_id), and a
--- direct user_id so a user's whole history is one query instead of going via the wallet.
--- All additive; existing rows are backfilled, so nothing breaks.
+-- demo_transactions is already the money ledger.
 ALTER TABLE demo_transactions ADD COLUMN IF NOT EXISTS direction VARCHAR(10);
 ALTER TABLE demo_transactions ADD COLUMN IF NOT EXISTS related_type VARCHAR(40);
 ALTER TABLE demo_transactions ADD COLUMN IF NOT EXISTS related_id UUID;

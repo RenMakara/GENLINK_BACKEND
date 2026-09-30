@@ -74,9 +74,7 @@ public class ExpenseServiceImpl implements ExpenseService {
             .paidFromWallet(Boolean.TRUE.equals(request.paidFromWallet()))
             .build());
 
-        // Opt-in: only "paid from wallet" expenses move the balance. A too-low balance rejects
-        // the whole thing (this @Transactional rolls the expense row back too), so the wallet
-        // and the recorded spend never disagree.
+        // Opt-in: only "paid from wallet" expenses move the balance.
         if (Boolean.TRUE.equals(request.paidFromWallet())) {
             DemoWallet wallet = demoWalletService.getOrCreateWalletEntity();
             ledgerService.debit(wallet, TransactionType.EXPENSE, currency, expense.getAmount(),

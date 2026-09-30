@@ -14,10 +14,7 @@ public class SuspensionExpiryJob {
 
     private final SuspensionExpiryService suspensionExpiryService;
 
-    /**
-     * 03:00 daily. Scheduling is globally disabled by {@code SchedulingConfig} when
-     * {@code app.scheduling.enabled=false}; the cron can also be retimed through configuration.
-     */
+    /** Runs daily at 03:00 Phnom Penh time. */
     @Scheduled(cron = "${app.admin.suspension-expiry-cron:0 0 3 * * *}",
         zone = "Asia/Phnom_Penh")
     public void run() {

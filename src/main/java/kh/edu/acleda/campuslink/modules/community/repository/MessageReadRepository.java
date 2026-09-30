@@ -10,10 +10,7 @@ public interface MessageReadRepository extends JpaRepository<MessageRead, UUID> 
     /** Idempotency guard for marking a message read — unique (message, user) already backs it. */
     boolean existsByMessageIdAndUserId(UUID messageId, UUID userId);
 
-    /**
-     * The viewer's read high-water in a room: their most recently read message. Its
-     * {@code createdAt} is the cutoff everything newer counts as unread against.
-     */
+    /** The viewer's read high-water in a room: their most recently read message. */
     Optional<MessageRead> findFirstByUserIdAndMessage_ChatRoomIdOrderByMessage_CreatedAtDesc(
         UUID userId, UUID chatRoomId);
 }

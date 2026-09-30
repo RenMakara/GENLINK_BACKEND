@@ -23,10 +23,7 @@ public interface DiscussionService {
     /** The caller's own discussions, including ones they posted anonymously. */
     PageResponse<DiscussionResponse> getMine(Pageable pageable);
 
-    /**
-     * Discussions reposted by the requested profile. When no profile id is supplied,
-     * this returns the caller's own reposts.
-     */
+    /** Discussions reposted by the requested profile. */
     PageResponse<DiscussionResponse> getReposts(UUID userId, Pageable pageable);
 
     DiscussionResponse getById(UUID discussionId);
@@ -73,10 +70,7 @@ public interface DiscussionService {
 
     // ---- Admin moderation (ROLE_ADMIN, enforced at the controller) ----
 
-    /**
-     * The moderation queue: reported discussions, most-reported first. Reveals the author
-     * even for anonymous discussions, because moderation needs accountability.
-     */
+    /** The moderation queue: reported discussions, most-reported first. */
     PageResponse<ReportedDiscussionResponse> reportedDiscussions(Pageable pageable);
 
     /** Removes any discussion (soft delete), regardless of author. */

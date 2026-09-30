@@ -292,8 +292,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public PollResponse vote(UUID postId, PollVoteRequest request) {
-        // Lock the parent row before reading the current vote. All transitions for
-        // this poll serialize on one row, including two simultaneous first votes.
+        // Lock the parent row before reading the current vote.
         Post post = postRepository.findByIdAndDeletedAtIsNullForUpdate(postId)
             .orElseThrow(() -> new NotFoundException("Post not found"));
         UUID userId = currentUserProvider.getCurrentUserId();
@@ -351,10 +350,7 @@ public class PostServiceImpl implements PostService {
             pageable));
     }
 
-    /**
-     * "IN ()" is invalid SQL, so an empty list becomes a placeholder that matches
-     * nothing. A user with no friends and no communities still gets the public feed.
-     */
+    /** "IN ()" is invalid SQL, so an empty list becomes a placeholder that matches nothing. */
     private Collection<UUID> orPlaceholder(List<UUID> ids) {
         return ids.isEmpty() ? List.of(PLACEHOLDER_ID) : ids;
     }
@@ -575,8 +571,7 @@ public class PostServiceImpl implements PostService {
         UUID userId = currentUserProvider.getCurrentUserId();
         Post post = loadVisiblePost(postId, userId);
 
-        // One report per user, so report_count means "distinct people flagged this" rather
-        // than "how many times someone tapped". The unique (post_id, user_id) backs this.
+        // One report per user, so report_count means "distinct people flagged this".
         if (postReportRepository.existsByPostIdAndUserId(postId, userId)) {
             return;
         }
@@ -613,11 +608,7 @@ public class PostServiceImpl implements PostService {
         log.info("Reports dismissed on post {} by moderator {}", postId, currentUserProvider.getCurrentUserId());
     }
 
-    /**
-     * A post outside any community has no moderators, so there is nothing to authorise
-     * against. Otherwise the caller must be an active OWNER/ADMIN/MODERATOR of it. Every
-     * refusal is not-found, never forbidden, so the endpoint does not leak the post.
-     */
+    /** A post outside any community has no moderators, so there is nothing to authorise against. */
     private CommunityMember requireModeratorOfPostCommunity(Community community) {
         if (community == null) {
             throw new NotFoundException("Post not found");
@@ -733,10 +724,7 @@ public class PostServiceImpl implements PostService {
         });
     }
 
-    /**
-     * Resolves likedByMe, savedByMe and hashtags for the whole page in three queries
-     * rather than three per row. Without this the feed is an N+1 machine.
-     */
+    /** Resolves likedByMe, savedByMe and hashtags for the whole page in three queries rather than three per row. */
     private PageResponse<PostResponse> hydratePage(Page<Post> page) {
         List<Post> posts = page.getContent();
         if (posts.isEmpty()) {
@@ -979,11 +967,7 @@ public class PostServiceImpl implements PostService {
         return count == null ? 0 : Math.max(0, count);
     }
 
-    /**
-     * Resolves poll data for a set of posts in three queries (polls, options, the viewer's
-     * votes), keyed by post id. Non-poll posts simply have no entry. Keeping it batched is
-     * what stops the feed from firing a poll lookup per row.
-     */
+    /** Resolves poll data for a set of posts in three queries (polls, options, the viewer's votes), keyed by post id. */
     private Map<UUID, PollResponse> pollsForPosts(Set<UUID> postIds, UUID viewerId) {
         if (postIds.isEmpty()) {
             return Map.of();

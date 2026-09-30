@@ -46,10 +46,7 @@ public interface XpHistoryRepository extends JpaRepository<XpHistory, UUID> {
         + "ORDER BY x.createdAt DESC, x.id DESC")
     Page<XpHistory> findPageByUserId(@Param("userId") UUID userId, Pageable pageable);
 
-    /**
-     * Points per user (all sources) since a cutoff, highest first. Pass Instant.EPOCH for
-     * all-time - the cutoff is always a comparison, never an IS NULL, so it is portable.
-     */
+    /** Points per user (all sources) since a cutoff, highest first. */
     @Query("SELECT x.user.id, SUM(x.xpAmount) FROM XpHistory x "
         + "WHERE x.createdAt >= :since GROUP BY x.user.id ORDER BY SUM(x.xpAmount) DESC")
     List<Object[]> leaderboardOverall(@Param("since") Instant since);

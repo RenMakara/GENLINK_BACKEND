@@ -6,12 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/**
- * Object-storage configuration, bound from {@code app.storage.*}.
- *
- * <p>Every value is environment-driven so the same build runs against any
- * S3-compatible provider by changing configuration alone.
- */
+/** Object-storage configuration, bound from {@code app.storage.*}. */
 @Getter
 @Setter
 @ConfigurationProperties(prefix = "app.storage")
@@ -38,25 +33,13 @@ public class StorageProperties {
 
     private long maxVideoMb = 50;
 
-    /**
-     * When true, the presigned PUT pins {@code x-amz-checksum-sha256} so the store
-     * verifies the body on upload. Off by default for compatibility with providers
-     * that do not support this header; the checksum is stored either way.
-     */
+    /** When true, the presigned PUT pins {@code x-amz-checksum-sha256} so the store verifies the body on upload. */
     private boolean enforceChecksum = false;
 
-    /**
-     * The one provider quirk we expose. Virtual-hosted style (false) works for
-     * AWS S3 and other virtual-hosted S3-compatible services; MinIO typically
-     * needs path-style (true).
-     */
+    /** The one provider quirk we expose. */
     private boolean pathStyleAccess = false;
 
-    /**
-     * Whether PUBLIC media should receive an object-level public-read ACL.
-     * Keep true for legacy Spaces-style deployments; use false for AWS S3 with
-     * a private bucket and CloudFront OAC.
-     */
+    /** Whether PUBLIC media should receive an object-level public-read ACL. */
     private boolean publicReadAcl = true;
 
     public long maxImageBytes() {
@@ -67,11 +50,7 @@ public class StorageProperties {
         return maxVideoMb * 1024 * 1024;
     }
 
-    /**
-     * Fail fast when a recognized provider CDN hostname does not describe the
-     * configured bucket and region. Custom CDN domains and other S3-compatible
-     * providers remain supported.
-     */
+    /** Fail fast when a recognized provider CDN hostname does not describe the configured bucket and region. */
     public void validateCdnBaseMatchesBucketAndRegion() {
         if (cdnBase == null || cdnBase.isBlank()) {
             return;

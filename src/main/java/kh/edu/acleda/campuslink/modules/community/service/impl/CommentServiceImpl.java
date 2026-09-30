@@ -204,12 +204,7 @@ public class CommentServiceImpl implements CommentService {
         postRepository.adjustCommentCount(comment.getPost().getId(), -1);
     }
 
-    /**
-     * Keeps threading one level deep: replying to a reply attaches to the same
-     * top-level parent, so the client never has to render arbitrary nesting.
-     * The parent must belong to this post, otherwise a comment could be grafted onto
-     * an unrelated thread.
-     */
+    /** Keeps threading one level deep: replying to a reply attaches to the same top-level parent. */
     private PostComment resolveParent(UUID parentCommentId, UUID postId) {
         if (parentCommentId == null) {
             return null;

@@ -47,10 +47,7 @@ public class BudgetController {
         return ResponseEntity.ok(ApiResponse.success("Budgets retrieved", budgetService.getMine(pageable)));
     }
 
-    /**
-     * The budget for a month, with the category breakdown. Defaults to the current
-     * month. Literal path, declared before /{id} so it cannot be shadowed.
-     */
+    /** The budget for a month, with the category breakdown. */
     @GetMapping("/current")
     public ResponseEntity<ApiResponse<BudgetResponse>> current(
         @RequestParam(required = false) Integer month,

@@ -27,16 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Turns saved_items pointers into row previews.
- *
- * <p>saved_items is polymorphic, so the title of a saved thing lives in a different
- * table per type. This is the one place in the profile module that reads other
- * domains, and it is read-only and preview-shaped: no domain entity escapes.
- *
- * <p>Lookups are batched per type — one query per distinct type in the list, not one
- * per saved item — so a 50-item saved list costs at most 7 queries.
- */
+/** Turns saved_items pointers into row previews. */
 @Component
 public class SavedItemPreviewResolver {
 
@@ -90,11 +81,7 @@ public class SavedItemPreviewResolver {
             currentUserProvider, null, null);
     }
 
-    /**
-     * @return previews keyed by item id. An id missing from the map means the target
-     *         was deleted or is not visible to the current user; the caller reports
-     *         that item as unavailable.
-     */
+    /** @return previews keyed by item id. An id missing from the map means the target */
     @Transactional(readOnly = true)
     public Map<UUID, SavedItemPreview> resolve(SavedItemType type, Collection<UUID> ids, Language language) {
         if (ids == null || ids.isEmpty()) {

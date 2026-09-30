@@ -22,10 +22,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * A rule that moves money into a saving goal automatically, once a month. The scheduler runs it
- * over the previous calendar month and advances {@link #nextRunDate} by a month each time.
- */
+/** A rule that moves money into a saving goal automatically, once a month. */
 @Getter
 @Setter
 @NoArgsConstructor

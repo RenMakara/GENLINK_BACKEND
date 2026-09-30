@@ -5,14 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Read-only aggregate boundary for the admin dashboard.
- *
- * <p>The admin module normally delegates to domain services. Analytics is the documented
- * exception: the dashboard needs grouped counts across users, authentication and admin-audit
- * tables, and returning entities here would both create N+1 queries and leak domain objects
- * across the module boundary.
- */
+/** Read-only aggregate boundary for the admin dashboard. */
 public interface AdminDashboardQueryRepository {
 
     KpiCounts findKpiCounts(LocalDate today);

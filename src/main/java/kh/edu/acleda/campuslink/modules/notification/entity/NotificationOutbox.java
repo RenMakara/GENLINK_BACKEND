@@ -16,13 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Durable, immutable notification facts waiting for a channel transport.
- *
- * <p>The row contains the request data rather than a rendered message. Rendering remains in
- * the channel transport, so a retry uses the same template and recipient language rules as the
- * original request.
- */
+/** Durable, immutable notification facts waiting for a channel transport. */
 @Getter
 @Setter
 @NoArgsConstructor

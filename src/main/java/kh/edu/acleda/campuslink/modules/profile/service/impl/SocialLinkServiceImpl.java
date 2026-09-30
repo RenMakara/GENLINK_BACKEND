@@ -74,10 +74,7 @@ public class SocialLinkServiceImpl implements SocialLinkService {
         userSocialLinkRepository.delete(link);
     }
 
-    /**
-     * Profile links are rendered as tappable links, so only http(s) is accepted.
-     * Without this a javascript: or data: URL could be stored and opened.
-     */
+    /** Profile links are rendered as tappable links, so only http(s) is accepted. */
     private String normalizeUrl(String rawUrl) {
         String url = rawUrl.trim();
         String lower = url.toLowerCase(Locale.ROOT);

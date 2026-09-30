@@ -32,10 +32,7 @@ class FieldEncryptorTest {
         return new FieldEncryptor(properties, environment);
     }
 
-    // -------------------------------------------------------------------------------
     // AC#2
-    // -------------------------------------------------------------------------------
-
     @Test
     void ciphertextDoesNotContainThePlaintext() {
         String stored = encryptorWith(KEY).encrypt(SECRET);
@@ -51,10 +48,7 @@ class FieldEncryptorTest {
         assertThat(encryptor.decrypt(encryptor.encrypt(SECRET))).isEqualTo(SECRET);
     }
 
-    /**
-     * A fresh IV per call. Deterministic output would let anyone holding the table see which
-     * admins share a secret, and under GCM a repeated IV is catastrophic rather than untidy.
-     */
+    /** A fresh IV per call. */
     @Test
     void encryptingTheSameValueTwiceProducesDifferentCiphertext() {
         FieldEncryptor encryptor = encryptorWith(KEY);
@@ -68,13 +62,7 @@ class FieldEncryptorTest {
             .isEqualTo(encryptor.decrypt(encryptor.encrypt(SECRET)));
     }
 
-    /**
-     * GCM authenticates: a tampered row fails loudly rather than decrypting to garbage.
-     *
-     * <p>The flip happens on the decoded bytes, not on a Base64 character. Editing the encoded
-     * text can land on bits that Base64 discards, leaving the ciphertext byte-identical - which
-     * made an earlier version of this test pass or fail depending on the random IV.
-     */
+    /** GCM authenticates: a tampered row fails loudly rather than decrypting to garbage. */
     @Test
     void rejectsTamperedCiphertext() {
         String stored = encryptorWith(KEY).encrypt(SECRET);
@@ -132,10 +120,7 @@ class FieldEncryptorTest {
         assertThat(encryptor.decrypt(null)).isNull();
     }
 
-    // -------------------------------------------------------------------------------
     // Key configuration
-    // -------------------------------------------------------------------------------
-
     @Test
     void refusesToStartWithoutAKeyOutsideDev() {
         when(environment.getActiveProfiles()).thenReturn(new String[]{"prod"});

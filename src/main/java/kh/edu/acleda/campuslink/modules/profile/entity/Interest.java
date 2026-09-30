@@ -12,10 +12,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * System-generated content, so names are bilingual columns rather than a
- * translation table - see the language support plan.
- */
+/** System-generated content, so names are bilingual columns. */
 @Getter
 @Setter
 @NoArgsConstructor

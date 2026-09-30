@@ -41,10 +41,7 @@ public interface FollowRepository extends JpaRepository<Follow, UUID> {
             + "AND f.status = kh.edu.acleda.campuslink.modules.community.enums.FollowStatus.PENDING")
     Page<Follow> findPendingRequests(@Param("userId") UUID userId, Pageable pageable);
 
-    /**
-     * Mutual accepted follows, i.e. friends. Used to resolve FRIENDS visibility for a
-     * whole feed page in one query rather than per post.
-     */
+    /** Mutual accepted follows, i.e. friends. */
     @Query("SELECT f.following.id FROM Follow f "
         + "WHERE f.follower.id = :userId AND f.status = kh.edu.acleda.campuslink.modules.community.enums.FollowStatus.ACCEPTED "
         + "AND f.following.id IN (SELECT g.follower.id FROM Follow g WHERE g.following.id = :userId "
@@ -58,10 +55,7 @@ public interface FollowRepository extends JpaRepository<Follow, UUID> {
     long countMutualAcceptedFollows(@Param("firstUserId") UUID firstUserId,
                                     @Param("secondUserId") UUID secondUserId);
 
-    /**
-     * Ids of everyone the user follows (accepted only). Used to assemble the story bar:
-     * you see the active stories of people you follow.
-     */
+    /** Ids of everyone the user follows (accepted only). */
     @Query("SELECT f.following.id FROM Follow f "
         + "WHERE f.follower.id = :userId "
         + "AND f.status = kh.edu.acleda.campuslink.modules.community.enums.FollowStatus.ACCEPTED")

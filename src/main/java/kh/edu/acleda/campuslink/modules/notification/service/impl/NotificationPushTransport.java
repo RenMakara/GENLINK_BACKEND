@@ -15,10 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
-/**
- * Online push adapter backed by the authenticated STOMP user queue. It is intentionally not an
- * offline FCM/APNs adapter; REST remains the source of truth when a mobile client is disconnected.
- */
+/** Online push adapter backed by the authenticated STOMP user queue. */
 @Slf4j
 @Component
 public class NotificationPushTransport implements NotificationTransport {

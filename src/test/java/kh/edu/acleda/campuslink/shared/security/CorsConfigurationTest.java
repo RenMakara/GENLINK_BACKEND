@@ -8,13 +8,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * ADM-028 - the admin API gets an explicit origin allow-list; mobile keeps its wildcard.
- *
- * <p>Exercises the real {@code CorsConfigurationSource} bean rather than asserting on the
- * properties object, because the bug worth catching is not "the list was read" but "the wrong
- * policy was matched" - and matching is decided by registration order inside the source.
- */
+/** ADM-028 - the admin API gets an explicit origin allow-list; mobile keeps its wildcard. */
 class CorsConfigurationTest {
 
     private static final String ALLOWED = "https://admin.genlink.kh";
@@ -33,10 +27,7 @@ class CorsConfigurationTest {
         return source.getCorsConfiguration(request);
     }
 
-    // -------------------------------------------------------------------------------
     // AC#1 - an unlisted origin is rejected on an admin route.
-    // -------------------------------------------------------------------------------
-
     @Test
     void anUnlistedOriginIsRejectedOnAnAdminRoute() {
         CorsConfiguration admin = configurationFor(sourceWith(ALLOWED), "/api/v1/admin/users");
@@ -51,11 +42,7 @@ class CorsConfigurationTest {
         assertThat(admin.checkOrigin(ALLOWED)).isEqualTo(ALLOWED);
     }
 
-    /**
-     * The registration order is the whole mechanism: {@code UrlBasedCorsConfigurationSource}
-     * returns the FIRST matching pattern, not the most specific. Registering {@code /**} first
-     * would hand the admin API the mobile wildcard while the code still read correctly.
-     */
+    /** The registration order is the whole mechanism. */
     @Test
     void theAdminPolicyWinsOverTheCatchAllPattern() {
         CorsConfiguration admin = configurationFor(sourceWith(ALLOWED), "/api/v1/admin/auth/login");
@@ -66,11 +53,7 @@ class CorsConfigurationTest {
             .containsExactly(ALLOWED);
     }
 
-    /**
-     * Empty is the MVP default and must fail closed. Under path-based routing the portal and
-     * API share an origin, so nothing is cross-origin and CORS never runs; if something does
-     * arrive cross-origin before anyone configures this, refusing it is the safe answer.
-     */
+    /** Empty is the MVP default and must fail closed. */
     @Test
     void withNoConfiguredOriginsEveryCrossOriginAdminRequestIsRefused() {
         CorsConfiguration admin = configurationFor(sourceWith(), "/api/v1/admin/users");
@@ -87,10 +70,7 @@ class CorsConfigurationTest {
             .doesNotContain("*");
     }
 
-    // -------------------------------------------------------------------------------
     // AC#2 - mobile routes are unaffected.
-    // -------------------------------------------------------------------------------
-
     @Test
     void mobileRoutesKeepTheirWildcard() {
         CorsConfigurationSource source = sourceWith(ALLOWED);
@@ -117,15 +97,8 @@ class CorsConfigurationTest {
         assertThat(mobile.getExposedHeaders()).contains("x-auth-token");
     }
 
-    // -------------------------------------------------------------------------------
     // Admin policy details
-    // -------------------------------------------------------------------------------
-
-    /**
-     * Credentials are needed for the httpOnly refresh cookie (SSOT §10.9), and a browser
-     * refuses that combination with a wildcard - which is another reason the allow-list is not
-     * optional.
-     */
+    /** Credentials are needed for the httpOnly refresh cookie (SSOT §10.9). */
     @Test
     void adminAllowsCredentials() {
         CorsConfiguration admin = configurationFor(sourceWith(ALLOWED), "/api/v1/admin/users");

@@ -86,11 +86,7 @@ public class UserSettingServiceImpl implements UserSettingService {
         return toResponse(userSettingRepository.save(setting));
     }
 
-    /**
-     * The account language is used by /auth/me, request language resolution,
-     * notifications, and email delivery. Keep it aligned with the settings
-     * value changed by the mobile app.
-     */
+    /** The account language is used by /auth/me, request language resolution, notifications, and email delivery. */
     private void syncUserLanguage(Language language) {
         User user = userRepository.findById(currentUserProvider.getCurrentUserId())
             .orElseThrow(() -> new NotFoundException("User not found"));
@@ -98,10 +94,7 @@ public class UserSettingServiceImpl implements UserSettingService {
         userRepository.save(user);
     }
 
-    /**
-     * Rows are created lazily so users who registered before this feature existed
-     * get defaults on first read instead of a 404.
-     */
+    /** Rows are created lazily so users who registered before this feature existed get defaults on first read instead of a 404. */
     private UserSetting loadOrCreateForCurrentUser() {
         UUID userId = currentUserProvider.getCurrentUserId();
         return userSettingRepository.findByUserId(userId)
@@ -113,9 +106,7 @@ public class UserSettingServiceImpl implements UserSettingService {
             .orElseThrow(() -> new NotFoundException("User not found"));
         return UserSetting.builder()
             .user(user)
-            // Never null: the field initialises to ENGLISH, the setter coerces null to
-            // ENGLISH, and the column is NOT NULL DEFAULT 'ENGLISH'. Settings inherit
-            // the user's language rather than re-deciding a default here.
+            // Never null: the field initialises to ENGLISH.
             .language(user.getPreferredLanguage())
             .theme(Theme.SYSTEM_DEFAULT)
             .notificationEnabled(true)

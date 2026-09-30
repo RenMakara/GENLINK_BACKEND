@@ -29,13 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Persists notification facts first, then drains them with bounded retries.
- *
- * <p>Channel delivery is deliberately isolated from the source business transaction. If a
- * delivery succeeds and the outbox status update later rolls back, the channel's dedupe guard
- * makes the retry safe where that channel has a durable recipient record.
- */
+/** Persists notification facts first, then drains them with bounded retries. */
 @Slf4j
 @Service
 public class NotificationOutboxServiceImpl implements NotificationOutboxService {

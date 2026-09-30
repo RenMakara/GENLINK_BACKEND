@@ -76,10 +76,7 @@ public class User extends BaseEntity {
     @Column(name = "google_id")
     private String googleId;
 
-    /**
-     * Embedded in every access token as the "tv" claim. Incrementing it invalidates
-     * all access tokens already issued for this user.
-     */
+    /** Embedded in every access token as the "tv" claim. */
     @Setter
     @Column(name = "token_version", nullable = false)
     private Integer tokenVersion = 0;
@@ -164,10 +161,7 @@ public class User extends BaseEntity {
         return accountStatus == AccountStatus.ACTIVE;
     }
 
-    /**
-     * Exposes only whether a local password is configured. The hash itself must
-     * never leave the backend or be included in an API response.
-     */
+    /** Exposes only whether a local password is configured. */
     public boolean hasPassword() {
         return passwordHash != null && !passwordHash.isBlank();
     }

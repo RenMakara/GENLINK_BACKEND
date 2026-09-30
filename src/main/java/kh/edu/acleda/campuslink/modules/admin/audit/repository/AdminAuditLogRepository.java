@@ -10,14 +10,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-/**
- * Read and append only.
- *
- * <p>{@code JpaRepository} inherits {@code delete*} methods; <strong>they must never be
- * called.</strong> There is no delete endpoint at any permission level, and an audit log an
- * admin can erase is not an audit log. The API surface (ADM-116) exposes no mutation route,
- * which is where this is actually enforced.
- */
+/** Read and append only. */
 public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, UUID>,
     JpaSpecificationExecutor<AdminAuditLog> {
 

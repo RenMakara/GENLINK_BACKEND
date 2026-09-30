@@ -1,7 +1,6 @@
 spring:
   datasource:
-    # Finance schema uses month/year column names that PostgreSQL accepts. Tell H2
-    # not to treat them as keywords so integration tests can create the same model.
+    # Allow PostgreSQL's MONTH and YEAR names in H2 tests.
     url: jdbc:h2:mem:campuslink;DB_CLOSE_DELAY=-1;NON_KEYWORDS=MONTH,YEAR
     driver-class-name: org.h2.Driver
     username: sa
@@ -19,9 +18,7 @@ spring:
 
 app:
   crypto:
-    # Fixed so tests are deterministic. Under a test profile FieldEncryptor would otherwise
-    # generate an ephemeral key, which is fine for a local run but makes any assertion about
-    # a stored ciphertext depend on JVM startup. Not a secret and not used anywhere real.
+    # Fixed key keeps ciphertext assertions deterministic.
     secret-key: dGVzdC1vbmx5LWtleS0zMi1ieXRlcy1leGFjdGx5ISE=
   jwt:
     issuer: campuslink-kh-test
@@ -33,14 +30,8 @@ app:
 
   mail:
     # Keep an explicit sender in tests so message construction is deterministic.
-    # Production and dev configurations fall back to MAIL_USERNAME when
-    # MAIL_FROM is not supplied.
     from: test-sender@genlink.local
-    # Log-only. No SMTP server exists in tests, and a real send attempt would
-    # block on connect timeouts.
+    # Log-only mode avoids SMTP timeouts in tests.
     enabled: false
 
-  # The test profile uses InMemoryStorageService from src/test. StorageConfig still
-  # binds provider-neutral limits and expiry settings, but its AWS client beans and
-  # S3StorageService are excluded by @Profile("!test"). Tests therefore need no S3
-  # credentials and cannot contact external object storage accidentally.
+  # Tests use in-memory storage; no S3 credentials or network access are needed.

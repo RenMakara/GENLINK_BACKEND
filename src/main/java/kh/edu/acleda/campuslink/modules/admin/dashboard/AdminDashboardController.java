@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** The permission-gated HTTP boundary for the Phase 2 admin overview. */
+/** Permission-gated HTTP boundary for the admin overview. */
 @Tag(name = "Admin - Dashboard", description = "Overview metrics and recent admin activity")
 @RestController
 @RequestMapping("/api/v1/admin/dashboard")

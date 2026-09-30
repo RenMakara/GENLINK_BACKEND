@@ -81,8 +81,7 @@ public class DemoWalletServiceImpl implements DemoWalletService {
     @Override
     @Transactional
     public DemoWallet getOrCreateWalletEntity(User user) {
-        // Background work (the recurring/auto-save scheduler) already holds the User, so it
-        // skips the current-user lookup that loadOrCreateWallet() does.
+        // Background work (the recurring/auto-save scheduler) already holds the User.
         return demoWalletRepository.findByUserId(user.getId())
             .orElseGet(() -> loadOrCreateWalletForUserId(user.getId()));
     }
@@ -107,9 +106,7 @@ public class DemoWalletServiceImpl implements DemoWalletService {
         Currency currency = request.currency() == null ? DEFAULT_CURRENCY : request.currency();
         String merchant = request.merchant() == null ? "merchant" : request.merchant();
 
-        // 1. Ask the payment provider to authorize the charge. It decides SUCCESS/FAILED and hands
-        //    back its identity + reference; it moves no money. Which concrete provider this is
-        //    (MOCK_KHQR today, ACLEDA/ABA/... tomorrow) is injected - this code never knows.
+        // 1. Ask the payment provider to authorize the charge.
         PaymentResult result = paymentProvider.charge(
             new PaymentInstruction(request.amount(), currency, merchant, request.note()));
         if (!result.isSuccess()) {
@@ -119,12 +116,7 @@ public class DemoWalletServiceImpl implements DemoWalletService {
                 "PAYMENT_DECLINED");
         }
 
-        // 2. Provider approved -> the ledger is the single source of truth: it debits the wallet,
-        //    records the DEBIT row (provider-neutral type + the provider identity for reconciliation)
-        //    and enforces sufficient funds. The whole thing rolls back together on any failure.
-        //    A real provider charge is an external side effect: production integration must add an
-        //    idempotency key, retry/reconciliation handling, and a compensation policy because a
-        //    database rollback cannot undo a provider-approved charge.
+        // 2. Provider approved -> the ledger is the single source of truth.
         String description = "KHQR payment to " + merchant
             + (request.note() == null ? "" : " (" + request.note() + ")");
         DemoTransaction transaction = ledgerService.debit(wallet, TransactionType.KHQR_PAYMENT, currency,
@@ -193,22 +185,14 @@ public class DemoWalletServiceImpl implements DemoWalletService {
                 t.getProvider(), t.getProviderRef()));
     }
 
-    /**
-     * Get-or-create the current user's wallet. The fast path is an unlocked read; when no row
-     * exists, the fallback locks the owning user row before re-checking and inserting. That
-     * serialises first access without querying inside a transaction that has already failed a
-     * wallet unique constraint.
-     */
+    /** Get-or-create the current user's wallet. */
     private DemoWallet loadOrCreateWallet() {
         UUID userId = currentUserProvider.getCurrentUserId();
         return demoWalletRepository.findByUserId(userId)
             .orElseGet(() -> loadOrCreateWalletForUserId(userId));
     }
 
-    /**
-     * Serialises wallet creation for one user. User rows always exist before wallet rows and are
-     * therefore a stable lock target even when no wallet row exists yet.
-     */
+    /** Serialises wallet creation for one user. */
     private DemoWallet loadOrCreateWalletForUserId(UUID userId) {
         User user = userRepository.findByIdForUpdate(userId)
             .orElseThrow(() -> new NotFoundException("User not found"));

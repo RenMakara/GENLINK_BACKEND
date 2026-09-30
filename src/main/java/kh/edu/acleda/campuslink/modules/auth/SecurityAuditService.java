@@ -31,14 +31,7 @@ public class SecurityAuditService {
         safeLog(null, email, eventType, false, failureReason, null, null);
     }
 
-    /**
-     * Failures are written in their own transaction, successes join the caller's.
-     *
-     * <p>A caller logs a failure and then throws, which rolls its transaction back. If the
-     * audit row shared that transaction it would be discarded - losing exactly the events
-     * the log exists for (failed logins, wrong current password, refresh reuse). A success,
-     * by contrast, must not outlive a rollback of the operation it describes.
-     */
+    /** Failures are written in their own transaction, successes join the caller's. */
     private void safeLog(User user, String email, String eventType, boolean success,
                          String failureReason, String details, String deviceId) {
         try {

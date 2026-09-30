@@ -6,19 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
-/**
- * The Finance screen in one call (BFF-lite). Every section degrades independently: a
- * user with no budget/wallet/goals still gets a well-formed body with nulls and empty
- * lists, so the client can render empty states without a second round-trip.
- * @author RenMakara
- * @param month          this month's spend and budget standing (budget fields null if unset)
- * @param topCategories  biggest spending categories this month, largest first
- * @param saving         aggregate progress across active goals
- * @param recentExpenses the latest few expenses
- * @param wallet         demo wallet balance, or null if the user has never opened one
- * @param financialTip   a rotating tip (English only for now - see FINANCE_PLAN)
- * @param quickActions   action keys the client maps to localized buttons
- */
+/** The Finance screen in one call (BFF-lite). */
 public record MobileFinanceDashboardResponse(
     Currency currency,
     MonthOverview month,

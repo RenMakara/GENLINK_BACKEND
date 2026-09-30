@@ -18,10 +18,7 @@ public class TaskReminderJob {
 
     private final TaskReminderService taskReminderService;
 
-    /**
-     * Every five minutes, Phnom Penh time. The overlap around the configured reminder time is
-     * safe because the notification writer enforces the recipient-scoped dedupe key.
-     */
+    /** Every five minutes, Phnom Penh time. */
     @Scheduled(cron = "${app.productivity.task-reminder-cron:0 */5 * * * *}", zone = "Asia/Phnom_Penh")
     public void run() {
         LocalDateTime now = LocalDateTime.now(ZONE);

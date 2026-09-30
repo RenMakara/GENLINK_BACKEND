@@ -92,8 +92,7 @@ public class NotificationMobilePushTransport implements NotificationTransport {
             .findByUserIdAndActiveTrueOrderByLastSeenAtDesc(
                 delivery.request().recipientUserId());
         if (devices.isEmpty()) {
-            // There is nothing to retry in this case. The in-app notification remains the source
-            // of truth, and a later device registration will receive future notifications.
+            // There is nothing to retry in this case.
             log.debug("No active mobile push devices recipient={} type={}",
                 delivery.request().recipientUserId(), delivery.request().type());
             return;
@@ -109,9 +108,7 @@ public class NotificationMobilePushTransport implements NotificationTransport {
             try {
                 token = fieldEncryptor.decrypt(device.getTokenCiphertext());
             } catch (RuntimeException exception) {
-                // A decryption error is a server key/ciphertext problem, not proof that the
-                // provider rejected this token. Keep the device and retry after configuration or
-                // data repair; deactivating every row after a key rotation would be destructive.
+                // A decryption error is a server key/ciphertext problem, not proof that the provider rejected this token.
                 retryableFailure = retryableFailure == null
                     ? new MobilePushDeliveryException("Could not decrypt mobile push token", exception)
                     : retryableFailure;
@@ -130,8 +127,7 @@ public class NotificationMobilePushTransport implements NotificationTransport {
                     deliveredCount++;
                 }
             } catch (RuntimeException exception) {
-                // Keep processing other devices. If any provider failure remains, the durable
-                // outbox retries the row; successful devices may see an at-least-once duplicate.
+                // Keep processing other devices.
                 retryableFailure = retryableFailure == null
                     ? exception : retryableFailure;
             }

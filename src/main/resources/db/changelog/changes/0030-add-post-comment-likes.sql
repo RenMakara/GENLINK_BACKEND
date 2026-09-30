@@ -1,10 +1,7 @@
 --liquibase formatted sql
 
 --changeset genlink:0030-add-post-comment-likes
--- post_comments already had like_count (0009) but nothing incremented it: there was no
--- reaction table, so post-comment likes were impossible while forum-comment likes now work
--- (0029). This adds the reaction table. One like per user per comment (distinct people, not
--- taps). Mirrors post_reactions and forum_comment_reactions.
+-- post_comments already had like_count (0009).
 CREATE TABLE IF NOT EXISTS post_comment_reactions (
     post_comment_reaction_id UUID PRIMARY KEY,
     comment_id UUID NOT NULL,

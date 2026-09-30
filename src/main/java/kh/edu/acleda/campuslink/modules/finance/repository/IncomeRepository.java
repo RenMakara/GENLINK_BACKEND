@@ -33,11 +33,7 @@ public interface IncomeRepository extends JpaRepository<Income, UUID> {
     Page<Income> findByUser(@Param("userId") UUID userId, @Param("source") String source,
                             @Param("currency") Currency currency, Pageable pageable);
 
-    /**
-     * Income within a half-open date range [start, end). Split from findByUser so dates only
-     * appear in comparisons, never in an IS NULL check - a bare date param in IS NULL breaks
-     * on PostgreSQL (could not determine data type). Same trap the expense repo avoids.
-     */
+    /** Income within a half-open date range [start, end). */
     @Query(value = "SELECT i FROM Income i WHERE i.user.id = :userId AND i.deletedAt IS NULL "
         + "AND (:source IS NULL OR i.source = :source) "
         + "AND (:currency IS NULL OR i.currency = :currency) "

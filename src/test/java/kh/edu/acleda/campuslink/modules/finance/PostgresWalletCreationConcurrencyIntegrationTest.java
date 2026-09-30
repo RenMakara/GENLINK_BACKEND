@@ -24,11 +24,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
-/**
- * PostgreSQL-only regression test for first wallet access. Set
- * {@code GENLINK_TEST_POSTGRES_URL}, and optionally {@code GENLINK_TEST_POSTGRES_USERNAME} and
- * {@code GENLINK_TEST_POSTGRES_PASSWORD}, to run it against an isolated disposable database.
- */
+/** PostgreSQL-only regression test for first wallet access. */
 @SpringBootTest
 @ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "GENLINK_TEST_POSTGRES_URL", matches = ".+")
@@ -44,9 +40,7 @@ class PostgresWalletCreationConcurrencyIntegrationTest {
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
         registry.add("spring.datasource.username", () -> envOrDefault("GENLINK_TEST_POSTGRES_USERNAME", "postgres"));
         registry.add("spring.datasource.password", () -> envOrDefault("GENLINK_TEST_POSTGRES_PASSWORD", "postgres"));
-        // Run the real changelog before starting JPA. Validation then proves the
-        // application can boot against the migrated PostgreSQL schema instead of
-        // silently creating a test-only schema from entities.
+        // Run the real changelog before starting JPA.
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
         registry.add("spring.liquibase.enabled", () -> "true");
         registry.add("spring.liquibase.change-log",

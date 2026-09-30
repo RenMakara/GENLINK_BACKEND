@@ -19,11 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Media endpoints. All require authentication (via the {@code /api/v1/**} rule in
- * SecurityConfig). Bytes never flow through here — the client uploads directly to
- * object storage using the presigned URL this controller mints.
- */
+/** Media endpoints. */
 @RestController
 @RequestMapping("/api/v1/media")
 @Tag(name = "Media")

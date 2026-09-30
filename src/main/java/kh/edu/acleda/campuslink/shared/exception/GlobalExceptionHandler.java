@@ -29,8 +29,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorized(UnauthorizedException ex) {
         log.warn("Unauthorized access: {}", ex.getMessage());
-        // The code comes off the exception now rather than being fixed here. The one-argument
-        // constructor still defaults it to UNAUTHORIZED, so every existing caller is unchanged.
+        // The code comes off the exception now rather than being fixed here.
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(ApiResponse.failure(ex.getMessage(), ex.getErrorCode()));
     }
@@ -43,11 +42,7 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.failure(ex.getMessage(), ex.getErrorCode()));
     }
 
-    /**
-     * Must be declared before {@link #handleApiException}: {@code RateLimitedException} extends
-     * {@code ApiException}, and Spring picks the most specific handler, so this is what keeps a
-     * 429 from being flattened into the generic 400 below.
-     */
+    /** Must be declared before {@link #handleApiException}. */
     @ExceptionHandler(RateLimitedException.class)
     public ResponseEntity<ApiResponse<Void>> handleRateLimited(RateLimitedException ex) {
         log.warn("Rate limited: {}", ex.getMessage());

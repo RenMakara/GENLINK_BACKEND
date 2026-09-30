@@ -114,13 +114,7 @@ class EmailServiceImplTest {
         verify(mailSender, never()).createMimeMessage();
     }
 
-    /**
-     * Security regression (testing-plan P1). The OTP is a short-lived auth secret; prod runs at
-     * root=info and a failed deploy pipes {@code docker compose logs} into CI, so an INFO line
-     * carrying the code would leak live OTPs into server logs and build history. With real mail
-     * delivery on, the code must never be logged. Fails if the OTP log is moved back ahead of the
-     * {@code mailEnabled} guard.
-     */
+    /** Security regression (testing-plan P1). */
     @Test
     void doesNotLogTheOtpWhenMailDeliveryIsEnabled() {
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
@@ -134,11 +128,7 @@ class EmailServiceImplTest {
         verify(mailSender).send(any(MimeMessage.class));
     }
 
-    /**
-     * The counterpart: in log-only mode (dev default) the log <em>is</em> the delivery channel,
-     * so the code must still be printed - otherwise developers lose their only way to read it.
-     * Together these two pin the behaviour on both sides of the {@code mailEnabled} switch.
-     */
+    /** The counterpart: in log-only mode (dev default) the log is the delivery channel. */
     @Test
     void stillLogsTheOtpInLogOnlyMode() {
         service(false).sendOtpEmail("someone@example.com", "482913",
@@ -149,11 +139,7 @@ class EmailServiceImplTest {
             .isTrue();
     }
 
-    /**
-     * A successful send is recorded as a metric, so delivery is observable beyond a log line.
-     * The swallowed-failure design means logs are the only other trace; a counter is queryable
-     * and alertable.
-     */
+    /** A successful send is recorded as a metric, so delivery is observable beyond a log line. */
     @Test
     void successfulDeliveryIsRecordedAsAMetric() {
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
@@ -167,11 +153,7 @@ class EmailServiceImplTest {
             .isEqualTo(1.0);
     }
 
-    /**
-     * The one that matters: a send failure is swallowed so registration is not blocked, so the
-     * failure counter is the durable, queryable record that delivery failed. Fails if the failure
-     * branch stops recording the metric.
-     */
+    /** The one that matters: a send failure is swallowed. */
     @Test
     void failedDeliveryIsRecordedAsAMetric() {
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
@@ -190,10 +172,7 @@ class EmailServiceImplTest {
             .isNull();
     }
 
-    /**
-     * Regression guard: log-only/dev mode is not a real delivery, so it must not pollute the
-     * delivery metric. Fails if the counter is ever moved outside the real-send path.
-     */
+    /** Regression guard: log-only/dev mode is not a real delivery, so it must not pollute the delivery metric. */
     @Test
     void logOnlyModeRecordsNoDeliveryMetric() {
         service(false).sendOtpEmail("someone@example.com", "123456",

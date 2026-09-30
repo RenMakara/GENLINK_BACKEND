@@ -12,13 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-/**
- * Bounded, cached availability probe for the configured object store.
- *
- * <p>The SDK request has its own two-second timeout, while the future below keeps a provider
- * implementation or test double from holding the admin request open indefinitely. Results are
- * cached for ten seconds so a dashboard refresh does not create an S3 request every time.
- */
+/** Bounded, cached availability probe for the configured object store. */
 @Slf4j
 @Component
 public class StorageHealthProbe {

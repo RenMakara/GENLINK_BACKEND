@@ -1,9 +1,7 @@
 --liquibase formatted sql
 
 --changeset genlink:0029-add-forum-comment-likes
--- forum_comments had no like_count and no reaction table, so CommentResponse.likeCount was
--- hard-coded 0 - comment likes were impossible. Mirrors forum_reactions (0019). One like per
--- user per comment, so like_count means "distinct people", not "how many taps".
+-- forum_comments had no like_count and no reaction table.
 ALTER TABLE forum_comments ADD COLUMN IF NOT EXISTS like_count INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS forum_comment_reactions (

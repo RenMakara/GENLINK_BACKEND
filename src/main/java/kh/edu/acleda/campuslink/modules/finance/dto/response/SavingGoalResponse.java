@@ -6,12 +6,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.modules.finance.enums.SavingGoalStatus;
 
-/**
- * @param remainingAmount targetAmount - currentAmount, floored at zero (an over-funded
- *                        goal shows 0 remaining, never a negative).
- * @param progressPercent currentAmount / targetAmount as a whole percent, capped at 100
- *                        - ready for a progress bar.
- */
+/** @param remainingAmount targetAmount - currentAmount, floored at zero (an over-funded */
 public record SavingGoalResponse(
     UUID savingGoalId,
     String title,

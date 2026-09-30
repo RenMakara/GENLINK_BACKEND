@@ -8,28 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-/**
- * The admin permission catalogue. Transcribed from {@code docs/admin-dashboard.md} §5.3.
- *
- * <p><strong>This enum is the catalogue - there is deliberately no {@code permissions}
- * table.</strong> A permission only exists in any meaningful sense if some
- * {@code @PreAuthorize} enforces it, and a permission row in the database that no code checks
- * is a lie the role editor would happily display and grant. So the catalogue is code, and only
- * the <em>assignment</em> of permissions to roles is data ({@code role_permissions}).
- *
- * <p>That leaves one drift direction unguarded by a foreign key: a stored
- * {@code permission_code} that no longer matches a constant here. {@code PermissionTest} closes
- * it by asserting every code seeded in migration 0041 resolves, and {@link #fromCode(String)}
- * returns empty rather than throwing so a stale row cannot escalate into a startup failure.
- *
- * <p>Authorities are prefixed {@code PERM_} so they never collide with the {@code ROLE_}
- * authorities that {@code Role} already issues. Endpoints gate on
- * {@code @PreAuthorize("hasAuthority('PERM_user:ban')")}.
- *
- * <p>{@code SUPER_ADMIN} does not appear here. It implicitly holds every value, resolved in
- * code, and is seeded with no {@code role_permissions} rows at all - two sources of truth for
- * "what can a super admin do?" would drift the first time a permission is added.
- */
+/** The admin permission catalogue. */
 public enum Permission {
 
     // -- Dashboard and analytics ---------------------------------------------------------
@@ -103,8 +82,7 @@ public enum Permission {
         for (Permission permission : values()) {
             Permission clash = byCode.put(permission.code, permission);
             if (clash != null) {
-                // Two constants sharing a code would silently grant one when the other was
-                // meant. Fail at class-init, where it is unmissable, rather than at runtime.
+                // Two constants sharing a code would silently grant one when the other was meant.
                 throw new IllegalStateException(
                     "Duplicate permission code '" + permission.code + "' on " + clash + " and " + permission);
             }
@@ -130,11 +108,7 @@ public enum Permission {
         return description;
     }
 
-    /**
-     * First segment of the code, used to group the matrix by resource in the role editor.
-     * Note that codes are not always two segments: {@code user:export:pii} and
-     * {@code notification:template:manage} qualify an action further.
-     */
+    /** First segment of the code, used to group the matrix by resource in the role editor. */
     public String getResource() {
         return code.substring(0, code.indexOf(':'));
     }
@@ -149,14 +123,7 @@ public enum Permission {
         return new SimpleGrantedAuthority(AUTHORITY_PREFIX + code);
     }
 
-    /**
-     * Resolves a stored code.
-     *
-     * @return empty when the code is unknown - which means a {@code role_permissions} row has
-     *     outlived the constant it referred to. Callers skip such rows rather than failing:
-     *     one stale grant should not lock every admin out of the system. The condition is
-     *     caught earlier by {@code PermissionTest}, and is worth logging where it is skipped.
-     */
+    /** Resolves a stored code. */
     public static Optional<Permission> fromCode(String code) {
         return Optional.ofNullable(BY_CODE.get(code));
     }

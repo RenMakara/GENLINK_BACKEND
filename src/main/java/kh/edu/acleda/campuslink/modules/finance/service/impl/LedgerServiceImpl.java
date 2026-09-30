@@ -33,25 +33,7 @@ public class LedgerServiceImpl implements LedgerService {
         this.entityManager = entityManager;
     }
 
-    /**
-     * Method នេះប្រើសម្រាប់ Credit amount ចូលទៅក្នុង Wallet Balance តាម Currency
-     * និងបង្កើត CREDIT Transaction នៅក្នុង Finance Ledger
-     *
-     * <p>វាជា single entry point សម្រាប់ Wallet inflows ទាំងអស់
-     * (ឧ. Income, Top-up និង Reward)។ Wallet Balance និង Ledger Transaction
-     * នឹងត្រូវបាន persist ក្នុង Transaction តែមួយ ដើម្បីធានា data consistency</p>
-     *
-     * @param wallet target wallet
-     * @param type transaction type
-     * @param currency transaction currency
-     * @param amount amount to credit
-     * @param description transaction description
-     * @param relatedType source entity type
-     * @param relatedId source entity identifier
-     * @return persisted CREDIT transaction
-     *
-     * @author RenMakara
-     */
+    /** Credits the wallet balance and records a CREDIT transaction. */
     @Override
     @Transactional
     public DemoTransaction credit(DemoWallet wallet, TransactionType type, Currency currency, BigDecimal amount,
@@ -64,39 +46,14 @@ public class LedgerServiceImpl implements LedgerService {
             description, relatedType, relatedId);
     }
 
-    /**
-     * Method នេះប្រើសម្រាប់ Debit amount ចេញពី Wallet Balance តាម Currency
-     * និងបង្កើត DEBIT Transaction នៅក្នុង Finance Ledger។
-     *
-     * <p>វាជា single entry point សម្រាប់ Wallet outflows ទាំងអស់
-     * (ឧ. Expense, Saving Deposit និង Event Payment)។ ប្រព័ន្ធនឹង validate
-     * Wallet Balance មុនពេលធ្វើ write operation ណាមួយ។</p>
-     *
-     * <p>ប្រសិនបើ Wallet Balance មិនគ្រប់គ្រាន់ ApiException នឹងត្រូវបាន throw
-     * ហើយ Transaction ទាំងមូលនឹង rollback ដោយមិនមាន partial state កើតឡើងឡើយ។
-     * Wallet Balance update និង Ledger Transaction persistence នឹងត្រូវបាន
-     * execute ក្នុង Transaction តែមួយ ដើម្បីធានា atomicity និង consistency។</p>
-     *
-     * @param wallet target wallet
-     * @param type transaction type
-     * @param currency transaction currency
-     * @param amount amount to debit
-     * @param description transaction description
-     * @param relatedType source entity type
-     * @param relatedId source entity identifier
-     * @return persisted DEBIT transaction
-     * @throws ApiException if the wallet balance is insufficient
-     *
-     * @author RenMakara
-     */
+    /** Debits the wallet balance and records a DEBIT transaction. */
     @Override
     @Transactional
     public DemoTransaction debit(DemoWallet wallet, TransactionType type, Currency currency, BigDecimal amount,
                                  String description, String relatedType, UUID relatedId,
                                  String provider, String providerRef) {
         DemoWallet lockedWallet = lockForMutation(wallet);
-        // Check the latest committed balance while holding the row lock. Concurrent debits
-        // serialize here, so two requests cannot both spend the same funds.
+        // Check the latest committed balance while holding the row lock.
         if (balanceFor(lockedWallet, currency).compareTo(amount) < 0) {
             throw new ApiException("Demo wallet balance is too low for this payment",
                 "DEMO_WALLET_INSUFFICIENT_BALANCE");
@@ -108,18 +65,13 @@ public class LedgerServiceImpl implements LedgerService {
             relatedType, relatedId, provider, providerRef);
     }
 
-    /**
-     * Returns a fresh, write-locked wallet. When the caller's wallet is already managed, refresh
-     * both reloads the latest database values and acquires PESSIMISTIC_WRITE. Detached callers
-     * (including background/concurrent work) are reloaded through the repository lock query.
-     */
+    /** Returns a fresh, write-locked wallet. */
     private DemoWallet lockForMutation(DemoWallet wallet) {
         if (wallet == null || wallet.getId() == null) {
             throw new ApiException("Wallet must be persisted before a balance mutation", "WALLET_NOT_PERSISTED");
         }
         if (entityManager.contains(wallet)) {
             // A currency change can perform two ledger mutations in one outer transaction.
-            // Flush the first one before refresh so it cannot be discarded by the reload.
             entityManager.flush();
             entityManager.refresh(wallet, LockModeType.PESSIMISTIC_WRITE);
             return wallet;
@@ -158,8 +110,7 @@ public class LedgerServiceImpl implements LedgerService {
                                   String relatedType, UUID relatedId, String provider, String providerRef) {
         return transactionRepository.save(DemoTransaction.builder()
             .wallet(wallet)
-            // The wallet always carries its owner; denormalising it onto the row keeps a
-            // user's whole history to one query and matches the now multi-currency wallet.
+            // Store the owner for direct user-history queries.
             .user(wallet == null ? null : wallet.getUser())
             .transactionType(type)
             .currency(currency)

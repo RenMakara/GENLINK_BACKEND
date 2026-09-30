@@ -9,10 +9,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Create a group chat. The caller is added automatically as the creator (implicit admin for the
- * MVP), so {@code memberIds} is the other people to include.
- */
+/** Create a group chat. */
 public record CreateGroupRequest(
     @NotBlank @Size(max = 120) String name,
     @NotEmpty List<@NotNull UUID> memberIds,

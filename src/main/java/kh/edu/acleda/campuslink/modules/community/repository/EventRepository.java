@@ -19,12 +19,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     Optional<Event> findByIdAndDeletedAtIsNull(UUID id);
 
-    /**
-     * Locks the event row while RSVP state and the attendee counter are changed.
-     * Without the lock, two requests for the same event can both observe the same
-     * RSVP state and one of them can race the unique RSVP constraint or decrement
-     * the counter after a second cancellation.
-     */
+    /** Locks the event row while RSVP state and the attendee counter are changed. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM Event e WHERE e.id = :id AND e.deletedAt IS NULL")
     Optional<Event> findByIdAndDeletedAtIsNullForUpdate(@Param("id") UUID id);
@@ -37,10 +32,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     /** Scoped by organizer, so another user's id reads as not found. */
     Optional<Event> findByIdAndOrganizerIdAndDeletedAtIsNull(UUID id, UUID organizerId);
 
-    /**
-     * Browse list. Only PUBLISHED events are discoverable - a DRAFT belongs to its
-     * organizer alone - and past events are filtered out.
-     */
+    /** Browse list. */
     @Query(value = "SELECT e FROM Event e LEFT JOIN FETCH e.organizer WHERE e.deletedAt IS NULL "
         + "AND e.status = :status AND e.dateTime >= :from "
         + "AND (:category IS NULL OR e.category = :category)",
@@ -63,14 +55,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
         + "WHERE e.id = :eventId AND e.attendeeCount > 0")
     int releaseSeat(@Param("eventId") UUID eventId);
 
-    /**
-     * Reserves one seat atomically. The WHERE clause is the capacity guard: reading the
-     * count and then incrementing lets two racers both see 9 and both write 10, pushing
-     * a limited event past capacity. Doing the check and the increment in one statement
-     * closes that window - the database serialises the two updates.
-     *
-     * @return 1 if a seat was reserved, 0 if the event is already full
-     */
+    /** Reserves one seat atomically. */
     @Modifying
     @Query("UPDATE Event e SET e.attendeeCount = e.attendeeCount + 1 "
         + "WHERE e.id = :eventId AND (e.attendeeLimit IS NULL OR e.attendeeCount < e.attendeeLimit)")

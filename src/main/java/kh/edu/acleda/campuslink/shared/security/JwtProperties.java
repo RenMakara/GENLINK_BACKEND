@@ -8,31 +8,12 @@ public class JwtProperties {
     private String issuer;
     private String secret;
     private long accessTokenExpirationMs;
-    /**
-     * Admin access token lifetime. 10 minutes, deliberately shorter than the mobile token's
-     * 15: an admin session reaches every user's data, so the window in which a stolen one
-     * stays usable should be smaller.
-     *
-     * <p>Defaulted in code so the admin portal works without adding configuration to every
-     * environment and every test profile.
-     */
+    /** Admin access token lifetime. */
     private long adminAccessTokenExpirationMs = 600_000L;
-    /**
-     * Lifetime of the MFA challenge token issued by the admin password step (SSOT §10.8).
-     *
-     * <p>Five minutes: long enough to open an authenticator app and type six digits, short
-     * enough that a challenge captured from a log or a proxy is worthless by the time anyone
-     * looks at it. Defaulted in code for the same reason as the admin access token above.
-     */
+    /** Lifetime of the MFA challenge token issued by the admin password step (SSOT §10.8). */
     private long adminMfaChallengeExpirationMs = 300_000L;
 
-    /**
-     * Admin refresh token lifetime: 8 hours, against the mobile token's 7 days.
-     *
-     * <p>Roughly a working day, so an admin signs in once each morning rather than holding a
-     * session that survives a fortnight of weekends. A stolen mobile refresh token reaches one
-     * person's data; a stolen admin one reaches everyone's.
-     */
+    /** Admin refresh token lifetime: 8 hours, against the mobile token's 7 days. */
     private long adminRefreshTokenExpirationMs = 28_800_000L;
 
     private long refreshTokenExpirationMs;

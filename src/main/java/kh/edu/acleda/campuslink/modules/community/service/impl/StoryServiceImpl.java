@@ -303,13 +303,7 @@ public class StoryServiceImpl implements StoryService {
         storyRepository.save(story);
     }
 
-    /**
-     * Checks if the viewer is authorized to view the story according to its visibility.
-     * Owner is always authorized.
-     * PUBLIC is open to authenticated users.
-     * FRIENDS requires a mutual accepted follow relationship.
-     * COMMUNITY is non-owner forbidden.
-     */
+    /** Checks if the viewer is authorized to view the story according to its visibility. */
     private boolean canViewStory(Story story, UUID viewerId) {
         UUID ownerId = story.getUser().getId();
         if (ownerId.equals(viewerId)) {
@@ -436,8 +430,7 @@ public class StoryServiceImpl implements StoryService {
         if (author == null || author.getId() == null || author.getId().equals(meId)) {
             return;
         }
-        // Older direct service callers may not provide the new repository. Keep their
-        // notification-only behavior while production wiring always persists reactions.
+        // Older direct service callers may not provide the new repository.
         if (storyReactionRepository == null) {
             emitStoryLikeNotification(story, author, loadCurrentUser());
             return;

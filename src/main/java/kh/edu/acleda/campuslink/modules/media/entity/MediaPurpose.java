@@ -1,10 +1,6 @@
 package kh.edu.acleda.campuslink.modules.media.entity;
 
-/**
- * What a media object is for. Each purpose carries its own policy — the key
- * prefix in the bucket, its default visibility, and whether video is allowed —
- * so the rules live in one place instead of scattered {@code if} branches.
- */
+/** What a media object is for. */
 public enum MediaPurpose {
     AVATAR("avatars", MediaVisibility.PUBLIC, false),
     POST("posts", MediaVisibility.PRIVATE, true),

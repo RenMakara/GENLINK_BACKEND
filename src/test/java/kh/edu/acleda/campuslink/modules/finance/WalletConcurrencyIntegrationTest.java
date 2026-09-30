@@ -36,11 +36,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @ActiveProfiles("test")
 class WalletConcurrencyIntegrationTest {
 
-    /**
-     * CI supplies a disposable PostgreSQL URL so these mutation races run against
-     * the same database engine used in production. Local runs without the variable
-     * continue to use the H2 test profile.
-     */
+    /** CI supplies a disposable PostgreSQL URL so these mutation races run against the same database engine used in production. */
     @DynamicPropertySource
     static void postgresProperties(DynamicPropertyRegistry registry) {
         String url = System.getenv("GENLINK_TEST_POSTGRES_URL");

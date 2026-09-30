@@ -15,15 +15,7 @@ import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 import kh.edu.acleda.campuslink.shared.exception.ApiException;
 
-/**
- * Typed, validated query state for the admin user directory.
- *
- * <p>The controller accepts strings because the same endpoint supports comma-separated and
- * repeated query parameters. Parsing them before the repository is important: the Criteria
- * query only receives values that are known enum values and whitelisted sort fields. It also
- * means optional filters can be appended as predicates instead of being represented by
- * {@code :parameter IS NULL} clauses, which PostgreSQL cannot type reliably for every value.
- */
+/** Typed, validated query state for the admin user directory. */
 public record AdminUserListCriteria(
     String search,
     Set<AccountStatus> statuses,

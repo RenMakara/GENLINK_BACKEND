@@ -84,14 +84,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         return rotate(token, deviceInfo, ipAddress, userAgent, jwtProperties.getRefreshTokenExpirationMs());
     }
 
-    /**
-     * Rotation with an explicit lifetime for the replacement token.
-     *
-     * <p>Added for the admin portal, whose refresh tokens live 8 hours rather than the mobile
-     * app's. Without it the first rotation would quietly hand an admin session the mobile
-     * lifetime - the session would not misbehave, it would just outlive its policy by days,
-     * and nothing would show it.
-     */
+    /** Rotation with an explicit lifetime for the replacement token. */
     @Override
     @Transactional
     public RefreshTokenRotation rotate(String token, String deviceInfo, String ipAddress,

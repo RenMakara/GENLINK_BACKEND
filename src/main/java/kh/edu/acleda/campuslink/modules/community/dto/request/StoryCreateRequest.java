@@ -7,10 +7,7 @@ import kh.edu.acleda.campuslink.modules.community.enums.StoryMediaType;
 import kh.edu.acleda.campuslink.modules.community.enums.StoryReplyPermission;
 import kh.edu.acleda.campuslink.modules.community.enums.Visibility;
 
-/**
- * Posts a story. The media is uploaded first via the existing presign/confirm flow;
- * {@code mediaUrl} is the resulting URL. Stories expire 24h after creation.
- */
+/** Posts a story. */
 public record StoryCreateRequest(
     String mediaUrl,
     @NotNull StoryMediaType mediaType,

@@ -1,10 +1,7 @@
 --liquibase formatted sql
 
 --changeset genlink:0032-create-incomes-table
--- Finance tracked only expenses, so budgeting was half the picture. incomes gives the other
--- half - allowance, part-time, scholarship - which unlocks cash-flow and savings-rate
--- (see backend/docs/FINANCE_LEDGER_PLAN.md, Phase 1). Mirrors the expenses table. Currency is
--- added across all money tables together in Phase 3; everything is implicitly USD until then.
+-- Finance tracked only expenses, so budgeting was half the picture.
 CREATE TABLE IF NOT EXISTS incomes (
     income_id UUID PRIMARY KEY,
     user_id UUID NOT NULL,

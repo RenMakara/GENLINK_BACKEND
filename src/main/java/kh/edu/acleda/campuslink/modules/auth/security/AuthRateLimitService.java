@@ -10,10 +10,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Throttles credential guessing, keyed per action so that, for example, failed
- * change-password attempts cannot lock the account out of login and vice versa.
- */
+/** Throttles credential guessing, keyed per action. */
 @Service
 public class AuthRateLimitService {
 
@@ -24,21 +21,12 @@ public class AuthRateLimitService {
     private static final String LOGIN = "LOGIN";
     private static final String PASSWORD_CHANGE = "PASSWORD_CHANGE";
     private static final String ACCOUNT_DELETE = "ACCOUNT_DELETE";
-    /**
-     * Admin login counts separately from mobile login (SSOT §10.6).
-     *
-     * <p>Sharing the bucket would let anyone lock an administrator out of the portal by failing
-     * five mobile logins against their email - a denial-of-service against the people who
-     * respond to incidents, from an unauthenticated endpoint.
-     */
+    /** Admin login counts separately from mobile login (SSOT §10.6). */
     private static final String ADMIN_LOGIN = "ADMIN_LOGIN";
 
     private final Map<String, AttemptState> attempts = new ConcurrentHashMap<>();
 
-    /**
-     * Injectable so the 15-minute window and the 15-minute block can be tested by moving time
-     * rather than by sleeping for half an hour. Production uses the system clock.
-     */
+    /** Injectable so the 15-minute window and the 15-minute block can be tested by moving time. */
     private final Clock clock;
 
     public AuthRateLimitService() {
@@ -61,10 +49,7 @@ public class AuthRateLimitService {
         clearFailures(LOGIN, email, clientIp);
     }
 
-    /**
-     * Reports the block instead of throwing, so the admin endpoint can raise its own 429 and
-     * write an audit row first. The mobile paths keep the throwing form above.
-     */
+    /** Reports the block instead of throwing, so the admin endpoint can raise its own 429 and write an audit row first. */
     public boolean isAdminLoginBlocked(String email, String clientIp) {
         AttemptState state = attempts.get(key(ADMIN_LOGIN, email, clientIp));
         return state != null && state.blockedUntil != null && state.blockedUntil.isAfter(clock.instant());

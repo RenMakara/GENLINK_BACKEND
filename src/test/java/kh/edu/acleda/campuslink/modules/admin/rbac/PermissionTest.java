@@ -15,13 +15,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Guards the seam left open by having no {@code permissions} table.
- *
- * <p>{@code role_permissions.permission_code} is a plain VARCHAR by design, so the database
- * cannot reject a grant for a permission that no longer exists in code. These tests are what
- * replaces that foreign key, and they run in the normal build rather than needing a database.
- */
+/** Guards the seam left open by having no {@code permissions} table. */
 class PermissionTest {
 
     private static final String MIGRATION = "db/changelog/changes/0041-create-admin-tables.sql";
@@ -39,8 +33,6 @@ class PermissionTest {
     @DisplayName("codes are unique")
     void codesAreUnique() {
         // A duplicate would silently grant one permission when the other was intended.
-        // Permission's static initialiser also fails on this; asserted here so the reason
-        // is visible in a test report rather than as a class-init error.
         Set<String> codes = new TreeSet<>(Permission.allCodes());
         assertThat(codes).hasSize(Permission.values().length);
     }
@@ -87,11 +79,7 @@ class PermissionTest {
         assertThat(Permission.fromCode(null)).isEmpty();
     }
 
-    /**
-     * The important one. Every permission code seeded by migration 0041 must resolve to a
-     * constant here - otherwise a role carries a grant that nothing can ever enforce, and the
-     * role editor displays a permission that does nothing.
-     */
+    /** Every seeded permission code must resolve. */
     @Test
     @DisplayName("every permission_code seeded in migration 0041 resolves to a constant")
     void seededCodesAllResolve() throws IOException {
@@ -114,18 +102,11 @@ class PermissionTest {
     @Test
     @DisplayName("the seed grants 89 permissions, matching the SSOT matrix")
     void seededGrantCount() throws IOException {
-        // Cross-checks the migration against SSOT §5.4: 37 ADMIN + 18 MODERATOR + 9 SUPPORT
-        // + 13 CONTENT_MANAGER + 7 FINANCE_ADMIN + 5 ANALYTICS_VIEWER. SUPER_ADMIN is seeded
-        // with none - it holds everything implicitly, in code.
+        // Cross-checks the migration against SSOT §5.4.
         assertThat(seededPermissionCodes()).hasSize(89);
     }
 
-    /**
-     * Extracts the {@code ('ROLE', 'permission:code')} pairs from the seed changeset.
-     *
-     * <p>Reads the migration off the classpath rather than the filesystem so the test does not
-     * depend on the working directory.
-     */
+    /** Extracts the {@code ('ROLE', 'permission:code')} pairs from the seed changeset. */
     private List<String> seededPermissionCodes() throws IOException {
         String sql;
         try (InputStream in = getClass().getClassLoader().getResourceAsStream(MIGRATION)) {
@@ -133,8 +114,7 @@ class PermissionTest {
             sql = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
 
-        // Only the seed changeset; the DDL above it contains no grant tuples, but scoping the
-        // parse keeps this from silently picking up unrelated text added later.
+        // Only the seed changeset; the DDL above it contains no grant tuples.
         int seedStart = sql.indexOf("--changeset genlink:0041-seed-admin-roles");
         assertThat(seedStart).as("seed changeset not found in the migration").isNotNegative();
         String seedBlock = sql.substring(seedStart);

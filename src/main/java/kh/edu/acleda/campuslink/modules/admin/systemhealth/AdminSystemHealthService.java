@@ -125,8 +125,7 @@ public class AdminSystemHealthService {
         if (ping != null) {
             return normalize(ping);
         }
-        // The endpoint itself is alive if no dedicated ping contributor exists. Use the
-        // aggregate only as a fallback for unusual Actuator configurations.
+        // The endpoint itself is alive if no dedicated ping contributor exists.
         HealthComponent aggregate = safeHealth(healthEndpoint::health);
         return aggregate == null ? AdminSystemHealthResponse.Status.DOWN : normalize(aggregate);
     }

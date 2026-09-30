@@ -125,10 +125,7 @@ class DiscussionServiceImplTest {
         assertThat(response.reactionCount()).isZero();
     }
 
-    /**
-     * The one that matters: an anonymous discussion must not carry its author to
-     * anyone. This DTO boundary is the only thing enforcing it.
-     */
+    /** The one that matters: an anonymous discussion must not carry its author to anyone. */
     @Test
     void anonymousDiscussionHidesItsAuthorFromOtherUsers() {
         discussion.setIsAnonymous(true);
@@ -253,10 +250,7 @@ class DiscussionServiceImplTest {
 
     // ---- Admin moderation ----
 
-    /**
-     * The whole reason the author is stored on an anonymous row: the moderation queue must
-     * show the admin who wrote it, even though the public sees it as anonymous.
-     */
+    /** The whole reason the author is stored on an anonymous row. */
     @Test
     void theModerationQueueRevealsTheAuthorEvenForAnonymousDiscussions() {
         discussion.setIsAnonymous(true);

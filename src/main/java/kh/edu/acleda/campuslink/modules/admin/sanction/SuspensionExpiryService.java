@@ -14,14 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Applies the state transition for expired suspensions (ADM-079).
- *
- * <p>The date is supplied by the caller instead of being read inside the method. That keeps the
- * rule directly testable and lets the scheduled adapter remain a thin clock-and-scheduling
- * boundary. Each target user is pessimistically locked before its status is restored, so a
- * concurrent admin action cannot be overwritten by the expiry sweep.
- */
+/** Applies the state transition for expired suspensions (ADM-079). */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,11 +26,7 @@ public class SuspensionExpiryService {
     private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
 
-    /**
-     * Lifts every expired, still-open suspension visible at {@code now}.
-     *
-     * @return number of suspension rows lifted in this run
-     */
+    /** Lifts every expired, still-open suspension visible at {@code now}. */
     @Transactional
     public int expireSuspensions(Instant now) {
         if (now == null) {
@@ -65,9 +54,7 @@ public class SuspensionExpiryService {
                 continue;
             }
 
-            // The user lock serialises this transition with ban/unban/suspend. Reload the
-            // sanction after taking that lock so a concurrent run that already lifted it is
-            // observed before making this run's write.
+            // The user lock serialises this transition with ban/unban/suspend.
             UserSanction sanction = candidate;
             if (candidate.getId() != null) {
                 sanction = userSanctionRepository.findByIdForUpdate(candidate.getId()).orElse(null);

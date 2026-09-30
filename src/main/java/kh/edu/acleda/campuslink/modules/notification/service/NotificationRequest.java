@@ -5,12 +5,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Internal, non-HTTP request used by domain modules to request one or more notification channels.
- *
- * <p>Domain modules provide facts and placeholder values. They do not choose the localized
- * title/message or write notification entities directly.
- */
+/** Internal, non-HTTP request used by domain modules to request one or more notification channels. */
 public record NotificationRequest(
     UUID recipientUserId,
     String templateKey,

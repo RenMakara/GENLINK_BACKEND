@@ -26,10 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * One saved list across every domain, backed by saved_items. saved_posts and
- * user_saved_motivations are superseded by this.
- */
+/** One saved list across every domain, backed by saved_items. */
 @RestController
 @RequestMapping("/api/v1/profile/saved")
 @Tag(name = "Profile - Saved Items")

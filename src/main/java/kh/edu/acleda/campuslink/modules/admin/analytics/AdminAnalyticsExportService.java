@@ -31,11 +31,7 @@ public class AdminAnalyticsExportService {
         this.auditService = auditService;
     }
 
-    /**
-     * Resolves one cached analytics response, renders it in memory, and audits the export before
-     * the controller commits the download response. The nine responses are deliberately small;
-     * this avoids introducing an asynchronous export-job table for the MVP.
-     */
+    /** Resolves one cached analytics response, renders it in memory. */
     @Transactional
     public byte[] export(AdminAnalyticsExportRequest request) {
         ExportSpec spec;

@@ -7,13 +7,7 @@ import java.util.List;
 import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
-/**
- * Everything the Home Super Dashboard needs, in one call.
- *
- * <p>The card records are nullable on purpose: a brand new user has no budget, no
- * RSVP and possibly no challenge running. Null means "show this card's empty state",
- * not an error. Lists are empty rather than null.
- */
+/** Everything the Home Super Dashboard needs, in one call. */
 public record MobileHomeResponse(
     HomeUser user,
     TodayProgress todayProgress,
@@ -50,10 +44,7 @@ public record MobileHomeResponse(
         LocalDateTime deadline
     ) {}
 
-    /**
-     * Budget values come from the selected-currency budget; spend is calculated live from
-     * expenses in that same currency. Saving amounts are aggregated only for that currency.
-     */
+    /** Budget values come from the selected-currency budget; spend is calculated live from expenses in that same currency. */
     public record FinanceSnapshot(
         Currency currency,
         BigDecimal totalBudget,

@@ -18,10 +18,7 @@ public class EventReminderJob {
 
     private final EventReminderService eventReminderService;
 
-    /**
-     * Every five minutes, Phnom Penh time. The small overlap around the 24-hour mark is safe
-     * because the notification writer enforces the recipient-scoped dedupe key.
-     */
+    /** Every five minutes, Phnom Penh time. */
     @Scheduled(cron = "${app.community.event-reminder-cron:0 */5 * * * *}", zone = "Asia/Phnom_Penh")
     public void run() {
         LocalDateTime now = LocalDateTime.now(ZONE);

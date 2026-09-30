@@ -17,40 +17,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/**
- * Enforces "no admin route works until TOTP enrolment is confirmed" (SSOT §10.8, ADM-023 AC#3).
- *
- * <h2>When this can actually fire</h2>
- *
- * Not on a normal sign-in: {@code /mfa/verify} refuses an unenrolled admin, so one cannot
- * obtain an {@code ADMIN} token in the first place. The gap it closes is the one afterwards -
- * an admin whose MFA is reset while they are holding a live access token. That token stays
- * signed and unexpired for up to ten minutes, and without this filter it would keep working
- * across the entire admin surface with no second factor behind it.
- *
- * <p>It lives here, in the admin module, rather than in {@code JwtAuthenticationFilter}, so
- * that shared security code does not have to know what enrolment is (R1).
- *
- * <h2>A query per admin request, on purpose</h2>
- *
- * Enrolment state is read straight from the repository rather than cached on
- * {@code AdminIdentity}. That would be free per request, but it would add a cache-invalidation
- * obligation to every future path that changes enrolment - and a stale "enrolled" here means a
- * reset that silently did not take effect. The admin surface serves a handful of staff, so the
- * query costs nothing worth trading a coherence bug for.
- */
+/** Enforces "no admin route works until TOTP enrolment is confirmed" (SSOT §10.8, ADM-023 AC#3). */
 @Slf4j
 @Component
 public class AdminEnrolmentGuardFilter extends OncePerRequestFilter {
 
     private static final String ADMIN_PATH = "/api/v1/admin";
 
-    /**
-     * The routes that must stay reachable, or enrolment becomes impossible.
-     *
-     * <p>An allow-list, not a deny-list: a new admin route is protected by default rather than
-     * by someone remembering to add it here.
-     */
+    /** The routes that must stay reachable, or enrolment becomes impossible. */
     private static final String[] ALWAYS_ALLOWED = {
         ADMIN_PATH + "/auth/login",
         ADMIN_PATH + "/auth/mfa/enrol",
@@ -102,8 +76,7 @@ public class AdminEnrolmentGuardFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Worth a warning: a signed admin token belonging to an account with no confirmed
-        // second factor is either a reset that has just taken effect, or something stranger.
+        // Worth a warning: a signed admin token belonging to an account.
         log.warn("Blocked {} for admin {} - TOTP enrolment is not confirmed", request.getRequestURI(), email);
 
         response.setStatus(HttpStatus.FORBIDDEN.value());

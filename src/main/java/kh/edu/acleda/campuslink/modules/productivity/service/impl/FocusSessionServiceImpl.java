@@ -55,8 +55,7 @@ public class FocusSessionServiceImpl implements FocusSessionService {
     public FocusSessionResponse start(FocusSessionStartRequest request) {
         validateStart(request);
         UUID userId = currentUserProvider.getCurrentUserId();
-        // Serialize starts for this user before checking for an active row. The partial
-        // unique index remains the final guard if another writer bypasses this service.
+        // Serialize starts for this user before checking for an active row.
         User user = userRepository.findByIdForUpdate(userId)
             .orElseThrow(() -> new NotFoundException("User not found"));
         FocusSession existing = focusSessionRepository

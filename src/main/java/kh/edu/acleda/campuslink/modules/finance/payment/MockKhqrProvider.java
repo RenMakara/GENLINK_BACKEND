@@ -5,15 +5,7 @@ import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-/**
- * The default, simulation-only payment provider. It always approves and mints a fake reference -
- * no network, no bank, no KHQR generation, no credentials, no real money. It exists so the wallet
- * has something to call through the {@link PaymentProvider} seam today.
- *
- * <p>A future real provider (ACLEDA, ABA, Wing, ...) is added as another {@code PaymentProvider}
- * bean and selected with {@code app.finance.payment-provider}; nothing in the wallet or ledger
- * changes. This bean is the default when that property is absent.
- */
+/** The default, simulation-only payment provider. */
 @Component
 @ConditionalOnProperty(name = "app.finance.payment-provider", havingValue = "MOCK_KHQR", matchIfMissing = true)
 public class MockKhqrProvider implements PaymentProvider {

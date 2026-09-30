@@ -1,9 +1,7 @@
 --liquibase formatted sql
 
 --changeset genlink:0023-seed-entertainment-quiz
--- One English sample quiz so the quiz endpoints are demoable. Khmer (title_km /
--- question_text_km / option_text_km) is left NULL - LocalizedTextSelector falls back to
--- English; real Khmer authoring is a content-team task.
+-- One English sample quiz so the quiz endpoints are demoable.
 INSERT INTO quizzes (quiz_id, title_en, category, difficulty, xp_reward) VALUES
     ('d0000000-0000-4000-8000-000000000001', 'Money Basics', 'FINANCE', 'EASY', 30);
 

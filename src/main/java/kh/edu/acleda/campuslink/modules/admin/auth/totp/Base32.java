@@ -1,14 +1,6 @@
 package kh.edu.acleda.campuslink.modules.admin.auth.totp;
 
-/**
- * RFC 4648 Base32, which is the alphabet every authenticator app expects for a TOTP secret.
- *
- * <p>Hand-written rather than pulled from a library: the JDK has no Base32, and the only
- * candidate already in the dependency graph ({@code commons-codec}) arrives transitively rather
- * than declared. Depending on a transitive jar for a security primitive means a dependency
- * bump elsewhere can silently remove it. Forty lines pinned to the RFC's own test vectors is
- * the cheaper risk - see {@code Base32Test}.
- */
+/** RFC 4648 Base32, which is the alphabet every authenticator app expects for a TOTP secret. */
 public final class Base32 {
 
     private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -18,12 +10,7 @@ public final class Base32 {
     private Base32() {
     }
 
-    /**
-     * Encodes without padding.
-     *
-     * <p>Padding is legal in the RFC but authenticator apps generally reject a secret
-     * containing {@code =}, and it carries no information here because the length is known.
-     */
+    /** Encodes without padding. */
     public static String encode(byte[] data) {
         StringBuilder out = new StringBuilder((data.length * BITS_PER_BYTE + 4) / BITS_PER_CHAR);
         int buffer = 0;

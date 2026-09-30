@@ -107,11 +107,7 @@ public class AdminUserDetailService {
         );
     }
 
-    /**
-     * Finance staff have the matrix's reduced identity+wallet view, not this full profile
-     * projection. A separate reduced finance endpoint can be added with the finance roadmap;
-     * until then, fail closed instead of accidentally exposing profile and contact fields.
-     */
+    /** Finance staff have the matrix's reduced identity+wallet view, not this full profile projection. */
     private void ensureFullProfileAccess() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {

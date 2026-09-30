@@ -41,11 +41,7 @@ public class PostComment extends BaseEntity {
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    /**
-     * Null for a top-level comment - only replies have a parent. Was nullable = false,
-     * which contradicts migration 0009 and would make Hibernate generate a NOT NULL
-     * column under ddl-auto, rejecting every top-level comment.
-     */
+    /** Null for a top-level comment - only replies have a parent. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_comment_id")
     private PostComment parentComment;

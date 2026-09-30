@@ -483,17 +483,11 @@ public class ChatServiceImpl implements ChatService {
             && (request.mediaUrl() == null || request.mediaUrl().isBlank())) {
             throw new ApiException("An image or voice message needs a mediaUrl", "VALIDATION_ERROR");
         }
-        // TODO (chat phase 2 / hardening): mediaUrl is trusted as-is today. Validate it against the
-        // media module — a real, CONFIRMED upload owned by the sender (media presign/confirm flow) —
-        // so a client cannot attach an arbitrary or someone else's URL. Add VIDEO to this branch too.
+        // TODO: Verify mediaUrl belongs to the sender and references a confirmed upload.
         return type;
     }
 
-    /**
-     * A chat message may carry a reference to a post, but restricted post data is
-     * never copied into the room history. Opening the reference goes through the
-     * normal post endpoint and its audience policy.
-     */
+    /** A chat message may carry a reference to a post, but restricted post data is never copied into the room history. */
     private SanitizedSharedContent sanitizeSharedContentForSend(String raw, UUID senderId) {
         if (raw == null || raw.isBlank()) {
             return new SanitizedSharedContent(raw, false);
@@ -669,11 +663,7 @@ public class ChatServiceImpl implements ChatService {
             .orElseThrow(() -> new NotFoundException("Chat not found"));
     }
 
-    /**
-     * Gate a group-management action. The caller must be an ACTIVE member of a GROUP room and hold
-     * the required role. A member who simply lacks the role gets 403 (they already know the room
-     * exists), whereas a non-member gets 404 from {@link #requireActiveMember}.
-     */
+    /** Gate a group-management action. */
     private ChatRoomMember requireGroupManager(UUID roomId, UUID userId, boolean ownerOnly) {
         ChatRoomMember member = requireActiveMember(roomId, userId);
         if (member.getChatRoom().getChatType() != ChatType.GROUP) {

@@ -103,10 +103,7 @@ class AdminSessionServiceTest {
                 java.util.Arrays.stream(authorities).map(SimpleGrantedAuthority::new).toList()));
     }
 
-    // -----------------------------------------------------------------------------------
     // AC#1 - /me returns exactly what ADM-007 resolved.
-    // -----------------------------------------------------------------------------------
-
     @Test
     void meReturnsThePermissionsTheCallerActuallyHolds() {
         authenticateWith("ROLE_ADMIN", "PERM_user:read", "PERM_user:ban", "PERM_content:moderate");
@@ -117,21 +114,14 @@ class AdminSessionServiceTest {
             .containsExactly("content:moderate", "user:ban", "user:read");
     }
 
-    /**
-     * The prefix is Spring Security's, not part of the published contract. Leaking it would
-     * make every frontend check compare against {@code PERM_user:read}, and the SSOT's
-     * permission table would stop matching what the API returns.
-     */
+    /** The prefix is Spring Security's, not part of the published contract. */
     @Test
     void stripsThePermPrefix() {
         authenticateWith("PERM_user:read");
         assertThat(service.me().permissions()).containsExactly("user:read");
     }
 
-    /**
-     * {@code ROLE_*} is the mobile role model. Including it would invite the portal to gate on
-     * {@code ROLE_ADMIN}, which is exactly the conflation TokenType exists to prevent.
-     */
+    /** {@code ROLE_*} is the mobile role model. */
     @Test
     void excludesRoleAuthorities() {
         authenticateWith("ROLE_ADMIN", "ROLE_USER", "PERM_user:read");
@@ -167,10 +157,7 @@ class AdminSessionServiceTest {
         assertThatThrownBy(() -> service.me()).isInstanceOf(UnauthorizedException.class);
     }
 
-    // -----------------------------------------------------------------------------------
     // AC#2 - refresh rotates.
-    // -----------------------------------------------------------------------------------
-
     @Test
     void refreshRotatesAndReturnsANewPairOfTokens() {
         when(refreshTokenService.rotate(eq(REFRESH_TOKEN), any(), any(), any(), anyLong()))
@@ -185,10 +172,7 @@ class AdminSessionServiceTest {
         assertThat(response.expiresInSeconds()).isEqualTo(600);
     }
 
-    /**
-     * The replacement must carry the admin lifetime, not the mobile one. Getting this wrong is
-     * invisible - the session works perfectly, it just outlives its policy by days.
-     */
+    /** The replacement must carry the admin lifetime, not the mobile one. */
     @Test
     void rotationUsesTheAdminRefreshLifetime() {
         when(refreshTokenService.rotate(eq(REFRESH_TOKEN), any(), any(), any(), anyLong()))
@@ -215,10 +199,7 @@ class AdminSessionServiceTest {
         assertThat(ids.getAllValues()).doesNotHaveDuplicates();
     }
 
-    /**
-     * Staff access can be revoked while a session is live. The refresh token would still be
-     * valid, so the admin check has to happen again here rather than only at sign-in.
-     */
+    /** Staff access can be revoked while a session is live. */
     @Test
     void refreshRefusesWhenAdminAccessWasRevokedMidSession() {
         when(refreshTokenService.rotate(eq(REFRESH_TOKEN), any(), any(), any(), anyLong()))
@@ -250,10 +231,7 @@ class AdminSessionServiceTest {
         verify(securityAuditService).logFailure(eq("ADMIN_SESSION_REFRESH_FAILED"), any(), anyString());
     }
 
-    // -----------------------------------------------------------------------------------
     // AC#3 - logout kills the access token now, not in ten minutes.
-    // -----------------------------------------------------------------------------------
-
     @Test
     void logoutRevokesTheSessionSoTheAccessTokenStopsWorking() {
         authenticateWith("PERM_user:read");
@@ -287,10 +265,7 @@ class AdminSessionServiceTest {
         verify(refreshTokenService, never()).revoke(any(User.class));
     }
 
-    /**
-     * A logout that can fail is one an admin walks away from believing it worked. The portal
-     * may already have dropped the cookie, and the token may be long expired.
-     */
+    /** A logout that can fail is one an admin walks away from believing it worked. */
     @Test
     void logoutSucceedsWithNoRefreshToken() {
         authenticateWith("PERM_user:read");
@@ -312,10 +287,7 @@ class AdminSessionServiceTest {
         assertThat(sessionRegistry.isRevoked(SESSION_ID)).isTrue();
     }
 
-    /**
-     * A sudo window belongs to the session that opened it. Leaving one armed after logout
-     * would mean a reissued session id inherited the right to delete users (ADM-025).
-     */
+    /** A sudo window belongs to the session that opened it. */
     @Test
     void logoutClosesAnOpenSudoWindow() {
         authenticateWith("PERM_user:read");
@@ -336,17 +308,13 @@ class AdminSessionServiceTest {
         verify(securityAuditService).log(eq("ADMIN_LOGOUT"), eq(EMAIL), eq("SUCCESS"), any(), any());
     }
 
-    // -----------------------------------------------------------------------------------
     // The registry itself
-    // -----------------------------------------------------------------------------------
-
     @Test
     void registryForgetsSessionsOnceTheirTokenWouldHaveExpired() {
         AdminSessionRegistry registry = new AdminSessionRegistry();
         registry.revoke("expired", Instant.now().minusSeconds(1));
 
-        // Past its own expiry the token is refused by signature validation anyway, so holding
-        // the entry protects nothing and would grow the map forever.
+        // Past its own expiry the token is refused by signature validation anyway.
         assertThat(registry.isRevoked("expired")).isFalse();
     }
 

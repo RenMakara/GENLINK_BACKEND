@@ -25,15 +25,7 @@ public class EmailServiceImpl implements EmailService {
     private static final String FORGOT_PASSWORD_EN_TEMPLATE_PATH = "templates/email/forgot-password-en.html";
     private static final String FORGOT_PASSWORD_KM_TEMPLATE_PATH = "templates/email/forgot-password-km.html";
 
-    /**
-     * Counter name for real OTP-email delivery outcomes, tagged {@code outcome=success|failure}
-     * and {@code purpose}. Makes a swallowed SMTP failure observable in production instead of
-     * only visible in the provider's dashboard - the gap flagged in the mail review. Recorded
-     * only on the real-send path; log-only/dev mode is not a delivery and is not counted.
-     *
-     * <p>No recipient tag: an email address is PII and unbounded cardinality. The failure's root
-     * cause stays in the {@code log.error} below.
-     */
+    /** Counter name for real OTP-email delivery outcomes, tagged {@code outcome=success|failure} and {@code purpose}. */
     private static final String DELIVERY_METRIC = "email.otp.send";
 
     private final JavaMailSender mailSender;
@@ -42,14 +34,7 @@ public class EmailServiceImpl implements EmailService {
     private final MeterRegistry meterRegistry;
     private final MailDeliveryRegistry deliveryRegistry;
 
-    /**
-     * @param fromEmail   the From address from {@code app.mail.from}. For standard SMTP
-     *                    mailboxes it normally matches {@code spring.mail.username}; the
-     *                    configuration falls back to that username when MAIL_FROM is absent.
-     * @param mailEnabled when false, the OTP is logged and no SMTP connection is
-     *                    attempted. The dev profile defaults this off so local work
-     *                    needs no SMTP credentials; it defaults on everywhere else.
-     */
+    /** @param fromEmail the From address from {@code app.mail.from}. For standard SMTP */
     @Autowired
     public EmailServiceImpl(JavaMailSender mailSender,
                             @Value("${app.mail.from}") String fromEmail,
@@ -79,14 +64,7 @@ public class EmailServiceImpl implements EmailService {
     @Override
     public void sendOtpEmail(String to, String otp, Language language, OtpPurpose purpose) {
         if (!mailEnabled) {
-            // Log-only mode (dev default): the log *is* the delivery channel, so the code is
-            // printed here - and ONLY here. Returning also avoids an SMTP round trip that would
-            // otherwise fail with the local machine's absent or mismatched credentials.
-            //
-            // The OTP is deliberately never logged once real delivery is enabled (staging/prod):
-            // it is a short-lived auth secret, prod runs at root=info, and a failed deploy pipes
-            // `docker compose logs` into CI output - an INFO line here would put live codes in the
-            // server logs and in build history.
+            // Log-only mode (dev default): the log *is* the delivery channel, so the code is printed here - and ONLY here.
             log.info("**************************************************");
             log.info("EMAIL OTP FOR {}: {}", to, otp);
             log.info("**************************************************");
@@ -108,19 +86,13 @@ public class EmailServiceImpl implements EmailService {
             deliveryRegistry.recordSuccess();
         } catch (Exception e) {
             log.error("Failed to send email to {}: {}", to, rootCauseMessage(e), e);
-            // The failure is swallowed by design (a dead SMTP host must not break registration),
-            // so this counter is what keeps it from being invisible: it is the only durable,
-            // queryable record that delivery failed.
+            // The failure is swallowed by design (a dead SMTP host must not break registration).
             meterRegistry.counter(DELIVERY_METRIC, "outcome", "failure", "purpose", purpose.name()).increment();
             deliveryRegistry.recordFailure();
         }
     }
 
-    /**
-     * Spring wraps the SMTP failure, so getMessage() on the top-level exception is
-     * often just "Authentication failed". The provider's actual reply (for example
-     * Gmail's "535-5.7.8 Username and Password not accepted") is only on the cause.
-     */
+    /** Spring wraps the SMTP failure, so getMessage() on the top-level exception is often just "Authentication failed". */
     private String rootCauseMessage(Throwable throwable) {
         Throwable root = throwable;
         while (root.getCause() != null && root.getCause() != root) {

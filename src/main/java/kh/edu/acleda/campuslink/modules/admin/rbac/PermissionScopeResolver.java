@@ -6,14 +6,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
-/**
- * Resolves the row-level scope attached to a permission.
- *
- * <p>The permission matrix grants {@code audit:read} to MODERATOR and FINANCE_ADMIN with an
- * own-actions boundary. Keeping that boundary here prevents individual query services from
- * growing subtly different role checks. The resolver is deliberately fail-closed when there is
- * no authenticated staff identity.
- */
+/** Resolves the row-level scope attached to a permission. */
 @Component
 public class PermissionScopeResolver {
 

@@ -4,7 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import kh.edu.acleda.campuslink.modules.admin.analytics.dto.request.AdminAnalyticsQuery;
 
-/** Read-only aggregate boundary for the Phase 6 analytics endpoints. */
+/** Read-only aggregate boundary for analytics endpoints. */
 public interface AdminAnalyticsQueryRepository {
 
     List<SeriesRow> findUserGrowth(AdminAnalyticsQuery query);
@@ -49,4 +49,3 @@ public interface AdminAnalyticsQueryRepository {
     record XpDistributionResult(List<DistributionRow> buckets, List<LevelRow> levels) {
     }
 }
-

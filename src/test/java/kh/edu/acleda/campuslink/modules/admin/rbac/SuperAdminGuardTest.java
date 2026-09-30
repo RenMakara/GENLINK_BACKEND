@@ -44,11 +44,7 @@ class SuperAdminGuardTest {
             .thenReturn(2L);
     }
 
-    /**
-     * Identity comes from the email here: {@code BaseEntity} generates ids, so unsaved entities
-     * have none. The guard compares ids when both are present and falls back to email, which is
-     * what the security context carries anyway.
-     */
+    /** Identity comes from the email here: {@code BaseEntity} generates ids, so unsaved entities have none. */
     private static AdminUser admin(String email, String roleCode) {
         User user = new User();
         user.setEmail(email);
@@ -61,10 +57,7 @@ class SuperAdminGuardTest {
         return admin;
     }
 
-    // -------------------------------------------------------------------------------
     // AC#1 - self modification.
-    // -------------------------------------------------------------------------------
-
     @Test
     void anAdminCannotChangeTheirOwnRole() {
         assertThatThrownBy(() -> guard.ensureMayChangeRole(superAdmin, superAdmin, "ADMIN"))
@@ -103,10 +96,7 @@ class SuperAdminGuardTest {
             .doesNotThrowAnyException();
     }
 
-    /**
-     * A guard that cannot tell must refuse, not assume. Returning "not the same person" for an
-     * entity it could not compare would let the call site believe the check ran.
-     */
+    /** A guard that cannot tell must refuse, not assume. */
     @Test
     void refusesRatherThanGuessingWhenIdentityCannotBeEstablished() {
         AdminUser anonymous = new AdminUser();
@@ -125,10 +115,7 @@ class SuperAdminGuardTest {
             .isInstanceOf(IllegalArgumentException.class);
     }
 
-    // -------------------------------------------------------------------------------
     // AC#2 - the last SUPER_ADMIN.
-    // -------------------------------------------------------------------------------
-
     @Test
     void theOnlySuperAdminCannotBeDemoted() {
         when(adminUserRepository.countByAdminRoleCodeAndActiveTrueAndDeletedAtIsNull("SUPER_ADMIN"))
@@ -199,20 +186,14 @@ class SuperAdminGuardTest {
         assertThatCode(() -> guard.ensureNotLastSuperAdmin(deleted)).doesNotThrowAnyException();
     }
 
-    // -------------------------------------------------------------------------------
     // AC#3 - only a SUPER_ADMIN may create or modify another.
-    // -------------------------------------------------------------------------------
-
     @Test
     void anOrdinaryAdminCannotAppointASuperAdmin() {
         assertThatThrownBy(() -> guard.ensureMayChangeRole(ordinaryAdmin, moderator, "SUPER_ADMIN"))
             .isInstanceOf(ForbiddenException.class);
     }
 
-    /**
-     * The direction that is easy to miss. Guarding only the appointment would leave the whole
-     * SUPER_ADMIN tier removable by the tier below it.
-     */
+    /** The direction that is easy to miss. */
     @Test
     void anOrdinaryAdminCannotDemoteASuperAdmin() {
         assertThatThrownBy(() -> guard.ensureMayChangeRole(ordinaryAdmin, superAdmin, "MODERATOR"))
@@ -247,10 +228,7 @@ class SuperAdminGuardTest {
             .hasFieldOrPropertyWithValue("errorCode", "FORBIDDEN");
     }
 
-    // -------------------------------------------------------------------------------
     // Composition - a call site must not be able to apply two of the three.
-    // -------------------------------------------------------------------------------
-
     /** Self is checked first, so it wins even when the tier rule would also refuse. */
     @Test
     void selfIsRejectedBeforeTheTierRule() {

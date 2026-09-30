@@ -31,10 +31,7 @@ public class NotificationWriter {
         this.templateRenderer = templateRenderer;
     }
 
-    /**
-     * Separate bean and transaction boundary are intentional. The listener can call this after
-     * the source transaction commits without making notification persistence part of that action.
-     */
+    /** Separate bean and transaction boundary are intentional. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void writeInNewTransaction(NotificationRequestedEvent event) {
         NotificationRequest request = event.request();

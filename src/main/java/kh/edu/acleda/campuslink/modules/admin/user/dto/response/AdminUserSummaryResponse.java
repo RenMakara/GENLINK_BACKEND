@@ -5,12 +5,7 @@ import java.util.UUID;
 import kh.edu.acleda.campuslink.modules.user.entity.AccountStatus;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 
-/**
- * Safe row projection for the admin user directory.
- *
- * <p>This deliberately excludes password hashes, phone numbers, date of birth, tokens and other
- * profile data that belongs to the detail endpoint or must never leave the backend.
- */
+/** Safe row projection for the admin user directory. */
 public record AdminUserSummaryResponse(
     UUID userId,
     String fullName,

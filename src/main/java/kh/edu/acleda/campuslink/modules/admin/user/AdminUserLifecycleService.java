@@ -59,8 +59,7 @@ public class AdminUserLifecycleService {
         try {
             User user = lockedUser(userId, ACTION_DELETE, reason);
 
-            // A repeated click must not replace the original deletion timestamp or captured
-            // state. A legacy/anonymised row is already beyond the destructive transition too.
+            // A repeated click must not replace the original deletion timestamp or captured state.
             if (isDeleted(user)) {
                 recordSuccess(ACTION_DELETE, userId, reason, snapshot(user), snapshot(user));
                 return;

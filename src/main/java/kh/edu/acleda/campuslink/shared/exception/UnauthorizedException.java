@@ -7,13 +7,7 @@ public class UnauthorizedException extends ApiException {
         this(message, "UNAUTHORIZED");
     }
 
-    /**
-     * A 401 that names a more specific cause, such as {@code ADMIN_MFA_INVALID}.
-     *
-     * <p>The default above is the code this exception has always produced - it used to be
-     * hard-coded in the handler rather than carried here, so moving it into the constructor
-     * changes nothing for the existing callers while letting new ones be precise.
-     */
+    /** A 401 that names a more specific cause, such as {@code ADMIN_MFA_INVALID}. */
     public UnauthorizedException(String message, String errorCode) {
         super(message, errorCode);
     }

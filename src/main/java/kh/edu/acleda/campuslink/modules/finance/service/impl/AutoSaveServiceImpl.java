@@ -192,8 +192,7 @@ public class AutoSaveServiceImpl implements AutoSaveService {
             return false;
         }
 
-        // Serialize the scheduled contribution with manual deposits and other scheduled
-        // rules targeting this goal so the running total cannot be overwritten.
+        // Serialize the scheduled contribution with manual deposits.
         SavingGoal goal = savingGoalRepository.findByIdAndUserIdAndDeletedAtIsNullForUpdate(
             goalReference.getId(), rule.getUser().getId()).orElse(null);
         if (goal == null || goal.getStatus() == SavingGoalStatus.CANCELLED) {

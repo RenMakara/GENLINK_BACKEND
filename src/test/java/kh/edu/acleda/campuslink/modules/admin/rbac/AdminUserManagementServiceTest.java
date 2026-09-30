@@ -265,8 +265,7 @@ class AdminUserManagementServiceTest {
         user.setRole(Role.ADMIN);
         AdminUser target = admin(user, "SUPER_ADMIN", true);
         when(adminUserRepository.findByIdForUpdate(adminId)).thenReturn(Optional.of(target));
-        // The shared guard owns this rule; this test verifies the management service does not
-        // write around a refusal and records the published error code.
+        // The shared guard must reject the update before this service writes.
         org.mockito.Mockito.doThrow(new ApiException(
             "This is the last Super Admin.", "ADMIN_LAST_SUPER_ADMIN"))
             .when(superAdminGuard).ensureMayDeactivate(any(), any());

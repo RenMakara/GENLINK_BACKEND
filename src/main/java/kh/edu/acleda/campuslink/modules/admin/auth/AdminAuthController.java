@@ -28,14 +28,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * {@code /api/v1/admin/auth} - sign-in for the admin portal.
- *
- * <p>Public by necessity: an admin has no token yet when they arrive. It is reachable only
- * through the restricted channel described in SSOT §10.9.1, and it is the most attacked
- * endpoint in the application, which is why {@link AdminAuthServiceImpl} treats every rejection
- * as indistinguishable.
- */
+/** {@code /api/v1/admin/auth} - sign-in for the admin portal. */
 @Tag(name = "Admin - Auth", description = "Sign-in, MFA and session lifecycle for the admin portal (SSOT §8.1)")
 @RestController
 @RequestMapping("/api/v1/admin/auth")
@@ -51,14 +44,7 @@ public class AdminAuthController {
     private final AdminRecoveryCodeService recoveryCodeService;
     private final AdminMfaVerificationService verificationService;
 
-    /**
-     * Password step. A correct password buys a TOTP challenge, not a session.
-     *
-     * <p>Answers <strong>401</strong> on success, which reads oddly and is deliberate: the
-     * caller is not authenticated yet and holds nothing that authenticates them. The response
-     * carries {@code ADMIN_MFA_REQUIRED} so the portal can tell "finish signing in" apart from
-     * "those credentials are wrong", both of which are 401s (SSOT §8 C-2).
-     */
+    /** Password step. */
     @Operation(summary = "Admin login - password step",
         description = "Verifies credentials and issues a 5-minute MFA challenge token. "
             + "Never returns an access token: 401 with ADMIN_MFA_REQUIRED is the success case.")
@@ -75,11 +61,7 @@ public class AdminAuthController {
                 challenge));
     }
 
-    /**
-     * Begins TOTP enrolment. Authorised by the challenge token from {@code /login}, presented
-     * as a bearer token - see {@link AdminMfaEnrolmentService} for why it is not an admin
-     * session.
-     */
+    /** Begins TOTP enrolment. */
     @Operation(summary = "Begin TOTP enrolment",
         description = "Returns a fresh Base32 secret and an otpauth:// URI for QR rendering. "
             + "Send the challenge token from /login as the bearer token. Nothing is switched "
@@ -108,13 +90,7 @@ public class AdminAuthController {
             enrolmentService.confirm(bearerToken(authorization), request.code()));
     }
 
-    /**
-     * Second factor. A TOTP code or a recovery code, exchanged for a real admin session.
-     *
-     * <p>Public, like the routes above, because the caller holds a challenge rather than a
-     * session. The challenge is retired on success and voided after five failures, so it
-     * cannot be replayed or brute-forced.
-     */
+    /** Second factor. */
     @Operation(summary = "Verify TOTP and issue admin tokens",
         description = "Send the challenge token from /login as the bearer token and a 6-digit "
             + "TOTP code, or one of the recovery codes, in the body. Returns a typ=ADMIN "
@@ -129,12 +105,7 @@ public class AdminAuthController {
             verificationService.verify(bearerToken(authorization), request.code()));
     }
 
-    /**
-     * Who the caller is, and every permission they hold.
-     *
-     * <p>The portal's whole client-side gating model reads from this one response: the sidebar,
-     * `usePermission`, and every disabled control (SSOT §8.1).
-     */
+    /** Who the caller is, and every permission they hold. */
     @Operation(summary = "Current admin",
         description = "Identity, role and the resolved permission list. Permissions come from "
             + "the caller's own granted authorities, so this cannot disagree with what "
@@ -156,13 +127,7 @@ public class AdminAuthController {
         return ApiResponse.success("Session refreshed", sessionService.refresh(request.refreshToken()));
     }
 
-    /**
-     * Ends this session.
-     *
-     * <p>The body is optional: an admin whose portal has already dropped the refresh cookie
-     * must still be able to sign out. A logout that can fail is one someone walks away from
-     * believing it worked.
-     */
+    /** Ends this session. */
     @Operation(summary = "Sign out",
         description = "Revokes the refresh token and the access token's session, so the access "
             + "token stops working immediately rather than when it expires. Other sessions - "
@@ -176,12 +141,7 @@ public class AdminAuthController {
         return ApiResponse.success("Signed out", null);
     }
 
-    /**
-     * Step-up re-authentication, opening the five-minute window high-tier actions require.
-     *
-     * <p>Being signed in is not enough to delete a user or export the database. This is the
-     * control that bounds what someone can do at an unattended, unlocked laptop (SSOT §10.7).
-     */
+    /** Step-up re-authentication, opening the five-minute window high-tier actions require. */
     @Operation(summary = "Open a sudo window",
         description = "Re-authenticate with a 6-digit TOTP code or your password. Opens a "
             + "5-minute window against THIS session only - a second device does not inherit "
@@ -191,12 +151,7 @@ public class AdminAuthController {
         return ApiResponse.success("Identity confirmed", sudoService.open(request));
     }
 
-    /**
-     * Reissues the ten recovery codes, invalidating the previous set.
-     *
-     * <p>The first endpoint gated by {@link RequiresSudo}: a fresh set of codes is a permanent
-     * bypass of the second factor, so holding a live session is not enough to mint one.
-     */
+    /** Reissues the ten recovery codes, invalidating the previous set. */
     @Operation(summary = "Regenerate recovery codes",
         description = "Returns ten NEW single-use codes and invalidates every previous one, "
             + "spent or not. Requires an open sudo window (POST /sudo) - without it the request "
@@ -208,13 +163,7 @@ public class AdminAuthController {
             recoveryCodeService.regenerate());
     }
 
-    /**
-     * Pulls the token out of the header.
-     *
-     * <p>Returns null rather than throwing on a malformed header, so a missing and a malformed
-     * credential produce the same "session expired" answer from one place, instead of two
-     * differently-shaped errors.
-     */
+    /** Pulls the token out of the header. */
     private static String bearerToken(String authorization) {
         if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
             return null;

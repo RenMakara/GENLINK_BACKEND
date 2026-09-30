@@ -25,14 +25,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.util.ReflectionTestUtils;
 
-/**
- * Caching behaviour, which only exists through Spring's proxy - so these run inside a real
- * (but tiny) context rather than against a plain {@code new AdminPermissionCache(...)}.
- *
- * <p>Worth testing directly because the failure mode is silent: caching that is misconfigured,
- * or bypassed by self-invocation, still returns correct answers. It just queries the database
- * on every request in the product, forever, and nothing fails.
- */
+/** Caching behaviour, which only exists through Spring's proxy. */
 class AdminPermissionCacheTest {
 
     private static final String ADMIN_EMAIL = "mod@example.com";
@@ -75,11 +68,7 @@ class AdminPermissionCacheTest {
         context.close();
     }
 
-    /**
-     * The hot-path assertion. Every authenticated request in the product - overwhelmingly
-     * mobile, from users who are not staff - passes through this lookup. If it were uncached
-     * it would add a query to every single one.
-     */
+    /** The hot-path assertion. */
     @Test
     @DisplayName("a non-staff account is negatively cached: one query, then none")
     void negativeResultIsCached() {
@@ -114,11 +103,7 @@ class AdminPermissionCacheTest {
         verify(rolePermissionRepository, times(1)).findPermissionCodesByRoleId(ROLE_ID);
     }
 
-    /**
-     * Eviction is the correctness mechanism here - there is no TTL - so this is the test that
-     * matters most. A permission change that does not take effect is a security bug, not a
-     * staleness annoyance.
-     */
+    /** Eviction is the correctness mechanism here - there is no TTL - so this is the test that matters most. */
     @Test
     @DisplayName("evicting a role's authorities makes the next lookup see the change")
     void evictionMakesChangesTakeEffect() {

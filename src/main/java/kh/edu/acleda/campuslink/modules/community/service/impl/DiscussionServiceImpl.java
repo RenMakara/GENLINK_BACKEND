@@ -86,8 +86,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Transactional
     public DiscussionResponse create(DiscussionCreateRequest request) {
         User author = loadCurrentUser();
-        // The author is stored even when anonymous: moderation needs to know who wrote
-        // it, and the row is the only record. Anonymity is applied when responding.
+        // The author is stored even when anonymous: moderation needs to know who wrote it, and the row is the only record.
         ForumDiscussion discussion = discussionRepository.save(ForumDiscussion.builder()
             .user(author)
             .title(request.title().strip())
@@ -294,8 +293,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             .build());
         discussionRepository.incrementReportCount(discussionId);
 
-        // Worth a line: this is the only moderation signal in the product, and nothing
-        // reviews the queue yet, so the log is the only place a report surfaces.
+        // Worth a line: this is the only moderation signal in the product.
         log.info("Discussion reported: id={} reason={} by user={}", discussionId, request.reason(), userId);
     }
 
@@ -321,9 +319,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<CommentResponse> comments(UUID discussionId, Pageable pageable) {
-        // Top-level only; replies come from the /replies route. Commenters are never
-        // anonymous - only the discussion author can be - so replying to an anonymous
-        // thread does not hide the replier.
+        // Top-level only; replies come from the /replies route.
         return hydrateComments(commentRepository.findTopLevel(discussionId, pageable));
     }
 
@@ -405,11 +401,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         return comment.getLikeCount() == null ? 0 : comment.getLikeCount();
     }
 
-    /**
-     * Keeps threading one level deep: replying to a reply attaches to the same top-level
-     * parent, so the client never has to render arbitrary nesting. The parent must belong
-     * to this discussion, otherwise a comment could be grafted onto an unrelated thread.
-     */
+    /** Keeps threading one level deep: replying to a reply attaches to the same top-level parent. */
     private ForumComment resolveParent(UUID parentCommentId, UUID discussionId) {
         if (parentCommentId == null) {
             return null;
@@ -457,8 +449,7 @@ public class DiscussionServiceImpl implements DiscussionService {
     @Transactional
     public void dismissReports(UUID discussionId) {
         loadDiscussion(discussionId);
-        // Reviewed and fine: drop the report rows and zero the cached count so it leaves the
-        // queue, keeping the discussion. A later report from someone new re-opens it.
+        // Reviewed and fine: drop the report rows and zero the cached count.
         reportRepository.deleteByDiscussionId(discussionId);
         discussionRepository.clearReportCount(discussionId);
         log.info("Reports dismissed on discussion {} by admin {}", discussionId, currentUserProvider.getCurrentUserId());
@@ -485,11 +476,7 @@ public class DiscussionServiceImpl implements DiscussionService {
             "forum-discussion-moderated:" + discussion.getId() + ":" + author.getId()));
     }
 
-    /**
-     * The admin queue deliberately reveals the author even for anonymous discussions: the
-     * whole reason the author is stored is moderation accountability. postedAnonymously
-     * flags that it was anonymous to the public, without hiding who wrote it from the admin.
-     */
+    /** The admin queue deliberately reveals the author even for anonymous discussions. */
     private ReportedDiscussionResponse toReportedResponse(ForumDiscussion discussion) {
         return new ReportedDiscussionResponse(
             discussion.getId(),
@@ -543,10 +530,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         return normalized.isEmpty() ? null : normalized;
     }
 
-    /**
-     * The only place anonymity is enforced. The entity always carries the author; this
-     * withholds it. Get this wrong and an anonymous discussion is not anonymous.
-     */
+    /** The only place anonymity is enforced. */
     private DiscussionResponse toResponse(ForumDiscussion discussion, boolean reactedByMe, UUID viewerId) {
         return toResponse(discussion, reactedByMe, viewerId, null);
     }

@@ -4,14 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-/**
- * Credentials for the password step of admin login.
- *
- * <p>No {@code @Size} on the password. A length rule here would reject an over-long password
- * before it is ever compared, telling an attacker the shape of what is stored; it also has no
- * value on a login endpoint, where the password either matches what is on file or does not.
- * Strength rules belong at registration and password change, which is where they live.
- */
+/** Credentials for the password step of admin login. */
 public record AdminLoginRequest(
 
     @NotBlank(message = "Email is required")

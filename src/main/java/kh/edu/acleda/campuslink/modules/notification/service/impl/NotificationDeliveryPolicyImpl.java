@@ -76,9 +76,7 @@ public class NotificationDeliveryPolicyImpl implements NotificationDeliveryPolic
                 return false;
             }
 
-            // A multi-channel request is split into independent outbox rows. The emitter must
-            // remain eligible when only one requested channel is disabled; each single-channel
-            // row is checked again here before its transport runs.
+            // A multi-channel request is split into independent outbox rows.
             if (request.channels().size() == 1 && channelPreferenceRepository != null) {
                 NotificationChannel channel = request.channels().iterator().next();
                 Optional<NotificationChannelPreference> channelPreference =
@@ -92,8 +90,7 @@ public class NotificationDeliveryPolicyImpl implements NotificationDeliveryPolic
 
             return true;
         } catch (RuntimeException exception) {
-            // Preferences are secondary to the source action. A settings read failure must not
-            // make RSVP, payment, moderation, or another business transaction fail.
+            // Preferences are secondary to the source action.
             log.warn("Could not evaluate notification preferences for recipient={} type={}; allowing request",
                 request.recipientUserId(), request.type(), exception);
             return true;

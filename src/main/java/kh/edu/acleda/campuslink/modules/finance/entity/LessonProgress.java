@@ -17,11 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Durable per-lesson state for one user: whether they finished it, their best quiz
- * score, and whether the reward (XP + wallet credit) was already paid. The `rewarded`
- * flag is what makes the reward once-only across retakes.
- */
+/** Durable per-lesson state for one user: whether they finished it. */
 @Getter
 @Setter
 @NoArgsConstructor

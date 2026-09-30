@@ -8,10 +8,7 @@ import kh.edu.acleda.campuslink.modules.profile.dto.response.PortfolioItemRespon
 import kh.edu.acleda.campuslink.modules.profile.dto.response.SocialLinkResponse;
 import kh.edu.acleda.campuslink.modules.user.entity.WorkStatus;
 
-/**
- * Public-safe view of a profile. Deliberately omits email, phone, date of birth,
- * gender and account status, which belong to the owner-only ProfileResponse.
- */
+/** Public-safe view of a profile. */
 public record PublicProfileResponse(
     UUID userId,
     String fullName,

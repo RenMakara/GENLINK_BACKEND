@@ -26,11 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     private final UserService userService;
-    /**
-     * Deletion revokes tokens and writes security audit rows, so it lives with the other
-     * credential-lifecycle operations. Keeping it there also avoids a user -> auth package
-     * dependency, which would cycle against auth -> user.
-     */
+    /** Deletion revokes tokens and writes security audit rows, so it lives with the other credential-lifecycle operations. */
     private final AccountSecurityService accountSecurityService;
 
     @GetMapping("/me")

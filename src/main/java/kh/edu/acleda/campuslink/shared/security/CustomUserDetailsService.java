@@ -31,27 +31,13 @@ public class CustomUserDetailsService implements UserDetailsService {
         return new AuthenticatedUser(
             user.getEmail(),
             user.getPasswordHash() == null ? "" : user.getPasswordHash(),
-            // An allow-list, not a deny-list. Anything that is not ACTIVE - PENDING, BANNED,
-            // SUSPENDED, DELETED - is disabled, so a new account status is locked out by
-            // default rather than by remembering to add it here.
+            // An allow-list, not a deny-list.
             user.getAccountStatus() == AccountStatus.ACTIVE && user.getDeletedAt() == null,
             user.getTokenVersion(),
             authoritiesFor(user));
     }
 
-    /**
-     * The account's {@code ROLE_*} authority, plus {@code PERM_*} authorities when it is a
-     * staff account.
-     *
-     * <p>The role authority is unchanged, so nothing that already relies on
-     * {@code hasRole('ADMIN')} shifts. Permissions are additive: an ordinary user gets exactly
-     * what they got before, and the admin lookup returns an empty list for them off a cache.
-     *
-     * <p>Resolved here rather than read from the JWT deliberately. This method already runs on
-     * every authenticated request, so it costs nothing extra to ask - and unlike a token
-     * claim, a revoked permission stops working on the very next request instead of when the
-     * token expires.
-     */
+    /** The account's {@code ROLE_*} authority, plus {@code PERM_*} authorities when it is a staff account. */
     private List<GrantedAuthority> authoritiesFor(User user) {
         List<GrantedAuthority> adminAuthorities = adminAuthorityProvider.authoritiesFor(user.getEmail());
         if (adminAuthorities.isEmpty()) {

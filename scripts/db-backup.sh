@@ -1,20 +1,8 @@
 #!/usr/bin/env bash
-#
 # GenLink KH — PostgreSQL backup.
-#
-# Runs on the HOST (not inside a container) and dumps the database out of
-# the running postgres container to a directory on the EC2 instance.
-#
-#   ./scripts/db-backup.sh
-#
-# Designed to be safe under cron: no interactive prompts, non-zero exit on
-# any failure, and it never deletes a new backup if the dump failed.
 
 set -Eeuo pipefail
-# -E  ERR trap survives into functions
-# -e  abort on any failing command — a partial backup must never look OK
-# -u  abort on an unset variable, so a typo cannot silently expand to ""
-# -o pipefail  a failure anywhere in a pipeline fails the whole pipeline
+# -E ERR trap survives into functions -e abort on any failing command.
 
 # Resolve the project directory from this script's location, so cron can
 # call it by absolute path without caring about the working directory.
@@ -26,9 +14,7 @@ BACKUP_DIR="${BACKUP_DIR:-$PROJECT_DIR/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-7}"
 SERVICE="postgres"
 
-# Read POSTGRES_* from .env without exporting the whole file into the
-# environment (it also holds JWT and mail secrets that this script has no
-# business handling).
+# Read POSTGRES_* from .env without exporting the whole file into the environment (it also holds JWT.
 if [[ ! -f .env ]]; then
   echo "ERROR: .env not found in $PROJECT_DIR" >&2
   exit 1
@@ -50,15 +36,7 @@ OUTFILE="$BACKUP_DIR/genlink_${TIMESTAMP}.dump"
 
 echo "[$(date -Is)] Backing up '${DB_NAME}' -> ${OUTFILE}"
 
-# -T disables Docker's TTY allocation. This is REQUIRED: with a TTY, Docker
-# translates newlines and silently corrupts the binary dump on stdout. The
-# file would look fine and fail only at restore time.
-#
-# -Fc is the custom format: compressed, and restorable selectively with
-# pg_restore (a plain .sql dump can only be replayed whole).
-#
-# PGPASSWORD is read from the container's own environment, so the password
-# never appears in the host's process list.
+# -T disables Docker's TTY allocation.
 docker compose exec -T "$SERVICE" sh -c \
   "PGPASSWORD=\"\$POSTGRES_PASSWORD\" pg_dump -U '${DB_USER}' -d '${DB_NAME}' -Fc" \
   > "$OUTFILE"
@@ -74,14 +52,7 @@ if (( SIZE_BYTES < 1024 )); then
   exit 1
 fi
 
-# Verify the archive is readable by pg_restore. This catches truncation and
-# TTY corruption now, instead of during an emergency restore.
-#
-# The stream is written to a seekable temp file INSIDE the container before
-# listing it. A custom-format (-Fc) archive stores data-block offsets that
-# pg_restore must seek to read, and a forwarded stdin pipe (/dev/stdin) is
-# not seekable — so `pg_restore --list /dev/stdin` reported even valid dumps
-# as "not a valid archive". A real file removes that false negative.
+# Verify the archive is readable by pg_restore.
 if ! docker compose exec -T "$SERVICE" sh -c \
      'cat > /tmp/verify.dump && pg_restore --list /tmp/verify.dump > /dev/null 2>&1; rc=$?; rm -f /tmp/verify.dump; exit $rc' \
      < "$OUTFILE"; then

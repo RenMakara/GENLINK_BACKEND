@@ -48,18 +48,14 @@ public class AdminUserSessionRevocationService {
         this.clock = clock;
     }
 
-    /**
-     * Revokes only the selected refresh session. The access token already issued to that
-     * device remains valid until its normal expiry because token_version is per-user.
-     */
+    /** Revokes only the selected refresh session. */
     @Transactional
     public void revoke(UUID userId, UUID sessionId) {
         try {
             User user = requireUser(userId);
             RefreshToken session = requireSession(userId, sessionId, user);
 
-            // Keep DELETE idempotent: a session that is already gone from the active list is
-            // still a successful no-op, while an unowned session remains a 404 above.
+            // Treat an already revoked session as a successful no-op.
             if (session.getRevokedAt() == null) {
                 Instant revokedAt = clock.instant();
                 session.setRevokedAt(revokedAt);

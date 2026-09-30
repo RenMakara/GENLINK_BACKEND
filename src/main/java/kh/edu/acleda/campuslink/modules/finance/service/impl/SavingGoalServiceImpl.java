@@ -95,8 +95,7 @@ public class SavingGoalServiceImpl implements SavingGoalService {
         goal.setTitle(request.title());
         goal.setTargetAmount(request.targetAmount());
         goal.setTargetDate(request.targetDate());
-        // A cancelled goal stays cancelled; otherwise re-derive completion from the new
-        // target (lowering it can complete a goal, raising it can reopen one).
+        // Keep cancelled goals cancelled; otherwise recalculate completion.
         if (goal.getStatus() != SavingGoalStatus.CANCELLED) {
             goal.setStatus(reachedTarget(goal) ? SavingGoalStatus.COMPLETED : SavingGoalStatus.IN_PROGRESS);
         }
@@ -123,8 +122,6 @@ public class SavingGoalServiceImpl implements SavingGoalService {
         SavingGoalStatus statusBefore = goal.getStatus();
 
         // Opt-in: a "from wallet" deposit actually moves money out of the wallet into the goal.
-        // Debit first so a too-low balance rejects before any deposit/goal change (rolled back
-        // together by this @Transactional). Default keeps the old behaviour - goal grows only.
         if (Boolean.TRUE.equals(request.fromWallet())) {
             DemoWallet wallet = demoWalletService.getOrCreateWalletEntity();
             ledgerService.debit(wallet, TransactionType.SAVING, goal.getCurrency(), request.amount(),
@@ -138,9 +135,7 @@ public class SavingGoalServiceImpl implements SavingGoalService {
             .depositDate(request.depositDate() == null ? LocalDate.now() : request.depositDate())
             .build());
 
-        // currentAmount is the running total of deposits. Deposits are append-only (no
-        // edit or delete endpoint), so updating the counter in the same transaction as
-        // the deposit row keeps the two in step without a recompute.
+        // currentAmount is the running total of deposits.
         goal.setCurrentAmount(goal.getCurrentAmount().add(request.amount()));
         if (reachedTarget(goal)) {
             goal.setStatus(SavingGoalStatus.COMPLETED);

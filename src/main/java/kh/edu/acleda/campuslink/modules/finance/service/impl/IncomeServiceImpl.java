@@ -124,10 +124,7 @@ public class IncomeServiceImpl implements IncomeService {
         incomeRepository.save(income);
     }
 
-    /**
-     * Income always belongs to the wallet. Corrections are append-only ledger movements: a delta
-     * in the same currency, or a full reversal/re-credit when the currency changes.
-     */
+    /** Income always belongs to the wallet. */
     private void adjustWalletForIncomeChange(Income income, Currency oldCurrency, BigDecimal oldAmount,
                                              Currency newCurrency, BigDecimal newAmount) {
         DemoWallet wallet = demoWalletService.getOrCreateWalletEntity();
@@ -162,8 +159,7 @@ public class IncomeServiceImpl implements IncomeService {
         BigDecimal expense = orZero(expenseRepository.sumForMonthByCurrency(userId, currency, start, end));
         BigDecimal net = income.subtract(expense);
 
-        // Savings rate = net / income, as a percent. Undefined with no income, so 0. It can go
-        // negative when the month overspent - that is a true and useful signal, not an error.
+        // Savings rate = net / income, as a percent.
         BigDecimal savingsRate = income.signum() == 0
             ? BigDecimal.ZERO
             : net.multiply(BigDecimal.valueOf(100)).divide(income, 1, RoundingMode.HALF_UP);

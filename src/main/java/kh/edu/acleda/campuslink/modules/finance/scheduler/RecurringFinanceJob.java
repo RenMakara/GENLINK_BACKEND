@@ -10,11 +10,7 @@ import kh.edu.acleda.campuslink.shared.service.ScheduledJobRunRegistry;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * Drains the finance automation once a day: materialises due recurring transactions, then applies
- * due auto-save rules. Thin on purpose - the logic (and its testability) lives in the services;
- * this only picks the run date and keeps one failure from hiding the other.
- */
+/** Drains the finance automation once a day: materialises due recurring transactions, then applies due auto-save rules. */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -26,10 +22,7 @@ public class RecurringFinanceJob {
     private final AutoSaveService autoSaveService;
     private final ScheduledJobRunRegistry scheduledJobRunRegistry;
 
-    /**
-     * 01:15 daily, Phnom Penh time. The zone is pinned so the schedule does not drift with the
-     * container TZ; the cron is overridable so an operator can retime it without a redeploy.
-     */
+    /** 01:15 daily, Phnom Penh time. */
     @Scheduled(cron = "${app.finance.recurring-cron:0 15 1 * * *}", zone = "Asia/Phnom_Penh")
     public void run() {
         LocalDate today = LocalDate.now(ZONE);

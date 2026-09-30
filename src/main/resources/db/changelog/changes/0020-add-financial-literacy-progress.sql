@@ -1,10 +1,7 @@
 --liquibase formatted sql
 
 --changeset genlink:0020-add-financial-literacy-progress
--- Phase 4 (Financial Literacy) closes two gaps from migration 0008: nothing tracked
--- whether a user finished a lesson, and nothing recorded a quiz result. Without
--- lesson_progress the lesson XP + learning reward could be paid on every retake;
--- the `rewarded` flag makes the whole reward bundle (XP + wallet credit) once-only.
+-- Tracks lesson completion and quiz attempts.
 CREATE TABLE IF NOT EXISTS lesson_progress (
     progress_id UUID PRIMARY KEY,
     user_id UUID NOT NULL,
@@ -22,9 +19,7 @@ CREATE TABLE IF NOT EXISTS lesson_progress (
     CONSTRAINT uk_lesson_progress_user_lesson UNIQUE (user_id, lesson_id)
 );
 
--- One row per submission, so retake history survives even though lesson_progress only
--- keeps the best score. Separate from lesson_progress on purpose: progress is durable
--- per-lesson state, attempts are an append-only log.
+-- One row per submission, so retake history survives even though lesson_progress only keeps the best score.
 CREATE TABLE IF NOT EXISTS finance_quiz_attempts (
     attempt_id UUID PRIMARY KEY,
     user_id UUID NOT NULL,

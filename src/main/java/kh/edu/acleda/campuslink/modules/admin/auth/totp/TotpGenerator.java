@@ -9,18 +9,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Component;
 
-/**
- * RFC 6238 TOTP: 30-second step, 6 digits, HMAC-SHA1, ±1 window of skew (SSOT §10.8).
- *
- * <p>SHA1 is correct here and is not the weakness it looks like. RFC 6238 specifies
- * HMAC-SHA1, every authenticator app implements it, and HMAC does not depend on the
- * collision resistance that broke SHA1 for signatures. Changing it to SHA-256 would produce
- * codes no standard app can generate.
- *
- * <p>Verified against the test vectors in RFC 6238 Appendix B rather than against itself -
- * an OTP implementation that only agrees with its own tests is exactly as useful as one that
- * agrees with nothing.
- */
+/** RFC 6238 TOTP: 30-second step, 6 digits, HMAC-SHA1, ±1 window of skew (SSOT §10.8). */
 @Component
 public class TotpGenerator {
 
@@ -28,14 +17,7 @@ public class TotpGenerator {
     public static final int STEP_SECONDS = 30;
     public static final int DIGITS = 6;
 
-    /**
-     * How many steps either side of "now" are accepted.
-     *
-     * <p>One. A phone's clock drifts, and a code typed at the very end of its window arrives
-     * in the next one - without tolerance those are false rejections that look like a broken
-     * authenticator. Each extra step widens the guessing window for an attacker by another
-     * 30 seconds, so this stays at the smallest value that works.
-     */
+    /** How many steps either side of "now" are accepted. */
     public static final int SKEW_STEPS = 1;
 
     /** 160 bits, matching the HMAC-SHA1 block the RFC recommends. */
@@ -58,12 +40,7 @@ public class TotpGenerator {
         return generateForCounter(secret, at.getEpochSecond() / STEP_SECONDS);
     }
 
-    /**
-     * Whether {@code candidate} is valid now, allowing {@link #SKEW_STEPS} either side.
-     *
-     * <p>The comparison is constant-time. A byte-by-byte early exit leaks, through timing, how
-     * many leading digits were right, which turns 10^6 guesses into roughly 60.
-     */
+    /** Whether {@code candidate} is valid now, allowing {@link #SKEW_STEPS} either side. */
     public boolean verify(byte[] secret, String candidate, Instant now) {
         if (candidate == null || candidate.length() != DIGITS) {
             return false;
@@ -71,8 +48,7 @@ public class TotpGenerator {
         long counter = now.getEpochSecond() / STEP_SECONDS;
         boolean matched = false;
         for (int offset = -SKEW_STEPS; offset <= SKEW_STEPS; offset++) {
-            // No early break: every window is evaluated so the loop costs the same whether the
-            // match is in the first window or the last, or absent entirely.
+            // No early break: every window is evaluated.
             matched |= constantTimeEquals(generateForCounter(secret, counter + offset), candidate);
         }
         return matched;

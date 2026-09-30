@@ -8,14 +8,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * Pinned to the <strong>RFC 4648 §10</strong> vectors.
- *
- * <p>This is hand-written code standing in for a library, so it is tested against the
- * specification rather than against what it happens to produce. A secret that round-trips
- * through a subtly wrong Base32 would still round-trip - and would then be rejected by every
- * authenticator app on earth, which is the bug that is expensive to find later.
- */
+/** Pinned to the RFC 4648 §10 vectors. */
 class Base32Test {
 
     /** RFC 4648 §10, with the trailing '=' padding removed as authenticator apps expect. */
@@ -66,8 +59,7 @@ class Base32Test {
 
     @Test
     void rejectsCharactersOutsideTheAlphabet() {
-        // '1', '8' and '0' are absent from the Base32 alphabet precisely because they are
-        // confusable; accepting them silently would decode to the wrong secret.
+        // '1', '8' and '0' are absent from the Base32 alphabet precisely.
         assertThatThrownBy(() -> Base32.decode("MZXW6YTB01"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("Base32");

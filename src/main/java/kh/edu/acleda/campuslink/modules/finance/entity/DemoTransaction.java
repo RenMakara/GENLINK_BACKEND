@@ -74,11 +74,7 @@ public class DemoTransaction extends BaseEntity {
     @Column(name = "status", nullable = false, length = 50)
     private TransactionStatus status;
 
-    /**
-     * The payment provider that processed this row, or null for non-payment rows (income, expense,
-     * saving, reward, recurring, auto-save). An opaque string - the ledger stores it, it never
-     * branches on it. Examples: MOCK_KHQR, and later ACLEDA / ABA / WING.
-     */
+    /** The payment provider that processed this row, or null for non-payment rows (income. */
     @Column(name = "provider", length = 40)
     private String provider;
 

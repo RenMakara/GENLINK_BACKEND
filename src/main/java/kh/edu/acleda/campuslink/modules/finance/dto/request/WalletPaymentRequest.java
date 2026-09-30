@@ -7,12 +7,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 
-/**
- * A simulated KHQR payment. The client passes what it "scanned" - amount and merchant.
- * Nothing here talks to a real KHQR network; it only moves the demo balance.
- *
- * @param currency which balance to pay from (USD or KHR); defaults to USD when omitted.
- */
+/** A simulated KHQR payment. */
 public record WalletPaymentRequest(
     @NotNull @Positive @Digits(integer = 17, fraction = 2) BigDecimal amount,
     @Size(max = 160) String merchant,

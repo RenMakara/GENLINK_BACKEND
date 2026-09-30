@@ -21,11 +21,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * The filter builds the Authentication itself, which skips the account-status and
- * token checks DaoAuthenticationProvider would normally run. These tests pin the
- * two things it therefore has to enforce on its own.
- */
+/** The filter builds the Authentication itself, which skips the account-status. */
 @ExtendWith(MockitoExtension.class)
 class JwtAuthenticationFilterTest {
 
@@ -57,14 +53,10 @@ class JwtAuthenticationFilterTest {
         verify(filterChain).doFilter(any(), any());
     }
 
-    /**
-     * The bug this guards: a banned or soft-deleted account kept full API access for
-     * as long as its JWT stayed unexpired, because the filter never read isEnabled().
-     */
+    /** Banned and deleted accounts stay blocked even with valid JWTs. */
     @Test
     void rejectsDisabledAccountEvenWhenTokenIsValid() throws Exception {
-        // Deliberately does not stub getTokenVersion: isEnabled() must short-circuit
-        // first, so a strict-stub failure here would mean the order regressed.
+        // Deliberately does not stub getTokenVersion.
         when(jwtService.validateToken(TOKEN)).thenReturn(true);
         when(jwtService.getUsername(TOKEN)).thenReturn("user@example.com");
         when(userDetailsService.loadUserByUsername("user@example.com")).thenReturn(authenticatedUser(false, 3));
@@ -116,13 +108,7 @@ class JwtAuthenticationFilterTest {
         verify(filterChain).doFilter(any(), any());
     }
 
-    // ---------------------------------------------------------------------------------
     // Token type must match the API being called (SSOT §10.1).
-    //
-    // Regression test S1 of the five pinned in testing-plan.md. Without this check, any
-    // user whose users.role happened to be ADMIN could drive the whole admin surface from
-    // the phone, with the token the app already holds.
-    // ---------------------------------------------------------------------------------
 
     /** The one that matters: a phone's token must not reach the admin API. */
     @Test
@@ -166,16 +152,7 @@ class JwtAuthenticationFilterTest {
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
     }
 
-    // ---------------------------------------------------------------------------------
     // The MFA challenge token grants nothing (ADM-021 AC#3).
-    //
-    // It is handed out after the password step, before TOTP. If it authenticated anything,
-    // the second factor would be advisory: a stolen password alone would reach the API.
-    //
-    // Nothing in the filter mentions it. Both tests pass because a route only ever requires
-    // MOBILE or ADMIN, so a third type matches nothing - which is the property worth pinning,
-    // since it is what makes a *future* route safe by default too.
-    // ---------------------------------------------------------------------------------
 
     @Test
     void rejectsMfaChallengeTokenOnAdminRoute() throws Exception {
@@ -204,11 +181,7 @@ class JwtAuthenticationFilterTest {
         verify(userDetailsService, never()).loadUserByUsername(any());
     }
 
-    /**
-     * Backwards compatibility: tokens issued before the {@code typ} claim existed carry no
-     * type. They must keep working on mobile routes - deploying this should not sign every
-     * existing user out - while still being refused by the admin API.
-     */
+    /** Backwards compatibility: tokens issued before the {@code typ} claim existed carry no type. */
     @Test
     void legacyTokenWithoutTypeClaimStillWorksOnMobileRoutes() throws Exception {
         stubToken(3);

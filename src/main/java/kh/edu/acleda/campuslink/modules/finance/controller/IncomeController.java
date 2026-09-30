@@ -53,10 +53,7 @@ public class IncomeController {
             incomeService.getMine(source, month, year, currency, pageable)));
     }
 
-    /**
-     * Cash flow for a month: income vs expense, net, and savings rate. Defaults to the current
-     * month. Literal path, declared before /{id} so it cannot be shadowed.
-     */
+    /** Cash flow for a month: income vs expense, net, and savings rate. */
     @GetMapping("/cash-flow")
     public ResponseEntity<ApiResponse<CashFlowResponse>> cashFlow(
         @RequestParam(required = false) Currency currency,

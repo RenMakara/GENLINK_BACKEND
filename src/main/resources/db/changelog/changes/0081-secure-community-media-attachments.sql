@@ -25,9 +25,7 @@ CREATE INDEX idx_media_attachment_resource
     ON media_files (attached_resource_type, attached_resource_id, attachment_role, attachment_order)
     WHERE deleted_at IS NULL AND attached_resource_id IS NOT NULL;
 
--- Link unambiguous existing uploads to their owning content. Private content is
--- switched to PRIVATE in the metadata; the media startup reconciler removes any
--- provider ACL and clears the old reusable URL before the application serves it.
+-- Link unambiguous existing uploads to their owning content.
 WITH attachment_candidates AS (
     SELECT m.id AS media_id, p.post_id AS resource_id, 'POST' AS resource_type,
            'IMAGE' AS role, (u.ordinality - 1)::INTEGER AS attachment_order,
@@ -65,9 +63,7 @@ SET attached_resource_type = u.resource_type,
 FROM unambiguous u
 WHERE m.id = u.media_id;
 
--- An upload reused by more than one content row cannot fit the one-resource
--- attachment model. Still revoke its public access if any reference is restricted;
--- restricted API responses will hide its legacy URL until it is re-uploaded.
+-- An upload reused by more than one content row cannot fit the one-resource attachment model.
 WITH restricted_references AS (
     SELECT DISTINCT m.id AS media_id
     FROM media_files m

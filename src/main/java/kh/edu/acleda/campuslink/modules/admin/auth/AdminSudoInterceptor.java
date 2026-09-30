@@ -12,22 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-/**
- * The reusable guard behind {@link RequiresSudo} (ADM-025).
- *
- * <p>Refuses a high-tier action with {@code ADMIN_SUDO_REQUIRED} unless the caller's session
- * has an open five-minute window. Runs before the handler, so a destructive service method is
- * never entered without one.
- *
- * <h2>An interceptor rather than an aspect</h2>
- *
- * The obvious shape is {@code @Around} on the annotation, but {@code spring-boot-starter-aop}
- * is not a declared dependency of this project - {@code aspectjweaver} only appears in the
- * build graph transitively, and leaning on that for a security control is how a dependency bump
- * elsewhere quietly removes it. A {@code HandlerInterceptor} is core Spring MVC, needs nothing
- * new, and gives direct control over the error body, which the acceptance criteria require to
- * carry a specific code rather than a bare 403.
- */
+/** The reusable guard behind {@link RequiresSudo} (ADM-025). */
 @Slf4j
 @Component
 public class AdminSudoInterceptor implements HandlerInterceptor {
@@ -51,9 +36,7 @@ public class AdminSudoInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // Not a warning: this is the expected first response to any high-tier action, and the
-        // portal reacts by prompting for re-authentication. A warning here would be noise on
-        // every legitimate delete.
+        // Not a warning: this is the expected first response to any high-tier action.
         log.debug("Refused {} - no open sudo window", request.getRequestURI());
 
         response.setStatus(HttpStatus.FORBIDDEN.value());
@@ -63,12 +46,7 @@ public class AdminSudoInterceptor implements HandlerInterceptor {
         return false;
     }
 
-    /**
-     * Checks the method first, then the class.
-     *
-     * <p>Class-level lets a whole controller of destructive endpoints be covered in one place,
-     * which is safer than annotating each method and eventually missing one.
-     */
+    /** Checks the method first, then the class. */
     private static boolean requiresSudo(HandlerMethod method) {
         return method.getMethodAnnotation(RequiresSudo.class) != null
             || method.getBeanType().getAnnotation(RequiresSudo.class) != null;

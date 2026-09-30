@@ -73,11 +73,7 @@ public class EventController {
         return ResponseEntity.ok(ApiResponse.success("Event deleted", null));
     }
 
-    /**
-     * Join with the full attendee registration form. Idempotent. Capacity is checked
-     * before payment, and a paid event is settled against the demo wallet - simulation
-     * only, no real transfer.
-     */
+    /** Join with the full attendee registration form. */
     @PostMapping("/{eventId}/rsvp")
     public ResponseEntity<ApiResponse<RsvpResponse>> rsvp(
         @PathVariable UUID eventId,

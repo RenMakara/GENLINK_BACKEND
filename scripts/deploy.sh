@@ -1,15 +1,6 @@
 #!/usr/bin/env bash
-#
 # GenLink KH — deploy the latest main to this EC2 instance.
-#
-# Runs ON the EC2 instance (invoked by the GitHub Actions SSH step, or by hand):
-#   ./scripts/deploy.sh
-#
-# Safe by construction:
-#   * a compile failure never touches the running app (build happens before
-#     the container is swapped, and set -e aborts on failure);
-#   * a runtime failure auto-rolls-back to the previous image;
-#   * only the `app` service is rebuilt — Postgres is never restarted.
+# Health-checks the new container and rolls back if it fails.
 
 set -Eeuo pipefail
 
@@ -32,8 +23,7 @@ trap cleanup_prebuilt_artifact EXIT
 
 log() { echo "[$(date -Is)] $*"; }
 
-# The EC2 checkout may use an HTTPS GitHub remote. When called from GitHub
-# Actions, use its short-lived read token without persisting credentials.
+# The EC2 checkout may use an HTTPS GitHub remote.
 if [[ -n "${GITHUB_TOKEN:-}" ]]; then
   export GIT_TERMINAL_PROMPT=0
   export GIT_CONFIG_COUNT=1
@@ -41,9 +31,7 @@ if [[ -n "${GITHUB_TOKEN:-}" ]]; then
   export GIT_CONFIG_VALUE_0='!f() { if [ "${1:-}" = get ]; then printf "username=x-access-token\npassword=%s\n\n" "$GITHUB_TOKEN"; fi; }; f'
 fi
 
-# 0. The first EC2 bootstrap may have cloned this repository as root while
-#    GitHub Actions connects as ubuntu. Git refuses a repository owned by a
-#    different user, and a pull also needs the checkout to be writable.
+# 0. The first EC2 bootstrap may have cloned this repository as root while GitHub Actions connects as ubuntu.
 if [[ "$(stat -c '%u' "$PROJECT_DIR")" != "$(id -u)" ]]; then
   log "Project checkout is owned by another user; fixing ownership…"
   if ! command -v sudo >/dev/null 2>&1 || ! sudo -n chown -R "$(id -u):$(id -g)" "$PROJECT_DIR"; then
@@ -52,10 +40,7 @@ if [[ "$(stat -c '%u' "$PROJECT_DIR")" != "$(id -u)" ]]; then
   fi
 fi
 
-# 1. Pull the new code. --ff-only refuses to create a merge commit: if the
-#    server checkout has diverged (someone edited a tracked file here), the
-#    deploy stops loudly instead of silently merging. .env is gitignored, so
-#    it is never touched.
+# 1. Pull the new code.
 log "Pulling latest main…"
 git fetch --quiet origin main
 BEFORE="$(git rev-parse --short HEAD)"
@@ -79,12 +64,7 @@ if docker image inspect "$APP_IMAGE" >/dev/null 2>&1; then
   log "Tagged current image as rollback."
 fi
 
-# 3. Build the new image. CI uploads a JAR that already passed the full build
-#    gate, so the normal SSH deploy only assembles the small JRE image. The
-#    source-build fallback keeps manual recovery possible when no CI artifact
-#    is present. If either build fails, set -e aborts HERE — the old container
-#    is still running and untouched, so a broken commit cannot take production
-#    down.
+# 3. Build the new image.
 log "Building app image…"
 if [[ -s "$PREBUILT_JAR" ]]; then
   log "Using CI-verified JAR; skipping remote Gradle compilation."

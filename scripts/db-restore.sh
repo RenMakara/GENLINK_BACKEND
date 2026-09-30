@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
-#
 # GenLink KH — PostgreSQL restore.
-#
-#   ./scripts/db-restore.sh backups/genlink_2026-07-23_02-00-00.dump
-#
-# DESTRUCTIVE: drops and recreates every object in the target database.
-# It stops the app first so nothing writes mid-restore, and it takes a
-# safety dump of the current state before touching anything — so a restore
-# of the wrong file is itself recoverable.
+# Replaces all database objects after stopping the app; saves a backup first.
 
 set -Eeuo pipefail
 
@@ -49,10 +42,7 @@ docker compose exec -T postgres sh -c \
   > "$SAFETY"
 chmod 600 "$SAFETY"
 
-# 3. Restore. --clean --if-exists drops existing objects first; without it,
-#    every table would error as "already exists" and the data would be a
-#    mix of old and new. -1 wraps it in one transaction: any failure rolls
-#    back to a clean state instead of leaving a half-restored database.
+# 3. Restore.
 echo "[3/4] Restoring…"
 docker compose exec -T postgres sh -c \
   "PGPASSWORD=\"\$POSTGRES_PASSWORD\" pg_restore -U '${DB_USER}' -d '${DB_NAME}' --clean --if-exists -1" \

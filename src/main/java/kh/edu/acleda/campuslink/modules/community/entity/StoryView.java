@@ -17,10 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * One viewer's seen-mark on a story. The unique (story, viewer) pair makes marking a
- * story seen idempotent and lets the owner read a distinct viewer list.
- */
+/** One viewer's seen-mark on a story. */
 @Getter
 @Setter
 @NoArgsConstructor

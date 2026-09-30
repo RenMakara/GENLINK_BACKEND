@@ -22,11 +22,7 @@ public interface PollOptionRepository extends JpaRepository<PollOption, UUID> {
     @Query("DELETE FROM PollOption o WHERE o.poll.id = :pollId")
     void deleteByPollId(@Param("pollId") UUID pollId);
 
-    /**
-     * Atomic tally change, so two people voting the same option at once cannot lose an
-     * increment (mirrors PostRepository.adjustLikeCount). Clears the context so the
-     * follow-up read of the poll returns the fresh counts, not the stale cached rows.
-     */
+    /** Updates poll totals atomically to avoid lost votes. */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE PollOption o SET o.voteCount = o.voteCount + :delta WHERE o.id = :optionId")
     void adjustVoteCount(@Param("optionId") UUID optionId, @Param("delta") int delta);

@@ -53,39 +53,18 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * <h1>The five security regression tests (ADM-032, testing-plan.md §3)</h1>
- *
- * Five behaviours whose silent failure would be worst, gathered in one file <strong>on
- * purpose</strong>. Each is also covered where it lives - {@code JwtAuthenticationFilterTest},
- * {@code CustomUserDetailsServiceTest}, {@code AdminAuditServiceTest} - and the duplication is
- * the point: this file is a checklist someone can open and read, rather than five assertions
- * scattered across a suite of 780 where nobody can tell whether the set is complete.
- *
- * <p>Every one of these is a <em>regression</em> test in the literal sense. S2 and S4 pin bugs
- * that were already found and fixed in this codebase; S1, S3 and S5 pin mistakes the design
- * review identified as likely.
- *
- * <p><strong>Each has been verified by removing its protection and confirming it fails.</strong>
- * A regression test that passes whether or not the code is correct is worse than none: it
- * provides false assurance. The results are recorded in {@code PROJECT_STATUS.md}.
- */
+/** Pins five critical security behaviors. */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class SecurityRegressionTest {
 
-    // ===============================================================================
     @Nested
     @DisplayName("S1 - a typ=MOBILE token is rejected on /api/v1/admin/**")
     @ExtendWith(MockitoExtension.class)
     @MockitoSettings(strictness = Strictness.LENIENT)
     class S1MobileTokenOnAdminRoute {
 
-        /**
-         * Protects against: any user whose {@code users.role} happens to be {@code ADMIN}
-         * reaching the entire admin surface from the phone, with the token the app already
-         * holds. Role was never meant to be the boundary between two different clients.
-         */
+        /** Prevents mobile tokens from reaching admin routes. */
         @Mock private JwtService jwtService;
         @Mock private UserDetailsService userDetailsService;
         @Mock private FilterChain filterChain;
@@ -131,7 +110,6 @@ class SecurityRegressionTest {
         }
     }
 
-    // ===============================================================================
     @Nested
     @DisplayName("S2 - a SUSPENDED user is denied on the next request")
     @ExtendWith(MockitoExtension.class)
@@ -141,12 +119,7 @@ class SecurityRegressionTest {
         @Mock private UserRepository userRepository;
         @Mock private AdminAuthorityProvider adminAuthorityProvider;
 
-        /**
-         * Protects against: suspension becoming cosmetic. {@code enabled} is an
-         * <em>allow-list</em> ({@code == ACTIVE}), so a status added later is locked out by
-         * default. Rewriting it as a deny-list - {@code != BANNED && != DELETED} - would let
-         * SUSPENDED keep full access, and would look tidier to whoever did it.
-         */
+        /** Protects against: suspension becoming cosmetic. */
         @ParameterizedTest(name = "{0} is disabled")
         @EnumSource(value = AccountStatus.class, names = {"PENDING", "BANNED", "SUSPENDED", "DELETED"})
         void everyNonActiveStatusIsDisabled(AccountStatus status) {
@@ -200,20 +173,11 @@ class SecurityRegressionTest {
         }
     }
 
-    // ===============================================================================
     @Nested
     @DisplayName("S3 - a missing permission returns 403, not 404")
     class S3MissingPermissionIsForbidden {
 
-        /**
-         * Protects against: the mobile 404 convention being "helpfully" applied to admin routes
-         * (SSOT §8 C-1).
-         *
-         * <p>The mobile API hides existence with a 404 because leaking that a resource exists is
-         * a privacy leak between users. The admin API must not: an admin who cannot see a page
-         * needs to know it exists and that their role is the reason, or they file a bug report
-         * about missing data. Making the two "consistent" is the mistake this pins.
-         */
+        /** Protects against: the mobile 404 convention being "helpfully" applied to admin routes (SSOT §8 C-1). */
         @Test
         void anAccessDeniedExceptionBecomesA403WithTheForbiddenCode() {
             ResponseEntity<ApiResponse<Void>> response =
@@ -247,7 +211,6 @@ class SecurityRegressionTest {
         }
     }
 
-    // ===============================================================================
     @Nested
     @DisplayName("S4 - an audit row is written when an admin action FAILS")
     @ExtendWith(MockitoExtension.class)
@@ -263,14 +226,7 @@ class SecurityRegressionTest {
                 new com.fasterxml.jackson.databind.ObjectMapper());
         }
 
-        /**
-         * Protects against: the {@code SecurityAuditService} rollback bug repeating.
-         *
-         * <p>That bug: a caller logs a failure and then throws, which rolls its transaction
-         * back - taking the audit row with it. The events the log exists for (refused actions,
-         * failed logins) were the exact ones never recorded. The fix is REQUIRES_NEW, and this
-         * pins that a failure does <strong>not</strong> join the caller's transaction.
-         */
+        /** Protects against: the {@code SecurityAuditService} rollback bug repeating. */
         @Test
         void aFailedActionIsWrittenInItsOwnTransaction() {
             when(permissionCache.identityFor(any())).thenReturn(AdminIdentity.NONE);
@@ -286,10 +242,7 @@ class SecurityRegressionTest {
             assertThat(captor.getValue().getErrorCode()).isEqualTo("USER_ALREADY_BANNED");
         }
 
-        /**
-         * The mirror image, and equally load-bearing: a SUCCESS row must join the caller's
-         * transaction, so it cannot outlive a rollback of the action it claims happened.
-         */
+        /** The mirror image, and equally load-bearing: a SUCCESS row must join the caller's transaction. */
         @Test
         void aSuccessfulActionJoinsTheCallersTransaction() {
             when(permissionCache.identityFor(any())).thenReturn(AdminIdentity.NONE);
@@ -301,7 +254,6 @@ class SecurityRegressionTest {
         }
     }
 
-    // ===============================================================================
     @Nested
     @DisplayName("S5 - lifting a sanction on a PENDING user returns them to PENDING")
     class S5UnbanRestoresPreviousStatus {
@@ -311,12 +263,7 @@ class SecurityRegressionTest {
             SecurityContextHolder.clearContext();
         }
 
-        /**
-         * The bug it guards: unban setting {@code ACTIVE} unconditionally. A user who was
-         * PENDING when they were banned would come back <em>verified</em> - the ban would have
-         * silently granted them something. Found during the ADM-001 schema review, which is why
-         * {@code user_sanctions.previous_status} exists at all.
-         */
+        /** The bug it guards: unban setting {@code ACTIVE} unconditionally. */
         @Test
         void liftingASanctionRestoresTheStatusTheUserHadBefore() {
             UUID userId = UUID.randomUUID();
@@ -370,14 +317,7 @@ class SecurityRegressionTest {
             assertThat(user.getAccountStatus()).isEqualTo(AccountStatus.PENDING);
         }
 
-        /**
-         * Active in the meantime: the <em>mechanism</em> that makes the behaviour above possible.
-         *
-         * <p>{@code previous_status} is NOT NULL, so a sanction cannot be written without
-         * recording what to restore. Without this column the correct unban is not merely
-         * unimplemented - it is unimplementable, because the information is gone. Pinning it now
-         * means the schema cannot regress while S5 is active.
-         */
+        /** Active in the meantime: the mechanism that makes the behaviour above possible. */
         @Test
         void aSanctionCannotBeRecordedWithoutThePreviousStatus() throws Exception {
             var column = UserSanction.class.getDeclaredField("previousStatus")
@@ -391,10 +331,7 @@ class SecurityRegressionTest {
                 .isEqualTo(AccountStatus.class);
         }
 
-        /**
-         * PENDING and ACTIVE must remain distinct values. Collapsing them - "a banned user is
-         * inactive anyway" - would make the distinction S5 protects unexpressible.
-         */
+        /** PENDING and ACTIVE must remain distinct values. */
         @Test
         void pendingAndActiveAreDistinctStatuses() {
             assertThat(AccountStatus.PENDING).isNotEqualTo(AccountStatus.ACTIVE);

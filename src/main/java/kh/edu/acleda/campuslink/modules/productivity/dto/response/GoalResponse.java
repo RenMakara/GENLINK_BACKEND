@@ -5,12 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * progressPercentage and status are computed from the goal's milestones on read
- * (done/total), not read from the stored columns - so they never drift.
- *
- * @param status NOT_STARTED / IN_PROGRESS / COMPLETED
- */
+/** progressPercentage and status are computed from the goal's milestones on read (done/total). */
 public record GoalResponse(
     UUID goalId,
     String title,

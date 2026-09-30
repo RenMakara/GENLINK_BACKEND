@@ -4,12 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * @param score                  percent correct (0-100)
- * @param xpEarned               XP granted by this submission - 0 on a repeat pass
- * @param learningBudgetCredited simulated wallet credit from this submission - 0 on a
- *                               repeat pass
- */
+/** @param score percent correct (0-100) */
 public record QuizResultResponse(
     int score,
     int correctCount,

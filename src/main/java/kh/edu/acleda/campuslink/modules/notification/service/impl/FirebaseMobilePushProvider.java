@@ -41,8 +41,7 @@ public class FirebaseMobilePushProvider implements MobilePushProvider {
             firebaseMessaging.send(message.build());
             return MobilePushSendResult.success();
         } catch (FirebaseMessagingException exception) {
-            // UNREGISTERED is the provider's definitive signal that this installation token is
-            // no longer valid. Other failures remain retryable and must not delete a good token.
+            // UNREGISTERED is the provider's definitive signal that this installation token is no longer valid.
             if (exception.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
                 return MobilePushSendResult.invalid();
             }

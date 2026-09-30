@@ -10,13 +10,7 @@ import kh.edu.acleda.campuslink.modules.community.enums.RsvpStatus;
 import kh.edu.acleda.campuslink.modules.finance.enums.Currency;
 import kh.edu.acleda.campuslink.shared.enums.Language;
 
-/**
- * @param myRsvpStatus null when the caller has not responded; drives Join vs Cancel
- *                     without a request per row
- * @param full         attendeeLimit reached, so the client can disable Join up front
- * @param price        simulation only - paid RSVP settles against the demo wallet
- * @param currency     wallet balance used for the paid RSVP; null for free events
- */
+/** @param myRsvpStatus null when the caller has not responded; drives Join vs Cancel */
 public record EventResponse(
     UUID eventId,
     PostResponse.AuthorSummary organizer,

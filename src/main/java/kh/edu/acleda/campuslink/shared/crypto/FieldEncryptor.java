@@ -14,15 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
-/*  Authenticated encryption សម្រាប់ credential columns (SSOT §9.2).
- GCM គឺ authenticate ព្រមទាំង encrypt ដូច្នេះ tampered ciphertext នឹង
- fail loud ជំនួស​ឱ្យ​ការ decrypt ទៅ​ជា plausible garbage។ ចំពោះ CBC
- អ្នកដែលមាន write access អាច flip bits និង change stored secret
- ទៅ​ជា​របស់​ខ្លួន​ឯងដោយ silent បាន
- Recovery codes គឺត្រូវបាន hashed ព្រោះវាគ្រាន់តែត្រូវ check តែប៉ុណ្ណោះ។ ចំណែក
- TOTP secret ត្រូវតែ read back ដើម្បី generate codes ដូច្នេះវាត្រូវ encrypted។
- ការបែងចែកនេះគឺសំខាន់ណាស់៖ hashed secret នឹងធ្វើឱ្យ authenticator app 
- ទាំងអស់ មិនអាចប្រើប្រាស់បាន។ */
+/* Authenticated encryption សម្រាប់ credential columns (SSOT §9.2). */
 @Component
 public class FieldEncryptor {
 
@@ -35,14 +27,7 @@ public class FieldEncryptor {
     private static final int IV_BYTES = 12;
     private static final int TAG_BITS = 128;
 
-    /**
-     * Marks the key generation that produced a value. Nothing rotates keys yet, but
-     * stored
-     * ciphertext outlives code: without a marker, a future rotation cannot tell
-     * which values
-     * still need the old key, and the only remedy would be re-enrolling every
-     * administrator.
-     */
+    /** Marks the key generation that produced a value. */
     private static final String PREFIX = "v1:";
 
     private static final Set<String> DEV_PROFILES = Set.of("dev", "local", "test");
@@ -54,20 +39,7 @@ public class FieldEncryptor {
         this.key = resolveKey(properties, environment);
     }
 
-    /**
-     * Mirrors {@code JwtTokenProvider}: configured key everywhere, ephemeral
-     * fallback only
-     * under a dev profile so a local checkout runs with no setup.
-     *
-     * <p>
-     * The fallback is louder here than it is for JWT, and deliberately so. An
-     * ephemeral JWT
-     * key signs everyone out on restart, which is an inconvenience. An ephemeral
-     * encryption key
-     * makes every stored TOTP secret permanently undecryptable, which locks
-     * administrators out
-     * of their own accounts.
-     */
+    /** Mirrors {@code JwtTokenProvider}: configured key everywhere. */
     private static SecretKey resolveKey(CryptoProperties properties, Environment environment) {
         String configured = properties.getSecretKey();
         if (configured != null && !configured.isBlank()) {
@@ -122,9 +94,7 @@ public class FieldEncryptor {
             return null;
         }
         try {
-            // A fresh IV per call. Reusing one under GCM is catastrophic - it leaks the XOR
-            // of
-            // two plaintexts and, worse, allows forgery of further ciphertexts.
+            // A fresh IV per call.
             byte[] iv = new byte[IV_BYTES];
             random.nextBytes(iv);
 
@@ -143,14 +113,7 @@ public class FieldEncryptor {
         }
     }
 
-    /**
-     * @throws IllegalStateException if the value was written with a different key
-     *                               or has been
-     *                               tampered with. Both are worth failing on rather
-     *                               than papering over - a silent null
-     *                               would present as "this admin has no second
-     *                               factor".
-     */
+    /** @throws IllegalStateException if the value was written with a different key */
     public String decrypt(String stored) {
         if (stored == null) {
             return null;

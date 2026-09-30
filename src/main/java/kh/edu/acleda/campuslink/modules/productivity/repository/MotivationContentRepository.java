@@ -19,11 +19,7 @@ public interface MotivationContentRepository extends JpaRepository<MotivationCon
 
     List<MotivationContent> findByCategoryAndDeletedAtIsNullOrderByCreatedAtDesc(String category);
 
-    /**
-     * Atomic counter bumps so concurrent saves cannot lose an increment.
-     * clear/flushAutomatically so a re-read in the same transaction sees the new count
-     * rather than the stale first-level-cached entity.
-     */
+    /** Atomic counter bumps so concurrent saves cannot lose an increment. */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE MotivationContent m SET m.savedCount = m.savedCount + 1 WHERE m.id = :id")
     void incrementSavedCount(@Param("id") UUID id);

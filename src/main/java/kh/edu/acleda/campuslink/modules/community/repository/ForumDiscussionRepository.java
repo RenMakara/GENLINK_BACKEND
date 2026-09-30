@@ -24,11 +24,7 @@ public interface ForumDiscussionRepository extends JpaRepository<ForumDiscussion
     /** Owner-scoped: another user's id reads as not found, never forbidden. */
     Optional<ForumDiscussion> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
 
-    /**
-     * The forum list. The author is JOIN FETCHed even for anonymous discussions: the
-     * row is loaded, then withheld at the DTO boundary, because the service still
-     * needs it to answer "is this mine".
-     */
+    /** The forum list. */
     @Query(value = "SELECT d FROM ForumDiscussion d LEFT JOIN FETCH d.user WHERE d.deletedAt IS NULL "
         + "AND (:category IS NULL OR d.category = :category)",
         countQuery = "SELECT COUNT(d) FROM ForumDiscussion d WHERE d.deletedAt IS NULL "
@@ -40,10 +36,7 @@ public interface ForumDiscussionRepository extends JpaRepository<ForumDiscussion
         countQuery = "SELECT COUNT(d) FROM ForumDiscussion d WHERE d.deletedAt IS NULL AND d.user.id = :userId")
     Page<ForumDiscussion> findByAuthor(@Param("userId") UUID userId, Pageable pageable);
 
-    /**
-     * The admin moderation queue: live discussions that carry reports, most-reported first.
-     * Author JOIN FETCHed - the queue reveals it for accountability, so it is loaded, not withheld.
-     */
+    /** The admin moderation queue: live discussions that carry reports, most-reported first. */
     @Query(value = "SELECT d FROM ForumDiscussion d LEFT JOIN FETCH d.user "
         + "WHERE d.deletedAt IS NULL AND d.reportCount > 0 ORDER BY d.reportCount DESC",
         countQuery = "SELECT COUNT(d) FROM ForumDiscussion d WHERE d.deletedAt IS NULL AND d.reportCount > 0")

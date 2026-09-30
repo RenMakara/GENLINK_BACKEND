@@ -27,8 +27,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 @Entity
-// Active-budget uniqueness is a PostgreSQL partial index managed by Liquibase
-// (0049), because JPA's @UniqueConstraint cannot exclude soft-deleted rows.
+// Active-budget uniqueness is a PostgreSQL partial index managed by Liquibase (0049).
 @Table(name = "budgets")
 @AttributeOverride(name = "id", column = @Column(name = "budget_id", nullable = false, updatable = false))
 public class Budget extends BaseEntity {
