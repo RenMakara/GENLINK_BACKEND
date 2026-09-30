@@ -149,9 +149,15 @@ public class RecurringTransactionServiceImpl implements RecurringTransactionServ
         } else {
             Expense expense = expenseRepository.save(Expense.builder()
                 .user(user).title(template.getTitle()).amount(template.getAmount())
-                .currency(currency).category(template.getCategory()).expenseDate(runDate).build());
+                .currency(currency).category(template.getCategory()).expenseDate(runDate)
+                .paidFromWallet(false).build());
             if (template.isFromWallet()) {
-                debitIfFunded(user, currency, template.getAmount(), expense);
+                if (debitIfFunded(user, currency, template.getAmount(), expense)) {
+                    // Keep the expense's payment state aligned with the ledger. This also lets
+                    // later edits/deletes refund the wallet only when a debit really happened.
+                    expense.setPaidFromWallet(true);
+                    expenseRepository.save(expense);
+                }
             }
         }
         log.info("Recurring {} materialised: template={} user={} amount={} {} on {}",
@@ -164,15 +170,17 @@ public class RecurringTransactionServiceImpl implements RecurringTransactionServ
      * batch, so the expense is still tracked and the debit is skipped with a warning. Checking the
      * balance up front avoids throwing inside the batch transaction and marking it rollback-only.
      */
-    private void debitIfFunded(User user, Currency currency, BigDecimal amount, Expense expense) {
+    private boolean debitIfFunded(User user, Currency currency, BigDecimal amount, Expense expense) {
         DemoWallet wallet = demoWalletService.getOrCreateWalletEntity(user);
         BigDecimal balance = currency == Currency.KHR ? wallet.getBalanceKhr() : wallet.getBalanceUsd();
         if (balance != null && balance.compareTo(amount) >= 0) {
             ledgerService.debit(wallet, TransactionType.EXPENSE, currency, amount,
                 "Recurring expense: " + expense.getTitle(), "EXPENSE", expense.getId());
+            return true;
         } else {
             log.warn("Recurring expense {} tracked but wallet debit skipped (insufficient {} funds): user={}",
                 expense.getId(), currency, user.getId());
+            return false;
         }
     }
 

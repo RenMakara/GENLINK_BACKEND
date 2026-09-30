@@ -28,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -171,7 +172,9 @@ class RecurringTransactionServiceImplTest {
 
         service.processDue(LocalDate.of(2026, 7, 10));
 
-        verify(expenseRepository).save(any(Expense.class));
+        ArgumentCaptor<Expense> expenseCaptor = ArgumentCaptor.forClass(Expense.class);
+        verify(expenseRepository, times(2)).save(expenseCaptor.capture());
+        assertThat(expenseCaptor.getAllValues().get(1).isPaidFromWallet()).isTrue();
         verify(ledgerService).debit(eq(w), eq(TransactionType.EXPENSE), eq(Currency.USD),
             eq(new BigDecimal("20.00")), any(), eq("EXPENSE"), any());
     }
@@ -185,7 +188,9 @@ class RecurringTransactionServiceImplTest {
 
         service.processDue(LocalDate.of(2026, 7, 10));
 
-        verify(expenseRepository).save(any(Expense.class)); // expense still recorded
+        ArgumentCaptor<Expense> expenseCaptor = ArgumentCaptor.forClass(Expense.class);
+        verify(expenseRepository).save(expenseCaptor.capture()); // expense still recorded
+        assertThat(expenseCaptor.getValue().isPaidFromWallet()).isFalse();
         verify(ledgerService, never()).debit(any(), any(), any(), any(), any(), any(), any());
     }
 
