@@ -1,7 +1,8 @@
 --liquibase formatted sql
 
 --changeset genlink:0079-create-discussion-reposts
--- Forum discussions are a separate content type from posts.
+-- Forum discussions are a separate content type from posts, so their repost records
+-- must point at forum_discussions rather than being sent through the post table.
 CREATE TABLE IF NOT EXISTS discussion_reposts (
     discussion_repost_id UUID PRIMARY KEY,
     discussion_id UUID NOT NULL,

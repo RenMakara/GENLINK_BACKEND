@@ -1,7 +1,9 @@
 --liquibase formatted sql
 
 --changeset genlink:0027-add-post-reports
--- Posts had no reporting at all - no report_count and no table - so a community moderator had nothing to review.
+-- Posts had no reporting at all - no report_count and no table - so a community moderator
+-- had nothing to review. Mirrors discussion_reports (0019). One report per user per post,
+-- so report_count means "distinct people flagged this" rather than "how many taps".
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS report_count INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS post_reports (

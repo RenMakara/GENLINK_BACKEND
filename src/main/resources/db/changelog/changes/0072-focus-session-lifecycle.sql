@@ -14,6 +14,7 @@ ALTER TABLE focus_sessions
     ADD COLUMN IF NOT EXISTS paused_at TIMESTAMP;
 
 -- Existing incomplete rows have no reliable client/session state to restore.
+-- Treat them as abandoned rather than surfacing them as completed history.
 UPDATE focus_sessions
 SET status = CASE WHEN completed = TRUE THEN 'COMPLETED' ELSE 'ABANDONED' END
 WHERE status IS NULL;

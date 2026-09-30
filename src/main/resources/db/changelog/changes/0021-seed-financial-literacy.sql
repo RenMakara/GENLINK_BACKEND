@@ -1,7 +1,10 @@
 --liquibase formatted sql
 
 --changeset genlink:0021-seed-financial-literacy
--- English sample lessons + quizzes so the literacy endpoints are demoable.
+-- English sample lessons + quizzes so the literacy endpoints are demoable. Khmer
+-- content (title_km/content_km/question_*_km/option_*_km/explanation_km) is left NULL
+-- on purpose - LocalizedTextSelector falls back to English, and real Khmer authoring
+-- is a content-team task, not machine translation. One lesson per topic, 2 questions each.
 INSERT INTO financial_lessons (lesson_id, title_en, content_en, topic, content_type, estimated_time, xp_reward, media_url) VALUES
     ('a0000000-0000-4000-8000-000000000001', 'Why saving early matters', 'Saving even a small amount every week builds a habit and, over time, a cushion. Start with a fixed amount and treat it like a bill you owe yourself.', 'SAVING_MONEY', 'ARTICLE', 4, 20, NULL),
     ('a0000000-0000-4000-8000-000000000002', 'Build your first budget', 'A budget is a plan for your money: list your income, then your fixed and flexible spending. What is left is what you can save or spend freely.', 'BUDGETING', 'ARTICLE', 5, 20, NULL),

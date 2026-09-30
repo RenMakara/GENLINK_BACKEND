@@ -1,7 +1,8 @@
 --liquibase formatted sql
 
 --changeset genlink:0078-create-post-reposts
--- A separate row per user makes repost/unrepost idempotent.
+-- A separate row per user makes repost/unrepost idempotent and lets feed responses
+-- report the current user's repost state without trusting client-supplied user ids.
 CREATE TABLE IF NOT EXISTS post_reposts (
     post_repost_id UUID PRIMARY KEY,
     post_id UUID NOT NULL,

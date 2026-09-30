@@ -1,7 +1,10 @@
 --liquibase formatted sql
 
 --changeset genlink:0019-add-forum-reactions-and-reports
--- forum_discussions already carries reaction_count and report_count, but neither had a table behind it.
+-- forum_discussions already carries reaction_count and report_count, but neither had
+-- a table behind it. Nothing recorded WHO reacted or reported, so the counters could
+-- only ever be free-floating integers: no idempotency, no reactedByMe, and no way to
+-- stop one user inflating a count by tapping twice. Mirrors post_reactions.
 CREATE TABLE IF NOT EXISTS forum_reactions (
     forum_reaction_id UUID PRIMARY KEY,
     discussion_id UUID NOT NULL,
@@ -16,7 +19,8 @@ CREATE TABLE IF NOT EXISTS forum_reactions (
     CONSTRAINT uk_forum_reactions_discussion_user UNIQUE (discussion_id, user_id)
 );
 
--- Keeps report_count aligned with unique users, not report taps.
+-- One report per user per discussion: the unique constraint is what makes
+-- report_count mean "how many people flagged this" rather than "how many taps".
 CREATE TABLE IF NOT EXISTS discussion_reports (
     discussion_report_id UUID PRIMARY KEY,
     discussion_id UUID NOT NULL,

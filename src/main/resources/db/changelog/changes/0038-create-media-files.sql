@@ -2,7 +2,13 @@
 
 --changeset genlink:0038-create-media-files
 --validCheckSum: 9:a1729a32fa29b0d7c2e7b6b05e56411f
--- Metadata for user-uploaded media.
+-- Metadata for user-uploaded media. The bytes live in S3-compatible object
+-- storage; this table only records what/where/whose, so
+-- the database stays small and backups stay fast.
+--
+-- Three timestamps track the lifecycle: created_at (presign requested),
+-- uploaded_at (object's LastModified, read at confirm), confirmed_at (confirm
+-- processed). deleted_at is a soft delete; a later purge job removes the object.
 CREATE TABLE media_files (
     id              UUID PRIMARY KEY,
     owner_id        UUID NOT NULL REFERENCES users(user_id),

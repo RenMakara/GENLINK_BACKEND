@@ -1,7 +1,9 @@
 --liquibase formatted sql
 
 --changeset genlink:0025-seed-daily-challenges
--- English sample challenges so the challenge list + the Home daily-challenge card have content.
+-- English sample challenges so the challenge list + the Home daily-challenge card have
+-- content. Khmer (title_km / description_km) left NULL for the content team. Deadlines are
+-- set far out so the samples stay "active" for demos.
 INSERT INTO daily_challenges (challenge_id, title_en, description_en, challenge_type, xp_reward, deadline) VALUES
     ('f0000000-0000-4000-8000-000000000001', 'Check in on a habit', 'Complete one habit check-in today.', 'HABIT', 15, '2026-12-31 23:59:59'),
     ('f0000000-0000-4000-8000-000000000002', 'Take a quiz', 'Finish any quiz and see your score.', 'QUIZ', 20, '2026-12-31 23:59:59'),

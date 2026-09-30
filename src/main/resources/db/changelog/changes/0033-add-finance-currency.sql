@@ -1,7 +1,10 @@
 --liquibase formatted sql
 
 --changeset genlink:0033-add-finance-currency
--- Adds currency tracking to finance records.
+-- Dual currency, tracking side (backend/docs/FINANCE_LEDGER_PLAN.md, Phase 3a). Cambodia uses
+-- KHR and USD every day, so each money record now carries its currency and cash-flow + budgets
+-- report per currency. DEFAULT 'USD' backfills every existing row, so nothing breaks. The demo
+-- wallet stays USD-only until Phase 3b adds a KHR balance (Model A).
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'USD';
 ALTER TABLE incomes ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'USD';
 ALTER TABLE budgets ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'USD';

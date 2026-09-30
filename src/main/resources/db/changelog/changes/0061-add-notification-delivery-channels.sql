@@ -4,7 +4,8 @@
 ALTER TABLE notification_outbox
     ADD COLUMN IF NOT EXISTS channel VARCHAR(20) NOT NULL DEFAULT 'IN_APP';
 
--- Task 6B created a recipient-only guard.
+-- Task 6B created a recipient-only guard. Include the channel so one request can safely fan out
+-- to independent in-app, email, and push delivery rows.
 DROP INDEX IF EXISTS uk_notification_outbox_recipient_dedupe;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_notification_outbox_recipient_channel_dedupe

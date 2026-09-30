@@ -1,7 +1,8 @@
 --liquibase formatted sql
 
 --changeset genlink:0070-add-khmer-motivation-content
--- Add Khmer text to the existing stable motivation rows.
+-- Add Khmer text to the existing stable motivation rows. IDs and English fallback
+-- content remain unchanged so saved items and daily rotation keep their identity.
 UPDATE motivation_contents
 SET title_km = 'ចាប់ផ្តើមពីរឿងតូចៗ',
     content_km = 'មិនចាំបាច់រង់ចាំឱ្យខ្លួនឯងពូកែសិន ទើបចាប់ផ្តើមទេ។ អ្វីដែលសំខាន់ គឺត្រូវចាប់ផ្តើម។ មួយជំហានតូចដែលធ្វើបានថ្ងៃនេះ ប្រសើរជាងផែនការដ៏ល្អឥតខ្ចោះដែលនៅតែពន្យារពេលដល់ថ្ងៃស្អែក។'

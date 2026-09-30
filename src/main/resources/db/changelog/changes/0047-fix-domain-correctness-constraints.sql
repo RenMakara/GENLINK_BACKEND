@@ -1,12 +1,14 @@
 --liquibase formatted sql
 
 --changeset genlink:0047-fix-domain-correctness-constraints
--- Budgets are independent per currency.
+-- Budgets are independent per currency. Existing rows already have currency because
+-- 0033 backfilled USD, so replacing the old constraint is non-destructive.
 ALTER TABLE budgets DROP CONSTRAINT IF EXISTS uk_budgets_user_month_year;
 ALTER TABLE budgets ADD CONSTRAINT uk_budgets_user_month_year_currency
     UNIQUE (user_id, month, year, currency);
 
--- Retain the earliest historical award for each logical source before enforcing idempotency.
+-- Retain the earliest historical award for each logical source before enforcing
+-- idempotency. This repairs XP that may already have been farmed by toggling state.
 DELETE FROM xp_history
 WHERE xp_history_id IN (
     SELECT xp_history_id

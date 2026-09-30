@@ -1,7 +1,9 @@
 --liquibase formatted sql
 
 --changeset genlink:0017-create-interests-and-social-links
--- Interests back the "Choose Interests" onboarding step and personalise the home feed.
+-- Interests back the "Choose Interests" onboarding step and personalise the home
+-- feed. They are system-generated content, so names are bilingual columns per the
+-- language support plan. User-chosen links are user content and stored as written.
 CREATE TABLE IF NOT EXISTS interests (
     interest_id UUID PRIMARY KEY,
     code VARCHAR(60) NOT NULL,
@@ -49,7 +51,8 @@ CREATE INDEX IF NOT EXISTS idx_user_social_links_user_id ON user_social_links(us
 --rollback DROP TABLE IF EXISTS user_social_links; DROP TABLE IF EXISTS user_interests; DROP TABLE IF EXISTS interests;
 
 --changeset genlink:0017-seed-interests
--- Onboarding cannot render a chooser against an empty table, so ship a starter catalogue.
+-- Onboarding cannot render a chooser against an empty table, so ship a starter
+-- catalogue. Khmer names need review by a native speaker before the demo.
 INSERT INTO interests (interest_id, code, name_en, name_km, category) VALUES
     (gen_random_uuid(), 'TECHNOLOGY',       'Technology',        'បច្ចេកវិទ្យា',        'CAREER'),
     (gen_random_uuid(), 'DESIGN',           'Design',            'ការរចនា',             'CAREER'),
